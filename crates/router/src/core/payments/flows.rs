@@ -8,6 +8,7 @@ pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
 pub mod setup_mandate_flow;
+pub mod tax_calculation_flow;
 
 use async_trait::async_trait;
 
@@ -536,6 +537,7 @@ default_imp_for_connector_request_id!(
     connector::Cryptopay,
     connector::Cybersource,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1168,6 +1170,7 @@ default_imp_for_payouts!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Fiserv,
     connector::Fiservemea,
@@ -2149,6 +2152,7 @@ default_imp_for_fraud_check!(
     connector::Cybersource,
     connector::Coinbase,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2940,6 +2944,7 @@ default_imp_for_connector_authentication!(
     connector::Coinbase,
     connector::Cybersource,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -3067,6 +3072,184 @@ default_imp_for_authorize_session_token!(
     connector::Rapyd,
     connector::Razorpay,
     connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Volt,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_calculate_tax {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentTaxCalculation for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::CalculateTax,
+                types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentTaxCalculation for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CalculateTax,
+        types::PaymentsTaxCalculationData,
+        types::TaxCalculationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_calculate_tax!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Square,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Volt,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_session_update {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentSessionUpdate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::SdkSessionUpdate,
+                types::SdkPaymentsSessionUpdateData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentSessionUpdate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_session_update!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Square,
     connector::Signifyd,
     connector::Stripe,
     connector::Shift4,

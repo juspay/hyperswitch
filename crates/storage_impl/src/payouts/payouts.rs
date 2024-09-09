@@ -584,6 +584,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 diesel_models::schema::customers::table
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
+            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
             .into_boxed();
@@ -785,6 +786,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
             .select(po_dsl::payout_id)
+            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
             .into_boxed();

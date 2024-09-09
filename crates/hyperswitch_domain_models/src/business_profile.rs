@@ -18,10 +18,7 @@ use crate::{
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct BusinessProfile {
     profile_id: common_utils::id_type::ProfileId,
@@ -54,16 +51,13 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
     pub is_dynamic_routing_enabled: Option<bool>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 pub struct BusinessProfileSetter {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -95,15 +89,12 @@ pub struct BusinessProfileSetter {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub is_dynamic_routing_enabled: Option<bool>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<BusinessProfileSetter> for BusinessProfile {
     fn from(value: BusinessProfileSetter) -> Self {
         Self {
@@ -150,24 +141,18 @@ impl From<BusinessProfileSetter> for BusinessProfile {
 }
 
 impl BusinessProfile {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
     }
 
-    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.id
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug)]
 pub struct BusinessProfileGeneralUpdate {
     pub profile_name: Option<String>,
@@ -194,15 +179,12 @@ pub struct BusinessProfileGeneralUpdate {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub is_dynamic_routing_enabled: Option<bool>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug)]
 pub enum BusinessProfileUpdate {
     Update(Box<BusinessProfileGeneralUpdate>),
@@ -219,10 +201,7 @@ pub enum BusinessProfileUpdate {
     },
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
     fn from(business_profile_update: BusinessProfileUpdate) -> Self {
         let now = date_time::now();
@@ -401,10 +380,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for BusinessProfile {
     type DstType = diesel_models::business_profile::BusinessProfile;
@@ -570,7 +546,7 @@ impl super::behaviour::Conversion for BusinessProfile {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct BusinessProfile {
     id: common_utils::id_type::ProfileId,
@@ -605,12 +581,12 @@ pub struct BusinessProfile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 pub struct BusinessProfileSetter {
     pub id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -644,11 +620,11 @@ pub struct BusinessProfileSetter {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 impl From<BusinessProfileSetter> for BusinessProfile {
     fn from(value: BusinessProfileSetter) -> Self {
         Self {
@@ -696,21 +672,18 @@ impl From<BusinessProfileSetter> for BusinessProfile {
 }
 
 impl BusinessProfile {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.intent_fulfillment_time
     }
 
-    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.order_fulfillment_time
     }
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 pub struct BusinessProfileGeneralUpdate {
     pub profile_name: Option<String>,
@@ -737,7 +710,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 pub enum BusinessProfileUpdate {
     Update(Box<BusinessProfileGeneralUpdate>),
@@ -756,7 +729,7 @@ pub enum BusinessProfileUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
     fn from(business_profile_update: BusinessProfileUpdate) -> Self {
         let now = date_time::now();
@@ -967,7 +940,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for BusinessProfile {
     type DstType = diesel_models::business_profile::BusinessProfile;

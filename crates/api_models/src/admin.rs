@@ -7,13 +7,10 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use indexmap::IndexMap;
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -21,10 +18,7 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
@@ -36,10 +30,7 @@ pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
@@ -120,10 +111,7 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantAccountCreate {
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
@@ -188,7 +176,7 @@ impl MerchantAccountCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
@@ -208,7 +196,7 @@ pub struct MerchantAccountCreate {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantAccountCreate {
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
@@ -256,10 +244,7 @@ pub struct MerchantAccountMetadata {
     pub data: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
@@ -338,10 +323,7 @@ pub struct MerchantAccountUpdate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantAccountUpdate {
     pub fn get_primary_details_as_value(
         &self,
@@ -405,7 +387,7 @@ impl MerchantAccountUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
@@ -421,7 +403,7 @@ pub struct MerchantAccountUpdate {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantAccountUpdate {
     pub fn get_merchant_details_as_secret(
         &self,
@@ -442,10 +424,7 @@ impl MerchantAccountUpdate {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
@@ -537,7 +516,7 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
@@ -666,10 +645,7 @@ pub struct MerchantId {
     pub merchant_id: id_type::MerchantId,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
@@ -677,14 +653,14 @@ pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -772,7 +748,7 @@ pub struct MerchantConnectorCreate {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorCreate {
     pub fn get_transaction_type(&self) -> api_enums::TransactionType {
         match self.connector_type {
@@ -804,10 +780,7 @@ impl MerchantConnectorCreate {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -912,10 +885,7 @@ pub struct MerchantConnectorCreate {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorCreate {
     pub fn get_transaction_type(&self) -> api_enums::TransactionType {
         match self.connector_type {
@@ -1042,7 +1012,7 @@ impl MerchantConnectorInfo {
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorResponse {
@@ -1135,7 +1105,7 @@ pub struct MerchantConnectorResponse {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
@@ -1146,10 +1116,7 @@ impl MerchantConnectorResponse {
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorResponse {
@@ -1257,10 +1224,7 @@ pub struct MerchantConnectorResponse {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
@@ -1270,10 +1234,7 @@ impl MerchantConnectorResponse {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorListResponse {
@@ -1369,10 +1330,7 @@ pub struct MerchantConnectorListResponse {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorListResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
@@ -1382,7 +1340,7 @@ impl MerchantConnectorListResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorListResponse {
@@ -1462,7 +1420,7 @@ pub struct MerchantConnectorListResponse {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorListResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
@@ -1473,10 +1431,7 @@ impl MerchantConnectorListResponse {
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorUpdate {
@@ -1561,7 +1516,7 @@ pub struct MerchantConnectorUpdate {
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorUpdate {
@@ -1645,7 +1600,7 @@ pub struct MerchantConnectorUpdate {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorUpdate {
     pub fn get_frm_config_as_secret(&self) -> Option<Vec<Secret<serde_json::Value>>> {
         match self.frm_configs.as_ref() {
@@ -1748,10 +1703,7 @@ pub enum AcceptedCountries {
     AllAccepted,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
@@ -1765,7 +1717,7 @@ pub struct MerchantConnectorDeleteResponse {
     pub deleted: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
@@ -1861,10 +1813,7 @@ pub struct MerchantConnectorDetails {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
@@ -1962,7 +1911,8 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -1980,7 +1930,7 @@ pub struct BusinessProfileCreate {
 )]
 pub struct OrderFulfillmentTime(i64);
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
@@ -2069,7 +2019,8 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2077,10 +2028,7 @@ pub struct BusinessProfileCreate {
     pub is_tax_connector_enabled: bool,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct BusinessProfileResponse {
     /// The identifier for Merchant Account
@@ -2189,14 +2137,15 @@ pub struct BusinessProfileResponse {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct BusinessProfileResponse {
     /// The identifier for Merchant Account
@@ -2296,17 +2245,15 @@ pub struct BusinessProfileResponse {
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
@@ -2407,7 +2354,8 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2418,7 +2366,7 @@ pub struct BusinessProfileUpdate {
     pub is_dynamic_routing_enabled: Option<bool>,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
@@ -2510,7 +2458,8 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.

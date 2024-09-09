@@ -30,7 +30,7 @@ impl ConnectorSelection {
         }
     }
 }
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: String,
@@ -40,7 +40,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
@@ -57,7 +57,7 @@ pub struct ProfileDefaultRoutingConfig {
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
@@ -76,12 +76,12 @@ pub struct DynamicRoutingUpdateConfigQuery {
     pub merchant_id: common_utils::id_type::MerchantId,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQueryWrapper {
     pub routing_query: RoutingRetrieveQuery,
     pub profile_id: common_utils::id_type::ProfileId,

@@ -9,7 +9,7 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
 use crate::{
     core::errors::{self, RouterResult},
@@ -116,10 +116,7 @@ pub async fn update_merchant_routing_dictionary(
 
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn update_merchant_active_algorithm_ref(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -173,7 +170,7 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn update_merchant_active_algorithm_ref(
     _state: &SessionState,
     _key_store: &domain::MerchantKeyStore,
@@ -184,10 +181,7 @@ pub async fn update_merchant_active_algorithm_ref(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
@@ -243,7 +237,7 @@ pub async fn update_business_profile_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct RoutingAlgorithmHelpers<'h> {
     pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'h>,
@@ -261,11 +255,11 @@ pub struct ConnectNameAndMCAIdForProfile<'a>(
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccounts {
     pub async fn get_all_mcas(
         merchant_id: &common_utils::id_type::MerchantId,
@@ -317,7 +311,7 @@ impl MerchantConnectorAccounts {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl<'h> RoutingAlgorithmHelpers<'h> {
     fn connector_choice(
         &self,
@@ -398,7 +392,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,

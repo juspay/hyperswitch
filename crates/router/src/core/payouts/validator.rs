@@ -159,10 +159,7 @@ pub async fn validate_create_request(
         _ => Ok(None),
     }?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let profile_id = core_utils::get_profile_id_from_business_details(
         &state.into(),
         merchant_key_store,
@@ -175,7 +172,7 @@ pub async fn validate_create_request(
     )
     .await?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     // Profile id will be mandatory in v2 in the request / headers
     let profile_id = req
         .profile_id

@@ -1,12 +1,19 @@
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payments::OrderDetailsWithAmount,
+};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::AsyncExt,
+    types::{keymanager::KeyManagerState, MinorUnit},
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
@@ -26,7 +33,10 @@ use crate::core::payments;
 use crate::{
     configs::Settings,
     consts,
-    core::errors::{self, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResult, StorageErrorExt},
+        payments::PaymentData,
+    },
     db::StorageInterface,
     routes::SessionState,
     types::{
@@ -861,6 +871,113 @@ pub async fn construct_upload_file_router_data<'a>(
     Ok(router_data)
 }
 
+pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
+    state: &'a SessionState,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    merchant_connector_account: &MerchantConnectorAccount,
+) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
+    let payment_intent = &payment_data.payment_intent.clone();
+    let payment_attempt = &payment_data.payment_attempt.clone();
+
+    #[cfg(feature = "v1")]
+    let test_mode: Option<bool> = merchant_connector_account.test_mode;
+
+    #[cfg(feature = "v2")]
+    let test_mode = None;
+
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .connector_account_details
+        .clone()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let shipping_address = payment_data
+        .tax_data
+        .clone()
+        .map(|tax_data| tax_data.shipping_details)
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing shipping_details")?;
+
+    let order_details: Option<Vec<OrderDetailsWithAmount>> = payment_intent
+        .order_details
+        .clone()
+        .map(|order_details| {
+            order_details
+                .iter()
+                .map(|data| {
+                    data.to_owned()
+                        .parse_value("OrderDetailsWithAmount")
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "OrderDetailsWithAmount",
+                        })
+                        .attach_printable("Unable to parse OrderDetailsWithAmount")
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().to_owned(),
+        customer_id: None,
+        connector_customer: None,
+        connector: merchant_connector_account.connector_name.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method: diesel_models::enums::PaymentMethod::default(),
+        connector_auth_type,
+        description: None,
+        return_url: None,
+        address: payment_data.address.clone(),
+        auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request: types::PaymentsTaxCalculationData {
+            amount: payment_intent.amount,
+            shipping_cost: payment_intent.shipping_cost,
+            order_details,
+            currency: payment_data.currency,
+            shipping_address,
+        },
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            merchant_account.get_id(),
+            payment_attempt,
+        ),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        payment_method_status: None,
+        minor_amount_captured: None,
+        integrity_check: Ok(()),
+    };
+    Ok(router_data)
+}
+
 #[instrument(skip_all)]
 pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a SessionState,
@@ -1074,7 +1191,7 @@ pub fn get_connector_request_reference_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
-    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -1145,16 +1262,13 @@ pub fn get_connector_label(
         })
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
 /// or return a `MissingRequiredField` error
 #[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
-    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
@@ -1240,7 +1354,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     try {{
                                         // if inside iframe, send post message to parent for redirection
                                         if (window.self !== window.parent) {{
-                                            window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                            window.parent.postMessage({{poll_status: poll_status_data}}, '*')
                                         // if parent, redirect self to return_url
                                         }} else {{
                                             window.location.href = return_url
@@ -1248,7 +1362,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     }}
                                     catch(err) {{
                                         // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                        window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                        window.parent.postMessage({{poll_status: poll_status_data}}, '*')
                                         setTimeout(function() {{
                                             window.location.href = return_url
                                         }}, 10000);
@@ -1270,7 +1384,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     try {{
                                         // if inside iframe, send post message to parent for redirection
                                         if (window.self !== window.parent) {{
-                                            window.top.postMessage({{openurl_if_required: return_url}}, '*')
+                                            window.parent.postMessage({{openurl_if_required: return_url}}, '*')
                                         // if parent, redirect self to return_url
                                         }} else {{
                                             window.location.href = return_url
@@ -1278,7 +1392,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     }}
                                     catch(err) {{
                                         // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                        window.top.postMessage({{openurl_if_required: return_url}}, '*')
+                                        window.parent.postMessage({{openurl_if_required: return_url}}, '*')
                                         setTimeout(function() {{
                                             window.location.href = return_url
                                         }}, 10000);
@@ -1368,6 +1482,38 @@ impl GetProfileId for diesel_models::Refund {
     }
 }
 
+#[cfg(feature = "v1")]
+impl GetProfileId for api_models::routing::RoutingConfigRequest {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+#[cfg(feature = "v2")]
+impl GetProfileId for api_models::routing::RoutingConfigRequest {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for api_models::routing::RoutingRetrieveLinkQuery {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for domain::BusinessProfile {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(self.get_id())
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl GetProfileId for storage::Payouts {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
@@ -1378,12 +1524,6 @@ impl GetProfileId for storage::Payouts {
 impl<T, F> GetProfileId for (storage::Payouts, T, F) {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.0.get_profile_id()
-    }
-}
-
-impl GetProfileId for domain::BusinessProfile {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(self.get_id())
     }
 }
 
