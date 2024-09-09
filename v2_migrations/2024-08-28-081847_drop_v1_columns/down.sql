@@ -77,3 +77,5 @@ ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
     ADD COLUMN business_sub_label VARCHAR(64),
     ADD COLUMN mandate_details JSONB,
     ADD COLUMN mandate_data JSONB;
+CREATE INDEX payment_attempt_connector_transaction_id_merchant_id_index ON payment_attempt (connector_transaction_id, merchant_id);
+CREATE UNIQUE INDEX payment_attempt_payment_id_merchant_id_attempt_id_index ON payment_attempt (payment_id, merchant_id, attempt_id);
