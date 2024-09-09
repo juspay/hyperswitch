@@ -3132,15 +3132,11 @@ dependencies = [
  "router_env",
  "serde",
  "thiserror",
-<<<<<<< HEAD
  "tokio 1.37.0",
  "tonic 0.12.2",
  "tonic-build",
  "tonic-reflection",
  "tonic-types",
-=======
- "tokio 1.40.0",
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
  "vaultrs",
 ]
 
@@ -3217,7 +3213,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
-<<<<<<< HEAD
 name = "finl_unicode"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3230,8 +3225,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
-=======
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
 name = "flate2"
 version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3952,7 +3945,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "hyper-util"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3967,38 +3959,6 @@ dependencies = [
  "pin-project-lite",
  "socket2",
  "tokio 1.37.0",
-=======
-name = "hyper-tls"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70206fc6890eaca9fde8a0bf71caa2ddfc9fe045ac9e5c70df101a7dbde866e0"
-dependencies = [
- "bytes 1.7.1",
- "http-body-util",
- "hyper 1.4.1",
- "hyper-util",
- "native-tls",
- "tokio 1.40.0",
- "tokio-native-tls",
- "tower-service",
-]
-
-[[package]]
-name = "hyper-util"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde7055719c54e36e95e8719f95883f22072a48ede39db7fc17a4e1d5281e9b9"
-dependencies = [
- "bytes 1.7.1",
- "futures-channel",
- "futures-util",
- "http 1.1.0",
- "http-body 1.0.1",
- "hyper 1.4.1",
- "pin-project-lite",
- "socket2",
- "tokio 1.40.0",
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
  "tower",
  "tower-service",
  "tracing",
@@ -5219,13 +5179,8 @@ dependencies = [
  "opentelemetry-proto",
  "prost 0.11.9",
  "thiserror",
-<<<<<<< HEAD
  "tokio 1.37.0",
  "tonic 0.8.3",
-=======
- "tokio 1.40.0",
- "tonic",
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
 ]
 
 [[package]]
@@ -5806,7 +5761,6 @@ version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b82eaa1d779e9a4bc1c3217db8ffbeabaae1dca241bf70183242128d48681cd"
 dependencies = [
-<<<<<<< HEAD
  "bytes 1.6.0",
  "prost-derive 0.11.9",
 ]
@@ -5840,10 +5794,6 @@ dependencies = [
  "regex",
  "syn 2.0.75",
  "tempfile",
-=======
- "bytes 1.7.1",
- "prost-derive",
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
 ]
 
 [[package]]
@@ -8414,7 +8364,6 @@ dependencies = [
  "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
-<<<<<<< HEAD
  "hyper 0.14.28",
  "hyper-timeout 0.4.1",
  "percent-encoding",
@@ -8422,15 +8371,6 @@ dependencies = [
  "prost 0.11.9",
  "prost-derive 0.11.9",
  "tokio 1.37.0",
-=======
- "hyper 0.14.30",
- "hyper-timeout",
- "percent-encoding",
- "pin-project",
- "prost",
- "prost-derive",
- "tokio 1.40.0",
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
  "tokio-stream",
  "tokio-util",
  "tower",
