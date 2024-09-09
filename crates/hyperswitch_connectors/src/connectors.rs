@@ -18,6 +18,6 @@ pub mod worldline;
 pub use self::{
     bambora::Bambora, bitpay::Bitpay, deutschebank::Deutschebank, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay, helcim::Helcim, nexixpay::Nexixpay,
-    novalnet::Novalnet, powertranz::Powertranz, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
-    worldline::Worldline,
+    novalnet::Novalnet, powertranz::Powertranz, stax::Stax, taxjar::Taxjar, thunes::Thunes,
+    tsys::Tsys, worldline::Worldline,
 };
