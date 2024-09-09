@@ -1104,4 +1104,3 @@ impl super::behaviour::Conversion for BusinessProfile {
         })
     }
 }
-

@@ -1283,7 +1283,7 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt customer details")?;
 
-        let skip_external_tax_calculation=request.skip_external_tax_calculation;
+        let skip_external_tax_calculation = request.skip_external_tax_calculation;
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),

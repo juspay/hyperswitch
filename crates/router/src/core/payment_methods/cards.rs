@@ -3674,9 +3674,9 @@ pub async fn list_payment_methods(
             business_profile.collect_billing_details_from_wallet_connector
         }));
 
-    let is_tax_connector_enabled = business_profile
-        .as_ref()
-        .map_or(false,|business_profile| business_profile.get_is_tax_connector_enabled());
+    let is_tax_connector_enabled = business_profile.as_ref().map_or(false, |business_profile| {
+        business_profile.get_is_tax_connector_enabled()
+    });
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
