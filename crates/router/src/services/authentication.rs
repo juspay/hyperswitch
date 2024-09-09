@@ -1984,6 +1984,7 @@ where
     default_auth
 }
 
+#[derive(Clone)]
 #[cfg(feature = "recon")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataWithUser, A> for JWTAuth
