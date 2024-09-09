@@ -48,7 +48,7 @@ impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Copy, Serialize, Deserialize, Clone)]
 pub enum NovalNetPaymentTypes {
     CREDITCARD,
 }
@@ -181,7 +181,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     .get_ip_address()?;
 
                 let customer = NovalnetPaymentsRequestCustomer {
-                    first_name: item.router_data.get_billing_first_name().ok(),
+                    first_name: item.router_data.get_optional_billing_first_name(),
                     last_name: item.router_data.get_optional_billing_last_name(),
                     email: item.router_data.get_optional_billing_email(),
                     mobile: item.router_data.get_billing_phone_number().ok(),
@@ -237,40 +237,38 @@ impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NovalnetTransactionStatus {
-    SUCCESS,
-    FAILURE,
-    CONFIRMED,
-    ON_HOLD,
-    PENDING,
+    Success,
+    Failure,
+    Confirmed,
+    OnHold,
+    Pending,
     #[default]
-    DEACTIVATED,
-    PROGRESS,
+    Deactivated,
+    Progress,
 }
 
-#[derive(Debug, Display, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Display, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NovalnetAPIStatus {
-    SUCCESS,
+    Success,
     #[default]
-    FAILURE,
+    Failure,
 }
 
 impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
     fn from(item: NovalnetTransactionStatus) -> Self {
         match item {
-            NovalnetTransactionStatus::SUCCESS | NovalnetTransactionStatus::CONFIRMED => {
+            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
                 Self::Charged
             }
-            NovalnetTransactionStatus::ON_HOLD => Self::Authorized,
-            NovalnetTransactionStatus::PENDING => Self::Pending,
-            NovalnetTransactionStatus::PROGRESS => Self::AuthenticationPending,
-            NovalnetTransactionStatus::DEACTIVATED => Self::Voided,
-            NovalnetTransactionStatus::FAILURE => Self::Failure,
+            NovalnetTransactionStatus::OnHold => Self::Authorized,
+            NovalnetTransactionStatus::Pending => Self::Pending,
+            NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
+            NovalnetTransactionStatus::Deactivated => Self::Voided,
+            NovalnetTransactionStatus::Failure => Self::Failure,
         }
     }
 }
@@ -286,7 +284,7 @@ pub struct ResultData {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TransactionData {
-    payment_type: String,
+    payment_type: Option<String>,
     status_code: i32,
     txn_secret: Option<String>,
     tid: Option<u64>,
@@ -322,7 +320,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
-            NovalnetAPIStatus::SUCCESS => {
+            NovalnetAPIStatus::Success => {
                 let redirection_data: Option<RedirectForm> =
                     item.response
                         .result
@@ -342,9 +340,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     .response
                     .transaction
                     .and_then(|transaction_data| transaction_data.status)
-                    .unwrap_or(NovalnetTransactionStatus::PROGRESS);
+                    .unwrap_or(NovalnetTransactionStatus::Progress);
                 //  NOTE: if result.status is success, this means we should always have a redirection url
-                // since Novalnet does not always send the transaction.status, so using default value as PROGRESS
+                // since Novalnet does not always send the transaction.status, so using default value as Progress
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -364,7 +362,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::FAILURE => {
+            NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
@@ -443,12 +441,11 @@ pub struct NovalnetPSyncResponse {
     pub transaction: Option<NovalnetResponseTransactionData>,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
 pub enum CaptureType {
     #[default]
-    PARTIAL,
-    FINAL,
+    Partial,
+    Final,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -476,9 +473,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
         item: &NovalnetRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         let capture_type = if item.router_data.request.is_multiple_capture() {
-            CaptureType::PARTIAL
+            CaptureType::Partial
         } else {
-            CaptureType::FINAL
+            CaptureType::Final
         };
 
         let reference = item
@@ -555,14 +552,14 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
 impl From<NovalnetTransactionStatus> for enums::RefundStatus {
     fn from(item: NovalnetTransactionStatus) -> Self {
         match item {
-            NovalnetTransactionStatus::SUCCESS | NovalnetTransactionStatus::CONFIRMED => {
+            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
                 Self::Success
             }
-            NovalnetTransactionStatus::PENDING => Self::Pending,
-            NovalnetTransactionStatus::FAILURE
-            | NovalnetTransactionStatus::ON_HOLD
-            | NovalnetTransactionStatus::DEACTIVATED
-            | NovalnetTransactionStatus::PROGRESS => Self::Failure,
+            NovalnetTransactionStatus::Pending => Self::Pending,
+            NovalnetTransactionStatus::Failure
+            | NovalnetTransactionStatus::OnHold
+            | NovalnetTransactionStatus::Deactivated
+            | NovalnetTransactionStatus::Progress => Self::Failure,
         }
     }
 }
@@ -612,7 +609,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
         item: RefundsResponseRouterData<Execute, NovalnetRefundResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
-            NovalnetAPIStatus::SUCCESS => {
+            NovalnetAPIStatus::Success => {
                 let refund_id = item
                     .response
                     .transaction
@@ -620,11 +617,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                     .and_then(|data| data.tid.map(|tid| tid.to_string()))
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-                let transaction_status = match item.response.transaction.clone() {
-                    Some(transaction) => Some(transaction.status),
-                    None => None,
-                }
-                .ok_or_else(missing_field_err("transaction status"))?;
+                let transaction_status = item
+                    .response
+                    .transaction
+                    .map(|transaction| transaction.status)
+                    .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
                     response: Ok(RefundsResponseData {
@@ -634,7 +631,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::FAILURE => {
+            NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
@@ -702,7 +699,7 @@ impl<F>
         item: ResponseRouterData<F, NovalnetPSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
-            NovalnetAPIStatus::SUCCESS => {
+            NovalnetAPIStatus::Success => {
                 let transaction_id = item
                     .response
                     .transaction
@@ -712,7 +709,7 @@ impl<F>
                     .response
                     .transaction
                     .map(|transaction_data| transaction_data.status)
-                    .unwrap_or(NovalnetTransactionStatus::PENDING);
+                    .unwrap_or(NovalnetTransactionStatus::Pending);
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -732,7 +729,7 @@ impl<F>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::FAILURE => {
+            NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
@@ -787,7 +784,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
-            NovalnetAPIStatus::SUCCESS => {
+            NovalnetAPIStatus::Success => {
                 let transaction_id = item
                     .response
                     .transaction
@@ -817,7 +814,7 @@ impl<F>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::FAILURE => {
+            NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
@@ -870,18 +867,18 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
         item: RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
-            NovalnetAPIStatus::SUCCESS => {
+            NovalnetAPIStatus::Success => {
                 let refund_id = match item.response.transaction.clone() {
                     Some(transaction) => Some(transaction.tid),
                     None => None,
                 }
                 .ok_or_else(missing_field_err("transaction id"))?;
 
-                let transaction_status = match item.response.transaction.clone() {
-                    Some(transaction) => Some(transaction.status),
-                    None => None,
-                }
-                .ok_or_else(missing_field_err("transaction status"))?;
+                let transaction_status = item
+                    .response
+                    .transaction
+                    .map(|transaction_data| transaction_data.status)
+                    .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
                     response: Ok(RefundsResponseData {
@@ -891,7 +888,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::FAILURE => {
+            NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
@@ -956,7 +953,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
-            NovalnetAPIStatus::SUCCESS => {
+            NovalnetAPIStatus::Success => {
                 let transaction_id = item
                     .response
                     .transaction
@@ -969,7 +966,7 @@ impl<F>
                     .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
-                    status: if transaction_status == NovalnetTransactionStatus::DEACTIVATED {
+                    status: if transaction_status == NovalnetTransactionStatus::Deactivated {
                         enums::AttemptStatus::Voided
                     } else {
                         enums::AttemptStatus::VoidFailed
@@ -990,7 +987,7 @@ impl<F>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::FAILURE => {
+            NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
