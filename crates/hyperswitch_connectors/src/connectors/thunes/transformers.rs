@@ -15,6 +15,213 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
+
+//TODO: Fill the struct with respective fields
+
+//----Quotation-----------
+
+// #[serde(rename_all = "UPPERCASE")]
+// #[serde(rename_all = "snake_case")]
+pub enum QuotationMode{
+    SourceAmount,  //SOURCE_AMOUNT
+    DestinationAmount,
+}
+
+pub enum TransactionType{
+    C2C, //Quotation or Transaction is from an individual end user to an individual end user
+    C2B, //Quotation or Transaction is from an individual end user to a business
+    B2C, //Quotation or Transaction is from a business to an individual end user
+    B2B, //Quotation or Transaction is from a business to a business
+}
+
+pub struct SourceInfo{
+    pub country_iso_code: enums::CountryAlpha3,
+    pub currency: enums::Currency,
+    pub amount: Option<f64>,
+}
+
+pub struct DestinationInfo{
+    pub currency: enums::Currency,
+    pub amount: Option<f64>,
+}
+
+pub struct QuotationRequest{
+    pub external_id: String,
+    pub payer_id: u64,   // size is not specified in the docs
+    pub mode: QuotationMode,
+    pub transaction_type: TransactionType,  // not present in v1
+    pub source: SourceInfo,
+    pub destination: DestinationInfo,
+}
+
+
+
+pub struct ServiceType{
+    pub id: i64,
+    pub name: String,
+}
+
+
+pub struct CreditPartyVerification{
+    pub credit_party_identifiers_accepted: Vec<String>,
+    pub required_beneficiary_fields: Vec<String>,
+}
+pub struct PayerType{
+    pub id: i64,
+    pub name: String,
+    pub precision: i64,
+    pub increment: i64,
+    pub currency: enums::Currency,
+    pub country_iso_code: enums::CountryAlpha3,
+    pub minimum_transaction_amount: f64,
+    pub maximum_transaction_amount: Option<f64>,
+    pub service: ServiceType,
+    pub credit_party_identifiers_accepted: Vec<String>,
+    pub required_sender_fields: Vec<String>,
+    pub required_beneficiary_fields: Vec<String>,
+    pub credit_party_information: Vec<String>,
+    pub credit_party_verification: CreditPartyVerification,
+}
+
+pub struct AmountWithCountry{
+    pub currency: enums::Currency,
+    pub amount: f64,
+}
+
+pub struct QuotationResponse{
+    pub id: i64,
+    pub external_id: String,
+    pub payer: PayerType,
+    pub mode: QuotationMode,
+    pub transaction_type: TransactionType,
+    pub source: SourceInfo,
+    pub destination: AmountWithCountry,
+    pub sent_amount: AmountWithCountry,
+    pub wholesale_fx_rate: f64,
+    pub fee: AmountWithCountry,
+    pub creation_date: String,
+    pub expiration_date: String,
+}
+
+//----Transaction----------
+
+pub struct TransactionRequest{
+
+}
+
+pub struct CreditPartyIdentifier{
+    pub msisdn : Option<String>,
+    pub bank_account_number: Option<String>,
+    pub iban: Option<String>,
+    pub clabe: Option<String>,
+    pub cbu: Option<String>,
+    pub cbu_alias: Option<String>,
+    pub swift_bic_code: Option<String>,
+    pub bik_code: Option<String>,
+    pub ifs_code: Option<String>,
+    pub sort_code: Option<String>,
+    pub aba_routing_number: Option<String>,
+    pub bsb_number: Option<String>,
+    pub branch_number: Option<String>,
+    pub routing_code: Option<String>,
+    pub entity_tt_id: Option<String>,
+    pub account_type: Option<String>,
+    pub account_number: Option<String>,
+    pub email: Option<String>,
+    pub card_number: Option<String>,
+
+}
+
+pub struct Sender{
+    pub lastname: Option<String>,
+    pub lastname2: Option<String>,
+    pub middlename: Option<String>,
+    pub firstname: Option<String>,
+    pub nativename: Option<String>,
+    pub nationality_country_iso_code: Option<String>,
+    pub code: Option<String>,
+    pub date_of_birth: Option<String>,
+    pub country_of_birth_iso_code: Option<String>,
+    pub gender: Option<String>,
+    pub address: Option<String>,
+    pub postal_code: Option<String>,
+    pub city: Option<String>,
+    pub country_iso_code: Option<String>,
+    pub msisdn: Option<String>,
+    pub email: Option<String>,
+    pub id_type: Option<String>,
+    pub id_country_iso_code: Option<String>,
+    pub id_number: Option<String>,
+    pub id_delivery_date: Option<String>,
+    pub id_expiration_date: Option<String>,
+    pub occupation: Option<String>,
+    pub bank_account_number: Option<String>,
+    pub province_state: Option<String>,
+    pub beneficiary_relationship: Option<String>,
+    pub source_of_funds: Option<String>,
+} 
+
+pub struct Beneficiary{
+    pub lastname: Option<String>,
+    pub lastname2: Option<String>,
+    pub middlename: Option<String>,
+    pub firstname: Option<String>,
+    pub nativename: Option<String>,
+    pub nationality_country_i: Option<String>,
+    pub code: Option<String>,
+    pub date_of_birth: Option<String>,
+    pub country_of_birth_iso_code: Option<String>,
+    pub gender: Option<String>,
+    pub address: Option<String>,
+    pub postal_code: Option<String>,
+    pub city: Option<String>,
+    pub country_iso_code: Option<String>,
+    pub msisdn: Option<String>,
+    pub email: Option<String>,
+    pub id_type: Option<String>,
+    pub id_country_iso_code: Option<String>,
+    pub id_number: Option<String>,
+    pub id_delivery_date: Option<String>,
+    pub id_expiration_date: Option<String>,
+    pub occupation: Option<String>,
+    pub bank_account_holder_name: Option<String>,
+    pub province_state: Option<String>,
+}
+
+pub struct TransactionResponse{
+    pub id: i64,
+    pub status: String,
+    pub status_message: String,
+    pub status_class: String,
+    pub status_class_message: String,
+    pub external_id: String,
+    pub external_code: Option<String>,
+    pub payer_transaction_reference: Option<String>,
+    pub payer_transaction_code: Option<String>,
+    pub creation_date: String,
+    pub expiration_date: String,
+    pub credit_party_identifier: CreditPartyIdentifier,
+    pub source: SourceInfo,
+    pub destination: DestinationInfo,
+    pub payer: PayerType,
+    pub sender: Sender,
+    pub beneficiary: Beneficiary,
+    pub callback_url: String,
+    pub sent_amount: DestinationInfo,
+    pub wholesale_fx_rate: f64,
+    pub retail_rate: Option<f64>,
+    pub retail_fee: Option<f64>,
+    pub retail_fee_currency: enums::Currency,
+    pub fee: DestinationInfo,
+    pub purpose_of_remittance: Option<String>,
+    pub additional_information_1: Option<String>,
+    pub additional_information_2: Option<String>,
+    pub additional_information_3: Option<String>,
+
+}
+
+//--------------------------
+
 pub struct ThunesRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
