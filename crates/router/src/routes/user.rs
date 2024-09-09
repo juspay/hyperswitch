@@ -575,7 +575,7 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         &http_req,
         (),
         |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::ReconJWT,
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
