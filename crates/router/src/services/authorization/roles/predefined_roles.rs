@@ -127,7 +127,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsView,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_VIEW_ONLY.to_string(),
-            role_name: "view_only".to_string(),
+            role_name: "merchant_view_only".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Merchant,
             is_invitable: true,
@@ -218,6 +218,28 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             is_internal: false,
         },
     );
+
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_VIEW_ONLY,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::WorkflowsView,
+                PermissionGroup::AnalyticsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::MerchantDetailsView,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_VIEW_ONLY.to_string(),
+            role_name: "profile_view_only".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
     roles.insert(
         consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT,
         RoleInfo {
@@ -228,7 +250,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::WorkflowsView,
             ],
             role_id: consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT.to_string(),
-            role_name: "profile_support".to_string(),
+            role_name: "profile_customer_support".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Profile,
             is_invitable: true,

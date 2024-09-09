@@ -435,7 +435,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -481,7 +481,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -561,7 +561,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -607,7 +607,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -687,7 +687,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -733,7 +733,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -947,7 +947,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -983,7 +983,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1072,7 +1072,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1108,7 +1108,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1195,7 +1195,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1229,7 +1229,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1261,7 +1261,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1808,7 +1808,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1854,7 +1854,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1914,7 +1914,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1950,7 +1950,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1982,7 +1982,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2025,7 +2025,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2068,7 +2068,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2135,7 +2135,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2164,7 +2164,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2251,7 +2251,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2290,7 +2290,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Organization,
             },
             api_locking::LockAction::NotApplicable,
         ))

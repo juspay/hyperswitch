@@ -365,7 +365,7 @@ pub async fn list_user_roles_details(
         user_core::list_user_roles_details,
         &auth::JWTAuth {
             permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
