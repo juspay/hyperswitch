@@ -11,6 +11,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 pub mod payments_incremental_authorization;
+pub mod tax_calculation;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -24,6 +25,7 @@ pub use self::{
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
+    tax_calculation::PaymentSessionUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
@@ -180,6 +182,20 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    async fn payments_dynamic_tax_calculation<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _business_profile: &domain::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
@@ -276,7 +292,7 @@ where
     > {
         Ok((
             Box::new(self),
-            helpers::get_customer_from_details(
+            helpers::get_customer_details_even_for_redacted_customer(
                 state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,

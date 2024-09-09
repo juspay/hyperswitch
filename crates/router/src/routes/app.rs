@@ -1,11 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
@@ -638,6 +634,10 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 )
+                .service(
+                web::resource("{payment_id}/calculate_tax")
+                    .route(web::post().to(payments_dynamic_tax_calculation)),
+                );
         }
         route
     }
@@ -662,7 +662,7 @@ impl Forex {
 #[cfg(feature = "olap")]
 pub struct Routing;
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/routing_algorithm")
@@ -678,11 +678,7 @@ impl Routing {
             )
     }
 }
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
         #[allow(unused_mut)]
@@ -719,6 +715,16 @@ impl Routing {
                         )
                     })),
             )
+            .service(web::resource("/list/profile").route(web::get().to(
+                |state, req, query: web::Query<RoutingRetrieveQuery>| {
+                    routing::list_routing_configs_for_profile(
+                        state,
+                        req,
+                        query,
+                        &TransactionType::Payment,
+                    )
+                },
+            )))
             .service(
                 web::resource("/default")
                     .route(web::get().to(|state, req| {
@@ -801,6 +807,16 @@ impl Routing {
                             )
                         })),
                 )
+                .service(web::resource("/payouts/list/profile").route(web::get().to(
+                    |state, req, query: web::Query<RoutingRetrieveQuery>| {
+                        routing::list_routing_configs_for_profile(
+                            state,
+                            req,
+                            query,
+                            &TransactionType::Payout,
+                        )
+                    },
+                )))
                 .service(web::resource("/payouts/active").route(web::get().to(
                     |state, req, query_params| {
                         routing::routing_retrieve_linked_config(
@@ -903,7 +919,8 @@ impl Customers {
                 .service(
                     web::resource("/{id}")
                         .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve)),
+                        .route(web::post().to(customers_retrieve))
+                        .route(web::delete().to(customers_delete)),
                 )
         }
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
@@ -1029,7 +1046,12 @@ impl Payouts {
                         .route(web::post().to(payouts_list_by_filter_profile)),
                 )
                 .service(
-                    web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
+                    web::resource("/filter")
+                        .route(web::post().to(payouts_list_available_filters_for_merchant)),
+                )
+                .service(
+                    web::resource("/profile/filter")
+                        .route(web::post().to(payouts_list_available_filters_for_profile)),
                 );
         }
         route = route
@@ -1116,7 +1138,7 @@ impl Recon {
         web::scope("/recon")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/update_merchant")
+                web::resource("/{merchant_id}/update")
                     .route(web::post().to(recon_routes::update_merchant)),
             )
             .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
@@ -1150,11 +1172,7 @@ impl Blocklist {
 #[cfg(feature = "olap")]
 pub struct Organization;
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
         web::scope("/organization")
@@ -1168,7 +1186,7 @@ impl Organization {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/organization")
@@ -1184,7 +1202,7 @@ impl Organization {
 
 pub struct MerchantAccount;
 
-#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/accounts")
@@ -1198,11 +1216,7 @@ impl MerchantAccount {
     }
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")
@@ -1229,11 +1243,7 @@ impl MerchantAccount {
 
 pub struct MerchantConnectorAccount;
 
-#[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    feature = "v2",
-    feature = "merchant_connector_account_v2"
-))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/connector_accounts").app_data(web::Data::new(state));
@@ -1255,11 +1265,7 @@ impl MerchantConnectorAccount {
     }
 }
 
-#[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account").app_data(web::Data::new(state));
@@ -1277,10 +1283,6 @@ impl MerchantConnectorAccount {
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(connector_create))
                         .route(web::get().to(payment_connector_list)),
-                )
-                .service(
-                    web::resource("/{merchant_id}/profile/connectors")
-                        .route(web::get().to(payment_connector_list_profile)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
@@ -1413,7 +1415,7 @@ impl Poll {
 
 pub struct ApiKeys;
 
-#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/api_keys")
@@ -1429,11 +1431,7 @@ impl ApiKeys {
     }
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
         web::scope("/api_keys/{merchant_id}")
@@ -1551,12 +1549,7 @@ impl PayoutLink {
 }
 
 pub struct BusinessProfile;
-#[cfg(all(
-    feature = "olap",
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
@@ -1613,11 +1606,7 @@ impl BusinessProfile {
             )
     }
 }
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
@@ -1643,6 +1632,22 @@ impl BusinessProfile {
                         web::resource("/toggle_connector_agnostic_mit")
                             .route(web::post().to(toggle_connector_agnostic_mit)),
                     ),
+            )
+    }
+}
+
+pub struct BusinessProfileNew;
+
+#[cfg(feature = "olap")]
+impl BusinessProfileNew {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
+            )
+            .service(
+                web::resource("/connectors").route(web::get().to(payment_connector_list_profile)),
             )
     }
 }
@@ -1829,6 +1834,7 @@ impl User {
         route = route.service(
             web::scope("/user")
                 .service(web::resource("").route(web::get().to(get_user_role_details)))
+                .service(web::resource("/v2").route(web::post().to(list_user_roles_details)))
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
@@ -1837,9 +1843,22 @@ impl User {
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
                 .service(
-                    web::resource("/invite/accept")
-                        .route(web::post().to(merchant_select))
-                        .route(web::put().to(accept_invitation)),
+                    web::scope("/invite/accept")
+                        .service(
+                            web::resource("")
+                                .route(web::post().to(merchant_select))
+                                .route(web::put().to(accept_invitation)),
+                        )
+                        .service(
+                            web::scope("/v2")
+                                .service(
+                                    web::resource("").route(web::post().to(accept_invitations_v2)),
+                                )
+                                .service(
+                                    web::resource("/pre_auth")
+                                        .route(web::post().to(accept_invitations_pre_auth)),
+                                ),
+                        ),
                 )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),

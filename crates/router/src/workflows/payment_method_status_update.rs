@@ -45,7 +45,12 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
             .await?;
 
         let payment_method = db
-            .find_payment_method(&pm_id, merchant_account.storage_scheme)
+            .find_payment_method(
+                &(state.into()),
+                &key_store,
+                &pm_id,
+                merchant_account.storage_scheme,
+            )
             .await?;
 
         if payment_method.status != prev_pm_status {
@@ -61,7 +66,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         };
 
         let res = db
-            .update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
+            .update_payment_method(
+                &(state.into()),
+                &key_store,
+                payment_method,
+                pm_update,
+                merchant_account.storage_scheme,
+            )
             .await
             .map_err(errors::ProcessTrackerError::EStorageError);
 

@@ -42,6 +42,10 @@ mod dummy_connector_default_impl {
 
     impl<const T: u8> api::PaymentsPostProcessingV2 for connector::DummyConnector<T> {}
 
+    impl<const T: u8> api::PaymentTaxCalculationV2 for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentSessionUpdateV2 for connector::DummyConnector<T> {}
+
     impl<const T: u8>
         services::ConnectorIntegrationV2<
             api::Authorize,
@@ -177,6 +181,24 @@ mod dummy_connector_default_impl {
             api::PostProcessing,
             types::PaymentFlowData,
             types::PaymentsPostProcessingData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::CalculateTax,
+            types::PaymentFlowData,
+            types::PaymentsTaxCalculationData,
+            types::TaxCalculationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::SdkSessionUpdate,
+            types::PaymentFlowData,
+            types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
@@ -557,6 +579,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::ConnectorCustomerV2 for $path::$connector{}
             impl api::PaymentsPreProcessingV2 for $path::$connector{}
             impl api::PaymentsPostProcessingV2 for $path::$connector{}
+            impl api::PaymentTaxCalculationV2 for $path::$connector{}
+            impl api::PaymentSessionUpdateV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
             for $path::$connector{}
@@ -629,6 +653,19 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 types::AuthorizeSessionTokenData,
                 types::PaymentsResponseData
         > for $path::$connector{}
+        impl services::ConnectorIntegrationV2<
+            api::CalculateTax,
+            types::PaymentFlowData,
+                types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData,
+            > for $path::$connector{}
+
+            impl services::ConnectorIntegrationV2<
+            api::SdkSessionUpdate,
+            types::PaymentFlowData,
+                types::SdkPaymentsSessionUpdateData,
+                types::PaymentsResponseData,
+            > for $path::$connector{}
     )*
     };
 }
@@ -1203,6 +1240,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Coinbase,
     connector::Cybersource,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2015,6 +2053,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Coinbase,
     connector::Cybersource,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2618,6 +2657,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Coinbase,
     connector::Cybersource,
     connector::Datatrans,
+    connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,

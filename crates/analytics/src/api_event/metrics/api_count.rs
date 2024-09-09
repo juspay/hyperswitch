@@ -10,6 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::ApiEventMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
@@ -30,7 +31,7 @@ where
     async fn load_metrics(
         &self,
         _dimensions: &[ApiEventDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -69,9 +70,7 @@ where
                 .switch()?;
         }
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)
