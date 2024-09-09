@@ -3111,6 +3111,7 @@ default_imp_for_authorize_session_token!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
