@@ -4,7 +4,6 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 #[cfg(feature = "olap")]
-use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, refunds::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -428,15 +427,15 @@ pub async fn get_refunds_filters_profile(
 pub async fn get_refunds_aggregates(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<payment_types::TimeRange>,
+    query_params: web::Query<api_models::payments::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsAggregate;
-    let payload = payload.into_inner();
+    let query_params = query_params.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        query_params,
         |state, auth: auth::AuthenticationData, req, _| {
             get_aggregates_for_refunds(state, auth.merchant_account, req)
         },

@@ -89,7 +89,7 @@ pub trait RefundInterface {
         merchant_id: &common_utils::id_type::MerchantId,
         constraints: &api_models::payments::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>;
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn get_total_count_of_refunds(
@@ -265,11 +265,11 @@ mod storage {
             merchant_id: &common_utils::id_type::MerchantId,
             time_range: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> error_stack::Result<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>
-        {
+        ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, time_range)
             .await
+            .map_err(|error|report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]
@@ -805,17 +805,18 @@ mod storage {
                         .map_err(|error|report!(errors::StorageError::from(error)))
         }
 
+        #[instrument(skip_all)]
         #[cfg(feature = "olap")]
         async fn get_refund_status_with_count(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             constraints: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> error_stack::Result<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>
-        {
+        ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, constraints)
             .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]

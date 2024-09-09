@@ -1,6 +1,6 @@
 pub use api_models::refunds::{
-    RefundAggregateResponse, RefundRequest, RefundResponse, RefundStatus, RefundType,
-    RefundUpdateRequest, RefundsRetrieveRequest,
+    RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
+    RefundsRetrieveRequest,
 };
 pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
 pub use hyperswitch_interfaces::api::refunds::{Refund, RefundExecute, RefundSync};

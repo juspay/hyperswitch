@@ -2395,7 +2395,7 @@ impl RefundInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         constraints: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
         self.diesel_store
             .get_refund_status_with_count(merchant_id, constraints, storage_scheme)
             .await

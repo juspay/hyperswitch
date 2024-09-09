@@ -13,7 +13,7 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 
-use crate::{connection, core::errors::StorageError, logger};
+use crate::{connection, logger};
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
@@ -41,7 +41,7 @@ pub trait RefundDbExt: Sized {
         conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
-    ) -> CustomResult<Vec<(RefundStatus, i64)>, StorageError>;
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -299,7 +299,7 @@ impl RefundDbExt for Refund {
         conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
-    ) -> error_stack::Result<Vec<(RefundStatus, i64)>, StorageError> {
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
         let mut query = <Self as HasTable>::table()
             .group_by(dsl::refund_status)
             .select((dsl::refund_status, diesel::dsl::count_star()))
@@ -317,15 +317,10 @@ impl RefundDbExt for Refund {
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             query.get_results_async::<(RefundStatus, i64)>(conn),
-            db_metrics::DatabaseOperation::Filter,
+            db_metrics::DatabaseOperation::Count,
         )
         .await
-        .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering refund records"),
-            )
-            .into()
-        })
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering status count of refunds")
     }
 }

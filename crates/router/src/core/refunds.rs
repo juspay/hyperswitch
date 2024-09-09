@@ -1034,12 +1034,13 @@ pub async fn get_filters_for_refunds(
     ))
 }
 
+#[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn get_aggregates_for_refunds(
     state: SessionState,
     merchant: domain::MerchantAccount,
     time_range: api::TimeRange,
-) -> RouterResponse<api::RefundAggregateResponse> {
+) -> RouterResponse<api_models::refunds::RefundAggregateResponse> {
     let db = state.store.as_ref();
     let refund_status_with_count = db
         .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme)
@@ -1052,7 +1053,7 @@ pub async fn get_aggregates_for_refunds(
     }
 
     Ok(services::ApplicationResponse::Json(
-        api::RefundAggregateResponse {
+        api_models::refunds::RefundAggregateResponse {
             status_with_count: status_map,
         },
     ))
