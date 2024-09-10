@@ -61,6 +61,7 @@ pub struct PaymentIntent {
     pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
+    pub skip_external_tax_calculation: Option<bool>,
     pub merchant_reference_id: String,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -72,7 +73,6 @@ pub struct PaymentIntent {
     pub tax_on_surcharge: Option<MinorUnit>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
-    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -210,6 +210,7 @@ pub struct PaymentIntentNew {
     pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
+    pub skip_external_tax_calculation: Option<bool>,
     pub merchant_reference_id: String,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -221,7 +222,6 @@ pub struct PaymentIntentNew {
     pub tax_on_surcharge: Option<MinorUnit>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
-    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
