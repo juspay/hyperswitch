@@ -73,7 +73,6 @@ pub struct ToggleDynamicRoutingQuery {
 pub struct DynamicRoutingUpdateConfigQuery {
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
-    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -550,7 +549,6 @@ pub struct DynamicRoutingPayloadWrapper {
     pub updated_config: DynamicRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
-    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 impl DynamicRoutingConfig {
