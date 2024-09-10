@@ -54,8 +54,8 @@ use time;
 
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
-    PaymentUpdate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -259,6 +259,20 @@ where
                 mandate_type,
             )
             .await?;
+
+        operation
+            .to_domain()?
+            .payments_dynamic_tax_calculation(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
+                &merchant_account,
+            )
+            .await?;
+
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -2800,6 +2814,13 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
+    pub tax_data: Option<TaxData>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct TaxData {
+    pub shipping_details: api_models::payments::Address,
+    pub payment_method_type: enums::PaymentMethodType,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -2940,6 +2961,7 @@ where
         "PaymentApprove" => true,
         "PaymentReject" => true,
         "PaymentSession" => true,
+        "PaymentSessionUpdate" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -2970,15 +2992,13 @@ pub async fn list_payments(
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
         &state,
-        &constraints,
+        &(constraints, profile_id_list).try_into()?,
         merchant_id,
         &key_store,
         merchant.storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let payment_intents =
-        utils::filter_objects_based_on_profile_id_list(profile_id_list, payment_intents);
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -3041,25 +3061,25 @@ pub async fn apply_filters_on_payments(
 ) -> RouterResponse<api::PaymentListResponseV2> {
     let limit = &constraints.limit;
     helpers::validate_payment_list_request_for_joins(*limit)?;
-    let db = state.store.as_ref();
+    let db: &dyn StorageInterface = state.store.as_ref();
+    let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &(&state).into(),
             merchant.get_id(),
-            &constraints.clone().into(),
+            &pi_fetch_constraints,
             &merchant_key_store,
             merchant.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let list = utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     let active_attempt_ids = db
         .get_filtered_active_attempt_ids_for_total_count(
             merchant.get_id(),
-            &constraints.clone().into(),
+            &pi_fetch_constraints,
             merchant.storage_scheme,
         )
         .await
@@ -3074,6 +3094,7 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method_type,
             constraints.authentication_type,
             constraints.merchant_connector_id,
+            pi_fetch_constraints.get_profile_id_list(),
             merchant.storage_scheme,
         )
         .await

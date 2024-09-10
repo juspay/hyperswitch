@@ -478,6 +478,7 @@ async fn get_tracker_for_sync<
         authentication,
         recurring_details: None,
         poll_config: None,
+        tax_data: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

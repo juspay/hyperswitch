@@ -6,6 +6,7 @@ pub mod helpers;
 
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
+use common_enums::EntityType;
 use error_stack::report;
 use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
@@ -149,7 +150,10 @@ pub async fn payments_create(
             env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
-                &auth::JWTAuth(Permission::PaymentWrite),
+                &auth::JWTAuth {
+                    permission: Permission::PaymentWrite,
+                    minimum_entity_level: EntityType::Profile,
+                },
                 req.headers(),
             ),
         },
@@ -316,7 +320,10 @@ pub async fn payments_retrieve(
         },
         auth::auth_type(
             &*auth_type,
-            &auth::JWTAuth(Permission::PaymentRead),
+            &auth::JWTAuth {
+                permission: Permission::PaymentRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         locking_action,
@@ -618,6 +625,67 @@ pub async fn payments_capture(
     ))
     .await
 }
+
+/// Dynamic Tax Calculation
+
+#[instrument(skip_all, fields(flow = ?Flow::SessionUpdateTaxCalculation, payment_id))]
+pub async fn payments_dynamic_tax_calculation(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::SessionUpdateTaxCalculation;
+    let payment_id = path.into_inner();
+    let payload = payment_types::PaymentsDynamicTaxCalculationRequest {
+        payment_id,
+        ..json_payload.into_inner()
+    };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(error) => {
+            logger::error!(
+                ?error,
+                "Failed to get headers in payments_connector_session"
+            );
+            HeaderPayload::default()
+        }
+    };
+    tracing::Span::current().record("payment_id", payload.payment_id.get_string_repr());
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, payload, req_state| {
+            payments::payments_core::<
+                api_types::SdkSessionUpdate,
+                payment_types::PaymentsDynamicTaxCalculationResponse,
+                _,
+                _,
+                _,
+                _,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                payments::PaymentSessionUpdate,
+                payload,
+                api::AuthFlow::Client,
+                payments::CallConnectorAction::Trigger,
+                None,
+                header_payload.clone(),
+            )
+        },
+        &auth::PublishableKeyAuth,
+        locking_action,
+    ))
+    .await
+}
+
 /// Payments - Session token
 ///
 /// To create the session object or to get session token for wallets
@@ -1046,7 +1114,10 @@ pub async fn payments_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PaymentRead),
+            &auth::JWTAuth {
+                permission: Permission::PaymentRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -1103,7 +1174,10 @@ pub async fn profile_payments_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PaymentRead),
+            &auth::JWTAuth {
+                permission: Permission::PaymentRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -1133,7 +1207,10 @@ pub async fn payments_list_by_filter(
                 req,
             )
         },
-        &auth::JWTAuth(Permission::PaymentRead),
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1162,7 +1239,10 @@ pub async fn profile_payments_list_by_filter(
                 req,
             )
         },
-        &auth::JWTAuth(Permission::PaymentRead),
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Profile,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1185,7 +1265,10 @@ pub async fn get_filters_for_payments(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::get_filters_for_payments(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::JWTAuth(Permission::PaymentRead),
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1206,7 +1289,10 @@ pub async fn get_payment_filters(
         |state, auth: auth::AuthenticationData, _, _| {
             payments::get_payment_filters(state, auth.merchant_account, None)
         },
-        &auth::JWTAuth(Permission::PaymentRead),
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1231,7 +1317,10 @@ pub async fn get_payment_filters_profile(
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
-        &auth::JWTAuth(Permission::PaymentRead),
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Profile,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1254,7 +1343,10 @@ pub async fn get_payments_aggregates(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::get_aggregates_for_payments(state, auth.merchant_account, req)
         },
-        &auth::JWTAuth(Permission::PaymentRead),
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1312,7 +1404,10 @@ pub async fn payments_approve(
             env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
-                &auth::JWTAuth(Permission::PaymentWrite),
+                &auth::JWTAuth {
+                    permission: Permission::PaymentWrite,
+                    minimum_entity_level: EntityType::Profile,
+                },
                 http_req.headers(),
             ),
         },
@@ -1375,7 +1470,10 @@ pub async fn payments_reject(
             env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
-                &auth::JWTAuth(Permission::PaymentWrite),
+                &auth::JWTAuth {
+                    permission: Permission::PaymentWrite,
+                    minimum_entity_level: EntityType::Profile,
+                },
                 http_req.headers(),
             ),
         },
@@ -1789,6 +1887,22 @@ impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
 }
 
 impl GetLockingInput for payment_types::PaymentsSessionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,

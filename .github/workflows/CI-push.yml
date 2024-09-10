@@ -197,3 +197,29 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  check-v2:
+    name: Check compilation for V2 features
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
+
+      - name: Run cargo check enabling only the release and v2 features
+        shell: bash
+        run: cargo check --no-default-features --features "release,v2"

@@ -1911,7 +1911,8 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2014,7 +2015,8 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2131,7 +2133,8 @@ pub struct BusinessProfileResponse {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2238,7 +2241,8 @@ pub struct BusinessProfileResponse {
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2346,7 +2350,8 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2445,7 +2450,8 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.

@@ -1242,6 +1242,11 @@ impl Authenticate for api_models::payments::PaymentsSessionRequest {
         Some(&self.client_secret)
     }
 }
+impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
 
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}

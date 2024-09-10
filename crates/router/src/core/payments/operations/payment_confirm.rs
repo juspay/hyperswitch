@@ -726,6 +726,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1389,6 +1390,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         billing_details,
                         shipping_details,
                         is_payment_processor_token_flow,
+                        tax_details: None,
                     })),
                     &m_key_store,
                     storage_scheme,
