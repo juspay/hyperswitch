@@ -536,12 +536,13 @@ pub struct DynamicRoutingConfigBody {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,
     pub max_aggregates_size: Option<u32>,
-    pub current_block_threshold: Option<DynamicRoutingConfigThreshold>,
+    pub current_block_threshold: Option<CurrentBlockThreshold>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub struct DynamicRoutingConfigThreshold {
-    pub max_total_count: Option<u32>,
+pub struct CurrentBlockThreshold {
+    pub duration_in_mins: Option<u64>,
+    pub max_total_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -585,7 +586,7 @@ impl DynamicRoutingConfigBody {
     }
 }
 
-impl DynamicRoutingConfigThreshold {
+impl CurrentBlockThreshold {
     pub fn update(&mut self, new: Self) {
         if let Some(max_total_count) = new.max_total_count {
             self.max_total_count = Some(max_total_count)

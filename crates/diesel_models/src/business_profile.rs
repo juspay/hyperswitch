@@ -271,6 +271,7 @@ pub struct BusinessProfile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
+    pub is_dynamic_routing_enabled: Option<bool>,
 }
 
 impl BusinessProfile {
@@ -457,6 +458,7 @@ impl BusinessProfileUpdateInternal {
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             version: source.version,
+            is_dynamic_routing_enabled: None,
         }
     }
 }
@@ -507,6 +509,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
             default_fallback_routing: new.default_fallback_routing,
             version: new.version,
+            is_dynamic_routing_enabled: None,
         }
     }
 }
