@@ -68,7 +68,7 @@ pub use hyperswitch_connectors::connectors::{
     fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay,
     globepay::Globepay, helcim, helcim::Helcim, nexixpay, nexixpay::Nexixpay, novalnet,
     novalnet::Novalnet, powertranz, powertranz::Powertranz, stax, stax::Stax, taxjar,
-    taxjar::Taxjar, tsys, tsys::Tsys, worldline, worldline::Worldline,
+    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, worldline, worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]

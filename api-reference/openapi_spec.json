@@ -7164,6 +7164,14 @@
           {
             "type": "object",
             "properties": {
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "payout_test_mode": {
                 "type": "boolean",
                 "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
@@ -8155,6 +8163,7 @@
           "square",
           "stax",
           "stripe",
+          "taxjar",
           "threedsecureio",
           "trustpay",
           "tsys",
@@ -8269,7 +8278,8 @@
           "non_banking_finance",
           "payout_processor",
           "payment_method_auth",
-          "authentication_processor"
+          "authentication_processor",
+          "tax_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -10192,6 +10202,12 @@
             "type": "string",
             "enum": [
               "user_cnpj"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_iban"
             ]
           }
         ],
@@ -13346,6 +13362,11 @@
               }
             ],
             "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
+            "nullable": true
           }
         }
       },
@@ -13410,6 +13431,11 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
             "nullable": true
           }
         }
@@ -15059,7 +15085,8 @@
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "is_tax_calculation_enabled"
         ],
         "properties": {
           "redirect_url": {
@@ -15121,6 +15148,10 @@
             "type": "boolean",
             "description": "flag that indicates whether to collect billing details from wallets or from the customer",
             "nullable": true
+          },
+          "is_tax_calculation_enabled": {
+            "type": "boolean",
+            "description": "flag that indicates whether to calculate tax on the order amount"
           }
         }
       },
@@ -15583,6 +15614,13 @@
             "example": 6540,
             "nullable": true
           },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
+            "example": 6540,
+            "nullable": true
+          },
           "payment_id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
@@ -15902,6 +15940,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -15925,6 +15968,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -16260,6 +16310,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -16782,6 +16837,26 @@
           }
         }
       },
+      "PaymentsDynamicTaxCalculationRequest": {
+        "type": "object",
+        "required": [
+          "shipping",
+          "client_secret",
+          "payment_method_type"
+        ],
+        "properties": {
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
@@ -16898,6 +16973,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -17312,6 +17394,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17999,6 +18086,13 @@
             "example": 6540,
             "nullable": true
           },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
+            "example": 6540,
+            "nullable": true
+          },
           "payment_id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
@@ -18313,6 +18407,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -18669,6 +18768,14 @@
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
                 "nullable": true
               },
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "test_mode": {
                 "type": "boolean",
                 "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
@@ -18735,8 +18842,11 @@
             "nullable": true
           },
           "billing": {
-            "type": "object",
-            "description": "The billing address for the payout",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
           },
           "auto_fulfill": {
@@ -21763,6 +21873,13 @@
         "enum": [
           "payment",
           "payout"
+        ]
+      },
+      "UIWidgetFormLayout": {
+        "type": "string",
+        "enum": [
+          "tabs",
+          "journey"
         ]
       },
       "UpdateApiKeyRequest": {

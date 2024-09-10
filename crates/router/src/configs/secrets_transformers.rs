@@ -115,16 +115,22 @@ impl SecretsHandler for settings::ApiKeys {
         let expiry_reminder_days = api_keys.expiry_reminder_days.clone();
 
         #[cfg(feature = "partial-auth")]
-        let checksum_auth_context = secret_management_client
-            .get_secret(api_keys.checksum_auth_context.clone())
-            .await?;
-        #[cfg(feature = "partial-auth")]
-        let checksum_auth_key = secret_management_client
-            .get_secret(api_keys.checksum_auth_key.clone())
-            .await?;
+        let enable_partial_auth = api_keys.enable_partial_auth;
 
         #[cfg(feature = "partial-auth")]
-        let enable_partial_auth = api_keys.enable_partial_auth;
+        let (checksum_auth_context, checksum_auth_key) = {
+            if enable_partial_auth {
+                let checksum_auth_context = secret_management_client
+                    .get_secret(api_keys.checksum_auth_context.clone())
+                    .await?;
+                let checksum_auth_key = secret_management_client
+                    .get_secret(api_keys.checksum_auth_key.clone())
+                    .await?;
+                (checksum_auth_context, checksum_auth_key)
+            } else {
+                (String::new().into(), String::new().into())
+            }
+        };
 
         Ok(value.transition_state(|_| Self {
             hash_key,
@@ -252,17 +258,15 @@ impl SecretsHandler for settings::Secrets {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let secrets = value.get_inner();
-        let (jwt_secret, admin_api_key, recon_admin_api_key, master_enc_key) = tokio::try_join!(
+        let (jwt_secret, admin_api_key, master_enc_key) = tokio::try_join!(
             secret_management_client.get_secret(secrets.jwt_secret.clone()),
             secret_management_client.get_secret(secrets.admin_api_key.clone()),
-            secret_management_client.get_secret(secrets.recon_admin_api_key.clone()),
             secret_management_client.get_secret(secrets.master_enc_key.clone())
         )?;
 
         Ok(value.transition_state(|_| Self {
             jwt_secret,
             admin_api_key,
-            recon_admin_api_key,
             master_enc_key,
         }))
     }
@@ -454,5 +458,6 @@ pub(crate) async fn fetch_raw_secrets(
         user_auth_methods,
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
+        recipient_emails: conf.recipient_emails,
     }
 }

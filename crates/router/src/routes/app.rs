@@ -626,6 +626,10 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 )
+                .service(
+                web::resource("{payment_id}/calculate_tax")
+                    .route(web::post().to(payments_dynamic_tax_calculation)),
+                );
         }
         route
     }
@@ -1126,7 +1130,7 @@ impl Recon {
         web::scope("/recon")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/update_merchant")
+                web::resource("/{merchant_id}/update")
                     .route(web::post().to(recon_routes::update_merchant)),
             )
             .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
