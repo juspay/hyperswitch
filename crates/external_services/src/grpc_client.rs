@@ -1,15 +1,20 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
-use common_utils::errors::CustomResult;
+pub use common_utils::errors::CustomResult;
+use common_utils::transformers::ForeignFrom;
 pub use dynamic_routing::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
-    CalSuccessRateRequest, CalSuccessRateResponse, UpdateSuccessRateWindowRequest,
-    UpdateSuccessRateWindowResponse,
+    CalSuccessRateRequest, CalSuccessRateResponse,
+    CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
+    UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::api_models::routing::RoutableConnectorChoice;
+use hyperswitch_interfaces::api::api_models::routing::{
+    CurrentBlockThreshold, DynamicRoutingConfig, DynamicRoutingConfigId, RoutableConnectorChoice,
+    RoutableConnectorChoiceWithStatus,
+};
 use router_env::logger;
-use tokio::sync::Mutex;
+
 use tonic::transport::Channel;
 #[allow(
     missing_docs,
@@ -27,15 +32,16 @@ pub type DRResult<T> = CustomResult<T, DRError>;
 // The trait Success Based Dynamic Routing would have all the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
-    type Label;
     async fn calculate_success_rate(
         &self,
-        label_input: Vec<Self::Label>,
+        dynamic_routing_config: DynamicRoutingConfig,
+        label_input: Vec<RoutableConnectorChoice>,
     ) -> DRResult<CalSuccessRateResponse>;
 
     async fn update_rate_of_change_calculated_for_factor(
         &self,
-        response: Vec<Self::Label>,
+        dynamic_routing_config: DynamicRoutingConfig,
+        response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DRResult<UpdateSuccessRateWindowResponse>;
 }
 
@@ -81,7 +87,7 @@ pub struct GrpcClients {
 
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
-    pub success_rate_client: Arc<Mutex<SuccessRateCalculatorClient<Channel>>>,
+    pub success_rate_client: SuccessRateCalculatorClient<Channel>,
 }
 
 impl DynamicRoutingClientConfig {
@@ -90,7 +96,7 @@ impl DynamicRoutingClientConfig {
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
         let uri = format!("http://{}:{}", self.host, self.port);
         let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
-        let success_rate_client = Arc::new(Mutex::new(SuccessRateCalculatorClient::new(channel)));
+        let success_rate_client = SuccessRateCalculatorClient::new(channel);
         Ok(RoutingStrategy {
             success_rate_client,
         })
@@ -98,24 +104,44 @@ impl DynamicRoutingClientConfig {
 }
 #[async_trait::async_trait]
 impl SuccessBasedDynamicRouting for RoutingStrategy {
-    type Label = RoutableConnectorChoice;
     async fn calculate_success_rate(
         &self,
-        _label_input: Vec<Self::Label>,
+        dynamic_routing_config: DynamicRoutingConfig,
+        label_input: Vec<RoutableConnectorChoice>,
     ) -> DRResult<CalSuccessRateResponse> {
-        let config = CalSuccessRateConfig {
-            min_aggregates_size: 3,
-            default_success_rate: 100.0,
+        let labels = label_input
+            .into_iter()
+            .map(|conn_choice| conn_choice.to_string())
+            .collect::<Vec<_>>();
+        let config = if let Some(config) = dynamic_routing_config.config {
+            Some(CalSuccessRateConfig {
+                min_aggregates_size: config.min_aggregates_size.unwrap_or_default(),
+                default_success_rate: config.default_success_rate.unwrap_or_default(),
+            })
+        } else {
+            None
         };
-        // call the db to populate the other fields once this function is called
+        let params = dynamic_routing_config
+            .params
+            .map(|vec| {
+                vec.into_iter()
+                    .map(|param| param.to_string())
+                    .collect::<Vec<String>>()
+                    .join(":")
+            })
+            .unwrap_or_default();
+        let id = match dynamic_routing_config.id {
+            DynamicRoutingConfigId::MerchantId(m_id) => m_id.get_string_repr().to_owned(),
+            DynamicRoutingConfigId::ProfileId(p_id) => p_id.get_string_repr().to_owned(),
+        };
         let request = tonic::Request::new(CalSuccessRateRequest {
-            id: "ab".to_string(),
-            params: "".to_string(),
-            labels: vec![],
-            config: None,
+            id,
+            params,
+            labels,
+            config,
         });
 
-        let mut client = self.success_rate_client.lock().await;
+        let mut client = self.success_rate_client.clone();
         let response = client
             .fetch_success_rate(request)
             .await
@@ -125,20 +151,59 @@ impl SuccessBasedDynamicRouting for RoutingStrategy {
     }
     async fn update_rate_of_change_calculated_for_factor(
         &self,
-        response: Vec<Self::Label>,
+        dynamic_routing_config: DynamicRoutingConfig,
+        label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DRResult<UpdateSuccessRateWindowResponse> {
+        let config = if let Some(config) = dynamic_routing_config.config {
+            Some(UpdateSuccessRateWindowConfig {
+                max_aggregates_size: config.max_aggregates_size.unwrap_or_default(),
+                current_block_threshold: config
+                    .current_block_threshold
+                    .map(ForeignFrom::foreign_from),
+            })
+        } else {
+            None
+        };
+        let labels_with_status = label_input
+            .into_iter()
+            .map(|conn_choice| LabelWithStatus {
+                label: conn_choice.routable_connector_choice.to_string(),
+                status: conn_choice.status,
+            })
+            .collect();
+        let params = dynamic_routing_config
+            .params
+            .map(|vec| {
+                vec.into_iter()
+                    .map(|param| param.to_string())
+                    .collect::<Vec<String>>()
+                    .join(":")
+            })
+            .unwrap_or_default();
+        let id = match dynamic_routing_config.id {
+            DynamicRoutingConfigId::MerchantId(m_id) => m_id.get_string_repr().to_owned(),
+            DynamicRoutingConfigId::ProfileId(p_id) => p_id.get_string_repr().to_owned(),
+        };
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
-            id: todo!(),
-            params: todo!(),
-            labels_with_status: todo!(),
-            config: todo!(),
+            id,
+            params,
+            labels_with_status,
+            config,
         });
-        let mut client = self.success_rate_client.lock().await;
+        let mut client = self.success_rate_client.clone();
         let response = client
             .update_success_rate_window(request)
             .await
             .change_context(DRError::ClientBuildingFailed)?
             .into_inner();
         Ok(response)
+    }
+}
+impl ForeignFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
+    fn foreign_from(current_threshold: CurrentBlockThreshold) -> Self {
+        DynamicCurrentThreshold {
+            duration_in_mins: current_threshold.duration_in_mins,
+            max_total_count: current_threshold.max_total_count.unwrap_or_default(),
+        }
     }
 }

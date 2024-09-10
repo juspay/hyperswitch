@@ -1114,9 +1114,9 @@ pub async fn toggle_dynamic_routing(
 
     if query_params.status {
         let default_dynamic_routing_config = api_models::routing::DynamicRoutingConfig {
-            id: Some(api_models::routing::DynamicRoutingConfigId::MerchantId(
+            id: api_models::routing::DynamicRoutingConfigId::MerchantId(
                 merchant_account.get_id().clone().to_owned(),
-            )),
+            ),
             params: Some(vec![
                 api_models::routing::DynamicRoutingConfigParams::PaymentMethod,
             ]),

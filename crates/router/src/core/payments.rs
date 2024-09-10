@@ -33,7 +33,7 @@ use common_utils::{
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
-use external_services::grpc_client::SuccessBasedDynamicRouting;
+// use external_services::grpc_client::SuccessBasedDynamicRouting;
 use futures::future::join_all;
 use helpers::ApplePayData;
 pub use hyperswitch_domain_models::{
@@ -4148,12 +4148,12 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
     // Testing purpose
-    let _dr = state
-        .grpc_client
-        .dynamic_routing
-        .calculate_success_rate(connectors.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    // let _dr = state
+    //     .grpc_client
+    //     .dynamic_routing
+    //     .calculate_success_rate(connectors.clone())
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     #[cfg(feature = "payouts")]
     let first_connector_choice = connectors
