@@ -4018,11 +4018,11 @@ pub async fn decide_action_type(
         if let Ok((token_exp_month, token_exp_year)) =
             do_status_check_for_network_token(state, payment_method_info).await
         {
-            Some(ActionType::NetworkTokenWithNetworkTransactionId (
+            Some(ActionType::NetworkTokenWithNetworkTransactionId(
                 TokenExpiry {
                     token_exp_month,
                     token_exp_year,
-                }
+                },
             ))
         } else {
             None

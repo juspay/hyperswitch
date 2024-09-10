@@ -343,6 +343,5 @@ pub enum NetworkTokenizationError {
     #[error("Failed to delete network token")]
     DeleteNetworkTokenFailed,
     #[error("Network token service not configured")]
-    NetworkTokenizationServiceNotConfigured
-
+    NetworkTokenizationServiceNotConfigured,
 }

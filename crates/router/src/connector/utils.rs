@@ -856,7 +856,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     Some(network_transaction_id.clone())
                 }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_)) | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => None,
+                Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
             })
     }
 

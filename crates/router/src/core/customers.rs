@@ -789,9 +789,10 @@ impl CustomerDeleteBridge for customers::CustomerId {
                         )
                         .await
                         .switch()?;
-    
-                    if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id {
-                        network_tokenization::delete_network_token_from_locker_and_token_service(
+
+                        if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id
+                        {
+                            network_tokenization::delete_network_token_from_locker_and_token_service(
                             state,
                             &self.customer_id,
                             merchant_account.get_id(),
@@ -801,10 +802,10 @@ impl CustomerDeleteBridge for customers::CustomerId {
                         )
                         .await
                         .switch()?;
-                    }
+                        }
                     }
 
-                db.delete_payment_method_by_merchant_id_payment_method_id(
+                    db.delete_payment_method_by_merchant_id_payment_method_id(
                         key_manager_state,
                         key_store,
                         merchant_account.get_id(),

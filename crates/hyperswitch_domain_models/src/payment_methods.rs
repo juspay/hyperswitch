@@ -54,7 +54,6 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
-
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -142,8 +141,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             version: self.version,
             network_token_requestor_reference_id: self.network_token_requestor_reference_id,
             network_token_locker_id: self.network_token_locker_id,
-            network_token_payment_method_data: self.network_token_payment_method_data.map(|val| val.into()),
-
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 
@@ -276,7 +276,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             version: self.version,
             network_token_requestor_reference_id: self.network_token_requestor_reference_id,
             network_token_locker_id: self.network_token_locker_id,
-            network_token_payment_method_data: self.network_token_payment_method_data.map(|val| val.into()),
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 }

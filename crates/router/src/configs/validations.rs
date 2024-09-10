@@ -193,7 +193,6 @@ impl super::settings::GenericLinkEnvConfig {
     }
 }
 
-
 impl super::settings::NetworkTokenizationService {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
