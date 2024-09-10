@@ -23,9 +23,11 @@ impl masking::SerializableSecret for MerchantName {}
 ///     `min_masked_char_count`
 ///         - this ensures the minimum number of characters to be masked
 ///
-/// # Info
-///     In case the sum of `unmasked_char_count` and `min_masked_char_count` exceeds
-///     the total length of the string, `unmasked_char_count` is considered over `min_masked_char_count`.
+/// # Behaviour
+///     - Returns the original string if its length is less than or equal to `unmasked_char_count`.
+///     - If the string length allows, keeps `unmasked_char_count` characters unmasked at both start and end.
+///     - Otherwise, keeps `unmasked_char_count` characters unmasked only at the end.
+///     - Only alphanumeric characters are masked; other characters remain unchanged.
 ///
 /// # Examples
 ///     Sort Code
