@@ -44,10 +44,7 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
             serde_json::from_value(merchant_from_db.primary_business_details.clone())
@@ -72,7 +69,7 @@ pub async fn generate_sample_data(
         (profile_id, business_country_default, business_label_default)
     };
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let profile_id = req
             .profile_id.clone()
@@ -251,6 +248,8 @@ pub async fn generate_sample_data(
             shipping_details: None,
             is_payment_processor_token_flow: None,
             organization_id: org_id.clone(),
+            shipping_cost: None,
+            tax_details: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

@@ -148,10 +148,7 @@ pub async fn update_mca(
         .encode_to_value()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Error while deserializing connector_account_details")?;
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,
         connector_account_details: Some(Secret::new(connector_auth_json)),
@@ -166,7 +163,7 @@ pub async fn update_mca(
         test_mode: None,
         additional_merchant_data: None,
     };
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,
         connector_account_details: Some(Secret::new(connector_auth_json)),

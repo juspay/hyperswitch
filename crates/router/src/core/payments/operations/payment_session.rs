@@ -205,6 +205,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -449,10 +450,7 @@ where
             .inspect_err(|err| {
                 logger::error!(session_token_error=?err);
             }) {
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "merchant_connector_account_v2")
-                ))]
+                #[cfg(feature = "v1")]
                 {
                     let new_session_connector_data = api::SessionConnectorData::new(
                         payment_method_type,
@@ -461,7 +459,7 @@ where
                     );
                     session_connector_data.push(new_session_connector_data)
                 }
-                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                #[cfg(feature = "v2")]
                 {
                     let new_session_connector_data =
                         api::SessionConnectorData::new(payment_method_type, connector_data, None);

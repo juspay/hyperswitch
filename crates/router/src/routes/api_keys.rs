@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -12,10 +13,7 @@ use crate::{
 ///
 /// Create a new API Key for accessing our APIs from your servers. The plaintext API Key will be
 /// displayed only once on creation, so ensure you store it securely.
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
 pub async fn api_key_create(
     state: web::Data<AppState>,
@@ -40,6 +38,7 @@ pub async fn api_key_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -48,7 +47,7 @@ pub async fn api_key_create(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
 pub async fn api_key_create(
     state: web::Data<AppState>,
@@ -70,6 +69,7 @@ pub async fn api_key_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -81,7 +81,7 @@ pub async fn api_key_create(
 /// API Key - Retrieve
 ///
 /// Retrieve information about the specified API Key.
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
@@ -107,6 +107,7 @@ pub async fn api_key_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -115,10 +116,7 @@ pub async fn api_key_retrieve(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// API Key - Retrieve
 ///
 /// Retrieve information about the specified API Key.
@@ -142,6 +140,7 @@ pub async fn api_key_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -150,10 +149,7 @@ pub async fn api_key_retrieve(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// API Key - Update
 ///
 /// Update information for the specified API Key.
@@ -181,6 +177,7 @@ pub async fn api_key_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -189,7 +186,7 @@ pub async fn api_key_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -213,6 +210,7 @@ pub async fn api_key_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -221,10 +219,7 @@ pub async fn api_key_update(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// API Key - Revoke
 ///
 /// Revoke the specified API Key. Once revoked, the API Key can no longer be used for
@@ -249,6 +244,7 @@ pub async fn api_key_revoke(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -257,7 +253,7 @@ pub async fn api_key_revoke(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
@@ -278,6 +274,7 @@ pub async fn api_key_revoke(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -330,6 +327,7 @@ pub async fn api_key_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
