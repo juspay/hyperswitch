@@ -500,7 +500,7 @@ impl<Flow, Request, Response> RouterData
 
     fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>> {
         self.get_optional_billing_state().and_then(|state| {
-            if state.clone().expose().len() > 2 {
+            if state.clone().expose().len() != 2 {
                 None
             } else {
                 Some(state)
