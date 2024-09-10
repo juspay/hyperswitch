@@ -49,7 +49,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>,
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            api::PaymentsDynamicTaxCalculationRequest,
+            PaymentData<F>,
+        >,
     > {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -369,10 +374,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        PaymentSessionUpdateOperation<'b, F>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
