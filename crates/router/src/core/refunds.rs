@@ -1045,7 +1045,7 @@ pub async fn get_aggregates_for_refunds(
     let refund_status_with_count = db
         .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let mut status_map: HashMap<enums::RefundStatus, i64> =
         refund_status_with_count.into_iter().collect();
     for status in enums::RefundStatus::iter() {

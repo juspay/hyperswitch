@@ -258,6 +258,7 @@ mod storage {
             .await
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
+
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn get_refund_status_with_count(
@@ -805,8 +806,8 @@ mod storage {
                         .map_err(|error|report!(errors::StorageError::from(error)))
         }
 
-        #[instrument(skip_all)]
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn get_refund_status_with_count(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,

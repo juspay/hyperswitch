@@ -13,12 +13,12 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 
-use crate::{connection, logger};
+use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
         limit: i64,
@@ -26,19 +26,19 @@ pub trait RefundDbExt: Sized {
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn filter_by_meta_constraints(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
     ) -> CustomResult<i64, errors::DatabaseError>;
 
     async fn get_refund_status_with_count(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
@@ -47,7 +47,7 @@ pub trait RefundDbExt: Sized {
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
     async fn filter_by_constraints(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
         limit: i64,
@@ -155,7 +155,7 @@ impl RefundDbExt for Refund {
     }
 
     async fn filter_by_meta_constraints(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
@@ -210,7 +210,7 @@ impl RefundDbExt for Refund {
     }
 
     async fn get_refunds_count(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
     ) -> CustomResult<i64, errors::DatabaseError> {
@@ -296,7 +296,7 @@ impl RefundDbExt for Refund {
     }
 
     async fn get_refund_status_with_count(
-        conn: &connection::PgPooledConn,
+        conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
