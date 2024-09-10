@@ -116,7 +116,7 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::PaymentId,
@@ -176,7 +176,7 @@ pub struct PaymentAttempt {
     pub id: String,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::PaymentId,
@@ -246,7 +246,7 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         todo!();
@@ -257,7 +257,7 @@ impl PaymentAttempt {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         self.amount
@@ -281,7 +281,7 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::PaymentId,
@@ -330,7 +330,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::PaymentId,
@@ -400,7 +400,7 @@ pub struct PaymentAttemptNew {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
@@ -412,7 +412,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
@@ -428,7 +428,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
@@ -618,14 +618,14 @@ pub enum PaymentAttemptUpdate {
     },
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         todo!()
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         self.attempt_id.clone()
@@ -636,7 +636,7 @@ use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;
@@ -842,7 +842,7 @@ impl behaviour::Conversion for PaymentIntent {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;

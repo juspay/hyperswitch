@@ -225,7 +225,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
@@ -281,7 +281,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_id(
         &self,
@@ -510,7 +510,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
@@ -541,7 +541,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_id(
         &self,

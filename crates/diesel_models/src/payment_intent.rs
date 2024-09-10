@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::enums as storage_enums;
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 use crate::schema::payment_intent;
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 use crate::schema_v2::payment_intent;
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
@@ -74,7 +74,7 @@ pub struct PaymentIntent {
     pub id: common_utils::id_type::PaymentId,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
@@ -157,7 +157,7 @@ pub struct DefaultTax {
     pub order_tax_amount: MinorUnit,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(
     Clone, Debug, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -221,7 +221,7 @@ pub struct PaymentIntentNew {
     pub id: common_utils::id_type::PaymentId,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(
     Clone, Debug, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -285,7 +285,7 @@ pub struct PaymentIntentNew {
     pub tax_details: Option<TaxDetails>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -364,7 +364,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -446,7 +446,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
@@ -471,7 +471,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
@@ -503,7 +503,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<TaxDetails>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
@@ -538,7 +538,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
@@ -581,7 +581,7 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<TaxDetails>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentIntentUpdate {
     pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
         let PaymentIntentUpdateInternal {
@@ -652,7 +652,7 @@ impl PaymentIntentUpdate {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentIntentUpdate {
     pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
         let PaymentIntentUpdateInternal {
@@ -742,7 +742,7 @@ impl PaymentIntentUpdate {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
@@ -1250,7 +1250,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {

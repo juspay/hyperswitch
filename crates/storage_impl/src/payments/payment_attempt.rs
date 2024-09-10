@@ -1147,7 +1147,7 @@ impl DataModelExt for MandateDataType {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
@@ -1301,7 +1301,7 @@ impl DataModelExt for PaymentAttempt {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 

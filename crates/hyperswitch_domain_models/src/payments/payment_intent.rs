@@ -32,7 +32,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -42,7 +42,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
@@ -131,7 +131,7 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: id_type::PaymentId,
@@ -185,7 +185,7 @@ pub struct PaymentIntentNew {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: id_type::PaymentId,
@@ -239,7 +239,7 @@ pub struct PaymentIntentNew {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
@@ -264,7 +264,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
@@ -296,7 +296,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -378,7 +378,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -451,7 +451,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -484,7 +484,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -528,7 +528,7 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
@@ -705,7 +705,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
@@ -906,7 +906,7 @@ use diesel_models::{
     PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         match value {
@@ -1049,7 +1049,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         match value {
@@ -1220,7 +1220,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
         let modified_at = common_utils::date_time::now();
@@ -1287,7 +1287,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
         let modified_at = common_utils::date_time::now();

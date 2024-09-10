@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::enums::{self as storage_enums};
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 use crate::schema::payment_attempt;
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 use crate::schema_v2::payment_attempt;
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
 )]
@@ -72,7 +72,7 @@ pub struct PaymentAttempt {
     pub id: String,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
 )]
@@ -146,7 +146,7 @@ pub struct PaymentAttempt {
     pub card_network: Option<String>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttempt {
     pub fn get_or_calculate_net_amount(&self) -> i64 {
         self.net_amount.unwrap_or(
@@ -163,7 +163,7 @@ pub struct PaymentListFilters {
     pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptNew {
@@ -216,7 +216,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptNew {
@@ -286,7 +286,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> i64 {
@@ -305,7 +305,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> i64 {
@@ -324,7 +324,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
@@ -514,7 +514,7 @@ pub enum PaymentAttemptUpdate {
     },
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
@@ -704,7 +704,7 @@ pub enum PaymentAttemptUpdate {
     },
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
@@ -747,7 +747,7 @@ pub struct PaymentAttemptUpdateInternal {
     card_network: Option<String>,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
@@ -800,14 +800,14 @@ pub struct PaymentAttemptUpdateInternal {
     card_network: Option<String>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentAttemptUpdateInternal {
     pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
         todo!();
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttemptUpdateInternal {
     pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
         let mut update_internal = self;
@@ -835,7 +835,7 @@ impl PaymentAttemptUpdateInternal {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentAttemptUpdate {
     pub fn apply_changeset(self, source: PaymentAttempt) -> PaymentAttempt {
         let PaymentAttemptUpdateInternal {
@@ -924,7 +924,7 @@ impl PaymentAttemptUpdate {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttemptUpdate {
     pub fn apply_changeset(self, source: PaymentAttempt) -> PaymentAttempt {
         let PaymentAttemptUpdateInternal {
@@ -1033,7 +1033,7 @@ impl PaymentAttemptUpdate {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
     fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
         match payment_attempt_update {
@@ -1947,7 +1947,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
     fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
         match payment_attempt_update {
