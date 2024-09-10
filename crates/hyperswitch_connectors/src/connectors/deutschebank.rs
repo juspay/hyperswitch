@@ -408,7 +408,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             "preauthorization"
         };
         Ok(format!(
-            "{}/services/v2.1//payment/event/{event_id}/directdebit/{tx_action}",
+            "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
             self.base_url(connectors)
         ))
     }
@@ -559,18 +559,32 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let event_id = req.connector_request_reference_id.clone();
+        let tx_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/services/v2.1/payment/event/{event_id}/tx/{tx_id}/capture",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = deutschebank::DeutschebankRouterData::from((amount, req));
+        let connector_req =
+            deutschebank::DeutschebankCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

@@ -14,7 +14,10 @@ use hyperswitch_domain_models::{
         ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
@@ -437,6 +440,24 @@ impl
     }
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct DeutschebankCaptureRequest {
+    changed_amount: MinorUnit,
+    kind: String,
+}
+
+impl TryFrom<&DeutschebankRouterData<&PaymentsCaptureRouterData>> for DeutschebankCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &DeutschebankRouterData<&PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            changed_amount: item.amount,
+            kind: "DIRECTDEBIT".to_string(),
+        })
+    }
+}
+
 impl
     TryFrom<
         ResponseRouterData<
@@ -457,16 +478,11 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+            status: if item.response.rc == "0" {
+                common_enums::AttemptStatus::Charged
+            } else {
+                common_enums::AttemptStatus::Failure
+            },
             ..item.data
         })
     }
