@@ -1,17 +1,24 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+
 pub use dynamic_routing::{
-    success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateRequest,
-    CalSuccessRateResponse, UpdateSuccessRateWindowResponse,
+    success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
+    CalSuccessRateRequest, CalSuccessRateResponse, UpdateSuccessRateWindowRequest,
+    UpdateSuccessRateWindowResponse,
 };
-use dynamic_routing::{CalSuccessRateConfig, UpdateSuccessRateWindowRequest};
+
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::api_models::routing::RoutableConnectorChoice;
 use router_env::logger;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
-#[allow(missing_docs)]
+#[allow(
+    missing_docs,
+    unused_qualifications,
+    clippy::unwrap_used,
+    clippy::as_conversions
+)]
 pub mod dynamic_routing {
     tonic::include_proto!("success_rate");
 }
@@ -51,6 +58,10 @@ pub struct DynamicRoutingClientConfig {
 }
 
 impl GrpcClientSettings {
+    /// # Panics
+    ///
+    /// This function will panic if it fails to establish a connection with the gRPC server.
+    #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> GrpcClients {
         let grpc_connect = self
             .dynamic_routing_client
@@ -59,10 +70,9 @@ impl GrpcClientSettings {
             .await
             .expect("Failed to establish a connection with the gRPC Server");
         logger::debug!("Connection established with Grpc Server");
-        let grpc_struct = GrpcClients {
+        GrpcClients {
             dynamic_routing: grpc_connect,
-        };
-        grpc_struct
+        }
     }
 }
 
