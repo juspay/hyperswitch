@@ -3660,7 +3660,7 @@ where
         if check_eligibility {
             // let setup_mandate = payment_data.get_setup_mandate();
             // let payment_method_data = payment_data.get_payment_method_data();
-            let transcation_data = core_routing::PaymentsDslInput::new(
+            let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
                 payment_data.get_payment_attempt(),
                 payment_data.get_payment_intent(),
@@ -3674,7 +3674,7 @@ where
                 &state.clone(),
                 key_store,
                 connectors,
-                &TransactionData::Payment(transcation_data),
+                &TransactionData::Payment(transaction_data),
                 eligible_connectors,
                 business_profile,
             )
@@ -3719,7 +3719,7 @@ where
         if check_eligibility {
             // let setup_mandate = payment_data.get_setup_mandate();
             // let payment_method_data = payment_data.get_payment_method_data();
-            let transcation_data = core_routing::PaymentsDslInput::new(
+            let transaction_data = core_routing::PaymentsDslInput::new(
                 // setup_mandate,
                 payment_data.get_setup_mandate(),
                 payment_data.get_payment_attempt(),
@@ -3735,7 +3735,7 @@ where
                 &state,
                 key_store,
                 connectors,
-                &TransactionData::Payment(transcation_data),
+                &TransactionData::Payment(transaction_data),
                 eligible_connectors,
                 business_profile,
             )
@@ -3770,7 +3770,7 @@ where
     }
 
     let new_pd = payment_data.clone();
-    let transcation_data = core_routing::PaymentsDslInput::new(
+    let transaction_data = core_routing::PaymentsDslInput::new(
         new_pd.get_setup_mandate(),
         new_pd.get_payment_attempt(),
         new_pd.get_payment_intent(),
@@ -3786,7 +3786,7 @@ where
         business_profile,
         key_store,
         payment_data,
-        transcation_data,
+        transaction_data,
         routing_data,
         eligible_connectors,
         mandate_type,
