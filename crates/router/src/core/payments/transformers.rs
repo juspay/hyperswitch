@@ -467,7 +467,6 @@ where
     }
 }
 
-
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsDynamicTaxCalculationResponse
 where
     F: Clone,
