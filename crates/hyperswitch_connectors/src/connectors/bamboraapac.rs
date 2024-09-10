@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        RefundExecuteRouterData, RefundSyncRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -538,7 +538,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bamboraapac {
     fn get_headers(
         &self,
-        req: &RefundsRouterData<Execute>,
+        req: &RefundExecuteRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -550,7 +550,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bambora
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
+        _req: &RefundExecuteRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/dts.asmx", self.base_url(connectors)))
@@ -558,7 +558,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bambora
 
     fn get_request_body(
         &self,
-        req: &RefundsRouterData<Execute>,
+        req: &RefundExecuteRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
@@ -575,7 +575,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bambora
 
     fn build_request(
         &self,
-        req: &RefundsRouterData<Execute>,
+        req: &RefundExecuteRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
@@ -594,10 +594,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bambora
 
     fn handle_response(
         &self,
-        data: &RefundsRouterData<Execute>,
+        data: &RefundExecuteRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundExecuteRouterData, errors::ConnectorError> {
         let response_data = html_to_xml_string_conversion(
             String::from_utf8(res.response.to_vec())
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,

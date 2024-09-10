@@ -667,8 +667,8 @@ impl<F>
 }
 
 // refund body in soap format
-pub fn get_refund_body<F>(
-    req: &BamboraapacRouterData<&types::RefundsRouterData<F>>,
+pub fn get_refund_body(
+    req: &BamboraapacRouterData<&types::RefundExecuteRouterData>,
 ) -> Result<Vec<u8>, Error> {
     let receipt = req.router_data.request.connector_transaction_id.to_owned();
     let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;

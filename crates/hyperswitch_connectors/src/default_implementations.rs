@@ -123,6 +123,7 @@ macro_rules! default_imp_for_calculate_tax {
 
 default_imp_for_calculate_tax!(
     connectors::Bambora,
+    connectors::Bamboraapac,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
@@ -154,6 +155,7 @@ macro_rules! default_imp_for_session_update {
 
 default_imp_for_session_update!(
     connectors::Bambora,
+    connectors::Bamboraapac,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
