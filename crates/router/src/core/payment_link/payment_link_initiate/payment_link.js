@@ -617,7 +617,7 @@ function renderDynamicMerchantDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
-  if (!(typeof paymentDetails.transaction_details === "object" && paymentDetails.transaction_details.length > 0)) {
+  if (!(typeof paymentDetails.transaction_details === "object" && Object.keys(paymentDetails.transaction_details).length > 0)) {
     return;
   }
 
@@ -646,7 +646,7 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
         merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
         // make the key and value bold if specified in the ui_configuration
         var key = item.ui_configuration? item.ui_configuration.is_key_bold? item.key.bold() : item.key : item.key;
-        var value = item.ui_configuration? item.ui_configuration.is_value_bold? item.key.bold() : item.value : item.value;
+        var value = item.ui_configuration? item.ui_configuration.is_value_bold? item.value.bold() : item.value : item.value;
         merchantData.innerHTML = key+" : "+value;
 
         merchantDynamicDetails.append(merchantData);
