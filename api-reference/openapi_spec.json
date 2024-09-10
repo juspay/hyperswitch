@@ -6088,7 +6088,12 @@
       "BankDebitResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/BankDebitAdditionalData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object"
@@ -7305,7 +7310,12 @@
       "BankTransferResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/BankTransferAdditionalData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object"
@@ -8500,7 +8510,12 @@
       "CardTokenResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/CardTokenAdditionalData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object"
@@ -10934,7 +10949,12 @@
       "GiftCardResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/GiftCardAdditionalData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object"
@@ -22587,7 +22607,12 @@
       "UpiResponse": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/UpiAdditionalData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiAdditionalData"
+              }
+            ],
+            "nullable": true
           },
           {
             "type": "object"
