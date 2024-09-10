@@ -58,7 +58,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 

@@ -34,6 +34,7 @@ use common_utils::{
     types::keymanager::{Identifier, ToEncryptable},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
@@ -59,7 +60,6 @@ use crate::{
     services,
     types::{self, domain, transformers::ForeignFrom},
 };
-pub use hyperswitch_connectors::utils::QrImage;
 
 pub mod error_parser {
     use std::fmt::Display;
