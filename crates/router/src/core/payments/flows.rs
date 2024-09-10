@@ -7,8 +7,8 @@ pub mod incremental_authorization_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
+pub mod session_update_flow;
 pub mod setup_mandate_flow;
-pub mod tax_calculation_flow;
 
 use async_trait::async_trait;
 
@@ -3088,7 +3088,7 @@ default_imp_for_authorize_session_token!(
 
 macro_rules! default_imp_for_calculate_tax {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentTaxCalculation for $path::$connector {}
+        $( impl api::TaxCalculation for $path::$connector {}
             impl
             services::ConnectorIntegration<
                 api::CalculateTax,
@@ -3100,7 +3100,7 @@ macro_rules! default_imp_for_calculate_tax {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentTaxCalculation for connector::DummyConnector<T> {}
+impl<const T: u8> api::TaxCalculation for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<

@@ -4478,8 +4478,15 @@ pub struct PaymentsDynamicTaxCalculationRequest {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsDynamicTaxCalculationResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
     /// net amount
     pub net_amount: MinorUnit,
+    /// order tax amount
+    pub order_tax_amount: Option<MinorUnit>,
+    /// shipping cost
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

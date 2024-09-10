@@ -24,16 +24,16 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization, PaymentReject,
-    PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentTaxCalculation, PaymentToken,
-    PaymentVoid, PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
+    PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentVoid,
+    PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
 };
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
     PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2, PaymentRejectV2,
-    PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTaxCalculationV2,
-    PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
-    PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+    PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2,
+    PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+    TaxCalculationV2,
 };
 use crate::core::errors;
 
