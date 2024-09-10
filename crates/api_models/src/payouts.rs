@@ -7,7 +7,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use masking::Secret;
-use router_derive::FlattenStructKeys;
+use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -805,7 +805,7 @@ pub struct PaymentMethodTypeInfo {
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, FlattenStructKeys)]
+#[derive(Clone, Debug, serde::Serialize, FlatStruct)]
 pub struct RequiredFieldsOverrideRequest {
     pub billing: Option<payments::Address>,
 }

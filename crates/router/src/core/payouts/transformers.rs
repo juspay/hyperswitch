@@ -126,7 +126,7 @@ impl
             api::RequiredFieldsOverrideRequest,
         ),
     ) -> Self {
-        let value_overrides = value_overrides.flatten_struct_keys();
+        let value_overrides = value_overrides.flat_struct();
 
         enabled_payout_methods
             .into_iter()

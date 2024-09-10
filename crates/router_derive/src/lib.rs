@@ -615,11 +615,12 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
 }
 
 /// Uses the [`Serialize`] implementation of a type to derive a function implementation
-/// for converting nested keys structure into a flattened structure.
+/// for converting nested keys structure into a HashMap of key, value where key is in
+/// the flattened form.
 ///
-/// # Example
+/// Example
 ///
-/// #[derive(Default, Serialize, FlattenStructKeys)]
+/// #[derive(Default, Serialize, FlatStruct)]
 /// pub struct User {
 ///     name: String,
 ///     address: Address,
@@ -634,9 +635,7 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
 /// }
 ///
 /// let user = User::default();
-/// let flattened_keys = user.flatten_struct_keys();
-///
-/// flattened keys will be a HashMap of key, value where key is in the flattened form.
+/// let flat_struct_map = user.flat_struct();
 ///
 /// [
 ///     ("name", "Test"),
@@ -645,14 +644,14 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
 ///     ("address.zip", "941222"),
 ///     ("email", "test@example.com"),
 /// ]
-#[proc_macro_derive(FlattenStructKeys)]
-pub fn flatten_struct_keys_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(FlatStruct)]
+pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
     let name = &input.ident;
 
     let expanded = quote::quote! {
         impl #name {
-            pub fn flatten_struct_keys(&self) -> std::collections::HashMap<String, String> {
+            pub fn flat_struct(&self) -> std::collections::HashMap<String, String> {
                 use serde_json::Value;
                 use std::collections::HashMap;
 
