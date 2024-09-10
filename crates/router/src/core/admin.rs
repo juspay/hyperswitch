@@ -2655,6 +2655,7 @@ pub async fn create_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
     merchant_account: domain::MerchantAccount,
+    auth_profile_id: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2685,6 +2686,8 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
         .await?;
+
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,

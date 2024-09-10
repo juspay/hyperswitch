@@ -216,6 +216,7 @@ pub trait RouterData {
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
@@ -552,6 +553,16 @@ impl<Flow, Request, Response> RouterData
                     .address
                     .and_then(|billing_details| billing_details.state)
             })
+    }
+
+    fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_state().and_then(|state| {
+            if state.clone().expose().len() != 2 {
+                None
+            } else {
+                Some(state)
+            }
+        })
     }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
