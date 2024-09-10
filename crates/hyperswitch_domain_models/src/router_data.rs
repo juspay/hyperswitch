@@ -148,9 +148,9 @@ impl ConnectorAuthType {
             let mut masked_key = String::new();
             let key_len = key.len();
             // Iterate through characters by their index
-            for (i, c) in key.chars().enumerate() {
-                if i < 2 || i >= key_len - 2 {
-                    masked_key.push(c); // Keep the first two and last two characters
+            for (index, character) in key.chars().enumerate() {
+                if index < 2 || index >= key_len - 2 {
+                    masked_key.push(character); // Keep the first two and last two characters
                 } else {
                     masked_key.push('*'); // Mask the middle characters
                 }
