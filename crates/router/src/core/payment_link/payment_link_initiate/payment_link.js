@@ -623,6 +623,14 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
 
   try {
     let merchantDetailsObject = paymentDetails.transaction_details;
+    // sort the merchant details based on the position
+    // if position is null, then it will be shown at the end
+    merchantDetailsObject.sort((a, b) => {
+      if (a.ui_configuration === null || a.ui_configuration.position === null) return 1;
+      if (b.ui_configuration === null || b.ui_configuration.position === null) return -1;
+
+      return a.ui_configuration.position - b.ui_configuration.position;
+    });
 
     if (merchantDetailsObject.length > 0) {
       // render a horizontal line above dynamic merchant details
@@ -636,9 +644,10 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
       for (var item of merchantDetailsObject) {
         var merchantData = document.createElement("div");
         merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-        var key = item.ui_configuration.is_key_bold ? item.key.bold() : item.key;
-        var value = item.ui_configuration.is_value_bold ? item.value.bold() : item.value;
-        merchantData.innerHTML = key+": "+value;
+        // make the key and value bold if specified in the ui_configuration
+        var key = item.ui_configuration? item.ui_configuration.is_key_bold? item.key.bold() : item.key : item.key;
+        var value = item.ui_configuration? item.ui_configuration.is_value_bold? item.key.bold() : item.value : item.value;
+        merchantData.innerHTML = key+" : "+value;
 
         merchantDynamicDetails.append(merchantData);
         if (--maxItemsInDetails === 0) {
