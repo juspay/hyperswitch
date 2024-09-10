@@ -135,8 +135,9 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
-    // Taxjar,
+    Taxjar,
     Threedsecureio,
+    //Thunes,
     Trustpay,
     Tsys,
     Volt,
@@ -216,7 +217,7 @@ impl Connector {
             // Add Separate authentication support for connectors
 			// | Self::Novalnet
 			// | Self::Nexixpay
-			// | Self::Taxjar
+			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -265,6 +266,8 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            | Self::Taxjar
+            //| Self::Thunes
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
@@ -417,6 +420,26 @@ pub enum FrmConnectors {
 }
 
 #[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+
+pub enum TaxConnectors {
+    Taxjar,
+}
+
+#[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
@@ -492,6 +515,7 @@ pub enum FieldType {
     UserPixKey,
     UserCpf,
     UserCnpj,
+    UserIban,
 }
 
 impl FieldType {
@@ -655,6 +679,10 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
+    TaxConnectors::from_str(connector_name).ok()
 }
 
 #[derive(

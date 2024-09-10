@@ -51,7 +51,7 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
 }
@@ -88,7 +88,7 @@ pub struct BusinessProfileSetter {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
 }
 
@@ -176,7 +176,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
 }
 
@@ -568,7 +568,7 @@ pub struct BusinessProfile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
 }
@@ -607,7 +607,7 @@ pub struct BusinessProfileSetter {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
 }
 
@@ -659,6 +659,14 @@ impl From<BusinessProfileSetter> for BusinessProfile {
 }
 
 impl BusinessProfile {
+    pub fn get_is_tax_connector_enabled(&self) -> bool {
+        let is_tax_connector_enabled = self.is_tax_connector_enabled;
+        match &self.tax_connector_id {
+            Some(_id) => is_tax_connector_enabled,
+            _ => false,
+        }
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.intent_fulfillment_time

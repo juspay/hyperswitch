@@ -133,7 +133,6 @@ bg_metrics_collection_interval_in_secs = 15           # Interval for collecting 
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
 admin_api_key = "test_admin"             # admin API key for admin authentication.
 jwt_secret = "secret"                    # JWT secret used for user authentication.
-recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -254,6 +253,7 @@ stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+thunes.base_url = "https://api.limonetikqualif.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -319,6 +319,7 @@ cards = [
   "stax",
   "stripe",
   "threedsecureio",
+    "thunes",
   "worldpay",
   "zen",
   "zsl",
@@ -723,3 +724,6 @@ encryption_key = "" # Encryption key used for encrypting data in user_authentica
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[recipient_emails]
+recon = "test@example.com"

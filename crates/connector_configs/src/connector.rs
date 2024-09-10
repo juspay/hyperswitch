@@ -227,6 +227,7 @@ pub struct ConnectorConfig {
     pub paypal_test: Option<ConnectorTomlConfig>,
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
+    pub taxjar: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -359,6 +360,7 @@ impl ConnectorConfig {
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
+            Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),

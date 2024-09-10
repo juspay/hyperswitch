@@ -177,7 +177,7 @@ pub async fn set_dashboard_metadata(
         user_core::dashboard_metadata::set_metadata,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -365,7 +365,7 @@ pub async fn list_user_roles_details(
         user_core::list_user_roles_details,
         &auth::JWTAuth {
             permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -468,7 +468,7 @@ pub async fn invite_multiple_user(
         },
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -494,7 +494,7 @@ pub async fn resend_invite(
         },
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -575,7 +575,7 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         &http_req,
         (),
         |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::ReconJWT,
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

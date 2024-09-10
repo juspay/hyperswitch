@@ -279,3 +279,6 @@ api_key="API Key"
 api_key = "Client ID"
 key1 = "Merchant ID"
 api_secret = "Client Key"
+
+[thunes]
+api_key="API Key"
