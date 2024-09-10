@@ -1799,6 +1799,7 @@ impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
     fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            form_layout: item.form_layout,
             payout_test_mode: item.payout_test_mode,
         }
     }
@@ -1810,6 +1811,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
     fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            form_layout: item.form_layout,
             payout_test_mode: item.payout_test_mode,
         }
     }
