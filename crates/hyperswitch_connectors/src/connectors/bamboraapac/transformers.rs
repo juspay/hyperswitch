@@ -16,7 +16,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    transformers::ForeignFrom,
+    foreign_traits_and_utils::ForeignFrom,
     types::ResponseRouterData,
     utils::{
         self as connector_utils, CardData as _, PaymentsAuthorizeRequestData, RouterData as _,

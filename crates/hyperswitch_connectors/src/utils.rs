@@ -29,7 +29,7 @@ use regex::Regex;
 use router_env::{logger, metrics::add_attributes};
 use serde::Serializer;
 
-use crate::{metrics, transformers::ForeignTryFrom};
+use crate::{foreign_traits_and_utils::ForeignTryFrom, metrics};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
