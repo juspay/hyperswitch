@@ -434,7 +434,7 @@ impl super::RedisConnectionPool {
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
-                        tracing::error!(?err);
+                        tracing::error!(redis_err=?err, "Redis error while executing hscan command");
                         None
                     }
                 }
@@ -465,7 +465,7 @@ impl super::RedisConnectionPool {
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
-                        tracing::error!(redis_err=?err);
+                        tracing::error!(redis_err=?err, "Redis error while executing scan command");
                         None
                     }
                 }
