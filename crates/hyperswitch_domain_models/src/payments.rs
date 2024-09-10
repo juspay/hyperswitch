@@ -147,4 +147,5 @@ pub struct PaymentIntent {
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub organization_id: id_type::OrganizationId,
+    pub skip_external_tax_calculation: Option<bool>,
 }
