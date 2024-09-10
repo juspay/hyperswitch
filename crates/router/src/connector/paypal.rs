@@ -20,7 +20,9 @@ use crate::{
     configs::settings,
     connector::{
         utils as connector_utils,
-        utils::{to_connector_meta, ConnectorErrorTypeMapping, RefundsRequestData},
+        utils::{
+            to_connector_meta, ConnectorErrorTypeMapping, PaymentMethodDataType, RefundsRequestData,
+        },
     },
     consts,
     core::{
@@ -326,6 +328,17 @@ impl ConnectorValidation for Paypal {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
