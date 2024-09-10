@@ -1,5 +1,5 @@
 //! Contains new types with restrictions
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 
 use crate::{consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH, pii::UpiVpaMaskingStrategy};
 
@@ -82,7 +82,7 @@ impl From<String> for MaskedSortCode {
 }
 impl From<Secret<String>> for MaskedSortCode {
     fn from(secret: Secret<String>) -> Self {
-        Self::from(secret.peek().to_owned())
+        Self::from(secret.expose())
     }
 }
 
@@ -97,7 +97,7 @@ impl From<String> for MaskedRoutingNumber {
 }
 impl From<Secret<String>> for MaskedRoutingNumber {
     fn from(secret: Secret<String>) -> Self {
-        Self::from(secret.peek().to_owned())
+        Self::from(secret.expose())
     }
 }
 
@@ -112,7 +112,7 @@ impl From<String> for MaskedBankAccount {
 }
 impl From<Secret<String>> for MaskedBankAccount {
     fn from(secret: Secret<String>) -> Self {
-        Self::from(secret.peek().to_owned())
+        Self::from(secret.expose())
     }
 }
 
@@ -127,7 +127,7 @@ impl From<String> for MaskedIban {
 }
 impl From<Secret<String>> for MaskedIban {
     fn from(secret: Secret<String>) -> Self {
-        Self::from(secret.peek().to_owned())
+        Self::from(secret.expose())
     }
 }
 
@@ -155,7 +155,7 @@ impl From<String> for MaskedUpiVpaId {
 }
 impl From<Secret<String, UpiVpaMaskingStrategy>> for MaskedUpiVpaId {
     fn from(secret: Secret<String, UpiVpaMaskingStrategy>) -> Self {
-        Self::from(secret.peek().to_owned())
+        Self::from(secret.expose())
     }
 }
 
