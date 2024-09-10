@@ -493,6 +493,10 @@ pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
@@ -843,6 +847,8 @@ impl Settings<RawSecret> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+    #[serde(default)]
+    pub required_fields: PayoutRequiredFields,
 }
 
 #[derive(Debug, Clone, Default)]
