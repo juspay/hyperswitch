@@ -16,6 +16,7 @@ import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
+import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -33,6 +34,7 @@ const connectorDetails = {
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
+  fiuu: fiuuConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {

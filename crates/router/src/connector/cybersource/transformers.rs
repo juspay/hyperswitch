@@ -1131,12 +1131,23 @@ impl
             Err(_) => None,
         };
 
+        let security_code = if item
+            .router_data
+            .request
+            .get_optional_network_transaction_id()
+            .is_some()
+        {
+            None
+        } else {
+            Some(ccard.card_cvc)
+        };
+
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: Some(ccard.card_cvc),
+                security_code,
                 card_type: card_type.clone(),
             },
         }));

@@ -61,7 +61,6 @@ request_body_limit = 32768
 admin_api_key = "test_admin"
 master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
 jwt_secret = "secret"
-recon_admin_api_key = "recon_test_admin"
 
 [applepay_merchant_configs]
 merchant_cert_key = "MERCHANT CERTIFICATE KEY"
@@ -114,6 +113,7 @@ cards = [
     "cryptopay",
     "cybersource",
     "datatrans",
+    "deutschebank",
     "dlocal",
     "dummyconnector",
     "ebanx",
@@ -209,6 +209,7 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
+deutschebank.base_url = "https://sandbox.directpos.de/rest-api/services/v2.1"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -725,6 +726,9 @@ encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC69
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[recipient_emails]
+recon = "recon@example.com"
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa"

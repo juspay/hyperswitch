@@ -133,7 +133,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
-            | Flow::PaymentsManualUpdate => Self::Payments,
+            | Flow::PaymentsManualUpdate
+            | Flow::SessionUpdateTaxCalculation => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -250,6 +251,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
+            | Flow::ListInvitationsForUser
             | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
@@ -262,7 +264,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
             | Flow::AcceptInvitation
+            | Flow::AcceptInvitationsV2
             | Flow::MerchantSelect
+            | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
             | Flow::CreateRole
             | Flow::UpdateRole

@@ -379,7 +379,12 @@ async fn get_tracker_for_sync<
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             match db
-                .find_payment_method(payment_method_id, storage_scheme)
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    payment_method_id,
+                    storage_scheme,
+                )
                 .await
             {
                 Ok(payment_method) => Some(payment_method),
@@ -463,6 +468,7 @@ async fn get_tracker_for_sync<
         authentication,
         recurring_details: None,
         poll_config: None,
+        tax_data: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

@@ -324,7 +324,12 @@ pub async fn save_payout_data_to_locker(
 
             // Use locker ref as payment_method_id
             let existing_pm_by_pmid = db
-                .find_payment_method(&locker_ref, merchant_account.storage_scheme)
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    &locker_ref,
+                    merchant_account.storage_scheme,
+                )
                 .await;
 
             match existing_pm_by_pmid {
@@ -343,6 +348,8 @@ pub async fn save_payout_data_to_locker(
                     if err.current_context().is_db_not_found() {
                         match db
                             .find_payment_method_by_locker_id(
+                                &(state.into()),
+                                key_store,
                                 &locker_ref,
                                 merchant_account.storage_scheme,
                             )
@@ -573,6 +580,8 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
+                &(state.into()),
+                key_store,
                 merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
@@ -588,10 +597,16 @@ pub async fn save_payout_data_to_locker(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
         };
-        db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in db")?;
+        db.update_payment_method(
+            &(state.into()),
+            key_store,
+            existing_pm,
+            pm_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
     };
 
     // Store card_reference in payouts table

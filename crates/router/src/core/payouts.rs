@@ -300,7 +300,7 @@ pub async fn payouts_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-    locale: &String,
+    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer) =
@@ -947,10 +947,11 @@ pub async fn payouts_filtered_list_core(
 pub async fn payouts_list_available_filters_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PayoutListFilters> {
     let db = state.store.as_ref();
-    let payout = db
+    let payouts = db
         .filter_payouts_by_time_range_constraints(
             merchant_account.get_id(),
             &time_range,
@@ -959,9 +960,11 @@ pub async fn payouts_list_available_filters_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
+
     let filters = db
         .get_filters_for_payouts(
-            payout.as_slice(),
+            payouts.as_slice(),
             merchant_account.get_id(),
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )
@@ -2220,10 +2223,10 @@ pub async fn payout_create_db_entries(
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     _req: &payouts::PayoutCreateRequest,
-    _payout_id: &String,
-    _profile_id: &String,
+    _payout_id: &str,
+    _profile_id: &str,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    _locale: &String,
+    _locale: &str,
     _customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     todo!()
@@ -2240,7 +2243,7 @@ pub async fn payout_create_db_entries(
     payout_id: &String,
     profile_id: &common_utils::id_type::ProfileId,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    locale: &String,
+    locale: &str,
     customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
@@ -2652,8 +2655,8 @@ pub async fn create_payout_link(
     customer_id: &CustomerId,
     merchant_id: &common_utils::id_type::MerchantId,
     req: &payouts::PayoutCreateRequest,
-    payout_id: &String,
-    locale: &String,
+    payout_id: &str,
+    locale: &str,
 ) -> RouterResult<PayoutLink> {
     let payout_link_config_req = req.payout_link_config.to_owned();
 

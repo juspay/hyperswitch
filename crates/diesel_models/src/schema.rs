@@ -208,7 +208,7 @@ diesel::table! {
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
-        api_version -> ApiVersion,
+        version -> ApiVersion,
         is_network_tokenization_enabled -> Bool,
     }
 }
@@ -916,8 +916,10 @@ diesel::table! {
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
         is_payment_processor_token_flow -> Nullable<Bool>,
+        shipping_cost -> Nullable<Int8>,
         #[max_length = 32]
         organization_id -> Varchar,
+        tax_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1003,6 +1005,7 @@ diesel::table! {
         payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        version -> ApiVersion,
         #[max_length = 128]
         network_token_requestor_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -1339,8 +1342,6 @@ diesel::table! {
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        #[max_length = 64]
-        preferred_merchant_id -> Nullable<Varchar>,
         totp_status -> TotpStatus,
         totp_secret -> Nullable<Bytea>,
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,

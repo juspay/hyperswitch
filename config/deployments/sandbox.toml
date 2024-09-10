@@ -47,6 +47,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
+deutschebank.base_url = "https://sandbox.directpos.de/rest-api/services/v2.1"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -386,7 +387,6 @@ sdk_eligible_payment_methods = "card"
 
 [locker_based_open_banking_connectors]
 connector_list = ""
-
 [network_tokenization_supported_card_networks]
 card_networks = "Visa"
 

@@ -348,7 +348,7 @@ pub async fn list_roles_at_entity_level(
             if check_type && role_info.get_entity_type() == req.entity_type {
                 Some(role_api::MinimalRoleInfo {
                     role_id: role_info.get_role_id().to_string(),
-                    role_name: role_info.get_role_name().to_string(),
+                    role_name: Some(role_info.get_role_name().to_string()),
                 })
             } else {
                 None

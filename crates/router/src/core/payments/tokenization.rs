@@ -308,6 +308,8 @@ where
                             let payment_method = {
                                 let existing_pm_by_pmid = db
                                     .find_payment_method(
+                                        &(state.into()),
+                                        key_store,
                                         &payment_method_id,
                                         merchant_account.storage_scheme,
                                     )
@@ -318,6 +320,8 @@ where
                                         locker_id = Some(payment_method_id.clone());
                                         let existing_pm_by_locker_id = db
                                             .find_payment_method_by_locker_id(
+                                                &(state.into()),
+                                                key_store,
                                                 &payment_method_id,
                                                 merchant_account.storage_scheme,
                                             )
@@ -350,6 +354,8 @@ where
                                         connector_token,
                                     )?;
                                     payment_methods::cards::update_payment_method_metadata_and_last_used(
+                                        state,
+                                        key_store,
                                         db,
                                         pm.clone(),
                                         pm_metadata,
@@ -369,7 +375,8 @@ where
                                                 connector_mandate_id.clone(),
                                             )?;
 
-                                        payment_methods::cards::update_payment_method_connector_mandate_details(db, pm, connector_mandate_details, merchant_account.storage_scheme).await.change_context(
+                                        payment_methods::cards::update_payment_method_connector_mandate_details(state,
+                                        key_store,db, pm, connector_mandate_details, merchant_account.storage_scheme).await.change_context(
                                         errors::ApiErrorResponse::InternalServerError,
                                     )
                                     .attach_printable("Failed to update payment method in db")?;
@@ -420,6 +427,8 @@ where
                                 let payment_method = {
                                     let existing_pm_by_pmid = db
                                         .find_payment_method(
+                                            &(state.into()),
+                                            key_store,
                                             &payment_method_id,
                                             merchant_account.storage_scheme,
                                         )
@@ -430,6 +439,8 @@ where
                                             locker_id = Some(payment_method_id.clone());
                                             let existing_pm_by_locker_id = db
                                                 .find_payment_method_by_locker_id(
+                                                    &(state.into()),
+                                                    key_store,
                                                     &payment_method_id,
                                                     merchant_account.storage_scheme,
                                                 )
@@ -470,7 +481,8 @@ where
                                                     connector_mandate_id.clone(),
                                                 )?;
 
-                                            payment_methods::cards::update_payment_method_connector_mandate_details(db, pm.clone(), connector_mandate_details, merchant_account.storage_scheme).await.change_context(
+                                            payment_methods::cards::update_payment_method_connector_mandate_details(  state,
+                                            key_store,db, pm.clone(), connector_mandate_details, merchant_account.storage_scheme).await.change_context(
                                             errors::ApiErrorResponse::InternalServerError,
                                         )
                                         .attach_printable("Failed to update payment method in db")?;
@@ -548,6 +560,8 @@ where
                                 if let Err(err) = add_card_resp {
                                     logger::error!(vault_err=?err);
                                     db.delete_payment_method_by_merchant_id_payment_method_id(
+                                        &(state.into()),
+                                        key_store,
                                         merchant_id,
                                         &resp.payment_method_id,
                                     )
@@ -562,9 +576,7 @@ where
                                         ))?
                                 };
 
-                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(&existing_pm,state,
-                                    key_store,
-                                )
+                                let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(&existing_pm,state)
                                 .await?;
 
                                 let updated_card = Some(CardDetailFromLocker {
@@ -606,6 +618,8 @@ where
                                     .attach_printable("Unable to encrypt payment method data")?;
 
                                 payment_methods::cards::update_payment_method_and_last_used(
+                                    state,
+                                    key_store,
                                     db,
                                     existing_pm,
                                     pm_data_encrypted.map(Into::into),
@@ -626,6 +640,8 @@ where
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
+                                    &(state.into()),
+                                    key_store,
                                     &customer_id,
                                     merchant_id,
                                     None,
@@ -661,6 +677,7 @@ where
                                 &customer_saved_pm,
                                 state,
                                 merchant_account.storage_scheme,
+                                key_store,
                             )
                             .await
                             .map_err(|e| {
@@ -727,7 +744,7 @@ where
 pub async fn save_payment_method<FData>(
     _state: &SessionState,
     _connector_name: String,
-    _merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    _merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     _save_payment_method_data: SavePaymentMethodData<FData>,
     _customer_id: Option<id_type::CustomerId>,
     _merchant_account: &domain::MerchantAccount,
@@ -1200,7 +1217,7 @@ pub fn add_connector_mandate_details_in_payment_method(
 }
 
 pub fn update_connector_mandate_details_in_payment_method(
-    payment_method: diesel_models::PaymentMethod,
+    payment_method: domain::PaymentMethod,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,

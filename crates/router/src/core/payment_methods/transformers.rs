@@ -18,7 +18,7 @@ use crate::{
     headers,
     pii::{prelude::*, Secret},
     services::{api as services, encryption, EncryptionAlgorithm},
-    types::{api, storage},
+    types::{api, domain},
     utils::OptionExt,
 };
 
@@ -82,6 +82,14 @@ pub enum DataDuplicationCheck {
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
     pub merchant_customer_id: id_type::CustomerId,
+    pub card_reference: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardReqBodyV2 {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: String, // Not changing this as it might lead to api contract failure
     pub card_reference: String,
 }
 
@@ -524,6 +532,42 @@ pub async fn mk_delete_card_request_hs(
     Ok(request)
 }
 
+// Need to fix this once we start moving to v2 completion
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn mk_delete_card_request_hs_by_id(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = id.to_owned();
+    let card_req_body = CardReqBodyV2 {
+        merchant_id: merchant_id.to_owned(),
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let payload = card_req_body
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/delete");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+    Ok(request)
+}
+
 pub fn mk_delete_card_response(
     response: DeleteCardResponse,
 ) -> errors::RouterResult<DeleteCardResp> {
@@ -539,7 +583,7 @@ pub fn mk_delete_card_response(
     not(feature = "payment_methods_v2")
 ))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -568,7 +612,7 @@ pub fn get_card_detail(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    _pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -576,13 +620,7 @@ pub fn get_card_detail(
     //fetch form card bin
 
     let card_detail = api::CardDetailFromLocker {
-        issuer_country: pm
-            .issuer_country
-            .as_ref()
-            .map(|c| api_enums::CountryAlpha2::from_str(c))
-            .transpose()
-            .ok()
-            .flatten(),
+        issuer_country: None,
         last4_digits: Some(last4_digits),
         card_number: Some(card_number),
         expiry_month: Some(response.card_exp_month),

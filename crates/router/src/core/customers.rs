@@ -1,38 +1,37 @@
 use api_models::customers::CustomerRequestWithEmail;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{crypto::Encryptable, types::Description};
 use common_utils::{
+    crypto::Encryptable,
     errors::ReportSwitchExt,
     ext_traits::{AsyncExt, OptionExt},
     id_type, type_name,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::{
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        Description,
+    },
 };
 use error_stack::{report, ResultExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use crate::core::payment_methods::cards::create_encrypted_data;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::utils::CustomerAddress;
 use crate::{
-    core::errors::{self, StorageErrorExt},
+    core::{
+        errors::{self, StorageErrorExt},
+        payment_methods::{cards, network_tokenization},
+    },
     db::StorageInterface,
     pii::PeekInterface,
-    routes::SessionState,
+    routes::{metrics, SessionState},
     services,
     types::{
         api::customers,
         domain::{self, types},
-        storage::{self},
+        storage::{self, enums},
         transformers::ForeignFrom,
     },
-};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::{
-    core::payment_methods::{cards, network_tokenization},
-    routes::metrics,
-    types::storage::enums,
-    utils::CustomerAddress,
 };
 
 pub const REDACTED: &str = "Redacted";
@@ -267,8 +266,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             default_billing_address: encrypted_customer_billing_address.map(Into::into),
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
-            // status: Some(customer_domain::SoftDeleteStatus::Active)
             version: hyperswitch_domain_models::consts::API_VERSION,
+            status: common_enums::DeleteStatus::Active,
         })
     }
 
@@ -535,7 +534,183 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2"
+))]
+#[instrument(skip_all)]
+pub async fn delete_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    req: customers::GlobalId,
+    key_store: domain::MerchantKeyStore,
+) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+    let db = &*state.store;
+    let key_manager_state = &(&state).into();
+    req.fetch_domain_model_and_update_and_generate_delete_customer_response(
+        db,
+        &key_store,
+        &merchant_account,
+        key_manager_state,
+        &state,
+    )
+    .await
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2"
+))]
+#[async_trait::async_trait]
+impl CustomerDeleteBridge for customers::GlobalId {
+    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+        let customer_orig = db
+            .find_customer_by_global_id(
+                key_manager_state,
+                &self.id,
+                merchant_account.get_id(),
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .switch()?;
+
+        let merchant_reference_id = customer_orig.merchant_reference_id.clone();
+
+        let customer_mandates = db.find_mandate_by_global_id(&self.id).await.switch()?;
+
+        for mandate in customer_mandates.into_iter() {
+            if mandate.mandate_status == enums::MandateStatus::Active {
+                Err(errors::CustomersErrorResponse::MandateActive)?
+            }
+        }
+
+        match db
+            .find_payment_method_list_by_global_id(key_manager_state, key_store, &self.id, None)
+            .await
+        {
+            // check this in review
+            Ok(customer_payment_methods) => {
+                for pm in customer_payment_methods.into_iter() {
+                    if pm.payment_method == Some(enums::PaymentMethod::Card) {
+                        cards::delete_card_by_locker_id(
+                            &state,
+                            &self.id,
+                            merchant_account.get_id(),
+                        )
+                        .await
+                        .switch()?;
+                    }
+                    // No solution as of now, need to discuss this further with payment_method_v2
+
+                    // db.delete_payment_method(
+                    //     key_manager_state,
+                    //     key_store,
+                    //     pm,
+                    // )
+                    // .await
+                    // .switch()?;
+                }
+            }
+            Err(error) => {
+                if error.current_context().is_db_not_found() {
+                    Ok(())
+                } else {
+                    Err(error)
+                        .change_context(errors::CustomersErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "failed find_payment_method_by_customer_id_merchant_id_list",
+                        )
+                }?
+            }
+        };
+
+        let key = key_store.key.get_inner().peek();
+
+        let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+        let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
+            key_manager_state,
+            type_name!(storage::Address),
+            types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+            identifier.clone(),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_operation())
+        .switch()?;
+
+        let redacted_encrypted_email = Encryptable::new(
+            redacted_encrypted_value
+                .clone()
+                .into_inner()
+                .switch_strategy(),
+            redacted_encrypted_value.clone().into_encrypted(),
+        );
+
+        let updated_customer = storage::CustomerUpdate::Update {
+            name: Some(redacted_encrypted_value.clone()),
+            email: Box::new(Some(redacted_encrypted_email)),
+            phone: Box::new(Some(redacted_encrypted_value.clone())),
+            description: Some(Description::new(REDACTED.to_string())),
+            phone_country_code: Some(REDACTED.to_string()),
+            metadata: None,
+            connector_customer: None,
+            default_billing_address: None,
+            default_shipping_address: None,
+            default_payment_method_id: None,
+            status: Some(common_enums::DeleteStatus::Redacted),
+        };
+
+        db.update_customer_by_global_id(
+            key_manager_state,
+            self.id.clone(),
+            customer_orig,
+            merchant_account.get_id(),
+            updated_customer,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
+
+        let response = customers::CustomerDeleteResponse {
+            merchant_reference_id,
+            customer_deleted: true,
+            address_deleted: true,
+            payment_methods_deleted: true,
+            id: self.id.clone(),
+        };
+        metrics::CUSTOMER_REDACTED.add(&metrics::CONTEXT, 1, &[]);
+        Ok(services::ApplicationResponse::Json(response))
+    }
+}
+
+#[async_trait::async_trait]
+trait CustomerDeleteBridge {
+    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -543,55 +718,82 @@ pub async fn delete_customer(
     req: customers::CustomerId,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
-    let db = &state.store;
+    let db = &*state.store;
     let key_manager_state = &(&state).into();
-    let customer_orig = db
-        .find_customer_by_customer_id_merchant_id(
-            key_manager_state,
-            &req.customer_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .switch()?;
+    req.fetch_domain_model_and_update_and_generate_delete_customer_response(
+        db,
+        &key_store,
+        &merchant_account,
+        key_manager_state,
+        &state,
+    )
+    .await
+}
 
-    let customer_mandates = db
-        .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &req.customer_id)
-        .await
-        .switch()?;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[async_trait::async_trait]
+impl CustomerDeleteBridge for customers::CustomerId {
+    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+        let customer_orig = db
+            .find_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                &self.customer_id,
+                merchant_account.get_id(),
+                key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .switch()?;
 
-    for mandate in customer_mandates.into_iter() {
-        if mandate.mandate_status == enums::MandateStatus::Active {
-            Err(errors::CustomersErrorResponse::MandateActive)?
+        let customer_mandates = db
+            .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &self.customer_id)
+            .await
+            .switch()?;
+
+        for mandate in customer_mandates.into_iter() {
+            if mandate.mandate_status == enums::MandateStatus::Active {
+                Err(errors::CustomersErrorResponse::MandateActive)?
+            }
         }
-    }
 
-    match db
-        .find_payment_method_by_customer_id_merchant_id_list(
-            &req.customer_id,
-            merchant_account.get_id(),
-            None,
-        )
-        .await
-    {
-        // check this in review
-        Ok(customer_payment_methods) => {
-            for pm in customer_payment_methods.into_iter() {
-                if pm.payment_method == Some(enums::PaymentMethod::Card) {
-                    cards::delete_card_from_locker(
-                        &state,
-                        &req.customer_id,
-                        merchant_account.get_id(),
-                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                    )
-                    .await
-                    .switch()?;
-
+        match db
+            .find_payment_method_by_customer_id_merchant_id_list(
+                key_manager_state,
+                key_store,
+                &self.customer_id,
+                merchant_account.get_id(),
+                None,
+            )
+            .await
+        {
+            // check this in review
+            Ok(customer_payment_methods) => {
+                for pm in customer_payment_methods.into_iter() {
+                    if pm.payment_method == Some(enums::PaymentMethod::Card) {
+                        cards::delete_card_from_locker(
+                            state,
+                            &self.customer_id,
+                            merchant_account.get_id(),
+                            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                        )
+                        .await
+                        .switch()?;
+    
                     if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id {
                         network_tokenization::delete_network_token_from_locker_and_token_service(
-                            &state,
-                            &req.customer_id,
+                            state,
+                            &self.customer_id,
                             merchant_account.get_id(),
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
@@ -600,127 +802,133 @@ pub async fn delete_customer(
                         .await
                         .switch()?;
                     }
-                }
+                    }
 
                 db.delete_payment_method_by_merchant_id_payment_method_id(
-                    merchant_account.get_id(),
-                    &pm.payment_method_id,
-                )
-                .await
-                .switch()?;
+                        key_manager_state,
+                        key_store,
+                        merchant_account.get_id(),
+                        &pm.payment_method_id,
+                    )
+                    .await
+                    .switch()?;
+                }
             }
-        }
-        Err(error) => {
-            if error.current_context().is_db_not_found() {
-                Ok(())
-            } else {
-                Err(error)
-                    .change_context(errors::CustomersErrorResponse::InternalServerError)
-                    .attach_printable("failed find_payment_method_by_customer_id_merchant_id_list")
-            }?
-        }
-    };
+            Err(error) => {
+                if error.current_context().is_db_not_found() {
+                    Ok(())
+                } else {
+                    Err(error)
+                        .change_context(errors::CustomersErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "failed find_payment_method_by_customer_id_merchant_id_list",
+                        )
+                }?
+            }
+        };
 
-    let key = key_store.key.get_inner().peek();
-    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
-        key_manager_state,
-        type_name!(storage::Address),
-        types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
-        identifier.clone(),
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_operation())
-    .switch()?;
-
-    let redacted_encrypted_email = Encryptable::new(
-        redacted_encrypted_value
-            .clone()
-            .into_inner()
-            .switch_strategy(),
-        redacted_encrypted_value.clone().into_encrypted(),
-    );
-
-    let update_address = storage::AddressUpdate::Update {
-        city: Some(REDACTED.to_string()),
-        country: None,
-        line1: Some(redacted_encrypted_value.clone()),
-        line2: Some(redacted_encrypted_value.clone()),
-        line3: Some(redacted_encrypted_value.clone()),
-        state: Some(redacted_encrypted_value.clone()),
-        zip: Some(redacted_encrypted_value.clone()),
-        first_name: Some(redacted_encrypted_value.clone()),
-        last_name: Some(redacted_encrypted_value.clone()),
-        phone_number: Some(redacted_encrypted_value.clone()),
-        country_code: Some(REDACTED.to_string()),
-        updated_by: merchant_account.storage_scheme.to_string(),
-        email: Some(redacted_encrypted_email),
-    };
-
-    match db
-        .update_address_by_merchant_id_customer_id(
+        let key = key_store.key.get_inner().peek();
+        let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+        let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
             key_manager_state,
-            &req.customer_id,
-            merchant_account.get_id(),
-            update_address,
-            &key_store,
+            type_name!(storage::Address),
+            types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+            identifier.clone(),
+            key,
         )
         .await
-    {
-        Ok(_) => Ok(()),
-        Err(error) => {
-            if error.current_context().is_db_not_found() {
-                Ok(())
-            } else {
-                Err(error)
-                    .change_context(errors::CustomersErrorResponse::InternalServerError)
-                    .attach_printable("failed update_address_by_merchant_id_customer_id")
-            }
-        }
-    }?;
+        .and_then(|val| val.try_into_operation())
+        .switch()?;
 
-    let updated_customer = storage::CustomerUpdate::Update {
-        name: Some(redacted_encrypted_value.clone()),
-        email: Some(
-            types::crypto_operation(
+        let redacted_encrypted_email = Encryptable::new(
+            redacted_encrypted_value
+                .clone()
+                .into_inner()
+                .switch_strategy(),
+            redacted_encrypted_value.clone().into_encrypted(),
+        );
+
+        let update_address = storage::AddressUpdate::Update {
+            city: Some(REDACTED.to_string()),
+            country: None,
+            line1: Some(redacted_encrypted_value.clone()),
+            line2: Some(redacted_encrypted_value.clone()),
+            line3: Some(redacted_encrypted_value.clone()),
+            state: Some(redacted_encrypted_value.clone()),
+            zip: Some(redacted_encrypted_value.clone()),
+            first_name: Some(redacted_encrypted_value.clone()),
+            last_name: Some(redacted_encrypted_value.clone()),
+            phone_number: Some(redacted_encrypted_value.clone()),
+            country_code: Some(REDACTED.to_string()),
+            updated_by: merchant_account.storage_scheme.to_string(),
+            email: Some(redacted_encrypted_email),
+        };
+
+        match db
+            .update_address_by_merchant_id_customer_id(
                 key_manager_state,
-                type_name!(storage::Customer),
-                types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
-                identifier,
-                key,
+                &self.customer_id,
+                merchant_account.get_id(),
+                update_address,
+                key_store,
             )
             .await
-            .and_then(|val| val.try_into_operation())
-            .switch()?,
-        ),
-        phone: Box::new(Some(redacted_encrypted_value.clone())),
-        description: Some(Description::new(REDACTED.to_string())),
-        phone_country_code: Some(REDACTED.to_string()),
-        metadata: None,
-        connector_customer: None,
-        address_id: None,
-    };
-    db.update_customer_by_customer_id_merchant_id(
-        key_manager_state,
-        req.customer_id.clone(),
-        merchant_account.get_id().to_owned(),
-        customer_orig,
-        updated_customer,
-        &key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .switch()?;
+        {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                if error.current_context().is_db_not_found() {
+                    Ok(())
+                } else {
+                    Err(error)
+                        .change_context(errors::CustomersErrorResponse::InternalServerError)
+                        .attach_printable("failed update_address_by_merchant_id_customer_id")
+                }
+            }
+        }?;
 
-    let response = customers::CustomerDeleteResponse {
-        customer_id: req.customer_id,
-        customer_deleted: true,
-        address_deleted: true,
-        payment_methods_deleted: true,
-    };
-    metrics::CUSTOMER_REDACTED.add(&metrics::CONTEXT, 1, &[]);
-    Ok(services::ApplicationResponse::Json(response))
+        let updated_customer = storage::CustomerUpdate::Update {
+            name: Some(redacted_encrypted_value.clone()),
+            email: Some(
+                types::crypto_operation(
+                    key_manager_state,
+                    type_name!(storage::Customer),
+                    types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+                    identifier,
+                    key,
+                )
+                .await
+                .and_then(|val| val.try_into_operation())
+                .switch()?,
+            ),
+            phone: Box::new(Some(redacted_encrypted_value.clone())),
+            description: Some(Description::new(REDACTED.to_string())),
+            phone_country_code: Some(REDACTED.to_string()),
+            metadata: None,
+            connector_customer: None,
+            address_id: None,
+        };
+
+        db.update_customer_by_customer_id_merchant_id(
+            key_manager_state,
+            self.customer_id.clone(),
+            merchant_account.get_id().to_owned(),
+            customer_orig,
+            updated_customer,
+            key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
+
+        let response = customers::CustomerDeleteResponse {
+            customer_id: self.customer_id.clone(),
+            customer_deleted: true,
+            address_deleted: true,
+            payment_methods_deleted: true,
+        };
+        metrics::CUSTOMER_REDACTED.add(&metrics::CONTEXT, 1, &[]);
+        Ok(services::ApplicationResponse::Json(response))
+    }
 }
 
 #[instrument(skip(state))]
@@ -1081,7 +1289,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 merchant_account.get_id(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
-                    email: encryptable_customer.email,
+                    email: Box::new(encryptable_customer.email),
                     phone: Box::new(encryptable_customer.phone),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
@@ -1090,6 +1298,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_billing_address: encrypted_customer_billing_address.map(Into::into),
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
+                    status: None,
                 },
                 key_store,
                 merchant_account.storage_scheme,

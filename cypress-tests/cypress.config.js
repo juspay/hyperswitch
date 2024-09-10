@@ -4,7 +4,7 @@ const path = require("path");
 
 let globalState;
 // Fetch from environment variable
-const connectorId = process.env.CYPRESS_CONNECTOR;
+const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
 module.exports = defineConfig({
