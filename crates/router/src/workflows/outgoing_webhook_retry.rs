@@ -526,7 +526,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             .await?;
 
             let router_response =
-                payouts::response_handler(&merchant_account, &payout_data).await?;
+                payouts::response_handler(&state, &merchant_account, &payout_data).await?;
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {

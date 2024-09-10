@@ -1266,7 +1266,7 @@ pub(super) fn get_customer_details_from_request(
     }
 }
 
-pub(super) async fn get_translated_unified_code_and_message(
+pub async fn get_translated_unified_code_and_message(
     state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,

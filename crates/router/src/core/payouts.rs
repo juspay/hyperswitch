@@ -357,7 +357,7 @@ pub async fn payouts_create_core(
         .await?
     };
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&state, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -430,7 +430,7 @@ pub async fn payouts_confirm_core(
     )
     .await?;
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&state, &merchant_account, &payout_data).await
 }
 
 pub async fn payouts_update_core(
@@ -512,7 +512,7 @@ pub async fn payouts_update_core(
         .await?;
     }
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&state, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -558,7 +558,7 @@ pub async fn payouts_retrieve_core(
         .await?;
     }
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&state, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -652,7 +652,7 @@ pub async fn payouts_cancel_core(
             .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&state, &merchant_account, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -746,7 +746,7 @@ pub async fn payouts_fulfill_core(
         }));
     }
 
-    response_handler(&merchant_account, &payout_data).await
+    response_handler(&state, &merchant_account, &payout_data).await
 }
 
 #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
@@ -771,7 +771,7 @@ pub async fn payouts_list_core(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
-    locale: &str,
+    _locale: &str,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     validator::validate_payout_list_request(&constraints)?;
     let merchant_id = merchant_account.get_id();
@@ -881,7 +881,7 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
-    locale: &str,
+    _locale: &str,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
@@ -964,7 +964,7 @@ pub async fn payouts_list_available_filters_core(
     merchant_account: domain::MerchantAccount,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     time_range: api::TimeRange,
-    locale: &str,
+    _locale: &str,
 ) -> RouterResponse<api::PayoutListFilters> {
     let db = state.store.as_ref();
     let payouts = db
@@ -2240,6 +2240,7 @@ pub async fn fulfill_payout(
 }
 
 pub async fn response_handler(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -2273,12 +2274,22 @@ pub async fn response_handler(
         }
     });
 
+    let (unified_code, unified_message) = helpers::get_translated_unified_code_and_message(
+        state,
+        payout_attempt.unified_code,
+        payout_attempt.unified_message,
+        payout_attempt.connector.clone(),
+        consts::PAYOUT_FLOW_STR,
+        &payout_data.current_locale,
+    )
+    .await;
+
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.get_id().to_owned(),
         amount: payouts.amount,
         currency: payouts.destination_currency.to_owned(),
-        connector: payout_attempt.connector.to_owned(),
+        connector: payout_attempt.connector,
         payout_type: payouts.payout_type.to_owned(),
         billing: address,
         auto_fulfill: payouts.auto_fulfill,
@@ -2309,8 +2320,8 @@ pub async fn response_handler(
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
         attempts: None,
-        unified_code: payout_attempt.unified_code,
-        unified_message: payout_attempt.unified_message,
+        unified_code,
+        unified_message,
         payout_link: payout_link
             .map(|payout_link| {
                 url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {

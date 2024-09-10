@@ -412,6 +412,7 @@ pub async fn payouts_list_available_filters_for_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -424,6 +425,7 @@ pub async fn payouts_list_available_filters_for_profile(
                 auth.merchant_account,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
+                &locale,
             )
         },
         auth::auth_type(
