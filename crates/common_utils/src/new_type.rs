@@ -1,5 +1,5 @@
 //! Contains new types with restrictions
-use masking::{PeekInterface, Secret, SerializableSecret};
+use masking::{PeekInterface, Secret};
 
 use crate::{consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH, pii::UpiVpaMaskingStrategy};
 
@@ -9,7 +9,7 @@ use crate::{consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH, pii::UpiVpaMaskingStrategy
 )]
 pub struct MerchantName(String);
 
-impl SerializableSecret for MerchantName {}
+impl masking::SerializableSecret for MerchantName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///
@@ -71,12 +71,11 @@ fn apply_mask(val: &str, unmasked_char_count: usize, min_masked_char_count: usiz
 
 /// Masked sort code
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedSortCode(String);
-impl SerializableSecret for MaskedSortCode {}
+pub struct MaskedSortCode(Secret<String>);
 impl From<String> for MaskedSortCode {
     fn from(src: String) -> Self {
         let masked_value = apply_mask(src.as_ref(), 2, 2);
-        Self(masked_value)
+        Self(Secret::from(masked_value))
     }
 }
 impl From<Secret<String>> for MaskedSortCode {
@@ -87,12 +86,11 @@ impl From<Secret<String>> for MaskedSortCode {
 
 /// Masked Routing number
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedRoutingNumber(String);
-impl SerializableSecret for MaskedRoutingNumber {}
+pub struct MaskedRoutingNumber(Secret<String>);
 impl From<String> for MaskedRoutingNumber {
     fn from(src: String) -> Self {
         let masked_value = apply_mask(src.as_ref(), 3, 3);
-        Self(masked_value)
+        Self(Secret::from(masked_value))
     }
 }
 impl From<Secret<String>> for MaskedRoutingNumber {
@@ -103,12 +101,11 @@ impl From<Secret<String>> for MaskedRoutingNumber {
 
 /// Masked bank account
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedBankAccount(String);
-impl SerializableSecret for MaskedBankAccount {}
+pub struct MaskedBankAccount(Secret<String>);
 impl From<String> for MaskedBankAccount {
     fn from(src: String) -> Self {
         let masked_value = apply_mask(src.as_ref(), 4, 4);
-        Self(masked_value)
+        Self(Secret::from(masked_value))
     }
 }
 impl From<Secret<String>> for MaskedBankAccount {
@@ -119,12 +116,11 @@ impl From<Secret<String>> for MaskedBankAccount {
 
 /// Masked IBAN
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedIban(String);
-impl SerializableSecret for MaskedIban {}
+pub struct MaskedIban(Secret<String>);
 impl From<String> for MaskedIban {
     fn from(src: String) -> Self {
         let masked_value = apply_mask(src.as_ref(), 5, 5);
-        Self(masked_value)
+        Self(Secret::from(masked_value))
     }
 }
 impl From<Secret<String>> for MaskedIban {
@@ -135,23 +131,24 @@ impl From<Secret<String>> for MaskedIban {
 
 /// Masked UPI ID
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedUpiVpaId(String);
-impl SerializableSecret for MaskedUpiVpaId {}
+pub struct MaskedUpiVpaId(Secret<String>);
 impl From<String> for MaskedUpiVpaId {
     fn from(src: String) -> Self {
         let unmasked_char_count = 2;
-        if let Some((user_identifier, bank_or_psp)) = src.split_once('@') {
+        let masked_value = if let Some((user_identifier, bank_or_psp)) = src.split_once('@') {
             let masked_user_identifier = user_identifier
                 .to_string()
                 .chars()
                 .take(unmasked_char_count)
                 .collect::<String>()
                 + &"*".repeat(user_identifier.len() - unmasked_char_count);
-            Self(format!("{}@{}", masked_user_identifier, bank_or_psp))
+            format!("{}@{}", masked_user_identifier, bank_or_psp)
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
-            Self(masked_value)
-        }
+            masked_value
+        };
+
+        Self(Secret::from(masked_value))
     }
 }
 impl From<Secret<String, UpiVpaMaskingStrategy>> for MaskedUpiVpaId {
@@ -166,6 +163,7 @@ mod apply_mask_fn_test {
         apply_mask, MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
         MaskedUpiVpaId,
     };
+    use masking::PeekInterface;
     #[test]
     fn test_masked_types() {
         let sort_code = MaskedSortCode::from("110011".to_string());
@@ -175,11 +173,17 @@ mod apply_mask_fn_test {
         let upi_vpa = MaskedUpiVpaId::from("someusername@okhdfcbank".to_string());
 
         // Standard masked data tests
-        assert_eq!(sort_code.0, "11**11".to_string());
-        assert_eq!(routing_number.0, "056***849".to_string());
-        assert_eq!(bank_account.0, "1234******1234".to_string());
-        assert_eq!(iban.0, "NL02A********56789".to_string());
-        assert_eq!(upi_vpa.0, "so**********@okhdfcbank".to_string());
+        assert_eq!(sort_code.0.peek().to_owned(), "11**11".to_string());
+        assert_eq!(routing_number.0.peek().to_owned(), "056***849".to_string());
+        assert_eq!(
+            bank_account.0.peek().to_owned(),
+            "1234******1234".to_string()
+        );
+        assert_eq!(iban.0.peek().to_owned(), "NL02A********56789".to_string());
+        assert_eq!(
+            upi_vpa.0.peek().to_owned(),
+            "so**********@okhdfcbank".to_string()
+        );
     }
 
     #[test]

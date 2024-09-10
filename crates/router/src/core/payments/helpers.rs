@@ -4081,12 +4081,12 @@ pub async fn get_additional_payment_data(
                 details: Some(payment_additional_types::BankRedirectDetails::Giropay(
                     Box::new(
                         payment_additional_types::GiropayBankRedirectAdditionalData {
-                            bic: bank_account_bic.as_ref().map(|bic| {
-                                masking::Secret::from(MaskedSortCode::from(bic.peek().to_owned()))
-                            }),
-                            iban: bank_account_iban.as_ref().map(|iban| {
-                                masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
-                            }),
+                            bic: bank_account_bic
+                                .as_ref()
+                                .map(|bic| MaskedSortCode::from(bic.to_owned())),
+                            iban: bank_account_iban
+                                .as_ref()
+                                .map(|iban| MaskedIban::from(iban.to_owned())),
                             country: *country,
                         },
                     ),

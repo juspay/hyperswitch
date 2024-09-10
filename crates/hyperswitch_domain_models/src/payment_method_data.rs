@@ -1097,8 +1097,8 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Ach(Box::new(
                 payment_additional_types::AchBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(account_number)),
-                    routing_number: Secret::from(MaskedRoutingNumber::from(routing_number)),
+                    account_number: MaskedBankAccount::from(account_number),
+                    routing_number: MaskedRoutingNumber::from(routing_number),
                     bank_name,
                     bank_type,
                     bank_holder_type,
@@ -1111,7 +1111,7 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Sepa(Box::new(
                 payment_additional_types::SepaBankDebitAdditionalData {
-                    iban: Secret::from(MaskedIban::from(iban)),
+                    iban: MaskedIban::from(iban),
                     bank_account_holder_name,
                 },
             )),
@@ -1121,7 +1121,7 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Becs(Box::new(
                 payment_additional_types::BecsBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(account_number)),
+                    account_number: MaskedBankAccount::from(account_number),
                     bsb_number,
                     bank_account_holder_name,
                 },
@@ -1132,8 +1132,8 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Bacs(Box::new(
                 payment_additional_types::BacsBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(account_number)),
-                    sort_code: Secret::from(MaskedSortCode::from(sort_code)),
+                    account_number: MaskedBankAccount::from(account_number),
+                    sort_code: MaskedSortCode::from(sort_code),
                     bank_account_holder_name,
                 },
             )),
@@ -1204,16 +1204,15 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
             BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
-                    pix_key: pix_key.map(|pix_key| Secret::from(MaskedBankAccount::from(pix_key))),
-                    cpf: cpf.map(|cpf| Secret::from(MaskedBankAccount::from(cpf))),
-                    cnpj: cnpj.map(|cnpj| Secret::from(MaskedBankAccount::from(cnpj))),
+                    pix_key: pix_key.map(MaskedBankAccount::from),
+                    cpf: cpf.map(MaskedBankAccount::from),
+                    cnpj: cnpj.map(MaskedBankAccount::from),
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
             BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(Box::new(
                 api_models::payments::additional_info::LocalBankTransferAdditionalData {
-                    bank_code: bank_code
-                        .map(|bank_code| Secret::from(MaskedBankAccount::from(bank_code))),
+                    bank_code: bank_code.map(MaskedBankAccount::from),
                 },
             )),
         }
