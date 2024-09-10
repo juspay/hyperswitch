@@ -82,7 +82,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| async move {
-            Box::pin(cards::validate_and_vault_payment_method(
+            Box::pin(payment_methods_routes::create_payment_method(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -111,7 +111,7 @@ pub async fn create_payment_method_intent_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| async move {
-            Box::pin(cards::payment_method_intent_create(
+            Box::pin(payment_methods_routes::payment_method_intent_create(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -150,7 +150,7 @@ pub async fn confirm_payment_method_intent_api(
         |state, auth, req, _| {
             let pm_id = pm_id.clone();
             async move {
-                Box::pin(cards::payment_method_intent_confirm(
+                Box::pin(payment_methods_routes::payment_method_intent_confirm(
                     &state,
                     req,
                     &auth.merchant_account,

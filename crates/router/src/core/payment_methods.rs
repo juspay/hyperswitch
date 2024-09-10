@@ -1,4 +1,5 @@
 pub mod cards;
+pub mod helpers;
 pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
@@ -20,11 +21,11 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::ext_traits::OptionExt;
 use common_utils::{consts::DEFAULT_LOCALE, id_type::CustomerId};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{ext_traits::Encode, id_type, request::RequestContent};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::{ext_traits::OptionExt, generate_id};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -46,7 +47,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments::helpers,
+        payments::helpers as payment_helpers,
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
@@ -78,7 +79,7 @@ pub async fn retrieve_payment_method(
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
         pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
-            let payment_token = helpers::store_payment_method_data_in_vault(
+            let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
                 payment_intent,
@@ -102,7 +103,7 @@ pub async fn retrieve_payment_method(
         pm @ Some(domain::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankTransfer(_)) => {
-            let payment_token = helpers::store_payment_method_data_in_vault(
+            let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
                 payment_intent,
@@ -116,7 +117,7 @@ pub async fn retrieve_payment_method(
             Ok((pm_opt.to_owned(), payment_token))
         }
         pm_opt @ Some(pm @ domain::PaymentMethodData::Wallet(_)) => {
-            let payment_token = helpers::store_payment_method_data_in_vault(
+            let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
                 payment_intent,
@@ -130,7 +131,7 @@ pub async fn retrieve_payment_method(
             Ok((pm_opt.to_owned(), payment_token))
         }
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankRedirect(_)) => {
-            let payment_token = helpers::store_payment_method_data_in_vault(
+            let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
                 payment_intent,
@@ -476,7 +477,7 @@ pub async fn retrieve_payment_method_with_token(
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
-            helpers::retrieve_payment_method_with_temporary_token(
+            payment_helpers::retrieve_payment_method_with_temporary_token(
                 state,
                 &generic_token.token,
                 payment_intent,
@@ -495,7 +496,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::Temporary(generic_token) => {
-            helpers::retrieve_payment_method_with_temporary_token(
+            payment_helpers::retrieve_payment_method_with_temporary_token(
                 state,
                 &generic_token.token,
                 payment_intent,
@@ -514,7 +515,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::Permanent(card_token) => {
-            helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_card_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
@@ -545,7 +546,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::PermanentCard(card_token) => {
-            helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_card_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
@@ -765,13 +766,49 @@ pub(crate) async fn get_payment_method_create_request(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn create_payment_method(
+    state: &SessionState,
+    req: api::PaymentMethodCreate,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    cards::validate_and_vault_payment_method(state, req, merchant_account, key_store).await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn payment_method_intent_create(
+    state: &SessionState,
+    req: api::PaymentMethodIntentCreate,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    cards::payment_method_intent_create(state, req, merchant_account, key_store).await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn payment_method_intent_confirm(
+    state: &SessionState,
+    req: api::PaymentMethodIntentConfirm,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    pm_id: String,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    cards::payment_method_intent_confirm(state, req, merchant_account, key_store, pm_id).await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
 pub trait VaultingInterface {
-    async fn create_vault_request(
-        &self,
-        jwekey: &settings::Jwekey,
-        locker: &settings::Locker,
-    ) -> errors::CustomResult<services::Request, errors::VaultError>;
+    fn get_vault_action_url() -> &'static str;
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+pub trait VaultingDataInterface {
+    fn get_vaulting_data_key(&self) -> String;
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -789,10 +826,10 @@ pub struct VaultFingerprintResponse {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddVaultRequest {
+pub struct AddVaultRequest<D> {
     pub entity_id: common_utils::id_type::MerchantId,
     pub vault_id: String,
-    pub data: api::CardDetail,
+    pub data: D,
     pub ttl: i64,
 }
 
@@ -805,61 +842,70 @@ pub struct AddVaultResponse {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVault;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetVaultFingerprint;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
-impl VaultingInterface for AddVaultRequest {
-    async fn create_vault_request(
-        &self,
-        jwekey: &settings::Jwekey,
-        locker: &settings::Locker,
-    ) -> errors::CustomResult<services::Request, errors::VaultError> {
-        let payload = self
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-        let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-        let jws =
-            encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-                .await
-                .change_context(errors::VaultError::RequestEncryptionFailed)?;
-
-        let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
-
-        let mut url = locker.host.to_owned();
-        url.push_str(ADD_VAULT_REQUEST_URL);
-        let mut request = services::Request::new(services::Method::Post, &url);
-        request.add_header(headers::CONTENT_TYPE, VAULT_HEADER_CONTENT_TYPE.into());
-        request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-        Ok(request)
+impl VaultingInterface for AddVault {
+    fn get_vault_action_url() -> &'static str {
+        ADD_VAULT_REQUEST_URL
     }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
-impl VaultingInterface for VaultFingerprintRequest {
-    async fn create_vault_request(
-        &self,
-        jwekey: &settings::Jwekey,
-        locker: &settings::Locker,
-    ) -> errors::CustomResult<services::Request, errors::VaultError> {
-        let payload = self
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-        let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-        let jws =
-            encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
-                .await
-                .change_context(errors::VaultError::RequestEncryptionFailed)?;
-
-        let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
-
-        let mut url = locker.host.to_owned();
-        url.push_str(VAULT_FINGERPRINT_REQUEST_URL);
-        let mut request = services::Request::new(services::Method::Post, &url);
-        request.add_header(headers::CONTENT_TYPE, VAULT_HEADER_CONTENT_TYPE.into());
-        request.set_body(RequestContent::Json(Box::new(jwe_payload)));
-        Ok(request)
+impl VaultingInterface for GetVaultFingerprint {
+    fn get_vault_action_url() -> &'static str {
+        VAULT_FINGERPRINT_REQUEST_URL
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+impl VaultingDataInterface for api::PaymentMethodCreateData {
+    fn get_vaulting_data_key(&self) -> String {
+        match &self {
+            api::PaymentMethodCreateData::Card(card) => card.card_number.to_string(),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct PaymentMethodClientSecret;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodClientSecret {
+    pub fn generate(payment_method_id: &str) -> String {
+        generate_id(
+            consts::ID_LENGTH,
+            format!("{payment_method_id}_secret").as_str(),
+        )
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn create_vault_request<R: VaultingInterface>(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    payload: Vec<u8>,
+) -> errors::CustomResult<services::Request, errors::VaultError> {
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncryptionFailed)?;
+
+    let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str(R::get_vault_action_url());
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, VAULT_HEADER_CONTENT_TYPE.into());
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+    Ok(request)
 }
