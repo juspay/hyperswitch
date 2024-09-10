@@ -423,8 +423,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
-                    shipping_cost: payment_attempt.shipping_cost.clone(),
-                    order_tax_amount: payment_attempt.order_tax_amount.clone(),
+                    shipping_cost: payment_attempt.shipping_cost,
+                    order_tax_amount: payment_attempt.order_tax_amount,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);

@@ -285,11 +285,6 @@ pub struct PaymentAttemptNew {
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
-        println!(
-            "$$shipping_cost: {:?},$$order_tax_amount: {:?}",
-            self.shipping_cost.clone(),
-            self.order_tax_amount.clone()
-        );
         self.amount
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_amount.unwrap_or_default()
