@@ -159,11 +159,12 @@ impl From<Secret<String, UpiVpaMaskingStrategy>> for MaskedUpiVpaId {
 
 #[cfg(test)]
 mod apply_mask_fn_test {
+    use masking::PeekInterface;
+
     use crate::new_type::{
         apply_mask, MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
         MaskedUpiVpaId,
     };
-    use masking::PeekInterface;
     #[test]
     fn test_masked_types() {
         let sort_code = MaskedSortCode::from("110011".to_string());
