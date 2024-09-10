@@ -7164,6 +7164,14 @@
           {
             "type": "object",
             "properties": {
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "payout_test_mode": {
                 "type": "boolean",
                 "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
@@ -10199,6 +10207,12 @@
             "type": "string",
             "enum": [
               "user_cnpj"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_iban"
             ]
           }
         ],
@@ -15076,7 +15090,8 @@
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "is_tax_calculation_enabled"
         ],
         "properties": {
           "redirect_url": {
@@ -15138,6 +15153,10 @@
             "type": "boolean",
             "description": "flag that indicates whether to collect billing details from wallets or from the customer",
             "nullable": true
+          },
+          "is_tax_calculation_enabled": {
+            "type": "boolean",
+            "description": "flag that indicates whether to calculate tax on the order amount"
           }
         }
       },
@@ -15926,6 +15945,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -16291,6 +16315,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -17370,6 +17399,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18378,6 +18412,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -18734,6 +18773,14 @@
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
                 "nullable": true
               },
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "test_mode": {
                 "type": "boolean",
                 "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
@@ -18800,8 +18847,11 @@
             "nullable": true
           },
           "billing": {
-            "type": "object",
-            "description": "The billing address for the payout",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
           },
           "auto_fulfill": {
@@ -21829,6 +21879,13 @@
         "enum": [
           "payment",
           "payout"
+        ]
+      },
+      "UIWidgetFormLayout": {
+        "type": "string",
+        "enum": [
+          "tabs",
+          "journey"
         ]
       },
       "UpdateApiKeyRequest": {

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::AuthenticationConnectors;
+use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
@@ -564,6 +564,7 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+    pub form_layout: Option<UIWidgetFormLayout>,
     pub payout_test_mode: Option<bool>,
 }
 
