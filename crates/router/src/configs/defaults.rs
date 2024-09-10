@@ -4,6 +4,9 @@ use api_models::{enums, payment_methods::RequiredFieldInfo};
 
 use super::settings::{ConnectorFields, PaymentMethodType, RequiredFieldFinal};
 
+#[cfg(feature = "payouts")]
+pub mod payout_required_fields;
+
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {

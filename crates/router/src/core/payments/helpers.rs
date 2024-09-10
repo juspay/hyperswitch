@@ -26,7 +26,10 @@ use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_method_data::GetPaymentMethodType,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    payments::{
+        payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
+        PaymentIntent,
+    },
     router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
@@ -2539,7 +2542,7 @@ where
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
-    constraints: &api::PaymentListConstraints,
+    constraints: &PaymentIntentFetchConstraints,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
@@ -2549,7 +2552,7 @@ pub(super) async fn filter_by_constraints(
         .filter_payment_intent_by_constraints(
             &(state).into(),
             merchant_id,
-            &constraints.clone().into(),
+            constraints,
             key_store,
             storage_scheme,
         )
@@ -3119,6 +3122,7 @@ mod tests {
             organization_id: id_type::OrganizationId::default(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3187,6 +3191,7 @@ mod tests {
             organization_id: id_type::OrganizationId::default(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3253,6 +3258,7 @@ mod tests {
             organization_id: id_type::OrganizationId::default(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

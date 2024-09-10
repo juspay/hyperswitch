@@ -893,6 +893,7 @@ diesel::table! {
         tax_on_surcharge -> Nullable<Int8>,
         #[max_length = 64]
         id -> Varchar,
+        skip_external_tax_calculation -> Nullable<Bool>,
     }
 }
 
