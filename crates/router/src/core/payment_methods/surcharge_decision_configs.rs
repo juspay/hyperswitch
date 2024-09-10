@@ -88,11 +88,10 @@ impl SurchargeSource {
                         )
                     })
                     .transpose()?
-                    .map(|surcharge_details| {
+                    .inspect(|surcharge_details| {
                         let (surcharge_metadata, surcharge_key) = surcharge_metadata_and_key;
                         surcharge_metadata
                             .insert_surcharge_details(surcharge_key, surcharge_details.clone());
-                        surcharge_details
                     }))
             }
             Self::Predetermined(request_surcharge_details) => Ok(Some(
