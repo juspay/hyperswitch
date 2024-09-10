@@ -899,6 +899,7 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
+        skip_external_tax_calculation -> Nullable<Bool>,
     }
 }
 

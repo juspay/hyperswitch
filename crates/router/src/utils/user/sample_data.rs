@@ -250,6 +250,7 @@ pub async fn generate_sample_data(
             organization_id: org_id.clone(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

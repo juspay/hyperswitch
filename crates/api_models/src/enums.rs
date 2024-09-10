@@ -137,6 +137,7 @@ pub enum Connector {
     Stripe,
     Taxjar,
     Threedsecureio,
+    //Thunes,
     Trustpay,
     Tsys,
     Volt,
@@ -265,6 +266,7 @@ impl Connector {
             | Self::Square
             | Self::Stax
             | Self::Taxjar
+            //| Self::Thunes
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt

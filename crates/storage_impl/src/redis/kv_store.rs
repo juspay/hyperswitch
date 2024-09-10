@@ -259,12 +259,11 @@ where
 
     result
         .await
-        .map(|result| {
+        .inspect(|_| {
             logger::debug!(kv_operation= %operation, status="success");
             let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation.clone());
 
             metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
-            result
         })
         .inspect_err(|err| {
             logger::error!(kv_operation = %operation, status="error", error = ?err);

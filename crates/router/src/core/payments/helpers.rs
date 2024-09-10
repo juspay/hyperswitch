@@ -3108,6 +3108,7 @@ mod tests {
             organization_id: id_type::OrganizationId::default(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3176,6 +3177,7 @@ mod tests {
             organization_id: id_type::OrganizationId::default(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3242,6 +3244,7 @@ mod tests {
             organization_id: id_type::OrganizationId::default(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
