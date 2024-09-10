@@ -179,14 +179,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
 
                 let province = item
                     .router_data
-                    .get_optional_billing_state()
-                    .and_then(|state| {
-                        if state.clone().expose().len() > 2 {
-                            None
-                        } else {
-                            Some(state)
-                        }
-                    });
+                    .get_optional_billing_state_2_digit();
 
                 let billing = AddressData {
                     name: item.router_data.get_optional_billing_full_name(),
