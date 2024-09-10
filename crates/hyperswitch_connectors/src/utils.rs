@@ -7,6 +7,7 @@ use common_enums::{
     enums::{CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
 };
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -1536,9 +1537,10 @@ pub trait ForeignTryFrom<F>: Sized {
 pub struct QrImage {
     pub data: String,
 }
+
+// Qr Image data source starts with this string
+// The base64 image data will be appended to it to image data source
 pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
-pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::STANDARD;
 
 impl QrImage {
     pub fn new_from_data(
@@ -1563,5 +1565,15 @@ impl QrImage {
         Ok(Self {
             data: image_data_source,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
     }
 }

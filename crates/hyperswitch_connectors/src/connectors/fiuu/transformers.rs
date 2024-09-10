@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::payments;
 use cards::CardNumber;
-use common_enums::{enums, CaptureMethod, Currency};
+use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
     crypto::GenerateDigest,
     errors::CustomResult,
@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData, RealTimePaymentData},
+    payment_method_data::{BankRedirectData, PaymentMethodData, RealTimePaymentData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
@@ -33,7 +33,7 @@ use crate::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
-    utils::{PaymentsAuthorizeRequestData, QrImage, RouterData as _},
+    utils::{self, PaymentsAuthorizeRequestData, QrImage, RouterData as _},
 };
 
 pub struct FiuuRouterData<T> {
@@ -103,14 +103,83 @@ enum TxnChannel {
     DuitNowSqr,
 }
 
+#[derive(Serialize, Deserialize, Display, Debug)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum FPXTxnChannel {
+    FpxAbb,
+    FpxUob,
+    FpxAbmb,
+    FpxScb,
+    FpxBsn,
+    FpxKfh,
+    FpxBmmb,
+    FpxBkrm,
+    FpxHsbc,
+    FpxAgrobank,
+    FpxBocm,
+    FpxMb2u,
+    FpxCimbclicks,
+    FpxAmb,
+    FpxHlb,
+    FpxPbb,
+    FpxRhb,
+    FpxBimb,
+    FpxOcbc,
+}
+impl TryFrom<BankNames> for FPXTxnChannel {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(bank_names: BankNames) -> Result<Self, Self::Error> {
+        match bank_names {
+            BankNames::AffinBank => Ok(Self::FpxAbb),
+            BankNames::AgroBank => Ok(Self::FpxAgrobank),
+            BankNames::AllianceBank => Ok(Self::FpxAbmb),
+            BankNames::AmBank => Ok(Self::FpxAmb),
+            BankNames::BankOfChina => Ok(Self::FpxBocm),
+            BankNames::BankIslam => Ok(Self::FpxBimb),
+            BankNames::BankMuamalat => Ok(Self::FpxBmmb),
+            BankNames::BankRakyat => Ok(Self::FpxBkrm),
+            BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
+            BankNames::CimbBank => Ok(Self::FpxCimbclicks),
+            BankNames::HongLeongBank => Ok(Self::FpxHlb),
+            BankNames::HsbcBank => Ok(Self::FpxHsbc),
+            BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
+            BankNames::Maybank => Ok(Self::FpxMb2u),
+            BankNames::PublicBank => Ok(Self::FpxPbb),
+            BankNames::RhbBank => Ok(Self::FpxRhb),
+            BankNames::StandardCharteredBank => Ok(Self::FpxScb),
+            BankNames::UobBank => Ok(Self::FpxUob),
+            BankNames::OcbcBank => Ok(Self::FpxOcbc),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Fiuu"),
+            ))?,
+        }
+    }
+}
+
 #[derive(Serialize, Debug, Deserialize)]
 #[serde(untagged)]
 #[serde(rename_all = "PascalCase")]
 pub enum FiuuPaymentsRequest {
     QRPaymentRequest(FiuuQRPaymentRequest),
     CardPaymentRequest(FiuuCardPaymentRequest),
+    FpxPaymentRequest(FiuuFPXPyamentRequest),
 }
 
+#[derive(Serialize, Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuFPXPyamentRequest {
+    #[serde(rename = "MerchantID")]
+    merchant_id: Secret<String>,
+    reference_no: String,
+    txn_type: TxnType,
+    txn_channel: FPXTxnChannel,
+    txn_currency: Currency,
+    txn_amount: StringMajorUnit,
+    signature: Secret<String>,
+    #[serde(rename = "ReturnURL")]
+    return_url: Option<String>,
+}
 #[derive(Serialize, Debug, Deserialize)]
 pub struct FiuuQRPaymentRequest {
     #[serde(rename = "merchantID")]
@@ -221,6 +290,24 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequ
                     ),
                 }
             }
+            PaymentMethodData::BankRedirect(BankRedirectData::OnlineBankingFpx { issuer }) => {
+                Ok(Self::FpxPaymentRequest(FiuuFPXPyamentRequest {
+                    merchant_id: auth.merchant_id.clone(),
+                    reference_no: reference_no.clone(),
+                    txn_type: match item.router_data.request.is_auto_capture()? {
+                        true => TxnType::Sals,
+                        false => TxnType::Auts,
+                    },
+                    txn_channel: FPXTxnChannel::try_from(issuer)?,
+                    txn_currency,
+                    txn_amount: txn_amount.clone(),
+                    signature: calculate_signature(format!(
+                        "{}{merchant_id}{reference_no}{verify_key}",
+                        txn_amount.get_amount_as_string()
+                    ))?,
+                    return_url: item.router_data.request.router_return_url.clone(),
+                }))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -228,7 +315,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequ
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct CardPaymentsResponse {
+pub struct PaymentsResponse {
     pub reference_no: String,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
@@ -240,9 +327,15 @@ pub struct CardPaymentsResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct DuitNowQrCodeResponse {
+    status: bool,
+    qrcode_data: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FiuuPaymentsResponse {
-    CardPaymentResponse(Box<CardPaymentsResponse>),
+    PaymentResponse(Box<PaymentsResponse>),
     QRPaymentResponse(Box<DuitNowQrCodeResponse>),
     Error(FiuuErrorResponse),
 }
@@ -264,17 +357,11 @@ pub enum RequestType {
     Response,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ThreeDSResponseData {
-    #[serde(rename = "paRes")]
-    pa_res: String,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestData {
     NonThreeDS(NonThreeDSResponseData),
-    ThreeDS(ThreeDSResponseData),
+    RedirectData(Option<HashMap<String, String>>),
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NonThreeDSResponseData {
@@ -328,13 +415,8 @@ impl<F>
                 }),
                 ..item.data
             }),
-            FiuuPaymentsResponse::CardPaymentResponse(data) => match data.txn_data.request_data {
-                RequestData::ThreeDS(three_ds_data) => {
-                    let form_fields = {
-                        let mut map = HashMap::new();
-                        map.insert("paRes".to_string(), three_ds_data.pa_res.clone());
-                        map
-                    };
+            FiuuPaymentsResponse::PaymentResponse(data) => match data.txn_data.request_data {
+                RequestData::RedirectData(redirection_data) => {
                     let redirection_data = Some(RedirectForm::Form {
                         endpoint: data.txn_data.request_url.to_string(),
                         method: if data.txn_data.request_method.as_str() == "POST" {
@@ -342,7 +424,7 @@ impl<F>
                         } else {
                             Method::Get
                         },
-                        form_fields,
+                        form_fields: redirection_data.unwrap_or_default(),
                     });
                     Ok(Self {
                         status: enums::AttemptStatus::AuthenticationPending,
@@ -359,7 +441,6 @@ impl<F>
                         ..item.data
                     })
                 }
-
                 RequestData::NonThreeDS(non_threeds_data) => {
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
@@ -964,11 +1045,6 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Processing => Self::Pending,
         }
     }
-}
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DuitNowQrCodeResponse {
-    status: bool,
-    qrcode_data: Secret<String>,
 }
 
 pub fn get_qr_metadata(
