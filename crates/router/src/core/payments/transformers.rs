@@ -499,9 +499,7 @@ where
         }
         if let Some(pmt_order_tax_amount) = pmt_order_tax_amount {
             amount = amount + pmt_order_tax_amount;
-        }
-        //TODO:
-        if let Some(default_order_tax_amount) = default_order_tax_amount {
+        } else if let Some(default_order_tax_amount) = default_order_tax_amount {
             amount = amount + default_order_tax_amount;
         }
         Ok(services::ApplicationResponse::JsonWithHeaders((

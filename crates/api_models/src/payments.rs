@@ -3609,8 +3609,8 @@ pub struct PaymentsResponse {
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
 
-    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
-    /// If no surcharge_details, net_amount = amount
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,
+    /// If no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount
     #[schema(value_type = i64, example = 6540)]
     pub net_amount: MinorUnit,
 

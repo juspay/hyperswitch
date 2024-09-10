@@ -423,6 +423,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
+                    shipping_cost: payment_attempt.shipping_cost.clone(),
+                    order_tax_amount: payment_attempt.order_tax_amount.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1386,6 +1388,8 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 
@@ -1455,6 +1459,8 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
+            shipping_cost: storage_model.shipping_cost,
+            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }
@@ -1540,6 +1546,8 @@ impl DataModelExt for PaymentAttemptNew {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 
@@ -1608,6 +1616,8 @@ impl DataModelExt for PaymentAttemptNew {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
+            shipping_cost: storage_model.shipping_cost,
+            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }
@@ -1733,6 +1743,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: amount.get_amount_as_i64(),
                 currency,
@@ -1766,6 +1778,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             },
             Self::VoidUpdate {
                 status,
@@ -2072,6 +2086,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             } => Self::ConfirmUpdate {
                 amount: MinorUnit::new(amount),
                 currency,
@@ -2103,6 +2119,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
