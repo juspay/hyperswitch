@@ -1,13 +1,11 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
-
 pub use dynamic_routing::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse, UpdateSuccessRateWindowRequest,
     UpdateSuccessRateWindowResponse,
 };
-
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::api_models::routing::RoutableConnectorChoice;
 use router_env::logger;
