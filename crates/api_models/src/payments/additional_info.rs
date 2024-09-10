@@ -1,9 +1,7 @@
-use masking::{
-    masked_string::{
-        MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
-    },
-    Secret,
+use common_utils::new_type::{
+    MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
 };
+use masking::Secret;
 use utoipa::ToSchema;
 
 use crate::enums as api_enums;

@@ -3098,7 +3098,7 @@ pub enum PaymentMethodDataResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BankDebitResponse {
     #[serde(flatten)]
-    #[schema(value_type = BankDebitAdditionalData)]
+    #[schema(value_type = Option<BankDebitAdditionalData>)]
     details: Option<additional_info::BankDebitAdditionalData>,
 }
 
@@ -3116,7 +3116,7 @@ pub struct BankRedirectResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BankTransferResponse {
     #[serde(flatten)]
-    #[schema(value_type = BankTransferAdditionalData)]
+    #[schema(value_type = Option<BankTransferAdditionalData>)]
     details: Option<additional_info::BankTransferAdditionalData>,
 }
 
@@ -3129,7 +3129,7 @@ pub struct CardRedirectResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CardTokenResponse {
     #[serde(flatten)]
-    #[schema(value_type = CardTokenAdditionalData)]
+    #[schema(value_type = Option<CardTokenAdditionalData>)]
     details: Option<additional_info::CardTokenAdditionalData>,
 }
 
@@ -3142,7 +3142,7 @@ pub struct CryptoResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GiftCardResponse {
     #[serde(flatten)]
-    #[schema(value_type = GiftCardAdditionalData)]
+    #[schema(value_type = Option<GiftCardAdditionalData>)]
     details: Option<additional_info::GiftCardAdditionalData>,
 }
 
@@ -3161,7 +3161,7 @@ pub struct RealTimePaymentDataResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct UpiResponse {
     #[serde(flatten)]
-    #[schema(value_type = UpiAdditionalData)]
+    #[schema(value_type = Option<UpiAdditionalData>)]
     details: Option<additional_info::UpiAdditionalData>,
 }
 

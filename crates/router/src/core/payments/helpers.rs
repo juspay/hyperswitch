@@ -14,7 +14,9 @@ use common_enums::ConnectorType;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, id_type, pii, type_name,
+    fp_utils, generate_id, id_type,
+    new_type::{MaskedIban, MaskedSortCode},
+    pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
@@ -37,10 +39,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{
-    masked_string::{MaskedIban, MaskedSortCode},
-    ExposeInterface, PeekInterface,
-};
+use masking::{ExposeInterface, PeekInterface};
+
 use openssl::{
     derive::Deriver,
     pkey::PKey,

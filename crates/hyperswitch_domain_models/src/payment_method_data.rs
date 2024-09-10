@@ -2,14 +2,12 @@ use api_models::payments::{additional_info as payment_additional_types, Extended
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
-    pii::{self, Email},
-};
-use masking::{
-    masked_string::{
+    new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
-    PeekInterface, Secret,
+    pii::{self, Email},
 };
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -875,9 +873,7 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
         match value {
             UpiData::UpiCollect(upi) => Self::UpiCollect(Box::new(
                 payment_additional_types::UpiCollectAdditionalData {
-                    vpa_id: upi
-                        .vpa_id
-                        .map(|vpa| MaskedUpiVpaId::from(vpa.peek().to_owned())),
+                    vpa_id: upi.vpa_id.map(MaskedUpiVpaId::from),
                 },
             )),
             UpiData::UpiIntent(_) => {
@@ -1101,12 +1097,8 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Ach(Box::new(
                 payment_additional_types::AchBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(
-                        account_number.peek().to_owned(),
-                    )),
-                    routing_number: Secret::from(MaskedRoutingNumber::from(
-                        routing_number.peek().to_owned(),
-                    )),
+                    account_number: Secret::from(MaskedBankAccount::from(account_number)),
+                    routing_number: Secret::from(MaskedRoutingNumber::from(routing_number)),
                     bank_name,
                     bank_type,
                     bank_holder_type,
@@ -1119,7 +1111,7 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Sepa(Box::new(
                 payment_additional_types::SepaBankDebitAdditionalData {
-                    iban: Secret::from(MaskedIban::from(iban.peek().to_owned())),
+                    iban: Secret::from(MaskedIban::from(iban)),
                     bank_account_holder_name,
                 },
             )),
@@ -1129,9 +1121,7 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Becs(Box::new(
                 payment_additional_types::BecsBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(
-                        account_number.peek().to_owned(),
-                    )),
+                    account_number: Secret::from(MaskedBankAccount::from(account_number)),
                     bsb_number,
                     bank_account_holder_name,
                 },
@@ -1142,10 +1132,8 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_account_holder_name,
             } => Self::Bacs(Box::new(
                 payment_additional_types::BacsBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(
-                        account_number.peek().to_owned(),
-                    )),
-                    sort_code: Secret::from(MaskedSortCode::from(sort_code.peek().to_owned())),
+                    account_number: Secret::from(MaskedBankAccount::from(account_number)),
+                    sort_code: Secret::from(MaskedSortCode::from(sort_code)),
                     bank_account_holder_name,
                 },
             )),
@@ -1216,13 +1204,9 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
             BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
-                    pix_key: pix_key.map(|pix_key| {
-                        Secret::from(MaskedBankAccount::from(pix_key.peek().to_owned()))
-                    }),
-                    cpf: cpf
-                        .map(|cpf| Secret::from(MaskedBankAccount::from(cpf.peek().to_owned()))),
-                    cnpj: cnpj
-                        .map(|cnpj| Secret::from(MaskedBankAccount::from(cnpj.peek().to_owned()))),
+                    pix_key: pix_key.map(|pix_key| Secret::from(MaskedBankAccount::from(pix_key))),
+                    cpf: cpf.map(|cpf| Secret::from(MaskedBankAccount::from(cpf))),
+                    cnpj: cnpj.map(|cnpj| Secret::from(MaskedBankAccount::from(cnpj))),
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
