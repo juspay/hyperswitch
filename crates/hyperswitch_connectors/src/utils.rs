@@ -499,14 +499,13 @@ impl<Flow, Request, Response> RouterData
     }
 
     fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>> {
-        self.get_optional_billing_state()
-                    .and_then(|state| {
-                        if state.clone().expose().len() > 2 {
-                            None
-                        } else {
-                            Some(state)
-                        }
-                    })
+        self.get_optional_billing_state().and_then(|state| {
+            if state.clone().expose().len() > 2 {
+                None
+            } else {
+                Some(state)
+            }
+        })
     }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
