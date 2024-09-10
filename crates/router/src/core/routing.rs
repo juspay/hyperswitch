@@ -1173,13 +1173,14 @@ pub async fn toggle_dynamic_routing(
         metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     } else {
-        let routing_algo_ref: routing_types::RoutingAlgorithmRef =
-        business_profile.routing_algorithm.clone()
-        .map(|val| val.parse_value("RoutingAlgorithmRef"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-        .unwrap_or_default();
+        let routing_algo_ref: routing_types::RoutingAlgorithmRef = business_profile
+            .routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+            .unwrap_or_default();
 
         let timestamp = common_utils::date_time::now_unix_timestamp();
 
