@@ -177,7 +177,10 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     complete: item.router_data.request.is_auto_capture()?,
                 };
 
-                let province = item.router_data.get_optional_billing_state_2_digit();
+                let country = item.router_data.get_optional_billing_country();
+                let province = country.as_ref().and_then(|_| item
+                    .router_data
+                    .get_optional_billing_state_2_digit());
 
                 let billing = AddressData {
                     name: item.router_data.get_optional_billing_full_name(),
@@ -185,7 +188,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     address_line2: item.router_data.get_optional_billing_line2(),
                     city: item.router_data.get_optional_billing_city(),
                     province,
-                    country: item.router_data.get_optional_billing_country(),
+                    country,
                     postal_code: item.router_data.get_optional_billing_zip(),
                     phone_number: item.router_data.get_optional_billing_phone_number(),
                     email_address: item.router_data.get_optional_billing_email(),
