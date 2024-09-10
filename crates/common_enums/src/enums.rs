@@ -251,6 +251,7 @@ pub enum RoutableConnectors {
     Stripe,
     // Taxjar,
     Trustpay,
+    // Thunes
     // Tsys,
     Tsys,
     Volt,
