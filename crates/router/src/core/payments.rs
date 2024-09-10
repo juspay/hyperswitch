@@ -3182,11 +3182,12 @@ pub async fn get_payment_filters(
 pub async fn get_aggregates_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentsAggregateResponse> {
     let db = state.store.as_ref();
     let intent_status_with_count = db
-        .get_intent_status_with_count(merchant.get_id(), &time_range)
+        .get_intent_status_with_count(merchant.get_id(), &profile_id_list, &time_range)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
