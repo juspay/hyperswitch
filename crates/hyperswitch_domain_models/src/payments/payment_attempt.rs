@@ -116,67 +116,6 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PaymentAttempt {
-    pub payment_id: id_type::PaymentId,
-    pub merchant_id: id_type::MerchantId,
-    pub status: storage_enums::AttemptStatus,
-    pub net_amount: MinorUnit,
-    pub save_to_locker: Option<bool>,
-    pub error_message: Option<String>,
-    pub surcharge_amount: Option<MinorUnit>,
-    pub tax_amount: Option<MinorUnit>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub modified_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_synced: Option<PrimitiveDateTime>,
-    pub cancellation_reason: Option<String>,
-    pub browser_info: Option<serde_json::Value>,
-    pub error_code: Option<String>,
-    pub payment_token: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
-    pub business_sub_label: Option<String>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
-    pub preprocessing_step_id: Option<String>,
-    pub error_reason: Option<String>,
-    pub multiple_capture_count: Option<i16>,
-    // reference to the payment at connector side
-    pub connector_response_reference_id: Option<String>,
-    pub amount_capturable: MinorUnit,
-    pub updated_by: String,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
-    pub external_three_ds_authentication_attempted: Option<bool>,
-    pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
-    pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub profile_id: id_type::ProfileId,
-    pub organization_id: id_type::OrganizationId,
-    pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
-    pub connector_payment_id: Option<String>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    pub routing_algorithm_applied: Option<serde_json::Value>,
-    pub authentication_applied: Option<common_enums::AuthenticationType>,
-    pub external_reference_id: Option<String>,
-    pub id: String,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::PaymentId,
@@ -246,18 +185,6 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-impl PaymentAttempt {
-    pub fn get_total_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
-        todo!();
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         self.amount
@@ -281,56 +208,6 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaymentAttemptNew {
-    pub payment_id: id_type::PaymentId,
-    pub merchant_id: id_type::MerchantId,
-    pub status: storage_enums::AttemptStatus,
-    pub error_message: Option<String>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_amount: Option<i64>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
-    pub created_at: PrimitiveDateTime,
-    pub modified_at: PrimitiveDateTime,
-    pub last_synced: Option<PrimitiveDateTime>,
-    pub cancellation_reason: Option<String>,
-    pub browser_info: Option<serde_json::Value>,
-    pub payment_token: Option<String>,
-    pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
-    pub preprocessing_step_id: Option<String>,
-    pub error_reason: Option<String>,
-    pub connector_response_reference_id: Option<String>,
-    pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: i64,
-    pub updated_by: String,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
-    pub net_amount: Option<i64>,
-    pub external_three_ds_authentication_attempted: Option<bool>,
-    pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
-    pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
-    pub charge_id: Option<String>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub profile_id: id_type::ProfileId,
-    pub organization_id: id_type::OrganizationId,
-    pub card_network: Option<String>,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::PaymentId,
@@ -400,19 +277,6 @@ pub struct PaymentAttemptNew {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        todo!()
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
@@ -428,7 +292,6 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
@@ -618,14 +481,6 @@ pub enum PaymentAttemptUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-impl ForeignIDRef for PaymentAttempt {
-    fn foreign_id(&self) -> String {
-        todo!()
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         self.attempt_id.clone()
