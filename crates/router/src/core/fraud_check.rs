@@ -48,9 +48,9 @@ pub mod operation;
 pub mod types;
 
 #[instrument(skip_all)]
-pub async fn call_frm_service<D: Clone, F, Req, Da>(
+pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     state: &SessionState,
-    payment_data: &Da,
+    payment_data: &OperationData,
     frm_data: &mut FrmData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -59,7 +59,7 @@ pub async fn call_frm_service<D: Clone, F, Req, Da>(
 where
     F: Send + Clone,
 
-    Da: payments::OperationSessionGetters<D> + Send + Sync + Clone,
+    OperationData: payments::OperationSessionGetters<D> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
     FrmData: ConstructFlowSpecificData<F, Req, frm_types::FraudCheckResponseData>,

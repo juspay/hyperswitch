@@ -630,6 +630,8 @@ where
     Op: Debug,
     D: OperationSessionGetters<F>,
 {
+    use std::ops::Not;
+
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
     let payment_link_data = payment_data.get_payment_link_data();
@@ -645,7 +647,7 @@ where
         })?;
     let mandate_id = payment_attempt.mandate_id.clone();
 
-    let refunds_response = payment_data.get_refunds().is_empty().then(|| {
+    let refunds_response = payment_data.get_refunds().is_empty().not().then(|| {
         payment_data
             .get_refunds()
             .into_iter()
@@ -653,7 +655,7 @@ where
             .collect()
     });
 
-    let disputes_response = payment_data.get_disputes().is_empty().then(|| {
+    let disputes_response = payment_data.get_disputes().is_empty().not().then(|| {
         payment_data
             .get_disputes()
             .into_iter()
@@ -662,7 +664,7 @@ where
     });
 
     let incremental_authorizations_response =
-        payment_data.get_authorizations().is_empty().then(|| {
+        payment_data.get_authorizations().is_empty().not().then(|| {
             payment_data
                 .get_authorizations()
                 .into_iter()
