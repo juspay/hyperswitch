@@ -507,6 +507,7 @@ pub struct Payments;
     any(feature = "olap", feature = "oltp"),
     feature = "v2",
     feature = "payment_methods_v2",
+    feature = "payment_v2"
 ))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
@@ -524,6 +525,7 @@ impl Payments {
     any(feature = "olap", feature = "oltp"),
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2"),
+    not(feature = "payment_v2")
 ))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {

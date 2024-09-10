@@ -75,12 +75,12 @@ pub struct PaymentIntent {
 }
 
 impl PaymentIntent {
-    #[cfg(feature = "v1")]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2"),))]
     pub fn get_id(&self) -> &id_type::PaymentId {
         &self.payment_id
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "payment_v2",))]
     pub fn get_id(&self) -> &id_type::PaymentId {
         &self.id
     }

@@ -16,7 +16,11 @@ use super::MockDb;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intent_by_constraints(
         &self,
         _state: &KeyManagerState,
@@ -28,7 +32,11 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         _state: &KeyManagerState,
@@ -40,7 +48,11 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -49,7 +61,11 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -59,7 +75,11 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         _state: &KeyManagerState,

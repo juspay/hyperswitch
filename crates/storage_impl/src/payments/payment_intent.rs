@@ -12,12 +12,16 @@ use common_utils::{
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
 use diesel_models::query::generics::db_metrics;
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_v2"),
+    feature = "olap"
+))]
 use diesel_models::schema::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "payment_v2", feature = "olap"))]
 use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
@@ -333,7 +337,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -353,7 +361,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -373,7 +385,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -384,7 +400,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -404,7 +424,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -574,7 +598,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         }
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn filter_payment_intent_by_constraints(
         &self,
@@ -700,7 +728,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
@@ -722,7 +754,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn get_intent_status_with_count(
         &self,
@@ -761,7 +797,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn get_filtered_payment_intents_attempt(
         &self,
@@ -954,7 +994,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
