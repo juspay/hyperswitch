@@ -4195,7 +4195,7 @@ pub async fn get_apple_pay_retryable_connectors<F, D>(
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send,
+    D: payments::OperationSessionGetters<F> + Send,
 {
     let profile_id = business_profile.get_id();
 
@@ -5122,7 +5122,7 @@ pub async fn override_setup_future_usage_to_on_session<F, D>(
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {

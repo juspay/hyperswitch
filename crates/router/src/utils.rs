@@ -1097,7 +1097,7 @@ pub async fn trigger_payments_webhook<F, Op, D>(
 where
     F: Send + Clone + Sync,
     Op: Debug,
-    D: payments_core::PaymentDataGetters<F>,
+    D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
     let payment_id = payment_data.get_payment_intent().payment_id.clone();

@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
-use super::{flows::Feature, types::AuthenticationData, PaymentData, PaymentDataGetters};
+use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
@@ -253,7 +253,7 @@ pub trait ToResponse<F, D, Op>
 where
     Self: Sized,
     Op: Debug,
-    D: PaymentDataGetters<F>,
+    D: OperationSessionGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
@@ -273,7 +273,7 @@ impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsResponse
 where
     F: Clone,
     Op: Debug,
-    D: PaymentDataGetters<F>,
+    D: OperationSessionGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
@@ -322,7 +322,7 @@ impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsSessionResponse
 where
     F: Clone,
     Op: Debug,
-    D: PaymentDataGetters<F>,
+    D: OperationSessionGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
@@ -356,7 +356,7 @@ impl<F, Op, D> ToResponse<F, D, Op> for api::VerifyResponse
 where
     F: Clone,
     Op: Debug,
-    D: PaymentDataGetters<F>,
+    D: OperationSessionGetters<F>,
 {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     #[allow(clippy::too_many_arguments)]
@@ -451,7 +451,7 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
-    D: PaymentDataGetters<F>,
+    D: OperationSessionGetters<F>,
 {
     todo!()
 }
@@ -475,7 +475,7 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
-    D: PaymentDataGetters<F>,
+    D: OperationSessionGetters<F>,
 {
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();

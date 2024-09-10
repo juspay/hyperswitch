@@ -25,7 +25,7 @@ pub use self::{
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
 };
-use super::{helpers, CustomerDetails, PaymentDataGetters, PaymentDataSetters};
+use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
@@ -262,7 +262,7 @@ impl<
     > Domain<F, api::PaymentsRetrieveRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest, Data = D>,
-    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
@@ -368,7 +368,7 @@ impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequ
     Domain<F, api::PaymentsCaptureRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Data = D>,
-    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
@@ -473,7 +473,7 @@ impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelReque
     Domain<F, api::PaymentsCancelRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Data = D>,
-    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]

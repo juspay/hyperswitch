@@ -59,7 +59,7 @@ pub async fn call_frm_service<D: Clone, F, Req, Da>(
 where
     F: Send + Clone,
 
-    Da: payments::PaymentDataGetters<D> + Send + Sync + Clone,
+    Da: payments::OperationSessionGetters<D> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
     FrmData: ConstructFlowSpecificData<F, Req, frm_types::FraudCheckResponseData>,
@@ -135,7 +135,7 @@ pub async fn should_call_frm<F, D>(
 )>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
 {
     // Frm routing algorithm is not present in the merchant account
     // it has to be fetched from the business profile
@@ -156,7 +156,7 @@ pub async fn should_call_frm<F, D>(
 )>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
 {
     use common_utils::ext_traits::OptionExt;
     use masking::ExposeInterface;
@@ -363,7 +363,11 @@ pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
 ) -> RouterResult<FrmInfo<F, D>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
 {
     let order_details = payment_data
         .get_payment_intent()
@@ -445,7 +449,11 @@ pub async fn pre_payment_frm_core<'a, F, Req, D>(
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
 {
     let mut frm_data = None;
     if is_operation_allowed(operation) {
@@ -532,7 +540,11 @@ pub async fn post_payment_frm_core<'a, F, D>(
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
 {
     if let Some(frm_data) = &mut frm_info.frm_data {
         // Allow the Post flow only if the payment is authorized,
@@ -622,7 +634,11 @@ pub async fn call_frm_before_connector_call<'a, F, Req, D>(
 ) -> RouterResult<Option<FrmConfigsObject>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
         should_call_frm(merchant_account, payment_data, state, key_store.clone()).await?;

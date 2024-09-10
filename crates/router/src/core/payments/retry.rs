@@ -49,7 +49,11 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
     D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
@@ -288,7 +292,11 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
     D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
@@ -341,7 +349,7 @@ pub async fn modify_trackers<F, FData, D>(
 where
     F: Clone + Send,
     FData: Send,
-    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
     let new_payment_attempt = make_new_payment_attempt(
