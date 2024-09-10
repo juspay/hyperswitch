@@ -178,9 +178,9 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                 };
 
                 let country = item.router_data.get_optional_billing_country();
-                let province = country.as_ref().and_then(|_| item
-                    .router_data
-                    .get_optional_billing_state_2_digit());
+                let province = country
+                    .as_ref()
+                    .and_then(|_| item.router_data.get_optional_billing_state_2_digit());
 
                 let billing = AddressData {
                     name: item.router_data.get_optional_billing_full_name(),
