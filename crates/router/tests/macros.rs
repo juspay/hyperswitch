@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod flat_struct_test {
     #![allow(clippy::unwrap_used)]
+    use std::collections::HashMap;
+
     use router_derive::FlatStruct;
     use serde::Serialize;
-    use std::collections::HashMap;
 
     #[test]
     fn test_flat_struct() {
