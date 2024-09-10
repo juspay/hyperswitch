@@ -1025,8 +1025,8 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
-        .clone()
-        .and_then(|browser_info| browser_info.language)
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
@@ -1176,10 +1176,9 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
     }
     fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
-        .clone()
-        .and_then(|browser_info| browser_info.language)
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
-    
 }
 
 pub trait PaymentsSyncRequestData {
@@ -1236,8 +1235,8 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     }
     fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
-        .clone()
-        .and_then(|browser_info| browser_info.language)
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 
@@ -1268,8 +1267,8 @@ impl RefundsRequestData for RefundsData {
     }
     fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
-        .clone()
-        .and_then(|browser_info| browser_info.language)
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 

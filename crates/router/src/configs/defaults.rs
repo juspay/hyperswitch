@@ -2147,6 +2147,26 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
+                                enums::Connector::Novalnet,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::from(
+                                        [
+                                            (
+                                                "browser_info.language".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "browser_info.language".to_string(),
+                                                    display_name: "browser_info_language".to_string(),
+                                                    field_type: enums::FieldType::BrowserLanguage,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]
+                                    ),
+                                }
+                            ),
+                            (
                                 enums::Connector::Nuvei,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -5011,6 +5031,26 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "card_holder_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]
+                                    ),
+                                }
+                            ),
+                            (
+                                enums::Connector::Novalnet,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::from(
+                                        [
+                                            (
+                                                "browser_info.language".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "browser_info.language".to_string(),
+                                                    display_name: "browser_info_language".to_string(),
+                                                    field_type: enums::FieldType::BrowserLanguage,
                                                     value: None,
                                                 }
                                             ),

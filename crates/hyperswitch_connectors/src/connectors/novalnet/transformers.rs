@@ -28,9 +28,9 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        missing_field_err, BrowserInformationData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
-        RefundsRequestData, RouterData as OtherRouterData,
+        BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -338,9 +338,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     .response
                     .transaction
                     .and_then(|transaction_data| transaction_data.status)
-                    .unwrap_or(NovalnetTransactionStatus::Progress);
-                //  NOTE: if result.status is success, we should always get a redirection url
-                // since Novalnet does not always send the transaction.status, so using default value as Progress
+                    .unwrap_or(if redirection_data.is_some() {
+                        NovalnetTransactionStatus::Progress
+                    } else {
+                        NovalnetTransactionStatus::Pending
+                    });
+                // NOTE: if result.status is success, we should always get a redirection url for 3DS flow
+                // since Novalnet does not always send the transaction.status
+                // so default value is kept as Progress if flow is 3ds, otherwise default value is kept as Pending
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -364,7 +369,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
             }
@@ -470,19 +474,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
     fn try_from(
         item: &NovalnetRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_type = if item.router_data.request.is_multiple_capture() {
-            CaptureType::Partial
-        } else {
-            CaptureType::Final
-        };
-
-
-        let reference = match item.router_data.request.multiple_capture_data.clone() {
-            // if multiple capture request, send capture_id as our reference for the capture
-            Some(multiple_capture_request_data) => multiple_capture_request_data.capture_reference,
-            // if single capture request, send connector_request_reference_id(attempt_id)
-            None => item.router_data.connector_request_reference_id.clone(),
-        };
+        let capture_type = CaptureType::Final;
+        let reference = item.router_data.connector_request_reference_id.clone();
         let capture = Capture {
             cap_type: capture_type,
             reference,
@@ -629,7 +622,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
             }
@@ -727,7 +719,6 @@ impl<F>
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
             }
@@ -812,7 +803,6 @@ impl<F>
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
             }
@@ -860,8 +850,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let refund_id = item.response.transaction.clone().map(|transaction_data| transaction_data.tid)
-                .ok_or_else(missing_field_err("transaction id"))?;
+                let refund_id = item
+                    .response
+                    .transaction
+                    .clone()
+                    .map(|transaction_data: NovalnetResponseTransactionData| {
+                        transaction_data.tid.expose().to_string()
+                    })
+                    .unwrap_or("".to_string());
+                //NOTE: Mapping refund_id with "" incase we dont get any tid
 
                 let transaction_status = item
                     .response
@@ -871,7 +868,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
 
                 Ok(Self {
                     response: Ok(RefundsResponseData {
-                        connector_refund_id: refund_id.expose().to_string(),
+                        connector_refund_id: refund_id,
                         refund_status: enums::RefundStatus::from(transaction_status),
                     }),
                     ..item.data
@@ -881,7 +878,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
             }
@@ -977,7 +973,6 @@ impl<F>
                 let response = Err(get_error_response(item.response.result, item.http_code));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
             }
