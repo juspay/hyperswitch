@@ -9,11 +9,7 @@ use common_utils::link_utils::EnabledPaymentMethod;
 ))]
 use crate::types::transformers::ForeignInto;
 #[cfg(feature = "olap")]
-use crate::types::{
-    api::payments,
-    domain, storage,
-    transformers::ForeignFrom,
-};
+use crate::types::{api::payments, domain, storage};
 use crate::{
     settings::PayoutRequiredFields,
     types::{api, transformers::ForeignFrom},
