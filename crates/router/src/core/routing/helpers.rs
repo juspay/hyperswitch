@@ -188,6 +188,7 @@ pub async fn update_business_profile_active_algorithm_ref(
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
+    is_dynamic_routing_enabled: Option<bool>,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
     let ref_val = algorithm_id
@@ -217,7 +218,7 @@ pub async fn update_business_profile_active_algorithm_ref(
     let business_profile_update = domain::BusinessProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
         payout_routing_algorithm,
-        is_dynamic_routing_enabled: None,
+        is_dynamic_routing_enabled,
     };
 
     db.update_business_profile_by_profile_id(

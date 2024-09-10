@@ -73,7 +73,6 @@ pub struct ToggleDynamicRoutingQuery {
 pub struct DynamicRoutingUpdateConfigQuery {
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
-    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -536,12 +535,13 @@ pub struct DynamicRoutingConfigBody {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,
     pub max_aggregates_size: Option<u32>,
-    pub current_block_threshold: Option<DynamicRoutingConfigThreshold>,
+    pub current_block_threshold: Option<CurrentBlockThreshold>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub struct DynamicRoutingConfigThreshold {
-    pub max_total_count: Option<u32>,
+pub struct CurrentBlockThreshold {
+    pub duration_in_mins: Option<u64>,
+    pub max_total_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -549,7 +549,6 @@ pub struct DynamicRoutingPayloadWrapper {
     pub updated_config: DynamicRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
-    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 impl DynamicRoutingConfig {
@@ -585,7 +584,7 @@ impl DynamicRoutingConfigBody {
     }
 }
 
-impl DynamicRoutingConfigThreshold {
+impl CurrentBlockThreshold {
     pub fn update(&mut self, new: Self) {
         if let Some(max_total_count) = new.max_total_count {
             self.max_total_count = Some(max_total_count)

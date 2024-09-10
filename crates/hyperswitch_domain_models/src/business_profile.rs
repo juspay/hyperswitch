@@ -997,6 +997,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
+            is_dynamic_routing_enabled: None,
         })
     }
 
