@@ -1024,6 +1024,16 @@ pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<id_type::CustomerId>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankDebitValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankDebitValue1 {
+    pub data: BankDebitData,
+}
+
 pub trait GetPaymentMethodType {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType;
 }

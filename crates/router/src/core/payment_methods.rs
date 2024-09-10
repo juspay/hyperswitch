@@ -77,9 +77,22 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
+            let payment_token = helpers::store_payment_method_data_in_vault(
+                state,
+                payment_attempt,
+                payment_intent,
+                enums::PaymentMethod::BankDebit,
+                pm,
+                merchant_key_store,
+                business_profile,
+            )
+            .await?;
+
+            Ok((pm_opt.to_owned(), payment_token))
+        }
         pm @ Some(domain::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(domain::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),

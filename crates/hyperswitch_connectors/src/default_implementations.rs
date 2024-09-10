@@ -121,7 +121,6 @@ macro_rules! default_imp_for_complete_authorize {
 
 default_imp_for_complete_authorize!(
     connectors::Bitpay,
-    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
