@@ -59,21 +59,3 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN business_label VARCHAR(64),
     ADD COLUMN incremental_authorization_allowed BOOLEAN,
     ADD COLUMN fingerprint_id VARCHAR(64);
-
-ALTER TABLE payment_attempt
-ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
-    ADD COLUMN amount bigint NOT NULL,
-    ADD COLUMN currency "Currency",
-    ADD COLUMN save_to_locker BOOLEAN,
-    ADD COLUMN connector VARCHAR(64),
-    ADD COLUMN offer_amount bigint,
-    ADD COLUMN payment_method VARCHAR,
-    ADD COLUMN connector_transaction_id VARCHAR(64),
-    ADD COLUMN capture_method "CaptureMethod",
-    ADD COLUMN capture_on TIMESTAMP,
-    ADD COLUMN amount_to_capture bigint,
-    ADD COLUMN mandate_id VARCHAR(64), 
-    ADD COLUMN payment_method_type VARCHAR(64),
-    ADD COLUMN business_sub_label VARCHAR(64),
-    ADD COLUMN mandate_details JSONB,
-    ADD COLUMN mandate_data JSONB;
