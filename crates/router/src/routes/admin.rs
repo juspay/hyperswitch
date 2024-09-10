@@ -265,7 +265,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_connector(state, req, auth_data.merchant_account, auth_data.key_store)
+            create_connector(state, req, auth_data.merchant_account, None, auth_data.key_store)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
