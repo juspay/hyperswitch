@@ -33,4 +33,3 @@ ALTER TABLE payment_attempt
     ADD COLUMN routing_algorithm_applied JSONB,
     ADD COLUMN authentication_applied "AuthenticationType",
     ADD COLUMN external_reference_id VARCHAR(128);
-CREATE INDEX payment_attempt_connector_payment_id_merchant_id_index ON payment_attempt (connector_payment_id, merchant_id);
