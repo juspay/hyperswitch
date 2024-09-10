@@ -63,6 +63,19 @@ pub struct RoutingRetrieveQuery {
     pub offset: Option<u8>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ToggleDynamicRoutingQuery {
+    pub status: bool,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicRoutingUpdateConfigQuery {
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
@@ -260,6 +273,7 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+    Dynamic,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -494,4 +508,87 @@ pub struct RoutingAlgorithmId {
 pub struct RoutingLinkWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub algorithm_id: RoutingAlgorithmId,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct DynamicRoutingConfig {
+    pub id: Option<DynamicRoutingConfigId>,
+    pub params: Option<Vec<DynamicRoutingConfigParams>>,
+    pub config: Option<DynamicRoutingConfigBody>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub enum DynamicRoutingConfigId {
+    MerchantId(common_utils::id_type::MerchantId),
+    ProfileId(common_utils::id_type::ProfileId),
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub enum DynamicRoutingConfigParams {
+    PaymentMethod,
+    PaymentMethodType,
+    Currency,
+    AuthenticationType,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct DynamicRoutingConfigBody {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub max_aggregates_size: Option<u32>,
+    pub current_block_threshold: Option<DynamicRoutingConfigThreshold>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct DynamicRoutingConfigThreshold {
+    pub max_total_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicRoutingPayloadWrapper {
+    pub updated_config: DynamicRoutingConfig,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
+
+impl DynamicRoutingConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(id) = new.id {
+            self.id = Some(id)
+        }
+        if let Some(params) = new.params {
+            self.params = Some(params)
+        }
+        if let Some(new_config) = new.config {
+            self.config.as_mut().map(|config| config.update(new_config));
+        }
+    }
+}
+
+impl DynamicRoutingConfigBody {
+    pub fn update(&mut self, new: Self) {
+        if let Some(min_aggregates_size) = new.min_aggregates_size {
+            self.min_aggregates_size = Some(min_aggregates_size)
+        }
+        if let Some(default_success_rate) = new.default_success_rate {
+            self.default_success_rate = Some(default_success_rate)
+        }
+        if let Some(max_aggregates_size) = new.max_aggregates_size {
+            self.max_aggregates_size = Some(max_aggregates_size)
+        }
+        if let Some(current_block_threshold) = new.current_block_threshold {
+            self.current_block_threshold
+                .as_mut()
+                .map(|threshold| threshold.update(current_block_threshold));
+        }
+    }
+}
+
+impl DynamicRoutingConfigThreshold {
+    pub fn update(&mut self, new: Self) {
+        if let Some(max_total_count) = new.max_total_count {
+            self.max_total_count = Some(max_total_count)
+        }
+    }
 }

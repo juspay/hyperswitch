@@ -209,6 +209,7 @@ diesel::table! {
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
         version -> ApiVersion,
+        is_dynamic_routing_enabled -> Nullable<Bool>,
     }
 }
 

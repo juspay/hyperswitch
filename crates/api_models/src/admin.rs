@@ -1918,6 +1918,10 @@ pub struct BusinessProfileCreate {
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if dynamic routing is enabled or not.
+    #[serde(default)]
+    pub is_dynamic_routing_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2356,6 +2360,10 @@ pub struct BusinessProfileUpdate {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
+
+    /// Indicates if dynamic routing is enabled or not.
+    #[serde(default)]
+    pub is_dynamic_routing_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

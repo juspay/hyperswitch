@@ -217,6 +217,7 @@ pub async fn update_business_profile_active_algorithm_ref(
     let business_profile_update = domain::BusinessProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
         payout_routing_algorithm,
+        is_dynamic_routing_enabled: None,
     };
 
     db.update_business_profile_by_profile_id(
