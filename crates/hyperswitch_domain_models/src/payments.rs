@@ -71,4 +71,5 @@ pub struct PaymentIntent {
     pub is_payment_processor_token_flow: Option<bool>,
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
+    pub skip_external_tax_calculation: Option<bool>,
 }

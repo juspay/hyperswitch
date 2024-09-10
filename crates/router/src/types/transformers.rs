@@ -333,6 +333,8 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
+            // api_enums::Connector::Taxjar => Self::Taxjar,
+            // api_enums::Connector::Thunes => Self::Thunes,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
@@ -1797,6 +1799,7 @@ impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
     fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            form_layout: item.form_layout,
             payout_test_mode: item.payout_test_mode,
         }
     }
@@ -1808,6 +1811,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
     fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            form_layout: item.form_layout,
             payout_test_mode: item.payout_test_mode,
         }
     }

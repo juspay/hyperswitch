@@ -2473,6 +2473,10 @@ pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
 
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
+
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
     #[schema(value_type = Option<bool>, default = false)]
     pub payout_test_mode: Option<bool>,
