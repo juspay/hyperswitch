@@ -12,6 +12,10 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payment_methods::{
+    create_payment_method, payment_method_intent_confirm, payment_method_intent_create,
+};
 use crate::{
     core::{
         api_locking, errors,
@@ -82,7 +86,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| async move {
-            Box::pin(payment_methods_routes::create_payment_method(
+            Box::pin(create_payment_method(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -111,7 +115,7 @@ pub async fn create_payment_method_intent_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| async move {
-            Box::pin(payment_methods_routes::payment_method_intent_create(
+            Box::pin(payment_method_intent_create(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -150,7 +154,7 @@ pub async fn confirm_payment_method_intent_api(
         |state, auth, req, _| {
             let pm_id = pm_id.clone();
             async move {
-                Box::pin(payment_methods_routes::payment_method_intent_confirm(
+                Box::pin(payment_method_intent_confirm(
                     &state,
                     req,
                     &auth.merchant_account,
