@@ -40,7 +40,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
-
 use openssl::{
     derive::Deriver,
     pkey::PKey,

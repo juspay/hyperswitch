@@ -1,6 +1,7 @@
 //! Contains new types with restrictions
-use crate::{consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH, pii::UpiVpaMaskingStrategy};
 use masking::{PeekInterface, Secret, SerializableSecret};
+
+use crate::{consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH, pii::UpiVpaMaskingStrategy};
 
 #[nutype::nutype(
     derive(Clone, Serialize, Deserialize, Debug),
