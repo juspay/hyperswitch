@@ -756,6 +756,7 @@ pub async fn payouts_list_core(
     _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     _key_store: domain::MerchantKeyStore,
     _constraints: payouts::PayoutListConstraints,
+    _locale: &str,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     todo!()
 }
