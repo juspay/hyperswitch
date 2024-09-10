@@ -919,8 +919,6 @@ pub async fn refund_filter_list(
     Ok(services::ApplicationResponse::Json(filter_list))
 }
 
-//todo add wrapper
-
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core_with_internal_reference_id(
     state: SessionState,
@@ -928,6 +926,7 @@ pub async fn refund_retrieve_core_with_internal_reference_id(
     profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     refund_internal_request_id: String,
+    force_sync: Option<bool>,
 ) -> RouterResult<storage::Refund> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -943,7 +942,7 @@ pub async fn refund_retrieve_core_with_internal_reference_id(
 
     let request = refunds::RefundsRetrieveRequest {
         refund_id: refund.refund_id.clone(),
-        force_sync: Some(true),
+        force_sync,
         merchant_connector_details: None,
     };
 
@@ -1253,6 +1252,7 @@ pub async fn sync_refund_with_gateway_workflow(
         None,
         key_store,
         refund_core.refund_internal_reference_id,
+        Some(true),
     ))
     .await?;
     let terminal_status = [
