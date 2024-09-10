@@ -72,6 +72,7 @@ pub struct PaymentIntent {
     pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -136,6 +137,7 @@ pub struct PaymentIntent {
     pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
@@ -219,6 +221,7 @@ pub struct PaymentIntentNew {
     pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
