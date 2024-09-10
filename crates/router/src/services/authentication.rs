@@ -10,7 +10,7 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
-use common_enums::TokenPurpose;
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -24,8 +24,6 @@ use self::detached::{ExtractedPayload, GetAuthType};
 use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
-#[cfg(feature = "recon")]
-use super::recon::ReconToken;
 #[cfg(feature = "olap")]
 use crate::configs::Settings;
 #[cfg(feature = "olap")]
@@ -34,8 +32,6 @@ use crate::consts;
 use crate::core::errors::UserResult;
 #[cfg(feature = "partial-auth")]
 use crate::core::metrics;
-#[cfg(feature = "recon")]
-use crate::routes::SessionState;
 use crate::{
     core::{
         api_keys,
@@ -44,7 +40,7 @@ use crate::{
     headers,
     routes::app::SessionStateInfo,
     services::api,
-    types::domain,
+    types::{domain, storage},
     utils::OptionExt,
 };
 
@@ -67,6 +63,14 @@ pub struct AuthenticationDataWithMultipleProfiles {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id_list: Option<Vec<id_type::ProfileId>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticationDataWithUser {
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+    pub user: storage::User,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -1004,12 +1008,9 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth(pub Permission);
-
-#[derive(serde::Deserialize)]
-struct JwtAuthPayloadFetchUnit {
-    #[serde(rename(deserialize = "exp"))]
-    _exp: u64,
+pub(crate) struct JWTAuth {
+    pub permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1027,8 +1028,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         Ok((
             (),
@@ -1056,8 +1058,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         Ok((
             UserFromToken {
@@ -1091,8 +1094,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1132,10 +1137,12 @@ where
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 pub struct JWTAuthMerchantFromHeader {
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1153,8 +1160,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let merchant_id_from_header =
             HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
@@ -1188,8 +1196,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let merchant_id_from_header =
             HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
@@ -1254,8 +1263,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -1290,8 +1300,10 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1333,6 +1345,7 @@ pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1362,8 +1375,10 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1406,6 +1421,7 @@ where
 pub struct JWTAuthProfileFromRoute {
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1423,8 +1439,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1517,8 +1535,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1574,8 +1594,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1962,12 +1984,13 @@ where
     default_auth
 }
 
+#[derive(Clone)]
 #[cfg(feature = "recon")]
-pub struct ReconAdmin;
+pub struct UserFromTokenWithAuthData(pub UserFromToken, pub AuthenticationDataWithUser);
 
-#[async_trait]
 #[cfg(feature = "recon")]
-impl<A> AuthenticateAndFetch<(), A> for ReconAdmin
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromTokenWithAuthData, A> for JWTAuth
 where
     A: SessionStateInfo + Sync,
 {
@@ -1975,49 +1998,68 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<((), AuthenticationType)> {
-        let request_admin_api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let conf = state.conf();
-
-        let admin_api_key = conf.secrets.get_inner().recon_admin_api_key.peek();
-
-        if request_admin_api_key != admin_api_key {
-            Err(report!(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Recon Admin Authentication Failure"))?;
+    ) -> RouterResult<(UserFromTokenWithAuthData, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        Ok(((), AuthenticationType::NoAuth))
-    }
-}
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-#[cfg(feature = "recon")]
-pub struct ReconJWT;
-#[cfg(feature = "recon")]
-pub struct ReconUser {
-    pub user_id: String,
-}
-#[cfg(feature = "recon")]
-impl AuthInfo for ReconUser {
-    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        None
-    }
-}
-#[cfg(all(feature = "olap", feature = "recon"))]
-#[async_trait]
-impl AuthenticateAndFetch<ReconUser, SessionState> for ReconJWT {
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &SessionState,
-    ) -> RouterResult<(ReconUser, AuthenticationType)> {
-        let payload = parse_jwt_payload::<SessionState, ReconToken>(request_headers, state).await?;
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        Ok((
-            ReconUser {
-                user_id: payload.user_id,
-            },
-            AuthenticationType::NoAuth,
-        ))
+        let user_id = payload.user_id;
+
+        let user = state
+            .session_state()
+            .global_store
+            .find_user_by_id(&user_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch user for the user id")?;
+
+        let auth = AuthenticationDataWithUser {
+            merchant_account: merchant,
+            key_store,
+            profile_id: payload.profile_id.clone(),
+            user,
+        };
+
+        let auth_type = AuthenticationType::MerchantJwt {
+            merchant_id: auth.merchant_account.get_id().clone(),
+            user_id: Some(user_id.clone()),
+        };
+
+        let user = UserFromToken {
+            user_id,
+            merchant_id: payload.merchant_id.clone(),
+            org_id: payload.org_id,
+            role_id: payload.role_id,
+            profile_id: payload.profile_id,
+        };
+
+        Ok((UserFromTokenWithAuthData(user, auth), auth_type))
     }
 }

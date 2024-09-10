@@ -100,6 +100,14 @@ pub async fn get_user_details(
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
@@ -112,6 +120,10 @@ pub async fn get_user_details(
             org_id: user_from_token.org_id,
             is_two_factor_auth_setup: user.get_totp_status() == TotpStatus::Set,
             recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
+            profile_id: user_from_token
+                .profile_id
+                .ok_or(UserErrors::JwtProfileIdMissing)?,
+            entity_type: role_info.get_entity_type(),
         },
     ))
 }
@@ -1185,13 +1197,12 @@ pub async fn switch_merchant_id(
             })?
             .organization_id;
 
-        let token = utils::user::generate_jwt_auth_token_with_attributes(
+        let token = utils::user::generate_jwt_auth_token_with_attributes_without_profile(
             &state,
             user_from_token.user_id,
             request.merchant_id.clone(),
             org_id.clone(),
             user_from_token.role_id.clone(),
-            None,
         )
         .await?;
 
@@ -1810,30 +1821,23 @@ pub async fn send_verification_mail(
 #[cfg(feature = "recon")]
 pub async fn verify_token(
     state: SessionState,
-    req: auth::ReconUser,
+    user: auth::UserFromToken,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
-    let user = state
+    let user_in_db = state
         .global_store
-        .find_user_by_id(&req.user_id)
+        .find_user_by_id(&user.user_id)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch the user from DB for user_id - {}",
+                user.user_id
+            )
         })?;
-    let merchant_id = state
-        .store
-        .find_user_role_by_user_id(&req.user_id, UserRoleVersion::V1)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .merchant_id
-        .ok_or(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: merchant_id.to_owned(),
-        user_email: user.email,
+        merchant_id: user.merchant_id.to_owned(),
+        user_email: user_in_db.email,
     }))
 }
 
@@ -2792,7 +2796,6 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
         &user_from_token.role_id,
@@ -2830,38 +2833,8 @@ pub async fn switch_org_for_user(
             "No user role found for the requested org_id".to_string(),
         ))?;
 
-    let merchant_id = utils::user_role::get_single_merchant_id(&state, &user_role).await?;
-
-    let profile_id = if let Some(profile_id) = &user_role.profile_id {
-        profile_id.clone()
-    } else {
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
-
-        state
-            .store
-            .list_business_profile_by_merchant_id(
-                key_manager_state,
-                &merchant_key_store,
-                &merchant_id,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to list business profiles by merchant_id")?
-            .pop()
-            .ok_or(UserErrors::InternalServerError)
-            .attach_printable("No business profile found for the merchant_id")?
-            .get_id()
-            .to_owned()
-    };
+    let (merchant_id, profile_id) =
+        utils::user_role::get_single_merchant_id_and_profile_id(&state, &user_role).await?;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -2869,7 +2842,7 @@ pub async fn switch_org_for_user(
         merchant_id.clone(),
         request.org_id.clone(),
         user_role.role_id.clone(),
-        Some(profile_id.clone()),
+        profile_id.clone(),
     )
     .await?;
 
@@ -3078,7 +3051,7 @@ pub async fn switch_merchant_for_user_in_org(
         merchant_id.clone(),
         org_id.clone(),
         role_id.clone(),
-        Some(profile_id),
+        profile_id,
     )
     .await?;
 
@@ -3183,7 +3156,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         user_from_token.merchant_id.clone(),
         user_from_token.org_id.clone(),
         role_id.clone(),
-        Some(profile_id),
+        profile_id,
     )
     .await?;
 

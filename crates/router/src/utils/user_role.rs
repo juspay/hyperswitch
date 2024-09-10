@@ -54,6 +54,7 @@ impl From<Permission> for user_role_api::Permission {
             Permission::PayoutRead => Self::PayoutRead,
             Permission::PayoutWrite => Self::PayoutWrite,
             Permission::GenerateReport => Self::GenerateReport,
+            Permission::ReconAdmin => Self::ReconAdmin,
         }
     }
 }
@@ -156,10 +157,10 @@ pub async fn set_role_permissions_in_cache_if_required(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error getting role_info from role_id")?;
 
-    authz::set_permissions_in_cache(
+    authz::set_role_info_in_cache(
         state,
         role_id,
-        &role_info.get_permissions_set().into_iter().collect(),
+        &role_info,
         i64::try_from(consts::JWT_TOKEN_TIME_IN_SECS)
             .change_context(UserErrors::InternalServerError)?,
     )
@@ -357,4 +358,43 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
             Ok(None)
         }
     }
+}
+
+pub async fn get_single_merchant_id_and_profile_id(
+    state: &SessionState,
+    user_role: &UserRole,
+) -> UserResult<(id_type::MerchantId, id_type::ProfileId)> {
+    let merchant_id = get_single_merchant_id(state, user_role).await?;
+    let (_, entity_type) = user_role
+        .get_entity_id_and_type()
+        .ok_or(UserErrors::InternalServerError)?;
+    let profile_id = match entity_type {
+        EntityType::Organization | EntityType::Merchant | EntityType::Internal => {
+            let key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    &state.into(),
+                    &merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            state
+                .store
+                .list_business_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .pop()
+                .ok_or(UserErrors::InternalServerError)?
+                .get_id()
+                .to_owned()
+        }
+        EntityType::Profile => user_role
+            .profile_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)?,
+    };
+
+    Ok((merchant_id, profile_id))
 }

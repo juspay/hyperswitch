@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, pii::Email};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -120,6 +120,7 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    pub recipient_emails: RecipientMails,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -517,7 +518,6 @@ pub struct RequiredFieldFinal {
 pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
-    pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
 }
 
@@ -904,6 +904,11 @@ pub struct ServerTls {
     pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
     pub certificate: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct RecipientMails {
+    pub recon: Email,
 }
 
 fn deserialize_hashmap_inner<K, V>(

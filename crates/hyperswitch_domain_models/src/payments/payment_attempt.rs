@@ -112,6 +112,7 @@ pub trait PaymentAttemptInterface {
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
@@ -548,6 +549,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
     async fn convert_back(
@@ -631,6 +634,8 @@ impl behaviour::Conversion for PaymentIntent {
                     .await?,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
             })
         }
         .await
@@ -690,6 +695,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
 }
@@ -751,6 +758,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
 
@@ -820,6 +829,8 @@ impl behaviour::Conversion for PaymentIntent {
                     .request_external_three_ds_authentication,
                 charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
                 customer_details: storage_model
                     .customer_details
                     .async_lift(inner_decrypt)
@@ -894,6 +905,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
 }

@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -32,7 +33,10 @@ pub async fn apple_pay_merchant_registration(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -64,7 +68,10 @@ pub async fn retrieve_apple_pay_verified_domains(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
