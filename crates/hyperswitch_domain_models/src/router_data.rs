@@ -7,7 +7,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{payment_address::PaymentAddress, payment_method_data};
 
@@ -135,6 +135,74 @@ impl ConnectorAuthType {
             .change_context(common_utils::errors::ParsingError::StructParseFailure(
                 "ConnectorAuthType",
             ))
+    }
+
+    // show only first and last two digits of the key and mask others with *
+    // mask the entire key if it's length is less than or equal to 4
+    fn mask_key(&self, key: String) -> Secret<String> {
+        let key_len = key.len();
+        let masked_key = if key_len <= 4 {
+            "*".repeat(key_len)
+        } else {
+            // Show the first two and last two characters, mask the rest with '*'
+            let mut masked_key = String::new();
+            let key_len = key.len();
+            // Iterate through characters by their index
+            for (i, c) in key.chars().enumerate() {
+                if i < 2 || i >= key_len - 2 {
+                    masked_key.push(c); // Keep the first two and last two characters
+                } else {
+                    masked_key.push('*'); // Mask the middle characters
+                }
+            }
+            masked_key
+        };
+        Secret::new(masked_key)
+    }
+
+    // Mask the keys in the auth_type
+    pub fn get_masked_keys(&self) -> Self {
+        match self {
+            Self::TemporaryAuth => Self::TemporaryAuth,
+            Self::NoKey => Self::NoKey,
+            Self::HeaderKey { api_key } => Self::HeaderKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+            },
+            Self::BodyKey { api_key, key1 } => Self::BodyKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+            },
+            Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+                api_secret: self.mask_key(api_secret.clone().expose()),
+            },
+            Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+                api_secret: self.mask_key(api_secret.clone().expose()),
+                key2: self.mask_key(key2.clone().expose()),
+            },
+            Self::CurrencyAuthKey { auth_key_map } => Self::CurrencyAuthKey {
+                auth_key_map: auth_key_map.clone(),
+            },
+            Self::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate: self.mask_key(certificate.clone().expose()),
+                private_key: self.mask_key(private_key.clone().expose()),
+            },
+        }
     }
 }
 
