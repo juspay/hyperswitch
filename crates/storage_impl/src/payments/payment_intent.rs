@@ -306,6 +306,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v1")]
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
@@ -331,6 +332,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
             RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        todo!()
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -546,6 +556,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_active_payment_attempt(
         &self,
@@ -572,6 +583,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
             RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        todo!()
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]

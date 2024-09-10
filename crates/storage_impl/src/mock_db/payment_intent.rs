@@ -161,6 +161,7 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
+    #[cfg(feature = "v1")]
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
@@ -179,5 +180,14 @@ impl PaymentIntentInterface for MockDb {
             }
             hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        todo!()
     }
 }

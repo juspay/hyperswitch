@@ -357,6 +357,7 @@ impl UniqueConstraints for diesel_models::PaymentIntent {
     }
 }
 
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::PaymentAttempt {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(

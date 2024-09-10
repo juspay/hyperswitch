@@ -79,6 +79,7 @@ pub struct TypedSql {
 }
 
 impl DBOperation {
+    #[cfg(feature = "v1")]
     pub async fn execute(self, conn: &PgPooledConn) -> crate::StorageResult<DBResult> {
         Ok(match self {
             Self::Insert { insertable } => match insertable {
@@ -162,6 +163,11 @@ impl DBOperation {
                 )),
             },
         })
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn execute(self, conn: &PgPooledConn) -> crate::StorageResult<DBResult> {
+        todo!()
     }
 }
 

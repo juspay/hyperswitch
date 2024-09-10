@@ -84,6 +84,7 @@ impl AttemptStatusExt for enums::AttemptStatus {
     }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 #[cfg(feature = "dummy_connector")]
 mod tests {

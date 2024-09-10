@@ -23,12 +23,14 @@ use crate::{
 };
 
 impl PaymentAttemptNew {
+    #[cfg(feature = "v1")]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self.populate_derived_fields()).await
     }
 }
 
 impl PaymentAttempt {
+    #[cfg(feature = "v1")]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -56,6 +58,7 @@ impl PaymentAttempt {
         }
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
@@ -70,6 +73,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
         connector_transaction_id: &str,
@@ -86,6 +90,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
@@ -108,6 +113,7 @@ impl PaymentAttempt {
         .ok_or(report!(DatabaseError::NotFound))
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
@@ -134,6 +140,7 @@ impl PaymentAttempt {
         .ok_or(report!(DatabaseError::NotFound))
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -148,6 +155,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -162,6 +170,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -176,6 +185,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
@@ -193,6 +203,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -215,6 +226,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(all(feature = "v1", feature = "olap"))]
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
@@ -313,6 +325,7 @@ impl PaymentAttempt {
         ))
     }
 
+    #[cfg(all(feature = "v1", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
