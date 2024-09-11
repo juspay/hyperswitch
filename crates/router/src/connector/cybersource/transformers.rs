@@ -2469,11 +2469,6 @@ impl<F>
                 }),
                 ..item.data
             }),
-            /////////Check line
-            /// /////////Check line
-            /// /////////Check line
-            /// /////////Check line
-            /// /////////Check line
             CybersourceAuthSetupResponse::ErrorInformation(error_response) => {
                 let detailed_error_info =
                     error_response
