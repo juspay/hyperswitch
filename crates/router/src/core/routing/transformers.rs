@@ -89,8 +89,8 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
     }
 }
 
-impl<F: Clone> From<&routing::TransactionData<'_, F>> for storage_enums::TransactionType {
-    fn from(value: &routing::TransactionData<'_, F>) -> Self {
+impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
+    fn from(value: &routing::TransactionData<'_>) -> Self {
         match value {
             routing::TransactionData::Payment(_) => Self::Payment,
             #[cfg(feature = "payouts")]

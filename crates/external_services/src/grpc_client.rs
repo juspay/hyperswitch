@@ -14,7 +14,6 @@ use hyperswitch_interfaces::api::api_models::routing::{
     RoutableConnectorChoiceWithStatus,
 };
 use router_env::logger;
-
 use tonic::transport::Channel;
 #[allow(
     missing_docs,
