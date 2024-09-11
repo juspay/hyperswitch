@@ -33,6 +33,9 @@ jobs:
           toolchain: nightly
           components: rustfmt
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+
       - name: Check formatting
         shell: bash
         run: cargo +nightly fmt --all --check

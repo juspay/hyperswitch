@@ -121,6 +121,9 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+
       - name: Install sccache
         uses: taiki-e/install-action@v2.33.28
         with:
