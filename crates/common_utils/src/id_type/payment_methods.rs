@@ -20,7 +20,7 @@ use crate::{
 pub struct GlobalPaymentMethodId(GlobalId);
 
 impl GlobalPaymentMethodId {
-    fn get_gloabl_id(&self) -> &GlobalId {
+    fn get_global_id(&self) -> &GlobalId {
         &self.0
     }
     /// Create a new GlobalPaymentMethodId from celll id information
@@ -60,7 +60,7 @@ where
         &'b self,
         out: &mut diesel::serialize::Output<'b, '_, DB>,
     ) -> diesel::serialize::Result {
-        let id = self.get_gloabl_id();
+        let id = self.get_global_id();
         id.to_sql(out)
     }
 }
