@@ -1375,72 +1375,12 @@ where
     }
 }
 
-pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
+pub fn response_operation<'a, F, R, D>() -> BoxedOperation<'a, F, R, D>
 where
     F: Send + Clone,
-    PaymentResponse: Operation<F, R>,
+    PaymentResponse: Operation<F, R, Data = D>,
 {
     Box::new(PaymentResponse)
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn get_customer_from_details<F: Clone>(
-    _state: &SessionState,
-    _customer_id: Option<id_type::CustomerId>,
-    _merchant_id: &id_type::MerchantId,
-    _payment_data: &mut PaymentData<F>,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    todo!()
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn get_customer_details_even_for_redacted_customer<F: Clone>(
-    _state: &SessionState,
-    _customer_id: Option<id_type::CustomerId>,
-    _merchant_id: &id_type::MerchantId,
-    _payment_data: &mut PaymentData<F>,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    todo!()
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub async fn get_customer_from_details<F: Clone>(
-    state: &SessionState,
-    customer_id: Option<id_type::CustomerId>,
-    merchant_id: &id_type::MerchantId,
-    payment_data: &mut PaymentData<F>,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    match customer_id {
-        None => Ok(None),
-        Some(customer_id) => {
-            let db = &*state.store;
-            let customer = db
-                .find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-
-            payment_data.email = payment_data.email.clone().or_else(|| {
-                customer.as_ref().and_then(|inner| {
-                    inner
-                        .email
-                        .clone()
-                        .map(|encrypted_value| encrypted_value.into())
-                })
-            });
-            Ok(customer)
-        }
-    }
 }
 
 pub fn validate_max_amount(
@@ -1532,30 +1472,30 @@ pub async fn get_connector_default(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _state: &SessionState,
-    _operation: BoxedOperation<'a, F, R>,
+    _operation: BoxedOperation<'a, F, R, D>,
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _merchant_id: &id_type::MerchantId,
     _key_store: &domain::MerchantKeyStore,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     state: &SessionState,
-    operation: BoxedOperation<'a, F, R>,
+    operation: BoxedOperation<'a, F, R, D>,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -1745,44 +1685,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             None => None,
         },
     ))
-}
-
-// This function is to retrieve customer details. If the customer is deleted, it returns
-// customer details that contains the fields as Redacted
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub async fn get_customer_details_even_for_redacted_customer<F: Clone>(
-    state: &SessionState,
-    customer_id: Option<id_type::CustomerId>,
-    merchant_id: &id_type::MerchantId,
-    payment_data: &mut PaymentData<F>,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    match customer_id {
-        None => Ok(None),
-        Some(customer_id) => {
-            let db = &*state.store;
-            let customer_details = db
-                .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-
-            payment_data.email = payment_data.email.clone().or_else(|| {
-                customer_details.as_ref().and_then(|inner| {
-                    inner
-                        .email
-                        .clone()
-                        .map(|encrypted_value| encrypted_value.into())
-                })
-            });
-            Ok(customer_details)
-        }
-    }
 }
 
 pub async fn retrieve_payment_method_with_temporary_token(
@@ -2030,8 +1932,8 @@ pub async fn retrieve_payment_token_data(
     Ok(token_data)
 }
 
-pub async fn make_pm_data<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn make_pm_data<'a, F: Clone, R, D>(
+    operation: BoxedOperation<'a, F, R, D>,
     state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -2039,7 +1941,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(
-    BoxedOperation<'a, F, R>,
+    BoxedOperation<'a, F, R, D>,
     Option<domain::PaymentMethodData>,
     Option<String>,
 )> {
@@ -3367,7 +3269,7 @@ impl MerchantConnectorAccountType {
 pub async fn get_merchant_connector_account(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-    creds_identifier: Option<String>,
+    creds_identifier: Option<&str>,
     key_store: &domain::MerchantKeyStore,
     profile_id: &id_type::ProfileId,
     connector_name: &str,
@@ -3377,7 +3279,7 @@ pub async fn get_merchant_connector_account(
     let key_manager_state: &KeyManagerState = &state.into();
     match creds_identifier {
         Some(creds_identifier) => {
-            let key = merchant_id.get_creds_identifier_key(&creds_identifier);
+            let key = merchant_id.get_creds_identifier_key(creds_identifier);
             let cloned_key = key.clone();
             let redis_fetch = || async {
                 db.get_redis_conn()
@@ -4296,10 +4198,10 @@ pub fn get_applepay_metadata(
 }
 
 #[cfg(feature = "retry")]
-pub async fn get_apple_pay_retryable_connectors<F>(
+pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    payment_data: &mut PaymentData<F>,
+    payment_data: &D,
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
@@ -4307,6 +4209,7 @@ pub async fn get_apple_pay_retryable_connectors<F>(
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
+    D: payments::OperationSessionGetters<F> + Send,
 {
     let profile_id = business_profile.get_id();
 
@@ -4317,7 +4220,7 @@ where
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
         merchant_account.get_id(),
-        payment_data.creds_identifier.to_owned(),
+        payment_data.get_creds_identifier(),
         key_store,
         profile_id,
         &pre_decided_connector_data_first.connector_name.to_string(),
@@ -5227,21 +5130,30 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
-pub async fn override_setup_future_usage_to_on_session<F: Clone>(
+pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
-    payment_data: &mut PaymentData<F>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    if payment_data.payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession) {
-        let skip_saving_wallet_at_connector_optional =
-            config_skip_saving_wallet_at_connector(db, &payment_data.payment_intent.merchant_id)
-                .await?;
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
+{
+    if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
+    {
+        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
+            db,
+            &payment_data.get_payment_intent().merchant_id,
+        )
+        .await?;
 
         if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
-            if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type {
+            if let Some(payment_method_type) =
+                payment_data.get_payment_attempt().payment_method_type
+            {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
                     logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data.payment_intent.setup_future_usage =
-                        Some(enums::FutureUsage::OnSession);
+                    payment_data
+                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
                 }
             }
         };
