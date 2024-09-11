@@ -3,7 +3,7 @@ use std::{
     fmt,
     num::NonZeroI64,
 };
-
+pub mod additional_info;
 use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
@@ -278,7 +278,7 @@ pub struct CustomerDetailsResponse {
 #[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest, PaymentsConfirmRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
-    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
@@ -560,6 +560,9 @@ pub struct PaymentsRequest {
         example = "Custom_Order_id_123"
     )]
     pub merchant_order_reference_id: Option<String>,
+
+    /// Whether to calculate tax for this payment intent
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 /// Checks if the inner values of two options are equal
@@ -2038,6 +2041,8 @@ pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<common_enums::BankNames>,
+        #[serde(flatten)]
+        details: Option<additional_info::BankRedirectDetails>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -2045,18 +2050,48 @@ pub enum AdditionalPaymentData {
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
     },
-    BankTransfer {},
-    Crypto {},
-    BankDebit {},
+    BankTransfer {
+        #[serde(flatten)]
+        details: Option<additional_info::BankTransferAdditionalData>,
+    },
+    Crypto {
+        #[serde(flatten)]
+        details: Option<CryptoData>,
+    },
+    BankDebit {
+        #[serde(flatten)]
+        details: Option<additional_info::BankDebitAdditionalData>,
+    },
     MandatePayment {},
     Reward {},
-    RealTimePayment {},
-    Upi {},
-    GiftCard {},
-    Voucher {},
-    CardRedirect {},
-    CardToken {},
-    OpenBanking {},
+    RealTimePayment {
+        #[serde(flatten)]
+        details: Option<RealTimePaymentData>,
+    },
+    Upi {
+        #[serde(flatten)]
+        details: Option<additional_info::UpiAdditionalData>,
+    },
+    GiftCard {
+        #[serde(flatten)]
+        details: Option<additional_info::GiftCardAdditionalData>,
+    },
+    Voucher {
+        #[serde(flatten)]
+        details: Option<VoucherData>,
+    },
+    CardRedirect {
+        #[serde(flatten)]
+        details: Option<CardRedirectData>,
+    },
+    CardToken {
+        #[serde(flatten)]
+        details: Option<additional_info::CardTokenAdditionalData>,
+    },
+    OpenBanking {
+        #[serde(flatten)]
+        details: Option<OpenBankingData>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -3023,21 +3058,21 @@ where
         {
             match payment_method_data {
                 PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
-                PaymentMethodDataResponse::BankDebit {}
-                | PaymentMethodDataResponse::BankRedirect {}
+                PaymentMethodDataResponse::BankDebit(_)
+                | PaymentMethodDataResponse::BankRedirect(_)
                 | PaymentMethodDataResponse::Card(_)
-                | PaymentMethodDataResponse::CardRedirect {}
-                | PaymentMethodDataResponse::CardToken {}
-                | PaymentMethodDataResponse::Crypto {}
+                | PaymentMethodDataResponse::CardRedirect(_)
+                | PaymentMethodDataResponse::CardToken(_)
+                | PaymentMethodDataResponse::Crypto(_)
                 | PaymentMethodDataResponse::MandatePayment {}
-                | PaymentMethodDataResponse::GiftCard {}
+                | PaymentMethodDataResponse::GiftCard(_)
                 | PaymentMethodDataResponse::PayLater(_)
-                | PaymentMethodDataResponse::RealTimePayment {}
-                | PaymentMethodDataResponse::Upi {}
+                | PaymentMethodDataResponse::RealTimePayment(_)
+                | PaymentMethodDataResponse::Upi(_)
                 | PaymentMethodDataResponse::Wallet {}
-                | PaymentMethodDataResponse::BankTransfer {}
-                | PaymentMethodDataResponse::OpenBanking {}
-                | PaymentMethodDataResponse::Voucher {} => {
+                | PaymentMethodDataResponse::BankTransfer(_)
+                | PaymentMethodDataResponse::OpenBanking(_)
+                | PaymentMethodDataResponse::Voucher(_) => {
                     payment_method_data_response.serialize(serializer)
                 }
             }
@@ -3053,23 +3088,98 @@ where
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
-    #[serde(rename = "card")]
     Card(Box<CardResponse>),
-    BankTransfer {},
+    BankTransfer(Box<BankTransferResponse>),
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    BankRedirect {},
-    Crypto {},
-    BankDebit {},
+    BankRedirect(Box<BankRedirectResponse>),
+    Crypto(Box<CryptoResponse>),
+    BankDebit(Box<BankDebitResponse>),
     MandatePayment {},
     Reward {},
-    RealTimePayment {},
-    Upi {},
-    Voucher {},
-    GiftCard {},
-    CardRedirect {},
-    CardToken {},
-    OpenBanking {},
+    RealTimePayment(Box<RealTimePaymentDataResponse>),
+    Upi(Box<UpiResponse>),
+    Voucher(Box<VoucherResponse>),
+    GiftCard(Box<GiftCardResponse>),
+    CardRedirect(Box<CardRedirectResponse>),
+    CardToken(Box<CardTokenResponse>),
+    OpenBanking(Box<OpenBankingResponse>),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BankDebitResponse {
+    #[serde(flatten)]
+    #[schema(value_type = Option<BankDebitAdditionalData>)]
+    details: Option<additional_info::BankDebitAdditionalData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub struct BankRedirectResponse {
+    /// Name of the bank
+    #[schema(value_type = Option<BankNames>)]
+    pub bank_name: Option<common_enums::BankNames>,
+    #[serde(flatten)]
+    #[schema(value_type = Option<BankRedirectDetails>)]
+    pub details: Option<additional_info::BankRedirectDetails>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BankTransferResponse {
+    #[serde(flatten)]
+    #[schema(value_type = Option<BankTransferAdditionalData>)]
+    details: Option<additional_info::BankTransferAdditionalData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CardRedirectResponse {
+    #[serde(flatten)]
+    details: Option<CardRedirectData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CardTokenResponse {
+    #[serde(flatten)]
+    #[schema(value_type = Option<CardTokenAdditionalData>)]
+    details: Option<additional_info::CardTokenAdditionalData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CryptoResponse {
+    #[serde(flatten)]
+    details: Option<CryptoData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GiftCardResponse {
+    #[serde(flatten)]
+    #[schema(value_type = Option<GiftCardAdditionalData>)]
+    details: Option<additional_info::GiftCardAdditionalData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct OpenBankingResponse {
+    #[serde(flatten)]
+    details: Option<OpenBankingData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RealTimePaymentDataResponse {
+    #[serde(flatten)]
+    details: Option<RealTimePaymentData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct UpiResponse {
+    #[serde(flatten)]
+    #[schema(value_type = Option<UpiAdditionalData>)]
+    details: Option<additional_info::UpiAdditionalData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct VoucherResponse {
+    #[serde(flatten)]
+    details: Option<VoucherData>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4311,19 +4421,39 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
-            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
-            AdditionalPaymentData::Crypto {} => Self::Crypto {},
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
+            AdditionalPaymentData::BankRedirect { bank_name, details } => {
+                Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
+            }
+            AdditionalPaymentData::Crypto { details } => {
+                Self::Crypto(Box::new(CryptoResponse { details }))
+            }
+            AdditionalPaymentData::BankDebit { details } => {
+                Self::BankDebit(Box::new(BankDebitResponse { details }))
+            }
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
-            AdditionalPaymentData::RealTimePayment {} => Self::RealTimePayment {},
-            AdditionalPaymentData::Upi {} => Self::Upi {},
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
-            AdditionalPaymentData::Voucher {} => Self::Voucher {},
-            AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
-            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
-            AdditionalPaymentData::CardToken {} => Self::CardToken {},
-            AdditionalPaymentData::OpenBanking {} => Self::OpenBanking {},
+            AdditionalPaymentData::RealTimePayment { details } => {
+                Self::RealTimePayment(Box::new(RealTimePaymentDataResponse { details }))
+            }
+            AdditionalPaymentData::Upi { details } => Self::Upi(Box::new(UpiResponse { details })),
+            AdditionalPaymentData::BankTransfer { details } => {
+                Self::BankTransfer(Box::new(BankTransferResponse { details }))
+            }
+            AdditionalPaymentData::Voucher { details } => {
+                Self::Voucher(Box::new(VoucherResponse { details }))
+            }
+            AdditionalPaymentData::GiftCard { details } => {
+                Self::GiftCard(Box::new(GiftCardResponse { details }))
+            }
+            AdditionalPaymentData::CardRedirect { details } => {
+                Self::CardRedirect(Box::new(CardRedirectResponse { details }))
+            }
+            AdditionalPaymentData::CardToken { details } => {
+                Self::CardToken(Box::new(CardTokenResponse { details }))
+            }
+            AdditionalPaymentData::OpenBanking { details } => {
+                Self::OpenBanking(Box::new(OpenBankingResponse { details }))
+            }
         }
     }
 }

@@ -760,6 +760,7 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<domain::Card, Error>;
@@ -806,6 +807,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
     }
     fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
@@ -1668,6 +1672,7 @@ pub trait AddressDetailsData {
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1766,6 +1771,9 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
+    }
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
     }
 }
 

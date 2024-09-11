@@ -52,6 +52,9 @@ use crate::{
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "authorize")]
 pub struct PaymentConfirm;
+
+type PaymentConfirmOperation<'b, F> = BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
@@ -64,7 +67,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
+    {
         let key_manager_state = &state.into();
 
         let merchant_id = merchant_account.get_id();
@@ -738,7 +742,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -748,10 +752,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<domain::Customer>,
-        ),
+        (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -776,7 +777,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         customer: &Option<domain::Customer>,
         business_profile: &domain::BusinessProfile,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        PaymentConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -964,7 +965,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         state: &SessionState,
         payment_id: &common_utils::id_type::PaymentId,
         business_profile: &domain::BusinessProfile,
-        payment_method_data: &Option<domain::PaymentMethodData>,
+        payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if let (Some(true), Some(domain::PaymentMethodData::Card(card)), Some(merchant_config)) = (
             business_profile.is_extended_card_info_enabled,
@@ -1038,7 +1039,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -1061,7 +1065,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -1455,16 +1462,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentConfirmOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
         if let Some(amount) = request.amount {

@@ -71,6 +71,7 @@ pub trait PaymentIntentInterface {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
@@ -152,6 +153,7 @@ pub struct PaymentIntentNew {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub organization_id: id_type::OrganizationId,
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]

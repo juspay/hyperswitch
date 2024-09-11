@@ -84,7 +84,7 @@ pub struct CybersourceZeroMandateRequest {
 impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let email = item.request.get_email()?;
+        let email = item.get_billing_email().or(item.request.get_email())?;
         let bill_to = build_bill_to(item.get_optional_billing(), email)?;
 
         let order_information = OrderInformationWithBill {
@@ -1121,7 +1121,10 @@ impl
             domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
@@ -1293,7 +1296,10 @@ impl
             domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
@@ -1376,7 +1382,10 @@ impl
             domain::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let processing_information = ProcessingInformation::try_from((
@@ -1445,7 +1454,10 @@ impl
             domain::GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
@@ -1507,7 +1519,10 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                     }
                                 },
                                 None => {
-                                    let email = item.router_data.request.get_email()?;
+                                    let email = item
+                                        .router_data
+                                        .get_billing_email()
+                                        .or(item.router_data.request.get_email())?;
                                     let bill_to = build_bill_to(
                                         item.router_data.get_optional_billing(),
                                         email,
@@ -1661,10 +1676,11 @@ impl
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let bill_to =
-            item.router_data.request.get_email().ok().and_then(|email| {
-                build_bill_to(item.router_data.get_optional_billing(), email).ok()
-            });
+        let bill_to = item
+            .router_data
+            .get_optional_billing_email()
+            .or(item.router_data.request.get_optional_email())
+            .and_then(|email| build_bill_to(item.router_data.get_optional_billing(), email).ok());
         let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
@@ -2492,7 +2508,10 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     })?
                     .1
                     .to_string();
-                let email = item.router_data.request.get_email()?;
+                let email = item
+                    .router_data
+                    .get_billing_email()
+                    .or(item.router_data.request.get_email())?;
                 let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
                 let order_information = OrderInformationWithBill {
                     amount_details,

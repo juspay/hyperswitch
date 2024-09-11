@@ -942,6 +942,7 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::AllianceBank
             | common_enums::BankNames::AmBank
             | common_enums::BankNames::BankOfAmerica
+            | common_enums::BankNames::BankOfChina
             | common_enums::BankNames::BankIslam
             | common_enums::BankNames::BankMuamalat
             | common_enums::BankNames::BankRakyat
@@ -2957,7 +2958,7 @@ fn get_redirect_extra_details(
                 let country = item.get_optional_billing_country();
                 Ok((preferred_language.clone(), country))
             }
-            domain::BankRedirectData::Trustly {}
+            domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::OpenBankingUk { .. } => {
                 let country = item.get_optional_billing_country();
                 Ok((None, country))

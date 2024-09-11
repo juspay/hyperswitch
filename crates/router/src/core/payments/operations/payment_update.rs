@@ -41,6 +41,8 @@ use crate::{
 #[operation(operations = "all", flow = "authorize")]
 pub struct PaymentUpdate;
 
+type PaymentUpdateOperation<'a, F> = BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
     #[instrument(skip_all)]
@@ -53,7 +55,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
+    {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
         let payment_id = payment_id
@@ -338,7 +341,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })
             .await
             .transpose()?;
-        let (next_operation, amount): (BoxedOperation<'a, F, api::PaymentsRequest>, _) =
+        let (next_operation, amount): (PaymentUpdateOperation<'a, F>, _) =
             if request.confirm.unwrap_or(false) {
                 let amount = {
                     let amount = request
@@ -490,7 +493,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
+impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentUpdate {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -499,13 +502,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
+    ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
+    {
         helpers::create_customer_if_not_exist(
             state,
             Box::new(self),
@@ -627,7 +625,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         customer: &Option<domain::Customer>,
         business_profile: &domain::BusinessProfile,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        PaymentUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -692,7 +690,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -712,7 +710,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -922,16 +920,13 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> for PaymentUpdate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentUpdateOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
         if let Some(amount) = request.amount {

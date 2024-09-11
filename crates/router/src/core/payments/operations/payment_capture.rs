@@ -28,6 +28,9 @@ use crate::{
 #[operation(operations = "all", flow = "capture")]
 pub struct PaymentCapture;
 
+type PaymentCaptureOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsCaptureRequest, payments::PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
@@ -42,7 +45,14 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            api::PaymentsCaptureRequest,
+            payments::PaymentData<F>,
+        >,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -273,10 +283,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
-        payments::PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -318,16 +325,15 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, payments::PaymentData<F>>
+    for PaymentCapture
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentCaptureOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

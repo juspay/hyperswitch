@@ -707,6 +707,14 @@ impl From<BusinessProfileSetter> for BusinessProfile {
 }
 
 impl BusinessProfile {
+    pub fn get_is_tax_connector_enabled(&self) -> bool {
+        let is_tax_connector_enabled = self.is_tax_connector_enabled;
+        match &self.tax_connector_id {
+            Some(_id) => is_tax_connector_enabled,
+            _ => false,
+        }
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.intent_fulfillment_time
