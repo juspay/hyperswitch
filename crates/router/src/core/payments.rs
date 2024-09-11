@@ -3790,7 +3790,7 @@ where
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
@@ -3808,7 +3808,7 @@ where
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
 ))]
-pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
@@ -3921,7 +3921,7 @@ where
                                             mandate_reference_record.connector_mandate_id.clone(),
                                         ),
                                         payment_method_id: Some(
-                                            payment_method_info.get_id(),
+                                            payment_method_info.get_id().to_string(),
                                         ),
                                         update_history: None,
                                     },

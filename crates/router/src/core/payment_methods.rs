@@ -471,6 +471,24 @@ pub async fn add_payment_method_status_update_task(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_with_token(
+    state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    token_data: &storage::PaymentTokenData,
+    payment_intent: &PaymentIntent,
+    card_token_data: Option<&domain::CardToken>,
+    customer: &Option<domain::Customer>,
+    storage_scheme: common_enums::enums::MerchantStorageScheme,
+) -> RouterResult<storage::PaymentMethodDataWithId> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,

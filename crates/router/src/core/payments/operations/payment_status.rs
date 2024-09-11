@@ -218,16 +218,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
-    Op: Operation<F, api::PaymentsRetrieveRequest> + 'a + Send + Sync,
+    Op: Operation<F, api::PaymentsRetrieveRequest, Data = PaymentData<F>> + 'a + Send + Sync,
 >(
-    payment_id: &api::PaymentIdType,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    state: &SessionState,
-    request: &api::PaymentsRetrieveRequest,
-    operation: Op,
-    storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest>> {
+    _payment_id: &api::PaymentIdType,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _state: &SessionState,
+    _request: &api::PaymentsRetrieveRequest,
+    _operation: Op,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
+{
     todo!()
 }
 

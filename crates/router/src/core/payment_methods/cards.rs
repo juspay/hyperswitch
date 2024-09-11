@@ -5502,7 +5502,7 @@ pub async fn get_card_details_from_locker(
         state,
         &pm.customer_id,
         &pm.merchant_id,
-        pm.locker_id.as_ref().unwrap_or(&pm.get_id()),
+        pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
