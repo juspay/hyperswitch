@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::collections::HashMap;
 
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::{self as common_errors, CustomResult},
     ext_traits::BytesExt,
@@ -230,13 +230,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}RMS/API/Direct/1.4.0/index.php",
-            self.base_url(connectors)
-        ))
+        match req.payment_method {
+            PaymentMethod::RealTimePayment => {
+                let base_url = connectors.fiuu.third_base_url.clone();
+                Ok(format!("{}RMS/API/staticqr/index.php", base_url))
+            }
+            _ => Ok(format!(
+                "{}RMS/API/Direct/1.4.0/index.php",
+                self.base_url(connectors)
+            )),
+        }
     }
 
     fn get_request_body(
@@ -284,7 +290,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: fiuu::FiuuPaymentsResponse = res
             .response
-            .parse_struct("Fiuu PaymentsAuthorizeResponse")
+            .parse_struct("Fiuu FiuuPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -317,11 +323,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         _req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .fiuu
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let base_url = connectors.fiuu.secondary_base_url.clone();
         Ok(format!("{}RMS/API/gate-query/index.php", base_url))
     }
     fn get_request_body(
@@ -384,11 +386,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .fiuu
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let base_url = connectors.fiuu.secondary_base_url.clone();
         Ok(format!("{}RMS/API/capstxn/index.php", base_url))
     }
 
@@ -462,11 +460,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         _req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .fiuu
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let base_url = connectors.fiuu.secondary_base_url.clone();
         Ok(format!("{}RMS/API/refundAPI/refund.php", base_url))
     }
 
@@ -531,11 +525,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
         _req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .fiuu
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let base_url = connectors.fiuu.secondary_base_url.clone();
         Ok(format!("{}RMS/API/refundAPI/index.php", base_url))
     }
 
@@ -607,11 +597,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
         _req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = connectors
-            .fiuu
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let base_url = connectors.fiuu.secondary_base_url.clone();
         Ok(format!("{}RMS/API/refundAPI/q_by_txn.php", base_url))
     }
 
