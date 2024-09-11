@@ -268,16 +268,11 @@ impl PaymentAttemptNew {
             .shipping_cost
             .unwrap_or(MinorUnit::new(0))
             .get_amount_as_i64();
-        let order_tax_amount = self
-            .order_tax_amount
-            .unwrap_or(MinorUnit::new(0))
-            .get_amount_as_i64();
 
         self.amount
             + self.surcharge_amount.unwrap_or(0)
             + self.tax_amount.unwrap_or(0)
             + shipping_cost
-            + order_tax_amount
     }
 
     pub fn get_or_calculate_net_amount(&self) -> i64 {
