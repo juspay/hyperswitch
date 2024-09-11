@@ -225,7 +225,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Interac {} => {
+            domain::BankRedirectData::Interac { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::InteracOnline,
                     bank_account_country: Some(item.router_data.get_billing_country()?),
@@ -238,7 +238,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Trustly {} => {
+            domain::BankRedirectData::Trustly { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
