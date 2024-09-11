@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
     },
 };
@@ -24,7 +24,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         AddressDetailsData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         RouterData as OtherRouterData,
@@ -477,7 +477,24 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let resource_id = ResponseId::ConnectorTransactionId(match item.response.tx_id {
+            Some(tx_id) => tx_id,
+            None => item
+                .response
+                .event_id
+                .unwrap_or(item.data.connector_request_reference_id.clone()),
+        });
         Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
             status: if item.response.rc == "0" {
                 common_enums::AttemptStatus::Charged
             } else {
@@ -523,76 +540,104 @@ impl
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
+#[derive(Default, Debug, Serialize)]
+pub struct DeutschebankReversalRequest {
+    kind: String,
+}
+
+impl TryFrom<&PaymentsCancelRouterData> for DeutschebankReversalRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            kind: "DIRECTDEBIT".to_string(),
+        })
+    }
+}
+
+impl TryFrom<PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>>
+    for PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: if item.response.rc == "0" {
+                common_enums::AttemptStatus::Voided
+            } else {
+                common_enums::AttemptStatus::VoidFailed
+            },
+            ..item.data
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct DeutschebankRefundRequest {
-    pub amount: MinorUnit,
+    changed_amount: MinorUnit,
+    kind: String,
 }
 
 impl<F> TryFrom<&DeutschebankRouterData<&RefundsRouterData<F>>> for DeutschebankRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &DeutschebankRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            changed_amount: item.amount.to_owned(),
+            kind: "DIRECTDEBIT".to_string(),
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_refund_id = match item.response.tx_id {
+            Some(tx_id) => tx_id,
+            None => item
+                .response
+                .event_id
+                .unwrap_or(item.data.request.refund_id.clone()),
+        };
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id,
+                refund_status: if item.response.rc == "0" {
+                    enums::RefundStatus::Success
+                } else {
+                    enums::RefundStatus::Failure
+                },
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
+    for RefundsRouterData<RSync>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_refund_id = match item.response.tx_id {
+            Some(tx_id) => tx_id,
+            None => item
+                .response
+                .event_id
+                .unwrap_or(item.data.connector_request_reference_id.clone()),
+        };
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id,
+                refund_status: if item.response.rc == "0" {
+                    enums::RefundStatus::Success
+                } else {
+                    enums::RefundStatus::Failure
+                },
             }),
             ..item.data
         })
