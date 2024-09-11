@@ -344,6 +344,7 @@ bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
 payme.payment_method = "card"
+deutschebank = { payment_method = "bank_debit" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

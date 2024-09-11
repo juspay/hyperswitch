@@ -132,7 +132,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let billing_address = item.router_data.get_billing_address()?;
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban }) => Ok(Self {
+            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban, .. }) => Ok(Self {
                 approval_by: DeutschebankSEPAApproval::Click,
                 email_address: item.router_data.request.get_email()?,
                 iban,
@@ -330,24 +330,26 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
         );
 
         match item.router_data.request.payment_method_data.clone() {
-            Some(PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban })) => Ok(Self {
-                amount_total: DeutschebankAmount {
-                    amount: item.amount,
-                    currency: item.router_data.request.currency,
-                },
-                means_of_payment: DeutschebankMeansOfPayment {
-                    bank_account: DeutschebankBankAccount {
-                        account_holder,
-                        iban,
+            Some(PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban, .. })) => {
+                Ok(Self {
+                    amount_total: DeutschebankAmount {
+                        amount: item.amount,
+                        currency: item.router_data.request.currency,
                     },
-                },
-                mandate: {
-                    DeutschebankMandate {
-                        reference,
-                        signed_on,
-                    }
-                },
-            }),
+                    means_of_payment: DeutschebankMeansOfPayment {
+                        bank_account: DeutschebankBankAccount {
+                            account_holder,
+                            iban,
+                        },
+                    },
+                    mandate: {
+                        DeutschebankMandate {
+                            reference,
+                            signed_on,
+                        }
+                    },
+                })
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }

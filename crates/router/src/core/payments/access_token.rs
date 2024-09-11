@@ -49,7 +49,6 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     }
 }
 
-//
 pub async fn add_access_token<
     F: Clone + 'static,
     Req: Debug + Clone + 'static,
