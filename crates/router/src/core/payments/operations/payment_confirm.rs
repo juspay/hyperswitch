@@ -1278,7 +1278,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None => (None, None, None),
         };
 
-        let shipping_cost = payment_data.payment_intent.shipping_cost.clone();
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
 
         let pmt_order_tax_amount = payment_data
             .payment_intent
