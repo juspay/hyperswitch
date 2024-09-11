@@ -1,9 +1,10 @@
+use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
+use error_stack::ResultExt;
+
 use crate::{
     errors,
     id_type::global_id::{CellId, GlobalEntity, GlobalId, GlobalIdError},
 };
-use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
-use error_stack::ResultExt;
 
 #[derive(
     Debug,

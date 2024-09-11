@@ -3799,7 +3799,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<ConnectorCallType>
 where
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone, {
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
     todo!()
 }
 
