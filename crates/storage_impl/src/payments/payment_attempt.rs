@@ -1234,6 +1234,8 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 
@@ -1303,6 +1305,8 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
+            shipping_cost: storage_model.shipping_cost,
+            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }

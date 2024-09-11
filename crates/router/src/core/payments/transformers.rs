@@ -484,29 +484,23 @@ where
     ) -> RouterResponse<Self> {
         let mut amount = payment_data.payment_intent.amount;
         let shipping_cost = payment_data.payment_intent.shipping_cost;
-        let pmt_order_tax_amount = payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax| tax.payment_method_type.map(|a| a.order_tax_amount));
-        let default_order_tax_amount = payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax| tax.default.map(|a| a.order_tax_amount));
         if let Some(shipping_cost) = shipping_cost {
             amount = amount + shipping_cost;
         }
-        if let Some(pmt_order_tax_amount) = pmt_order_tax_amount {
-            amount = amount + pmt_order_tax_amount;
-        } else if let Some(default_order_tax_amount) = default_order_tax_amount {
-            amount = amount + default_order_tax_amount;
+        let order_tax_amount = payment_data.payment_intent.tax_details.and_then(|tax| {
+            tax.payment_method_type
+                .map(|a| a.order_tax_amount)
+                .or_else(|| tax.default.map(|a| a.order_tax_amount))
+        });
+        if let Some(tax_amount) = order_tax_amount {
+            amount = amount + tax_amount;
         }
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 net_amount: amount,
                 payment_id: payment_data.payment_attempt.payment_id,
-                order_tax_amount: pmt_order_tax_amount,
+                order_tax_amount,
                 shipping_cost,
             },
             vec![],
