@@ -50,7 +50,7 @@ use transformers as deutschebank;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentsCompleteAuthorizeRequestData},
+    utils::{self, PaymentsCompleteAuthorizeRequestData, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -495,10 +495,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Deu
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let tx_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/services/v2.1/payment/tx/{tx_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(
@@ -524,7 +532,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Deu
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: deutschebank::DeutschebankPaymentsResponse = res
             .response
-            .parse_struct("deutschebank PaymentsSyncResponse")
+            .parse_struct("DeutschebankPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -822,10 +830,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Deutscheb
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let tx_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}/services/v2.1/payment/tx/{tx_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(

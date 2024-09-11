@@ -27,7 +27,7 @@ use crate::{
     types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         AddressDetailsData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RouterData as OtherRouterData,
+        RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -353,6 +353,22 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeutschebankTXAction {
+    Authorization,
+    Capture,
+    Credit,
+    Preauthorization,
+    Refund,
+    Reversal,
+    RiskCheck,
+    #[serde(rename = "verify-mop")]
+    VerifyMop,
+    Payment,
+    AccountInformation,
+}
+
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct BankAccount {
     account_holder: Option<Secret<String>>,
@@ -384,7 +400,7 @@ pub struct DeutschebankPaymentsResponse {
     back_rc: Option<String>,
     event_id: Option<String>,
     kind: Option<String>,
-    tx_action: Option<String>,
+    tx_action: Option<DeutschebankTXAction>,
     tx_id: Option<String>,
     amount_total: Option<DeutschebankAmount>,
     transaction_info: Option<DeutschebankTransactionInfo>,
@@ -524,19 +540,34 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+        let status = if item.response.rc == "0" {
+            item.response
+                .tx_action
+                .and_then(|tx_action| match tx_action {
+                    DeutschebankTXAction::Preauthorization => {
+                        Some(common_enums::AttemptStatus::Authorized)
+                    }
+                    DeutschebankTXAction::Authorization | DeutschebankTXAction::Capture => {
+                        Some(common_enums::AttemptStatus::Charged)
+                    }
+                    DeutschebankTXAction::Credit
+                    | DeutschebankTXAction::Refund
+                    | DeutschebankTXAction::Reversal
+                    | DeutschebankTXAction::RiskCheck
+                    | DeutschebankTXAction::VerifyMop
+                    | DeutschebankTXAction::Payment
+                    | DeutschebankTXAction::AccountInformation => None,
+                })
+        } else {
+            Some(common_enums::AttemptStatus::Failure)
+        };
+        match status {
+            Some(status) => Ok(Self {
+                status,
+                ..item.data
             }),
-            ..item.data
-        })
+            None => Ok(Self { ..item.data }),
+        }
     }
 }
 
@@ -623,24 +654,35 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = match item.response.tx_id {
-            Some(tx_id) => tx_id,
-            None => item
-                .response
-                .event_id
-                .unwrap_or(item.data.connector_request_reference_id.clone()),
+        let status = if item.response.rc == "0" {
+            item.response
+                .tx_action
+                .and_then(|tx_action| match tx_action {
+                    DeutschebankTXAction::Credit | DeutschebankTXAction::Refund => {
+                        Some(enums::RefundStatus::Success)
+                    }
+                    DeutschebankTXAction::Preauthorization
+                    | DeutschebankTXAction::Authorization
+                    | DeutschebankTXAction::Capture
+                    | DeutschebankTXAction::Reversal
+                    | DeutschebankTXAction::RiskCheck
+                    | DeutschebankTXAction::VerifyMop
+                    | DeutschebankTXAction::Payment
+                    | DeutschebankTXAction::AccountInformation => None,
+                })
+        } else {
+            Some(enums::RefundStatus::Failure)
         };
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id,
-                refund_status: if item.response.rc == "0" {
-                    enums::RefundStatus::Success
-                } else {
-                    enums::RefundStatus::Failure
-                },
+        match status {
+            Some(refund_status) => Ok(Self {
+                response: Ok(RefundsResponseData {
+                    refund_status,
+                    connector_refund_id: item.data.request.get_connector_refund_id()?,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            None => Ok(Self { ..item.data }),
+        }
     }
 }
 
