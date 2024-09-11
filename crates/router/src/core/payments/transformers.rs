@@ -490,11 +490,14 @@ where
         if let Some(shipping_cost) = shipping_cost {
             amount = amount + shipping_cost;
         }
-        let order_tax_amount = payment_data.get_payment_intent().tax_details.and_then(|tax| {
-            tax.payment_method_type
-                .map(|a| a.order_tax_amount)
-                .or_else(|| tax.default.map(|a| a.order_tax_amount))
-        });
+        let order_tax_amount = payment_data
+            .get_payment_intent()
+            .tax_details
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|a| a.order_tax_amount)
+                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
+            });
         if let Some(tax_amount) = order_tax_amount {
             amount = amount + tax_amount;
         }
