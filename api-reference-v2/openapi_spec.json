@@ -4499,8 +4499,8 @@
           "netcetera",
           "nexinets",
           "nmi",
-          "novalnet",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -6590,6 +6590,18 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_language"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_ip"
             ]
           }
         ],
