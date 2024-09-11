@@ -53,6 +53,7 @@ impl Nexixpay {
 }
 
 impl api::Payment for Nexixpay {}
+impl api::PaymentsPreProcessing for Nexixpay{}
 impl api::PaymentSession for Nexixpay {}
 impl api::ConnectorAccessToken for Nexixpay {}
 impl api::MandateSetup for Nexixpay {}
@@ -197,26 +198,26 @@ impl
             req: &PaymentsPreProcessingRouterData,
             _connectors: &Connectors,
         ) -> CustomResult<RequestContent, errors::ConnectorError> {
-            let connector_req = nexixpay::NexixpayPreProcessingRequest::try_from(&connector_router_data)?;
+            let connector_req = nexixpay::NexixpayPreProcessingRequest::try_from(req)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
         }
     
         fn build_request(
             &self,
-            req: &PaymentsAuthorizeRouterData,
+            req: &PaymentsPreProcessingRouterData,
             connectors: &Connectors,
         ) -> CustomResult<Option<Request>, errors::ConnectorError> {
             Ok(Some(
                 RequestBuilder::new()
                     .method(Method::Post)
-                    .url(&types::PaymentsAuthorizeType::get_url(
+                    .url(&types::PaymentsPreProcessingType::get_url(
                         self, req, connectors,
                     )?)
                     .attach_default_headers()
-                    .headers(types::PaymentsAuthorizeType::get_headers(
+                    .headers(types::PaymentsPreProcessingType::get_headers(
                         self, req, connectors,
                     )?)
-                    .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    .set_body(types::PaymentsPreProcessingType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
@@ -225,11 +226,11 @@ impl
     
         fn handle_response(
             &self,
-            data: &PaymentsAuthorizeRouterData,
+            data: &PaymentsPreProcessingRouterData,
             event_builder: Option<&mut ConnectorEvent>,
             res: Response,
-        ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-            let response: nexixpay::NexixpayPaymentsResponse = res
+        ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+            let response: nexixpay::NexixpayPreProcessingResponse = res
                 .response
                 .parse_struct("Nexixpay PaymentsAuthorizeResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

@@ -1,10 +1,10 @@
 use common_enums::{enums,Currency};
-use common_utils::{errors::CustomResult, types::StringMajorUnit, request::Method,};
+use common_utils::{errors::CustomResult, types::{StringMajorUnit,StringMinorUnit}, request::Method,};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{ResponseI,PaymentsAuthorizeData},
+    router_request_types::{PaymentsAuthorizeData,ResponseId,PaymentsPreProcessingData},
     router_response_types::{PaymentsResponseData, RefundsResponseData, RedirectForm},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, PaymentsPreProcessingRouterData},
 };
@@ -14,10 +14,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use cards::CardNumber;
 use url::Url;
+use std::collections::HashMap;
+use masking::ExposeInterface;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::RouterData as _
+    utils::{RouterData as _,missing_field_err}
 };
 
 //TODO: Fill the struct with respective fields
@@ -97,22 +99,113 @@ struct Recurrence {
     action: String,
 }
 
-impl TryFrom<&NexixpayRouterData<&PaymentsPreProcessingRouterData>>for NexixpayPreProcessingRequest{
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayPaymentsResponse  {
+    operation: Operation,
+    three_ds_auth_request: String,
+    three_ds_auth_url: String,
+    three_ds_enrollment_status: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSAuthResult {
+    authentication_value: String,   
+    status: String,              
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayPreProcessingResponse{
+    operation: Operation,
+    three_d_s_auth_result: ThreeDSAuthResult,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct Operation {
+    additional_data: AdditionalData,
+    customer_info: CustomerInfo,
+    operation_amount: String,
+    operation_currency: String,
+    operation_id: String,
+    operation_result: NexixpayPaymentStatus,
+    operation_time: String,
+    operation_type: String,
+    order_id: String,
+    payment_circuit: String,
+    payment_end_to_end_id: String,
+    payment_instrument_info: String,
+    payment_method: String,
+    warnings: Option<Vec<String>>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct AdditionalData {
+    masked_pan: String,
+    card_id: String,
+    card_id4: Option<String>,
+    card_expiry_date: Option<String>,
+}
+
+pub struct NexixpayLinks {
+    href: Option<Url>,
+    rel: String,
+}
+
+impl TryFrom<&PaymentsPreProcessingRouterData>for NexixpayPreProcessingRequest{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &NexixpayRouterData<&PaymentsPreProcessingRouterData>,
+        item: &PaymentsPreProcessingRouterData,
     ) -> Result<Self, Self::Error> {
-        let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
+        let redirect_response = item.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "redirect_response",
             },
         )?;
+        let operation_id = item.connector_request_reference_id;
+        let redirect_payload = redirect_response
+                    .payload
+                    .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "request.redirect_response.payload",
+                    })?
+                    .expose().to_string();
         Ok(Self {
-            operation_id: "".to_owned(),
-            three_d_s_auth_response: "".to_owned(),
+            operation_id,
+            three_d_s_auth_response: redirect_payload,
         })
     }
 }
+
+impl<F> TryFrom<ResponseRouterData<F, NexixpayPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>>
+    for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+    {
+        type Error = error_stack::Report<errors::ConnectorError>;
+        fn try_from(
+            item: ResponseRouterData<F, NexixpayPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
+        ) -> Result<Self, Self::Error> {
+            let complete_authorise_url = item.data.request.complete_authorize_url.clone().ok_or_else(missing_field_err("complete_authorise_url"))?;
+            Ok(Self {
+                status: common_enums::AttemptStatus::from(item.response.operation.operation_result),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data,
+                    mandate_reference: None,
+                    connector_metadata: Some(serde_json::json!({
+                        "three_ds_data": three_ds_data
+                    })),
+                    network_txn_id: None,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        }
+    }
 
 impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -198,48 +291,6 @@ impl From<NexixpayPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-#[serde(rename_all = "camelCase")]
-pub struct NexixpayPaymentsResponse {
-    operation: Operation,
-    three_ds_auth_request: String,
-    three_ds_auth_url: String,
-    three_ds_enrollment_status: String,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-#[serde(rename_all = "camelCase")]
-pub struct Operation {
-    additional_data: AdditionalData,
-    customer_info: CustomerInfo,
-    operation_amount: String,
-    operation_currency: String,
-    operation_id: String,
-    operation_result: NexixpayPaymentStatus,
-    operation_time: String,
-    operation_type: String,
-    order_id: String,
-    payment_circuit: String,
-    payment_end_to_end_id: String,
-    payment_instrument_info: String,
-    payment_method: String,
-    warnings: Option<Vec<String>>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-#[serde(rename_all = "camelCase")]
-pub struct AdditionalData {
-    masked_pan: String,
-    card_id: String,
-    card_id4: Option<String>,
-    card_expiry_date: Option<String>,
-}
-
-pub struct NexixpayLinks {
-    href: Option<Url>,
-    rel: String,
-}
 
 fn get_redirect_url(
     link_vec: Vec<NexixpayLinks>,
@@ -253,32 +304,27 @@ fn get_redirect_url(
     Ok(link)
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>>
+impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>>
     for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
     {
         type Error = error_stack::Report<errors::ConnectorError>;
         fn try_from(
             item: ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
         ) -> Result<Self, Self::Error> {
-            let connector_response = item
-                .response
-                .processor_information
-                .as_ref()
-                .map(types::AdditionalPaymentMethodConnectorResponse::from)
-                .map(types::ConnectorResponseData::with_additional_payment_method_data);
+            let complete_authorise_url = item.data.request.complete_authorize_url.clone().ok_or_else(missing_field_err("complete_authorise_url"))?;
             Ok(Self {
                 status: common_enums::AttemptStatus::from(item.response.operation.operation_result),
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(item.response.operation.operation_id),
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.operation.operation_id.clone()),
                     redirection_data: Some(nexixpay_threeds_link((
                         item.response.three_ds_auth_url,
                         item.response.three_ds_auth_request,
-                        item.data.request.complete_authorize_url.clone(),
+                        complete_authorise_url,
                     ))?),
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.operation.operation_id.clone()),
+                    connector_response_reference_id: Some(item.response.operation.operation_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
@@ -289,10 +335,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAutho
     
     fn nexixpay_threeds_link(
         (three_ds_auth_url, three_ds_request, return_url): (String, String, String),
-    ) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
+    ) -> CustomResult<RedirectForm, errors::ConnectorError> {
         let mut form_fields = HashMap::<String, String>::new();
         // paypal requires return url to be passed as a field along with payer_action_url
-        form_fields.insert(String::from("three_ds_auth_url"), three_ds_auth_url);
+        form_fields.insert(String::from("three_ds_auth_url"), three_ds_auth_url.clone());
         form_fields.insert(String::from("three_ds_request"), three_ds_request);
         form_fields.insert(String::from("return_url"), return_url);
     
