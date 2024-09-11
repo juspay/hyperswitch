@@ -2234,6 +2234,9 @@ where
     .change_context(errors::VaultError::ResponseDeserializationFailed)
     .attach_printable("Failed while decrypting locker payload response")?;
 
+    // Irrespective of locker's response status, payload is JWE + JWS decrypted. But based on locker's status,
+    // if Ok, deserialize the decrypted payload into given type T
+    // if Err, raise an error including locker error message too
     if is_locker_call_succeeded {
         let stored_card_resp: Result<T, error_stack::Report<errors::VaultError>> =
             decrypted_payload
