@@ -10,28 +10,32 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = nixpkgs.lib.systems.flakeExposed;
+  outputs = inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = inputs.nixpkgs.lib.systems.flakeExposed;
       perSystem = { self', pkgs, system, ... }:
         let
           rustVersion = "1.65.0";
           frameworks = pkgs.darwin.apple_sdk.frameworks;
         in
         {
-          _module.args.pkgs = import nixpkgs {
+          _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [ inputs.cargo2nix.overlays.default (import inputs.rust-overlay) ];
           };
           devShells.default = pkgs.mkShell {
-            buildInputs = with pkgs; [
+            name = "hyperswitch-shell";
+            packages = with pkgs; [
               openssl
               pkg-config
               exa
               fd
               rust-bin.stable.${rustVersion}.default
-            ] ++ lib.optionals stdenv.isDarwin [ frameworks.CoreServices frameworks.Foundation ]; # arch might have issue finding these libs.
-
+            ] ++ lib.optionals stdenv.isDarwin [
+              # arch might have issue finding these libs.
+              frameworks.CoreServices
+              frameworks.Foundation
+            ];
           };
         };
     };
