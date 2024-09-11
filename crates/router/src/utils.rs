@@ -57,6 +57,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payments as payments_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -1092,11 +1093,11 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op>(
+pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
     business_profile: domain::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: crate::core::payments::PaymentData<F>,
+    payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
@@ -1104,17 +1105,18 @@ pub async fn trigger_payments_webhook<F, Op>(
 where
     F: Send + Clone + Sync,
     Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
 {
     todo!()
 }
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op>(
+pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
     business_profile: domain::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: crate::core::payments::PaymentData<F>,
+    payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
@@ -1122,12 +1124,13 @@ pub async fn trigger_payments_webhook<F, Op>(
 where
     F: Send + Clone + Sync,
     Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
 {
-    let status = payment_data.payment_intent.status;
-    let payment_id = payment_data.payment_intent.get_id().clone();
+    let status = payment_data.get_payment_intent().status;
+    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+
     let captures = payment_data
-        .multiple_capture_data
-        .clone()
+        .get_multiple_capture_data()
         .map(|multiple_capture_data| {
             multiple_capture_data
                 .get_all_captures()

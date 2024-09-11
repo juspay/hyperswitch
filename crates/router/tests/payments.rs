@@ -453,6 +453,7 @@ async fn payments_create_core() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),
@@ -708,6 +709,7 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),

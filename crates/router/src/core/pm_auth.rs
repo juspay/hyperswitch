@@ -885,17 +885,21 @@ pub async fn retrieve_payment_method_from_auth_service(
                 bank_name: None,
                 bank_type,
                 bank_holder_type: None,
+                card_holder_name: None,
+                bank_account_holder_name: None,
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::BacsBankDebit {
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
+                bank_account_holder_name: None,
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::SepaBankDebit {
                 iban: sepa.iban.clone(),
+                bank_account_holder_name: None,
             })
         }
     };

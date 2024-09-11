@@ -29,6 +29,9 @@ use crate::{
 #[operation(operations = "all", flow = "cancel")]
 pub struct PaymentCancel;
 
+type PaymentCancelOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsCancelRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
@@ -41,7 +44,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest>> {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -225,10 +230,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentCancelOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -283,91 +285,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     }
 }
 
-#[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest>>
-    Domain<F, api::PaymentsCancelRequest> for Op
-where
-    for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest>,
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest, PaymentData<F>>
+    for PaymentCancel
 {
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        _request: Option<super::CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> errors::CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                state,
-                payment_data.payment_intent.customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
-    }
-
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        _state: &'a SessionState,
-        _payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-        Option<domain::PaymentMethodData>,
-        Option<String>,
-    )> {
-        Ok((Box::new(self), None, None))
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        _merchant_account: &domain::MerchantAccount,
-        state: &SessionState,
-        _request: &api::PaymentsCancelRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<api::ConnectorChoice> {
-        helpers::get_connector_default(state, None).await
-    }
-
-    #[instrument(skip_all)]
-    async fn guard_payment_against_blocklist<'a>(
-        &'a self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut PaymentData<F>,
-    ) -> RouterResult<bool> {
-        Ok(false)
-    }
-}
-
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentCancelOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

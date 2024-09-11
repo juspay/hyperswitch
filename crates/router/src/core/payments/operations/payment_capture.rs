@@ -28,6 +28,9 @@ use crate::{
 #[operation(operations = "all", flow = "capture")]
 pub struct PaymentCapture;
 
+type PaymentCaptureOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsCaptureRequest, payments::PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
@@ -42,7 +45,14 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            api::PaymentsCaptureRequest,
+            payments::PaymentData<F>,
+        >,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -273,10 +283,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
-        payments::PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -318,90 +325,15 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-#[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest>>
-    Domain<F, api::PaymentsCaptureRequest> for Op
-where
-    for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest>,
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, payments::PaymentData<F>>
+    for PaymentCapture
 {
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut payments::PaymentData<F>,
-        _request: Option<hyperswitch_domain_models::router_request_types::CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> errors::CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                state,
-                payment_data.payment_intent.customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
-    }
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        _state: &'a SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-        Option<domain::PaymentMethodData>,
-        Option<String>,
-    )> {
-        Ok((Box::new(self), None, None))
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        _merchant_account: &domain::MerchantAccount,
-        state: &SessionState,
-        _request: &api::PaymentsCaptureRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<api::ConnectorChoice> {
-        helpers::get_connector_default(state, None).await
-    }
-
-    #[instrument(skip_all)]
-    async fn guard_payment_against_blocklist<'a>(
-        &'a self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut payments::PaymentData<F>,
-    ) -> RouterResult<bool> {
-        Ok(false)
-    }
-}
-
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentCaptureOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

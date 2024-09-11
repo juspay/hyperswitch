@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.11.0
+
+### Features
+
+- **analytics:**
+  - Revert api_event metrics and filters back to merchant_id authentication ([#5821](https://github.com/juspay/hyperswitch/pull/5821)) ([`283154d`](https://github.com/juspay/hyperswitch/commit/283154d3f66ae26a0d9644ed50547ad1407bd924))
+  - Add card_network as a field in payment_attempts clickhouse table ([#5807](https://github.com/juspay/hyperswitch/pull/5807)) ([`bf1797f`](https://github.com/juspay/hyperswitch/commit/bf1797fe7cf769eb6e89f75b132a35a6cd9003df))
+- **connector:** [THUNES] Add template code ([#5775](https://github.com/juspay/hyperswitch/pull/5775)) ([`9b508a8`](https://github.com/juspay/hyperswitch/commit/9b508a838d68d14517477d41f2fc60168703d001))
+- **core:** [Payouts] Add billing address to payout list ([#5004](https://github.com/juspay/hyperswitch/pull/5004)) ([`49a60bf`](https://github.com/juspay/hyperswitch/commit/49a60bf14725d67bc4f8c5814dc5ca27b7f57712))
+- **payment_methods_list:** Add is_tax_connector_enabled boolean value in payment_methods_list call response ([#5707](https://github.com/juspay/hyperswitch/pull/5707)) ([`3a5fb53`](https://github.com/juspay/hyperswitch/commit/3a5fb532de39e033feff7e8de126c5e5bf12eb36))
+- **payout:** Add dynamic fields for payout links ([#5764](https://github.com/juspay/hyperswitch/pull/5764)) ([`f4ad657`](https://github.com/juspay/hyperswitch/commit/f4ad6579cc317b32599d28dbb6164be6e20804fa))
+- **router:** Mask keys in `connector_account_details` for merchant_connector_response in mca retrieve flow ([#5848](https://github.com/juspay/hyperswitch/pull/5848)) ([`71b5202`](https://github.com/juspay/hyperswitch/commit/71b52024c296548156cd80950010a2f1266906fb))
+- **users:** New profile level roles ([#5843](https://github.com/juspay/hyperswitch/pull/5843)) ([`3cb0f24`](https://github.com/juspay/hyperswitch/commit/3cb0f2405303f9abbf15fff2b31ad617c1a6ca91))
+
+### Bug Fixes
+
+- **router:** [Stripe/Itau/Paypal/Bambora/Cybersource] prevent partial submission of billing address and add required fields for all payment methods ([#5752](https://github.com/juspay/hyperswitch/pull/5752)) ([`ad40ced`](https://github.com/juspay/hyperswitch/commit/ad40cedf5cf70337c0ec49e3fa6306fe25badc39))
+
+### Refactors
+
+- Add hgetall command to redis interface ([#5727](https://github.com/juspay/hyperswitch/pull/5727)) ([`74ec3f3`](https://github.com/juspay/hyperswitch/commit/74ec3f3df33de8c418efa859789365627c12b93d))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.81.0 clippy lints ([#5832](https://github.com/juspay/hyperswitch/pull/5832)) ([`933cef4`](https://github.com/juspay/hyperswitch/commit/933cef425fed2e324474f4015dd728bde2612cb2))
+- Make kms decryption optional if partial auth not enabled ([#5779](https://github.com/juspay/hyperswitch/pull/5779)) ([`aaeb192`](https://github.com/juspay/hyperswitch/commit/aaeb1925767b08e35decb913e3867cd6415f0abd))
+
+**Full Changelog:** [`2024.09.10.0...2024.09.11.0`](https://github.com/juspay/hyperswitch/compare/2024.09.10.0...2024.09.11.0)
+
+- - -
+
 ## 2024.09.10.0
 
 ### Features
