@@ -158,6 +158,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_linked_config,
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
+        routes::routing::toggle_dynamic_routing,
+        routes::routing::dynamic_routing_update_configs,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -541,6 +543,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
+        api_models::routing::ToggleDynamicRoutingQuery,
+        api_models::routing::DynamicRoutingUpdateConfigQuery,
+        api_models::routing::ToggleDynamicRoutingWrapper,
+        api_models::routing::ToggleDynamicRoutingPath,
+        api_models::routing::ToggleDynamicRoutingWrapper,
         api_models::routing::ast::RoutableChoiceKind,
         api_models::enums::RoutableConnectors,
         api_models::routing::ast::ProgramConnectorSelection,

@@ -677,17 +677,6 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/dynamic_routing/toggle")
-                    .route(web::post().to(routing::toggle_dynamic_routing)),
-            )
-            .service(
-                web::resource("/dynamic_routing/config").route(web::post().to(
-                    |state, req, path, payload| {
-                        routing::dynamic_routing_update_configs(state, req, path, payload)
-                    },
-                )),
-            )
-            .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(
                         state,
@@ -1621,6 +1610,17 @@ impl BusinessProfile {
             )
             .service(
                 web::scope("/{profile_id}")
+                    .service(
+                        web::resource("/dynamic_routing/toggle")
+                            .route(web::post().to(routing::toggle_dynamic_routing)),
+                    )
+                    .service(
+                        web::resource("/dynamic_routing/config/{algorithm_id}").route(
+                            web::patch().to(|state, req, path, payload| {
+                                routing::dynamic_routing_update_configs(state, req, path, payload)
+                            }),
+                        ),
+                    )
                     .service(
                         web::resource("")
                             .route(web::get().to(business_profile_retrieve))

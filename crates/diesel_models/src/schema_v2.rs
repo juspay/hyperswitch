@@ -216,7 +216,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         version -> ApiVersion,
-        is_dynamic_routing_enabled -> Nullable<Bool>,
+        dynamic_routing_algorithm -> Nullable<Json>,
     }
 }
 
