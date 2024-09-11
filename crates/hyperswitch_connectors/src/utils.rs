@@ -7,7 +7,7 @@ use common_enums::{
 };
 use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
-    ext_traits::{OptionExt, StringExt, ValueExt},
+    ext_traits::{OptionExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
@@ -15,18 +15,21 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::{api, consts, errors, types};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use router_env::{logger, metrics::add_attributes};
 use serde::Serializer;
+
+use crate::{foreign_traits_and_utils::ForeignTryFrom, metrics};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -1420,123 +1423,36 @@ macro_rules! unimplemented_payment_method {
     };
 }
 
-impl ForeignTryFrom<String> for UsStatesAbbreviation {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "UsStatesAbbreviation");
+// validate json format for the error
+pub fn handle_json_response_deserialization_failure(
+    res: types::Response,
+    connector: &'static str,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("connector", connector)]),
+    );
 
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let binding = value.as_str().to_lowercase();
-                let state = binding.as_str();
-                match state {
-                    "alabama" => Ok(Self::AL),
-                    "alaska" => Ok(Self::AK),
-                    "american samoa" => Ok(Self::AS),
-                    "arizona" => Ok(Self::AZ),
-                    "arkansas" => Ok(Self::AR),
-                    "california" => Ok(Self::CA),
-                    "colorado" => Ok(Self::CO),
-                    "connecticut" => Ok(Self::CT),
-                    "delaware" => Ok(Self::DE),
-                    "district of columbia" | "columbia" => Ok(Self::DC),
-                    "federated states of micronesia" | "micronesia" => Ok(Self::FM),
-                    "florida" => Ok(Self::FL),
-                    "georgia" => Ok(Self::GA),
-                    "guam" => Ok(Self::GU),
-                    "hawaii" => Ok(Self::HI),
-                    "idaho" => Ok(Self::ID),
-                    "illinois" => Ok(Self::IL),
-                    "indiana" => Ok(Self::IN),
-                    "iowa" => Ok(Self::IA),
-                    "kansas" => Ok(Self::KS),
-                    "kentucky" => Ok(Self::KY),
-                    "louisiana" => Ok(Self::LA),
-                    "maine" => Ok(Self::ME),
-                    "marshall islands" => Ok(Self::MH),
-                    "maryland" => Ok(Self::MD),
-                    "massachusetts" => Ok(Self::MA),
-                    "michigan" => Ok(Self::MI),
-                    "minnesota" => Ok(Self::MN),
-                    "mississippi" => Ok(Self::MS),
-                    "missouri" => Ok(Self::MO),
-                    "montana" => Ok(Self::MT),
-                    "nebraska" => Ok(Self::NE),
-                    "nevada" => Ok(Self::NV),
-                    "new hampshire" => Ok(Self::NH),
-                    "new jersey" => Ok(Self::NJ),
-                    "new mexico" => Ok(Self::NM),
-                    "new york" => Ok(Self::NY),
-                    "north carolina" => Ok(Self::NC),
-                    "north dakota" => Ok(Self::ND),
-                    "northern mariana islands" => Ok(Self::MP),
-                    "ohio" => Ok(Self::OH),
-                    "oklahoma" => Ok(Self::OK),
-                    "oregon" => Ok(Self::OR),
-                    "palau" => Ok(Self::PW),
-                    "pennsylvania" => Ok(Self::PA),
-                    "puerto rico" => Ok(Self::PR),
-                    "rhode island" => Ok(Self::RI),
-                    "south carolina" => Ok(Self::SC),
-                    "south dakota" => Ok(Self::SD),
-                    "tennessee" => Ok(Self::TN),
-                    "texas" => Ok(Self::TX),
-                    "utah" => Ok(Self::UT),
-                    "vermont" => Ok(Self::VT),
-                    "virgin islands" => Ok(Self::VI),
-                    "virginia" => Ok(Self::VA),
-                    "washington" => Ok(Self::WA),
-                    "west virginia" => Ok(Self::WV),
-                    "wisconsin" => Ok(Self::WI),
-                    "wyoming" => Ok(Self::WY),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
-            }
+    let response_data = String::from_utf8(res.response.to_vec())
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<serde_json::Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
         }
     }
-}
-
-impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "CanadaStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let binding = value.as_str().to_lowercase();
-                let state = binding.as_str();
-                match state {
-                    "alberta" => Ok(Self::AB),
-                    "british columbia" => Ok(Self::BC),
-                    "manitoba" => Ok(Self::MB),
-                    "new brunswick" => Ok(Self::NB),
-                    "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
-                    "northwest territories" => Ok(Self::NT),
-                    "nova scotia" => Ok(Self::NS),
-                    "nunavut" => Ok(Self::NU),
-                    "ontario" => Ok(Self::ON),
-                    "prince edward island" => Ok(Self::PE),
-                    "quebec" => Ok(Self::QC),
-                    "saskatchewan" => Ok(Self::SK),
-                    "yukon" => Ok(Self::YT),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
-            }
-        }
-    }
-}
-
-pub trait ForeignTryFrom<F>: Sized {
-    type Error;
-
-    fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
