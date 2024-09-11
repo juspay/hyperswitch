@@ -9,7 +9,7 @@ pub use api_models::payment_methods::{
     PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
     PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
     PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, PaymentMethodIntentConfirmInternal
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -28,8 +28,8 @@ pub use api_models::payment_methods::{
 };
 use error_stack::report;
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::core::payment_methods::helpers::validate_payment_method_data_against_payment_method;
+// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+// use crate::core::payment_methods::helpers::validate_payment_method_data_against_payment_method;
 use crate::core::{
     errors::{self, RouterResult},
     payments::helpers::validate_payment_method_type_against_payment_method,
@@ -73,7 +73,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
             .attach_printable("Invalid payment method type"));
         }
 
-        if !validate_payment_method_data_against_payment_method(
+        if !PaymentMethodCreate::validate_payment_method_data_against_payment_method(
             self.payment_method,
             self.payment_method_data.clone(),
         ) {
@@ -99,7 +99,7 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
             .attach_printable("Invalid payment method type"));
         }
 
-        if !validate_payment_method_data_against_payment_method(
+        if !PaymentMethodIntentConfirm::validate_payment_method_data_against_payment_method(
             self.payment_method,
             self.payment_method_data.clone(),
         ) {

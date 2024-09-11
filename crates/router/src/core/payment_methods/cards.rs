@@ -95,7 +95,10 @@ use crate::{
     utils::{ConnectorResponseExt, OptionExt},
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{consts as router_consts, core::payment_methods as pm_core, headers};
+use crate::{
+    consts as router_consts, core::payment_methods as pm_core, headers,
+    types::payment_methods as pm_types,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -236,7 +239,7 @@ pub async fn create_payment_method(
     card_scheme: Option<String>,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let client_secret = pm_core::PaymentMethodClientSecret::generate(payment_method_id);
+    let client_secret = pm_types::PaymentMethodClientSecret::generate(payment_method_id);
     let current_time = common_utils::date_time::now();
 
     let response = db
@@ -288,7 +291,7 @@ pub async fn create_payment_method_for_intent(
     payment_method_billing_address: crypto::OptionalEncryptableValue,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let client_secret = pm_core::PaymentMethodClientSecret::generate(payment_method_id);
+    let client_secret = pm_types::PaymentMethodClientSecret::generate(payment_method_id);
     let current_time = common_utils::date_time::now();
 
     let response = db
@@ -327,7 +330,7 @@ pub async fn create_payment_method_for_intent(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-async fn create_vault_request<R: pm_core::VaultingInterface>(
+async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: Vec<u8>,
@@ -345,7 +348,7 @@ async fn create_vault_request<R: pm_core::VaultingInterface>(
     let jwe_payload = payment_methods::create_jwe_body_for_vault(jwekey, &jws).await?;
 
     let mut url = locker.host.to_owned();
-    url.push_str(R::get_vault_action_url());
+    url.push_str(R::get_vaulting_request_url());
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(
         headers::CONTENT_TYPE,
@@ -1537,7 +1540,7 @@ pub async fn vault_payment_method(
     pmd: &api::PaymentMethodCreateData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-) -> errors::RouterResult<pm_core::AddVaultResponse> {
+) -> errors::RouterResult<pm_types::AddVaultResponse> {
     let db = &*state.store;
 
     // get fingerprint_id from locker
@@ -1566,7 +1569,7 @@ pub async fn vault_payment_method(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn get_fingerprint_id_from_locker<
-    D: pm_core::VaultingDataInterface + serde::Serialize,
+    D: pm_types::VaultingDataInterface + serde::Serialize,
 >(
     state: &routes::SessionState,
     data: &D,
@@ -1577,17 +1580,17 @@ pub async fn get_fingerprint_id_from_locker<
         .attach_printable("Failed to encode Vaulting data to value")?
         .to_string();
 
-    let payload = pm_core::VaultFingerprintRequest { key, data }
+    let payload = pm_types::VaultFingerprintRequest { key, data }
         .encode_to_vec()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-    let resp = call_to_vault::<pm_core::GetVaultFingerprint>(state, payload)
+    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get response from locker")?;
 
-    let fingerprint_resp: pm_core::VaultFingerprintResponse = resp
+    let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResp")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse data into VaultFingerprintResp")?;
@@ -1601,8 +1604,8 @@ pub async fn vault_payment_method_in_locker(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     pmd: &api::PaymentMethodCreateData,
-) -> errors::RouterResult<pm_core::AddVaultResponse> {
-    let payload = pm_core::AddVaultRequest {
+) -> errors::RouterResult<pm_types::AddVaultResponse> {
+    let payload = pm_types::AddVaultRequest {
         entity_id: merchant_account.get_id().to_owned(),
         vault_id: uuid::Uuid::now_v7().to_string(),
         data: pmd.clone(),
@@ -1612,12 +1615,12 @@ pub async fn vault_payment_method_in_locker(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encode AddVaultRequest")?;
 
-    let resp = call_to_vault::<pm_core::AddVault>(state, payload)
+    let resp = call_to_vault::<pm_types::AddVault>(state, payload)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get response from locker")?;
 
-    let stored_pm_resp: pm_core::AddVaultResponse = resp
+    let stored_pm_resp: pm_types::AddVaultResponse = resp
         .parse_struct("AddVaultResponse")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse data into AddVaultResponse")?;
@@ -2395,7 +2398,7 @@ pub async fn call_to_locker_hs(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn call_to_vault<V: pm_core::VaultingInterface>(
+pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
     payload: Vec<u8>,
 ) -> errors::CustomResult<String, errors::VaultError> {

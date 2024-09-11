@@ -146,17 +146,26 @@ pub async fn confirm_payment_method_intent_api(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
+    let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
+        id: pm_id.clone(),
+        payment_method: payload.payment_method,
+        payment_method_type: payload.payment_method_type,
+        client_secret: payload.client_secret.clone(),
+        customer_id: payload.customer_id.to_owned(),
+        payment_method_data: payload.payment_method_data.clone(),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        inner_payload,
         |state, auth, req, _| {
             let pm_id = pm_id.clone();
             async move {
                 Box::pin(payment_method_intent_confirm(
                     &state,
-                    req,
+                    req.into(),
                     &auth.merchant_account,
                     &auth.key_store,
                     pm_id,

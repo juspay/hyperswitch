@@ -1,5 +1,4 @@
 pub mod cards;
-pub mod helpers;
 pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
@@ -1030,93 +1029,4 @@ pub async fn payment_method_intent_confirm(
     }?;
 
     Ok(services::ApplicationResponse::Json(response))
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
-pub trait VaultingInterface {
-    fn get_vault_action_url() -> &'static str;
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
-pub trait VaultingDataInterface {
-    fn get_vaulting_data_key(&self) -> String;
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct VaultFingerprintRequest {
-    pub data: String,
-    pub key: String,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct VaultFingerprintResponse {
-    pub fingerprint_id: String,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddVaultRequest<D> {
-    pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
-    pub data: D,
-    pub ttl: i64,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddVaultResponse {
-    pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
-    pub fingerprint_id: Option<String>,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddVault;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetVaultFingerprint;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
-impl VaultingInterface for AddVault {
-    fn get_vault_action_url() -> &'static str {
-        consts::ADD_VAULT_REQUEST_URL
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
-impl VaultingInterface for GetVaultFingerprint {
-    fn get_vault_action_url() -> &'static str {
-        consts::VAULT_FINGERPRINT_REQUEST_URL
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
-impl VaultingDataInterface for api::PaymentMethodCreateData {
-    fn get_vaulting_data_key(&self) -> String {
-        match &self {
-            api::PaymentMethodCreateData::Card(card) => card.card_number.to_string(),
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub struct PaymentMethodClientSecret;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl PaymentMethodClientSecret {
-    pub fn generate(payment_method_id: &str) -> String {
-        generate_id(
-            consts::ID_LENGTH,
-            format!("{payment_method_id}_secret").as_str(),
-        )
-    }
 }
