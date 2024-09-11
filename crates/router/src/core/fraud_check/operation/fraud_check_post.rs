@@ -347,6 +347,19 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
 
 #[async_trait]
 impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
+    #[cfg(all(feature = "v2", feature = "payment_v2",))]
+    async fn update_tracker<'b>(
+        &'b self,
+        _state: &SessionState,
+        _key_store: &domain::MerchantKeyStore,
+        mut _frm_data: FrmData,
+        _payment_data: &mut payments::PaymentData<F>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _frm_router_data: FrmRouterData,
+    ) -> RouterResult<FrmData> {
+        todo!();
+    }
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2"),))]
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,

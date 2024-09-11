@@ -23,4 +23,5 @@ ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
     DROP COLUMN amount_to_capture,
     DROP COLUMN prerouting_algorithm,
     DROP COLUMN surcharge_amount,
-    DROP COLUMN tax_on_surcharge;
+    DROP COLUMN tax_on_surcharge,
+    DROP COLUMN frm_merchant_decision;

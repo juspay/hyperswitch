@@ -56,4 +56,5 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN business_country,
     DROP COLUMN business_label,
     DROP COLUMN incremental_authorization_allowed,
-    DROP COLUMN fingerprint_id;
+    DROP COLUMN fingerprint_id,
+    DROP COLUMN merchant_decision;

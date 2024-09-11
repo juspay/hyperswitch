@@ -41,9 +41,6 @@ pub struct PaymentIntent {
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    // Denotes the action(approve or reject) taken by merchant in case of manual review.
-    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
-    pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 
@@ -71,6 +68,9 @@ pub struct PaymentIntent {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
+    // Denotes the action(approve or reject) taken by merchant in case of manual review.
+    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub frm_merchant_decision: Option<String>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
 }
@@ -192,7 +192,6 @@ pub struct PaymentIntentNew {
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub updated_by: String,
@@ -220,6 +219,9 @@ pub struct PaymentIntentNew {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
+    // Denotes the action(approve or reject) taken by merchant in case of manual review.
+    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub frm_merchant_decision: Option<String>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
 }
@@ -341,12 +343,12 @@ pub enum PaymentIntentUpdate {
     },
     ApproveUpdate {
         status: storage_enums::IntentStatus,
-        merchant_decision: Option<String>,
+        frm_merchant_decision: Option<String>,
         updated_by: String,
     },
     RejectUpdate {
         status: storage_enums::IntentStatus,
-        merchant_decision: Option<String>,
+        frm_merchant_decision: Option<String>,
         updated_by: String,
     },
     SurchargeApplicableUpdate {
@@ -527,7 +529,6 @@ pub struct PaymentIntentUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
-    pub merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
@@ -540,6 +541,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_address: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub frm_merchant_decision: Option<String>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -604,7 +606,7 @@ impl PaymentIntentUpdate {
             statement_descriptor_name,
             order_details,
             attempt_count,
-            merchant_decision,
+            frm_merchant_decision,
             payment_confirm_source,
             updated_by,
             surcharge_applicable,
@@ -635,7 +637,7 @@ impl PaymentIntentUpdate {
                 .or(source.statement_descriptor_name),
             order_details: order_details.or(source.order_details),
             attempt_count: attempt_count.unwrap_or(source.attempt_count),
-            merchant_decision: merchant_decision.or(source.merchant_decision),
+            frm_merchant_decision: frm_merchant_decision.or(source.frm_merchant_decision),
             payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
             updated_by,
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
@@ -770,7 +772,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -809,7 +811,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 active_attempt_id: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 surcharge_applicable: None,
                 authorization_count: None,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
@@ -840,7 +842,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -869,7 +871,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -904,7 +906,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -945,7 +947,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -979,7 +981,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description: None,
                 statement_descriptor_name: None,
                 order_details: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -1014,7 +1016,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description: None,
                 statement_descriptor_name: None,
                 order_details: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,
@@ -1029,11 +1031,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             } => Self {
                 status: Some(status),
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
                 amount: None,
                 currency: None,
@@ -1063,11 +1065,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             } => Self {
                 status: Some(status),
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
                 amount: None,
                 currency: None,
@@ -1116,7 +1118,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 authorization_count: None,
                 session_expiry: None,
@@ -1144,7 +1146,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 updated_by: String::default(),
                 surcharge_applicable: None,
@@ -1177,7 +1179,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 updated_by: String::default(),
                 surcharge_applicable: None,
@@ -1206,7 +1208,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 updated_by: String::default(),
                 surcharge_applicable: None,
@@ -1237,7 +1239,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_name: None,
                 order_details: None,
                 attempt_count: None,
-                merchant_decision: None,
+                frm_merchant_decision: None,
                 payment_confirm_source: None,
                 surcharge_applicable: None,
                 authorization_count: None,

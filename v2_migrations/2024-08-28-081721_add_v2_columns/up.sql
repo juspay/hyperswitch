@@ -24,5 +24,6 @@ ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
     ADD COLUMN amount_to_capture bigint,
     ADD COLUMN prerouting_algorithm JSONB, -- straight_through_algorithm from payment_attempt
     ADD COLUMN surcharge_amount bigint,
-    ADD COLUMN tax_on_surcharge bigint; -- tax_amount from payment_attempt
+    ADD COLUMN tax_on_surcharge bigint, -- tax_amount from payment_attempt
+    ADD COLUMN frm_merchant_decision VARCHAR(64);
 

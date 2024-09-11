@@ -425,12 +425,12 @@ pub enum PaymentIntentUpdate {
     },
     ApproveUpdate {
         status: storage_enums::IntentStatus,
-        merchant_decision: Option<String>,
+        frm_merchant_decision: Option<String>,
         updated_by: String,
     },
     RejectUpdate {
         status: storage_enums::IntentStatus,
-        merchant_decision: Option<String>,
+        frm_merchant_decision: Option<String>,
         updated_by: String,
     },
     SurchargeApplicableUpdate {
@@ -470,7 +470,7 @@ pub struct PaymentIntentUpdateInternal {
     pub statement_descriptor_name: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
-    pub merchant_decision: Option<String>,
+    pub frm_merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
@@ -650,22 +650,22 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             } => Self {
                 status: Some(status),
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             } => Self {
                 status: Some(status),
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
@@ -1007,20 +1007,20 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             } => Self::ApproveUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             } => Self::RejectUpdate {
                 status,
-                merchant_decision,
+                frm_merchant_decision,
                 updated_by,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
@@ -1241,7 +1241,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             statement_descriptor_name,
             order_details,
             attempt_count,
-            merchant_decision,
+            frm_merchant_decision,
             payment_confirm_source,
             updated_by,
             surcharge_applicable,
@@ -1271,7 +1271,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             statement_descriptor_name,
             order_details,
             attempt_count,
-            merchant_decision,
+            frm_merchant_decision,
             payment_confirm_source,
             updated_by,
             surcharge_applicable,

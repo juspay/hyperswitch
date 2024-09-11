@@ -859,8 +859,6 @@ diesel::table! {
         attempt_count -> Int2,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        merchant_decision -> Nullable<Varchar>,
         #[max_length = 255]
         payment_link_id -> Nullable<Varchar>,
         payment_confirm_source -> Nullable<PaymentSource>,
@@ -892,6 +890,8 @@ diesel::table! {
         prerouting_algorithm -> Nullable<Jsonb>,
         surcharge_amount -> Nullable<Int8>,
         tax_on_surcharge -> Nullable<Int8>,
+        #[max_length = 64]
+        frm_merchant_decision -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
     }
