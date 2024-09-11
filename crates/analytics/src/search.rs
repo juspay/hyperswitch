@@ -6,14 +6,15 @@ use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::tracing;
 
-use crate::opensearch::{
-    OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
+use crate::{
+    enums::AuthInfo,
+    opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    search_params: Vec<AuthInfo>,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
     if req.query.trim().is_empty()
@@ -27,15 +28,11 @@ pub async fn msearch_results(
         )
         .into());
     }
-    let mut query_builder =
-        OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
-
-    query_builder
-        .add_filter_clause(
-            "merchant_id.keyword".to_string(),
-            vec![merchant_id.get_string_repr().to_owned()],
-        )
-        .switch()?;
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Msearch(indexes.clone()),
+        req.query,
+        search_params,
+    );
 
     if let Some(filters) = req.filters {
         if let Some(currency) = filters.currency {
@@ -152,19 +149,15 @@ pub async fn msearch_results(
 pub async fn search_results(
     client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
-    merchant_id: &common_utils::id_type::MerchantId,
+    search_params: Vec<AuthInfo>,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 
-    let mut query_builder =
-        OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
-
-    query_builder
-        .add_filter_clause(
-            "merchant_id.keyword".to_string(),
-            vec![merchant_id.get_string_repr().to_owned()],
-        )
-        .switch()?;
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Search(req.index),
+        search_req.query,
+        search_params,
+    );
 
     if let Some(filters) = search_req.filters {
         if let Some(currency) = filters.currency {
