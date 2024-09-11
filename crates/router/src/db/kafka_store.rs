@@ -851,7 +851,7 @@ impl MandateInterface for KafkaStore {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_mandate_by_global_id(
         &self,
-        id: &String,
+        id: &str,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
         self.diesel_store.find_mandate_by_global_id(id).await
     }
@@ -1757,7 +1757,7 @@ impl PaymentMethodInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        id: &String,
+        id: &str,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
