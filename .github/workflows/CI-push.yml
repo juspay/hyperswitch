@@ -33,9 +33,6 @@ jobs:
           toolchain: nightly
           components: rustfmt
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-
       - name: Check formatting
         shell: bash
         run: cargo +nightly fmt --all --check
@@ -73,6 +70,9 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "${{ env.rust_version }}"
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
 
       - uses: Swatinem/rust-cache@v2.7.0
         with:
@@ -153,6 +153,9 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
         with:
@@ -219,6 +222,9 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0
