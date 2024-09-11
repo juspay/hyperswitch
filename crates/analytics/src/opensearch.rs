@@ -523,13 +523,11 @@ impl OpenSearchQueryBuilder {
                     org_id: _,
                     merchant_ids,
                 } => {
-                    let must_clauses = vec![
-                        json!({
-                            "terms": {
-                                "merchant_id.keyword": merchant_ids
-                            }
-                        }),
-                    ];
+                    let must_clauses = vec![json!({
+                        "terms": {
+                            "merchant_id.keyword": merchant_ids
+                        }
+                    })];
 
                     json!({
                         "bool": {
