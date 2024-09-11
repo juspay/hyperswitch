@@ -265,7 +265,7 @@ fn get_payment_source(
     bank_redirection_data: &domain::BankRedirectData,
 ) -> Result<PaymentSourceItem, error_stack::Report<errors::ConnectorError>> {
     match bank_redirection_data {
-        domain::BankRedirectData::Eps { bank_name: _ } => {
+        domain::BankRedirectData::Eps { bank_name: _, .. } => {
             Ok(PaymentSourceItem::Eps(RedirectRequest {
                 name: item.get_billing_full_name()?,
                 country_code: item.get_billing_country()?,
@@ -315,6 +315,7 @@ fn get_payment_source(
         }
         domain::BankRedirectData::Sofort {
             preferred_language: _,
+            ..
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
             name: item.get_billing_full_name()?,
             country_code: item.get_billing_country()?,
