@@ -58,5 +58,5 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN business_country "CountryAlpha2",
     ADD COLUMN business_label VARCHAR(64),
     ADD COLUMN incremental_authorization_allowed BOOLEAN,
-    ADD COLUMN fingerprint_id VARCHAR(64)
+    ADD COLUMN fingerprint_id VARCHAR(64),
     ADD COLUMN merchant_decision VARCHAR(64);
