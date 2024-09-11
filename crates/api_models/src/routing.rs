@@ -91,7 +91,6 @@ pub struct ToggleDynamicRoutingPath {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
-    #[schema(value_type = String)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
