@@ -689,8 +689,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DeutschebankErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub rc: String,
     pub message: String,
-    pub reason: Option<String>,
 }

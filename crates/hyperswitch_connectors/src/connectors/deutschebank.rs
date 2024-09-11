@@ -162,9 +162,9 @@ impl ConnectorCommon for Deutschebank {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.rc,
+            message: response.message.clone(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
         })
