@@ -3659,8 +3659,6 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            // let setup_mandate = payment_data.get_setup_mandate();
-            // let payment_method_data = payment_data.get_payment_method_data();
             let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
                 payment_data.get_payment_attempt(),
@@ -3718,14 +3716,10 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            // let setup_mandate = payment_data.get_setup_mandate();
-            // let payment_method_data = payment_data.get_payment_method_data();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                // setup_mandate,
                 payment_data.get_setup_mandate(),
                 payment_data.get_payment_attempt(),
                 payment_data.get_payment_intent(),
-                // payment_method_data,
                 payment_data.get_payment_method_data(),
                 payment_data.get_address(),
                 payment_data.get_recurring_details(),
