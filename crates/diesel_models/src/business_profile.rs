@@ -1,16 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::AuthenticationConnectors;
+use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::business_profile;
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::business_profile;
 
 /// Note: The order of fields in the struct is important.
@@ -18,10 +15,7 @@ use crate::schema_v2::business_profile;
 /// not compile
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
@@ -56,15 +50,12 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct BusinessProfileNew {
@@ -99,15 +90,12 @@ pub struct BusinessProfileNew {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
 pub struct BusinessProfileUpdateInternal {
@@ -139,14 +127,11 @@ pub struct BusinessProfileUpdateInternal {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 impl BusinessProfileUpdateInternal {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
         let Self {
@@ -241,7 +226,7 @@ impl BusinessProfileUpdateInternal {
 /// not compile
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
@@ -271,7 +256,7 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -284,21 +269,18 @@ pub struct BusinessProfile {
 }
 
 impl BusinessProfile {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
     }
 
-    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.id
     }
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct BusinessProfileNew {
@@ -328,7 +310,7 @@ pub struct BusinessProfileNew {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -340,7 +322,7 @@ pub struct BusinessProfileNew {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
 pub struct BusinessProfileUpdateInternal {
@@ -368,7 +350,7 @@ pub struct BusinessProfileUpdateInternal {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -378,7 +360,7 @@ pub struct BusinessProfileUpdateInternal {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 impl BusinessProfileUpdateInternal {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
         let Self {
@@ -477,7 +459,7 @@ impl BusinessProfileUpdateInternal {
 // This is being used only in the `BusinessProfileInterface` implementation for `MockDb`.
 // This can be removed once the `BusinessProfileInterface` trait has been updated to use the domain
 // model instead.
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 impl From<BusinessProfileNew> for BusinessProfile {
     fn from(new: BusinessProfileNew) -> Self {
         Self {
@@ -574,6 +556,7 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+    pub form_layout: Option<UIWidgetFormLayout>,
     pub payout_test_mode: Option<bool>,
 }
 

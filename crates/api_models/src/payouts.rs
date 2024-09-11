@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
@@ -5,11 +7,12 @@ use common_utils::{
     pii::{self, Email},
 };
 use masking::Secret;
+use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payments};
+use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -203,6 +206,10 @@ pub struct PayoutCreatePayoutLinkConfig {
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 
     /// `test_mode` allows for opening payout links without any restrictions. This removes
     /// - domain name validations
@@ -411,7 +418,7 @@ pub struct PayoutCreateResponse {
     pub payout_type: Option<api_enums::PayoutType>,
 
     /// The billing address for the payout
-    #[schema(value_type = Option<Object>, example = json!(r#"{
+    #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
             "line1": "1467",
             "line2": "Harrison Street",
@@ -778,10 +785,29 @@ pub struct PayoutLinkDetails {
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
+    pub enabled_payment_methods_with_required_fields: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
     pub locale: String,
+    pub form_layout: Option<common_enums::UIWidgetFormLayout>,
     pub test_mode: bool,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutEnabledPaymentMethodsInfo {
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_types_info: Vec<PaymentMethodTypeInfo>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodTypeInfo {
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, FlatStruct)]
+pub struct RequiredFieldsOverrideRequest {
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

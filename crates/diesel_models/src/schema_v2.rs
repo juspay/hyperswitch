@@ -317,6 +317,7 @@ diesel::table! {
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
         default_shipping_address -> Nullable<Bytea>,
+        status -> DeleteStatus,
         #[max_length = 64]
         id -> Varchar,
     }
@@ -894,8 +895,11 @@ diesel::table! {
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
         is_payment_processor_token_flow -> Nullable<Bool>,
+        shipping_cost -> Nullable<Int8>,
         #[max_length = 32]
         organization_id -> Varchar,
+        tax_details -> Nullable<Jsonb>,
+        skip_external_tax_calculation -> Nullable<Bool>,
     }
 }
 
@@ -933,39 +937,16 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_methods (payment_method_id) {
-        id -> Int4,
+    payment_methods (id) {
         #[max_length = 64]
         customer_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
-        #[max_length = 64]
-        payment_method_id -> Varchar,
-        accepted_currency -> Nullable<Array<Nullable<Currency>>>,
-        #[max_length = 32]
-        scheme -> Nullable<Varchar>,
-        #[max_length = 128]
-        token -> Nullable<Varchar>,
-        #[max_length = 255]
-        cardholder_name -> Nullable<Varchar>,
-        #[max_length = 64]
-        issuer_name -> Nullable<Varchar>,
-        #[max_length = 64]
-        issuer_country -> Nullable<Varchar>,
-        payer_country -> Nullable<Array<Nullable<Text>>>,
-        is_stored -> Nullable<Bool>,
-        #[max_length = 32]
-        swift_code -> Nullable<Varchar>,
-        #[max_length = 128]
-        direct_debit_token -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
-        #[max_length = 128]
-        payment_method_issuer -> Nullable<Varchar>,
-        payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
@@ -982,6 +963,11 @@ diesel::table! {
         payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        locker_fingerprint_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
@@ -1316,8 +1302,6 @@ diesel::table! {
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        #[max_length = 64]
-        preferred_merchant_id -> Nullable<Varchar>,
         totp_status -> TotpStatus,
         totp_secret -> Nullable<Bytea>,
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,

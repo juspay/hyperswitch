@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -118,6 +119,7 @@ pub async fn retrieve_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -170,6 +172,7 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -206,10 +209,7 @@ pub async fn delete_merchant_account(
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
 pub async fn connector_create(
     state: web::Data<AppState>,
@@ -226,13 +226,20 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_connector(state, req, auth_data.merchant_account, auth_data.key_store)
+            create_connector(
+                state,
+                req,
+                auth_data.merchant_account,
+                auth_data.profile_id,
+                auth_data.key_store,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -243,7 +250,7 @@ pub async fn connector_create(
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
 pub async fn connector_create(
     state: web::Data<AppState>,
@@ -258,12 +265,19 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_connector(state, req, auth_data.merchant_account, auth_data.key_store)
+            create_connector(
+                state,
+                req,
+                auth_data.merchant_account,
+                None,
+                auth_data.key_store,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -274,10 +288,7 @@ pub async fn connector_create(
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     get,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -329,6 +340,7 @@ pub async fn connector_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -339,7 +351,7 @@ pub async fn connector_retrieve(
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
 pub async fn connector_retrieve(
     state: web::Data<AppState>,
@@ -367,6 +379,7 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -412,6 +425,7 @@ pub async fn payment_connector_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -463,6 +477,7 @@ pub async fn payment_connector_list_profile(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -473,10 +488,7 @@ pub async fn payment_connector_list_profile(
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -526,6 +538,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -537,7 +550,7 @@ pub async fn connector_update(
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[utoipa::path(
     post,
     path = "/connector_accounts/{id}",
@@ -577,6 +590,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -587,10 +601,7 @@ pub async fn connector_update(
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     delete,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -635,6 +646,7 @@ pub async fn connector_delete(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -645,7 +657,7 @@ pub async fn connector_delete(
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
 pub async fn connector_delete(
     state: web::Data<AppState>,
@@ -673,6 +685,7 @@ pub async fn connector_delete(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -730,11 +743,7 @@ pub async fn merchant_account_toggle_all_kv(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -759,6 +768,7 @@ pub async fn business_profile_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -767,7 +777,7 @@ pub async fn business_profile_create(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -789,6 +799,7 @@ pub async fn business_profile_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -797,10 +808,7 @@ pub async fn business_profile_create(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
@@ -826,6 +834,7 @@ pub async fn business_profile_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -834,7 +843,7 @@ pub async fn business_profile_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
@@ -856,6 +865,7 @@ pub async fn business_profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -864,11 +874,7 @@ pub async fn business_profile_retrieve(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
@@ -896,6 +902,7 @@ pub async fn business_profile_update(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -904,7 +911,7 @@ pub async fn business_profile_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
@@ -927,6 +934,7 @@ pub async fn business_profile_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -978,6 +986,7 @@ pub async fn business_profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -1012,6 +1021,7 @@ pub async fn business_profiles_list_at_profile_level(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -1041,7 +1051,10 @@ pub async fn toggle_connector_agnostic_mit(
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth {
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

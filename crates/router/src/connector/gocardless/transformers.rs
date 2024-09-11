@@ -285,6 +285,7 @@ impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for Custo
             domain::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
+                ..
             } => {
                 let country_code = item.get_billing_country()?;
                 let account_holder_name = item.get_billing_full_name()?;

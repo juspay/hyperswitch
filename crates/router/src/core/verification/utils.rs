@@ -32,10 +32,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -47,7 +44,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount = {
         let _ = merchant_connector_id;
         let _ = key_store;
@@ -69,10 +66,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .collect();
 
     already_verified_domains.append(&mut new_verified_domains);
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
         connector_type: None,
         connector_name: None,
@@ -91,7 +85,7 @@ pub async fn check_existence_and_add_domain_to_db(
         connector_wallets_details: None,
         additional_merchant_data: None,
     };
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
         connector_type: None,
         connector_account_details: None,

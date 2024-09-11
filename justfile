@@ -39,12 +39,12 @@ clippy_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
 check_v2 *FLAGS:
@@ -55,12 +55,12 @@ check_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
 run_v2:
@@ -75,7 +75,7 @@ run_v2:
     ')"
 
     set -x
-    cargo run --package router --features "${FEATURES}"
+    cargo run --package router --no-default-features --features "${FEATURES}"
     set +x
 
 check *FLAGS:
@@ -114,7 +114,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
+doc_flags := '--all-features --all-targets --exclude-features "v2 payment_v2"'
 
 # Generate documentation
 doc *FLAGS:
@@ -133,10 +133,6 @@ euclid-wasm features='dummy_connector':
 
 # Run pre-commit checks
 precommit: fmt clippy
-
-# Check compilation of v2 feature on base dependencies
-hack_v2:
-    scripts/ci-checks-v2.sh
 
 # Use the env variables if present, or fallback to default values
 

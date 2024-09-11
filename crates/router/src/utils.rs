@@ -55,7 +55,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        webhooks as webhooks_core,
+        payments as payments_core, webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -370,10 +370,7 @@ pub async fn find_mca_from_authentication_id_type(
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     {
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &state.into(),
@@ -391,7 +388,7 @@ pub async fn find_mca_from_authentication_id_type(
             },
         )
     }
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     //get mca using id
     {
         let _ = key_store;
@@ -419,10 +416,7 @@ pub async fn get_mca_from_payment_intent(
     let key_manager_state: &KeyManagerState = &state.into();
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -437,7 +431,7 @@ pub async fn get_mca_from_payment_intent(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _id = merchant_connector_id;
@@ -456,10 +450,7 @@ pub async fn get_mca_from_payment_intent(
                 .attach_printable("profile_id is not set in payment_intent")?
                 .clone();
 
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -477,7 +468,7 @@ pub async fn get_mca_from_payment_intent(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _ = profile_id;
@@ -517,10 +508,7 @@ pub async fn get_mca_from_payout_attempt(
     let key_manager_state: &KeyManagerState = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -535,7 +523,7 @@ pub async fn get_mca_from_payout_attempt(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _id = merchant_connector_id;
@@ -546,10 +534,7 @@ pub async fn get_mca_from_payout_attempt(
             }
         }
         None => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -568,7 +553,7 @@ pub async fn get_mca_from_payout_attempt(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 todo!()
             }
@@ -585,21 +570,15 @@ pub async fn get_mca_from_object_reference_id(
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let default_profile_id = merchant_account.default_profile.as_ref();
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let default_profile_id = Option::<&String>::None;
 
     match default_profile_id {
         Some(profile_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -617,7 +596,7 @@ pub async fn get_mca_from_object_reference_id(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 let _db = db;
                 let _profile_id = profile_id;
@@ -1106,11 +1085,11 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op>(
+pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
     business_profile: domain::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: crate::core::payments::PaymentData<F>,
+    payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
@@ -1118,12 +1097,12 @@ pub async fn trigger_payments_webhook<F, Op>(
 where
     F: Send + Clone + Sync,
     Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
 {
-    let status = payment_data.payment_intent.status;
-    let payment_id = payment_data.payment_intent.payment_id.clone();
+    let status = payment_data.get_payment_intent().status;
+    let payment_id = payment_data.get_payment_intent().payment_id.clone();
     let captures = payment_data
-        .multiple_capture_data
-        .clone()
+        .get_multiple_capture_data()
         .map(|multiple_capture_data| {
             multiple_capture_data
                 .get_all_captures()

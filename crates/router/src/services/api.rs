@@ -383,11 +383,11 @@ pub async fn call_connector_api(
             let status_code = resp.status().as_u16();
             let elapsed_time = current_time.elapsed();
             logger::info!(
-                headers=?headers,
-                url=?url,
-                status_code=?status_code,
+                ?headers,
+                url,
+                status_code,
                 flow=?flow_name,
-                elapsed_time=?elapsed_time
+                ?elapsed_time
             );
         }
         Err(err) => {
@@ -1240,6 +1240,11 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(&self.client_secret)
+    }
+}
+impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
     }
 }
 

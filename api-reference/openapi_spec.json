@@ -5083,6 +5083,12 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder's name",
+            "example": "John Doe",
+            "nullable": true
+          },
           "bank_account_holder_name": {
             "type": "string",
             "description": "Bank account's owner name",
@@ -6079,6 +6085,21 @@
           }
         ]
       },
+      "BankDebitResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "BankHolderType": {
         "type": "string",
         "enum": [
@@ -6235,31 +6256,6 @@
           "yoursafe",
           "n26",
           "nationale_nederlanden"
-        ]
-      },
-      "BankRedirectAdditionalData": {
-        "allOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BankRedirectDetails"
-              }
-            ],
-            "nullable": true
-          },
-          {
-            "type": "object",
-            "properties": {
-              "bank_name": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/BankNames"
-                  }
-                ],
-                "nullable": true
-              }
-            }
-          }
         ]
       },
       "BankRedirectBilling": {
@@ -6744,6 +6740,31 @@
             "properties": {
               "Giropay": {
                 "$ref": "#/components/schemas/GiropayBankRedirectAdditionalData"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankRedirectDetails"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -7286,6 +7307,21 @@
           }
         ]
       },
+      "BankTransferResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "BankType": {
         "type": "string",
         "enum": [
@@ -7584,6 +7620,14 @@
           {
             "type": "object",
             "properties": {
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "payout_test_mode": {
                 "type": "boolean",
                 "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
@@ -8370,6 +8414,21 @@
           }
         ]
       },
+      "CardRedirectResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardRedirectData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "CardResponse": {
         "type": "object",
         "properties": {
@@ -8455,6 +8514,21 @@
             "example": "John Test"
           }
         }
+      },
+      "CardTokenResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "CashappQr": {
         "type": "object"
@@ -8555,6 +8629,7 @@
           "ebanx",
           "fiserv",
           "fiservemea",
+          "fiuu",
           "forte",
           "globalpay",
           "globepay",
@@ -8587,6 +8662,7 @@
           "square",
           "stax",
           "stripe",
+          "taxjar",
           "threedsecureio",
           "trustpay",
           "tsys",
@@ -8701,7 +8777,8 @@
           "non_banking_finance",
           "payout_processor",
           "payment_method_auth",
-          "authentication_processor"
+          "authentication_processor",
+          "tax_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -9067,6 +9144,21 @@
             "nullable": true
           }
         }
+      },
+      "CryptoResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CryptoData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "Currency": {
         "type": "string",
@@ -10625,6 +10717,12 @@
             "enum": [
               "user_cnpj"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_iban"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -10861,6 +10959,21 @@
             "description": "The card verification code."
           }
         }
+      },
+      "GiftCardResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "GiropayBankRedirectAdditionalData": {
         "type": "object",
@@ -13783,6 +13896,21 @@
           }
         ]
       },
+      "OpenBankingResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "OpenBankingSessionToken": {
         "type": "object",
         "required": [
@@ -13851,6 +13979,11 @@
               }
             ],
             "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
+            "nullable": true
           }
         }
       },
@@ -13915,6 +14048,11 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
             "nullable": true
           }
         }
@@ -15316,7 +15454,7 @@
             ],
             "properties": {
               "bank_transfer": {
-                "$ref": "#/components/schemas/BankTransferAdditionalData"
+                "$ref": "#/components/schemas/BankTransferResponse"
               }
             }
           },
@@ -15349,7 +15487,7 @@
             ],
             "properties": {
               "bank_redirect": {
-                "$ref": "#/components/schemas/BankRedirectAdditionalData"
+                "$ref": "#/components/schemas/BankRedirectResponse"
               }
             }
           },
@@ -15360,7 +15498,7 @@
             ],
             "properties": {
               "crypto": {
-                "$ref": "#/components/schemas/CryptoData"
+                "$ref": "#/components/schemas/CryptoResponse"
               }
             }
           },
@@ -15371,7 +15509,7 @@
             ],
             "properties": {
               "bank_debit": {
-                "$ref": "#/components/schemas/BankDebitAdditionalData"
+                "$ref": "#/components/schemas/BankDebitResponse"
               }
             }
           },
@@ -15404,7 +15542,7 @@
             ],
             "properties": {
               "real_time_payment": {
-                "$ref": "#/components/schemas/RealTimePaymentData"
+                "$ref": "#/components/schemas/RealTimePaymentDataResponse"
               }
             }
           },
@@ -15415,7 +15553,7 @@
             ],
             "properties": {
               "upi": {
-                "$ref": "#/components/schemas/UpiAdditionalData"
+                "$ref": "#/components/schemas/UpiResponse"
               }
             }
           },
@@ -15426,7 +15564,7 @@
             ],
             "properties": {
               "voucher": {
-                "$ref": "#/components/schemas/VoucherData"
+                "$ref": "#/components/schemas/VoucherResponse"
               }
             }
           },
@@ -15437,7 +15575,7 @@
             ],
             "properties": {
               "gift_card": {
-                "$ref": "#/components/schemas/GiftCardAdditionalData"
+                "$ref": "#/components/schemas/GiftCardResponse"
               }
             }
           },
@@ -15448,7 +15586,7 @@
             ],
             "properties": {
               "card_redirect": {
-                "$ref": "#/components/schemas/CardRedirectData"
+                "$ref": "#/components/schemas/CardRedirectResponse"
               }
             }
           },
@@ -15459,7 +15597,7 @@
             ],
             "properties": {
               "card_token": {
-                "$ref": "#/components/schemas/CardTokenAdditionalData"
+                "$ref": "#/components/schemas/CardTokenResponse"
               }
             }
           },
@@ -15470,7 +15608,7 @@
             ],
             "properties": {
               "open_banking": {
-                "$ref": "#/components/schemas/OpenBankingData"
+                "$ref": "#/components/schemas/OpenBankingResponse"
               }
             }
           }
@@ -15564,7 +15702,8 @@
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "is_tax_calculation_enabled"
         ],
         "properties": {
           "redirect_url": {
@@ -15626,6 +15765,10 @@
             "type": "boolean",
             "description": "flag that indicates whether to collect billing details from wallets or from the customer",
             "nullable": true
+          },
+          "is_tax_calculation_enabled": {
+            "type": "boolean",
+            "description": "flag that indicates whether to calculate tax on the order amount"
           }
         }
       },
@@ -16068,7 +16211,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -16085,6 +16228,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -16407,6 +16557,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -16420,7 +16575,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
           },
           "currency": {
@@ -16430,6 +16585,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -16765,6 +16927,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -17287,6 +17454,26 @@
           }
         }
       },
+      "PaymentsDynamicTaxCalculationRequest": {
+        "type": "object",
+        "required": [
+          "shipping",
+          "client_secret",
+          "payment_method_type"
+        ],
+        "properties": {
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
@@ -17386,7 +17573,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -17403,6 +17590,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -17817,6 +18011,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18484,7 +18683,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -18501,6 +18700,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -18818,6 +19024,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -19174,6 +19385,14 @@
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
                 "nullable": true
               },
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "test_mode": {
                 "type": "boolean",
                 "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
@@ -19240,8 +19459,11 @@
             "nullable": true
           },
           "billing": {
-            "type": "object",
-            "description": "The billing address for the payout",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
           },
           "auto_fulfill": {
@@ -20532,6 +20754,21 @@
           }
         ]
       },
+      "RealTimePaymentDataResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RealTimePaymentData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
@@ -21305,6 +21542,7 @@
           "ebanx",
           "fiserv",
           "fiservemea",
+          "fiuu",
           "forte",
           "globalpay",
           "globepay",
@@ -22311,6 +22549,13 @@
           "payout"
         ]
       },
+      "UIWidgetFormLayout": {
+        "type": "string",
+        "enum": [
+          "tabs",
+          "journey"
+        ]
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
@@ -22372,6 +22617,7 @@
           "vpa_id": {
             "type": "string",
             "description": "Masked VPA ID",
+            "example": "ab********@okhdfcbank",
             "nullable": true
           }
         }
@@ -22414,6 +22660,21 @@
       },
       "UpiIntentData": {
         "type": "object"
+      },
+      "UpiResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "ValueType": {
         "oneOf": [
@@ -22706,6 +22967,21 @@
                 "$ref": "#/components/schemas/JCSVoucherData"
               }
             }
+          }
+        ]
+      },
+      "VoucherResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
           }
         ]
       },
