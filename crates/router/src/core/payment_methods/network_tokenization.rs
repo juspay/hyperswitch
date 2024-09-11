@@ -44,7 +44,7 @@ pub struct OrderData {
 #[serde(rename_all = "camelCase")]
 pub struct ApiPayload {
     service: String,
-    card_data: String,
+    card_data: Secret<String>, //encrypted card data
     order_data: OrderData,
     key_id: String,
     should_send_token: bool,
@@ -81,7 +81,7 @@ pub struct GetCardToken {
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     cryptogram: Secret<String>,
-    token: CardNumber,
+    token: CardNumber, //network token
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,7 +99,7 @@ pub struct TokenResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeleteCardToken {
-    card_reference: String,
+    card_reference: String, //network token requestor ref id
     customer_id: id_type::CustomerId,
 }
 
@@ -107,13 +107,6 @@ pub struct DeleteCardToken {
 #[serde(rename_all = "UPPERCASE")]
 pub enum DeleteNetworkTokenStatus {
     Success,
-}
-
-#[derive(Debug, Deserialize, Eq, PartialEq)]
-#[serde(untagged)]
-pub enum DeleteNTResponse {
-    DeleteNetworkTokenResponse(DeleteNetworkTokenResponse),
-    DeleteNetworkTokenErrorResponse(NetworkTokenErrorResponse),
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -189,7 +182,7 @@ pub async fn mk_tokenization_req(
 
     let api_payload = ApiPayload {
         service: NETWORK_TOKEN_SERVICE.to_string(),
-        card_data: jwt,
+        card_data: Secret::new(jwt),
         order_data,
         key_id,
         should_send_token: true,
@@ -692,18 +685,14 @@ pub async fn delete_network_token_from_tokenization_service(
             logger::error!("Error while deserializing response: {:?}", err);
         })?;
 
-    let delete_token_response: DeleteNTResponse = res
+    let delete_token_response: DeleteNetworkTokenResponse = res
         .response
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
     logger::info!("Delete Network Token Response: {:?}", delete_token_response);
 
-    if delete_token_response
-        == DeleteNTResponse::DeleteNetworkTokenResponse(DeleteNetworkTokenResponse {
-            status: DeleteNetworkTokenStatus::Success,
-        })
-    {
+    if delete_token_response.status == DeleteNetworkTokenStatus::Success {
         Ok(true)
     } else {
         Err(errors::NetworkTokenizationError::DeleteNetworkTokenFailed)

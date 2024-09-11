@@ -74,7 +74,7 @@ use crate::{
     connector::utils::missing_field_err,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization::do_status_check_for_network_token},
+        payment_methods::{cards, network_tokenization},
         utils,
     },
     db::StorageInterface,
@@ -3752,30 +3752,19 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                         .network_transaction_id
                         .as_ref()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to featch the network transaction id")?;
+                        .attach_printable("Failed to fetch the network transaction id")?;
 
                     let mandate_reference_id =
                         Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
                             payments_api::NetworkTokenWithNTIRef {
                                 network_transaction_id: network_transaction_id.to_string(),
-                                token_exp_month: token_exp_data.token_exp_month,
-                                token_exp_year: token_exp_data.token_exp_year,
+                                token_exp_month: token_exp_data.network_token_exp.token_exp_month,
+                                token_exp_year: token_exp_data.network_token_exp.token_exp_year,
                             },
                         ));
-                    let connector_data = filtered_nt_supported_connectors
+                    let chosen_connector_data = filtered_nt_supported_connectors
                         .first()
                         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                        .attach_printable(
-                            "no eligible connector found for token-based MIT payment",
-                        )?;
-
-                    let connector_choice =
-                        Some((connector_data.clone(), mandate_reference_id.clone()));
-                    let (chosen_connector_data, mandate_reference_id) = connector_choice
-                        .get_required_value("connector_choice")
-                        .change_context(
-                            errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration,
-                        )
                         .attach_printable(
                             "no eligible connector found for token-based MIT payment",
                         )?;
@@ -3792,7 +3781,9 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                         mandate_reference_id,
                     });
 
-                    Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
+                    Ok(ConnectorCallType::PreDetermined(
+                        chosen_connector_data.clone(),
+                    ))
                 }
                 None => {
                     decide_connector_for_normal_or_recurring_payment(
@@ -3992,14 +3983,22 @@ pub fn filter_network_tokenization_supported_connectors(
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct TokenExpiry {
-    pub token_exp_month: Option<Secret<String>>,
+pub struct NetworkTokenExpiry {
+    pub token_exp_month: Option<Secret<String>>, 
     pub token_exp_year: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NTWithNTIRef {
+    pub network_token_exp: NetworkTokenExpiry,
+    pub network_transaction_id: String,
+    pub network_token_locker_id: String,
+    pub network_token_requestor_ref_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub enum ActionType {
-    NetworkTokenWithNetworkTransactionId(TokenExpiry),
+    NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
 }
 
 pub async fn decide_action_type(
@@ -4009,26 +4008,43 @@ pub async fn decide_action_type(
     payment_method_info: &domain::PaymentMethod,
     filtered_nt_supported_connectors: Vec<api::ConnectorData>, //network tokenization supported connectors
 ) -> Option<ActionType> {
-    if is_network_token_with_network_transaction_id_flow(
-        is_connector_agnostic_mit_enabled,
-        is_network_tokenization_enabled,
-        payment_method_info,
-    ) && !filtered_nt_supported_connectors.is_empty()
-    {
-        if let Ok((token_exp_month, token_exp_year)) =
-            do_status_check_for_network_token(state, payment_method_info).await
-        {
-            Some(ActionType::NetworkTokenWithNetworkTransactionId (
-                TokenExpiry {
-                    token_exp_month,
-                    token_exp_year,
-                }
-            ))
-        } else {
-            None
+    match (
+        is_network_token_with_network_transaction_id_flow(
+            is_connector_agnostic_mit_enabled,
+            is_network_tokenization_enabled,
+            payment_method_info,
+        ),
+        !filtered_nt_supported_connectors.is_empty(),
+    ) {
+        (
+            IsNtWithNtiFlow::NtWithNtiSupported(
+                network_transaction_id,
+                network_token_locker_id,
+                network_token_requestor_ref_id,
+            ),
+            true,
+        ) => {
+            if let Ok((token_exp_month, token_exp_year)) =
+                network_tokenization::do_status_check_for_network_token(state, payment_method_info)
+                    .await
+            {
+                Some(ActionType::NetworkTokenWithNetworkTransactionId(
+                    NTWithNTIRef{
+                        network_token_exp: NetworkTokenExpiry {
+                            token_exp_month,
+                            token_exp_year,
+                        },
+                        network_transaction_id,
+                        network_token_locker_id,
+                        network_token_requestor_ref_id,
+
+                    }
+                ))
+            } else {
+                None
+            }
         }
-    } else {
-        None
+        (IsNtWithNtiFlow::NtWithNtiSupported(_, _, _), false) | (IsNtWithNtiFlow::NTWithNTINotSupported, _) => None,
     }
 }
 
@@ -4049,19 +4065,42 @@ pub fn is_network_transaction_id_flow(
         && payment_method_info.network_transaction_id.is_some()
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub enum IsNtWithNtiFlow {
+    NtWithNtiSupported(String, String, String), //Network token with Network transaction id supported flow
+    NTWithNTINotSupported, //Network token with Network transaction id not supported
+}
+
 pub fn is_network_token_with_network_transaction_id_flow(
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
-) -> bool {
-    is_connector_agnostic_mit_enabled == Some(true)
-        && is_network_tokenization_enabled
-        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
-        && payment_method_info.network_transaction_id.is_some()
-        && payment_method_info.network_token_locker_id.is_some()
-        && payment_method_info
+) -> IsNtWithNtiFlow {
+    match (
+        is_connector_agnostic_mit_enabled,
+        is_network_tokenization_enabled,
+        payment_method_info.payment_method,
+        payment_method_info.network_transaction_id.clone(),
+        payment_method_info.network_token_locker_id.clone(),
+        payment_method_info
             .network_token_requestor_reference_id
-            .is_some()
+            .clone(),
+    ) {
+        (
+            Some(true),
+            true,
+            Some(storage_enums::PaymentMethod::Card),
+            Some(network_transaction_id),
+            Some(network_token_locker_id),
+            Some(network_token_requestor_ref_id),
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(
+            network_transaction_id,
+            network_token_locker_id,
+            network_token_requestor_ref_id,
+        ),
+        _ => IsNtWithNtiFlow::NTWithNTINotSupported,
+    }
+
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
