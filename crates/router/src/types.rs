@@ -209,6 +209,14 @@ pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 #[cfg(feature = "payouts")]
+pub type PayoutActionData = Vec<(
+    storage::Payouts,
+    storage::PayoutAttempt,
+    Option<domain::Customer>,
+    Option<api_models::payments::Address>,
+)>;
+
+#[cfg(feature = "payouts")]
 pub trait PayoutIndividualDetailsExt {
     type Error;
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;

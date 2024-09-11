@@ -782,14 +782,14 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantConnectorAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))

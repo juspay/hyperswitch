@@ -1557,6 +1557,9 @@ pub struct PaymentMethodListResponse {
 
     /// flag that indicates whether to collect billing details from wallets or from the customer
     pub collect_billing_details_from_wallets: Option<bool>,
+
+    /// flag that indicates whether to calculate tax on the order amount
+    pub is_tax_calculation_enabled: bool,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]

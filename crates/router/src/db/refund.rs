@@ -4,6 +4,7 @@ use std::collections::HashSet;
 #[cfg(feature = "olap")]
 use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
+use hyperswitch_domain_models::refunds;
 
 use super::MockDb;
 use crate::{
@@ -69,7 +70,7 @@ pub trait RefundInterface {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -87,7 +88,7 @@ pub trait RefundInterface {
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
 }
@@ -216,7 +217,7 @@ mod storage {
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
-            refund_details: &api_models::refunds::RefundListRequest,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
@@ -255,7 +256,7 @@ mod storage {
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
-            refund_details: &api_models::refunds::RefundListRequest,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -274,6 +275,7 @@ mod storage {
 mod storage {
     use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
     use error_stack::{report, ResultExt};
+    use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{
@@ -752,7 +754,7 @@ mod storage {
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
-            refund_details: &api_models::refunds::RefundListRequest,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
@@ -788,7 +790,7 @@ mod storage {
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
-            refund_details: &api_models::refunds::RefundListRequest,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -963,7 +965,7 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -972,6 +974,7 @@ impl RefundInterface for MockDb {
         let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
+        let mut unique_profile_ids = HashSet::new();
 
         // Fill the hash sets with data from refund_details
         if let Some(connectors) = &refund_details.connector {
@@ -1000,6 +1003,10 @@ impl RefundInterface for MockDb {
             });
         }
 
+        if let Some(profile_id_list) = &refund_details.profile_id {
+            unique_profile_ids = profile_id_list.iter().collect();
+        }
+
         let refunds = self.refunds.lock().await;
         let filtered_refunds = refunds
             .iter()
@@ -1016,7 +1023,11 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
-            .filter(|refund| refund_details.profile_id == refund.profile_id)
+            .filter(|refund| {
+                refund.profile_id.as_ref().is_some_and(|profile_id| {
+                    unique_profile_ids.is_empty() || unique_profile_ids.contains(profile_id)
+                })
+            })
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
@@ -1116,13 +1127,14 @@ impl RefundInterface for MockDb {
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
         let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
+        let mut unique_profile_ids = HashSet::new();
 
         // Fill the hash sets with data from refund_details
         if let Some(connectors) = &refund_details.connector {
@@ -1151,6 +1163,10 @@ impl RefundInterface for MockDb {
             });
         }
 
+        if let Some(profile_id_list) = &refund_details.profile_id {
+            unique_profile_ids = profile_id_list.iter().collect();
+        }
+
         let refunds = self.refunds.lock().await;
         let filtered_refunds = refunds
             .iter()
@@ -1167,7 +1183,11 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
-            .filter(|refund| refund_details.profile_id == refund.profile_id)
+            .filter(|refund| {
+                refund.profile_id.as_ref().is_some_and(|profile_id| {
+                    unique_profile_ids.is_empty() || unique_profile_ids.contains(profile_id)
+                })
+            })
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
