@@ -1280,19 +1280,28 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
-        let pmt_order_tax_amount = payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax| tax.payment_method_type.map(|a| a.order_tax_amount));
+        let pmt_order_tax_amount =
+            payment_data
+                .payment_intent
+                .tax_details
+                .clone()
+                .and_then(|tax| {
+                    if tax.payment_method_type.clone().map(|a| a.pmt)
+                        == payment_data.payment_attempt.payment_method_type
+                    {
+                        tax.payment_method_type.map(|a| a.order_tax_amount)
+                    } else {
+                        None
+                    }
+                });
 
-        let default_order_tax_amount = payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax| tax.default.map(|a| a.order_tax_amount));
-
-        let order_tax_amount = pmt_order_tax_amount.or(default_order_tax_amount);
+        let order_tax_amount = pmt_order_tax_amount.or_else(|| {
+            payment_data
+                .payment_intent
+                .tax_details
+                .clone()
+                .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+        });
 
         let payment_attempt_fut = tokio::spawn(
             async move {
