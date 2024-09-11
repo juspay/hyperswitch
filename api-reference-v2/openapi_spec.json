@@ -11942,6 +11942,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -12307,6 +12312,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -13366,6 +13376,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14374,6 +14389,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
