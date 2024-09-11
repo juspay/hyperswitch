@@ -213,7 +213,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let signed_on = match item.response.approval_date {
             Some(date) => date.chars().take(10).collect(),
-            None => "".to_string(),
+            None => time::OffsetDateTime::now_utc().date().to_string(),
         };
         Ok(Self {
             status: if item.response.rc == "0" {
@@ -381,7 +381,7 @@ pub struct BankAccount {
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct TransactionBankAccountInfo {
-    bank_account: BankAccount,
+    bank_account: Option<BankAccount>,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -390,7 +390,7 @@ pub struct DeutschebankTransactionInfo {
     ip_address: Option<Secret<String>>,
     #[serde(rename = "type")]
     pm_type: Option<String>,
-    transaction_bankaccount_info: TransactionBankAccountInfo,
+    transaction_bankaccount_info: Option<TransactionBankAccountInfo>,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -427,13 +427,11 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let resource_id = ResponseId::ConnectorTransactionId(match item.response.tx_id {
-            Some(tx_id) => tx_id,
-            None => item
-                .response
-                .event_id
-                .unwrap_or(item.data.connector_request_reference_id.clone()),
-        });
+        let resource_id = ResponseId::ConnectorTransactionId(
+            item.response
+                .tx_id
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+        );
         Ok(Self {
             status: if item.response.rc == "0" {
                 match item.data.request.is_auto_capture()? {
@@ -495,13 +493,11 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let resource_id = ResponseId::ConnectorTransactionId(match item.response.tx_id {
-            Some(tx_id) => tx_id,
-            None => item
-                .response
-                .event_id
-                .unwrap_or(item.data.connector_request_reference_id.clone()),
-        });
+        let resource_id = ResponseId::ConnectorTransactionId(
+            item.response
+                .tx_id
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+        );
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
@@ -628,13 +624,10 @@ impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = match item.response.tx_id {
-            Some(tx_id) => tx_id,
-            None => item
-                .response
-                .event_id
-                .unwrap_or(item.data.request.refund_id.clone()),
-        };
+        let connector_refund_id = item
+            .response
+            .tx_id
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id,
