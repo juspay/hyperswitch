@@ -516,7 +516,7 @@ pub enum FieldType {
     UserCnpj,
     UserIban,
     BrowserLanguage,
-    BrowserIp
+    BrowserIp,
 }
 
 impl FieldType {

@@ -2234,7 +2234,6 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
-                
                                             (
                                                 "billing.email".to_string(),
                                                 RequiredFieldInfo {
@@ -5208,7 +5207,6 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
-                
                                             (
                                                 "billing.email".to_string(),
                                                 RequiredFieldInfo {

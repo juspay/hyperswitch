@@ -62,7 +62,7 @@ pub struct NovalnetPaymentsRequestMerchant {
 #[derive(Default, Debug, Serialize, PartialEq, Clone)]
 pub struct NovalnetPaymentsRequestBilling {
     house_no: Secret<String>,
-    street:Secret<String>,
+    street: Secret<String>,
     city: String,
     zip: Secret<String>,
     country_code: api_enums::CountryAlpha2,
