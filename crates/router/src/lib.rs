@@ -83,6 +83,7 @@ pub mod headers {
     pub const BROWSER_NAME: &str = "x-browser-name";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
     pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
+    pub const X_TENANT_ID: &str = "x-tenant-id";
 }
 
 pub mod pii {
