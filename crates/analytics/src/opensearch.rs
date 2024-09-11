@@ -520,17 +520,10 @@ impl OpenSearchQueryBuilder {
                     })
                 }
                 AuthInfo::MerchantLevel {
-                    org_id,
+                    org_id: _,
                     merchant_ids,
                 } => {
                     let must_clauses = vec![
-                        json!({
-                            "term": {
-                                "organization_id.keyword": {
-                                    "value": org_id
-                                }
-                            }
-                        }),
                         json!({
                             "terms": {
                                 "merchant_id.keyword": merchant_ids
@@ -545,18 +538,11 @@ impl OpenSearchQueryBuilder {
                     })
                 }
                 AuthInfo::ProfileLevel {
-                    org_id,
+                    org_id: _,
                     merchant_id,
                     profile_ids,
                 } => {
                     let must_clauses = vec![
-                        json!({
-                            "term": {
-                                "organization_id.keyword": {
-                                    "value": org_id
-                                }
-                            }
-                        }),
                         json!({
                             "term": {
                                 "merchant_id.keyword": {
