@@ -636,7 +636,10 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
       if (b.ui_configuration === null || b.ui_configuration.position === null)
         return -1;
 
-      return a.ui_configuration.position - b.ui_configuration.position;
+      if (typeof a.ui_configuration.position === "number" && typeof b.ui_configuration.position === "number") {
+        return a.ui_configuration.position - b.ui_configuration.position;
+      }
+      else return 0;
     });
 
     if (merchantDetailsObject.length > 0) {
