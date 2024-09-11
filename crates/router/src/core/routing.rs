@@ -2,14 +2,14 @@ pub mod helpers;
 pub mod transformers;
 
 use api_models::{
-    enums,
+    enums, mandates as mandates_api,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{mandates, payment_address};
 use rustc_hash::FxHashSet;
 
-use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
 #[cfg(feature = "v1")]
@@ -28,17 +28,48 @@ use crate::{
     services::api as service_api,
     types::{
         domain,
+        storage::{self, enums as storage_enums},
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
-pub enum TransactionData<'a, F>
-where
-    F: Clone,
-{
-    Payment(&'a mut payments::PaymentData<F>),
+pub enum TransactionData<'a> {
+    Payment(PaymentsDslInput<'a>),
     #[cfg(feature = "payouts")]
     Payout(&'a payouts::PayoutData),
+}
+
+#[derive(Clone)]
+pub struct PaymentsDslInput<'a> {
+    pub setup_mandate: Option<&'a mandates::MandateData>,
+    pub payment_attempt: &'a storage::PaymentAttempt,
+    pub payment_intent: &'a storage::PaymentIntent,
+    pub payment_method_data: Option<&'a domain::PaymentMethodData>,
+    pub address: &'a payment_address::PaymentAddress,
+    pub recurring_details: Option<&'a mandates_api::RecurringDetails>,
+    pub currency: storage_enums::Currency,
+}
+
+impl<'a> PaymentsDslInput<'a> {
+    pub fn new(
+        setup_mandate: Option<&'a mandates::MandateData>,
+        payment_attempt: &'a storage::PaymentAttempt,
+        payment_intent: &'a storage::PaymentIntent,
+        payment_method_data: Option<&'a domain::PaymentMethodData>,
+        address: &'a payment_address::PaymentAddress,
+        recurring_details: Option<&'a mandates_api::RecurringDetails>,
+        currency: storage_enums::Currency,
+    ) -> Self {
+        Self {
+            setup_mandate,
+            payment_attempt,
+            payment_intent,
+            payment_method_data,
+            address,
+            recurring_details,
+            currency,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
