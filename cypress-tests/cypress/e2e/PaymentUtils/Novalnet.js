@@ -46,7 +46,7 @@ export const connectorDetails = {
           },
           email: "test@novalnet.de",
           phone: {
-              number: "8056594427",
+              number: "9123456789",
               country_code: "+91"
           }
         },
@@ -80,7 +80,7 @@ export const connectorDetails = {
           },
           email: "test@novalnet.de",
           phone: {
-              number: "8056594427",
+              number: "9123456789",
               country_code: "+91"
           }
         },
