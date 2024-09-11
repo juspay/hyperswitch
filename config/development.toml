@@ -155,6 +155,7 @@ cards = [
     "stripe",
     "taxjar",
     "threedsecureio",
+    "thunes",
     "trustpay",
     "tsys",
     "volt",
@@ -261,6 +262,7 @@ stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+thunes.base_url = "https://api.limonetikqualif.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"

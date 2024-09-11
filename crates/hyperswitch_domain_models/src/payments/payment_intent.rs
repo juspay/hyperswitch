@@ -152,6 +152,7 @@ pub struct PaymentIntentNew {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub organization_id: id_type::OrganizationId,
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
