@@ -35,6 +35,7 @@ pub use self::bytes::SecretBytesMut;
 
 #[cfg(feature = "alloc")]
 mod string;
+
 #[cfg(feature = "alloc")]
 mod vec;
 

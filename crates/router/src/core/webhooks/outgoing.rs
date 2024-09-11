@@ -889,7 +889,7 @@ async fn error_response_handler(
     );
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
-    logger::warn!(?error, ?delivery_attempt, ?status_code, %log_message);
+    logger::warn!(?error, ?delivery_attempt, status_code, %log_message);
 
     if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {
         // Schedule a retry attempt for webhook delivery
