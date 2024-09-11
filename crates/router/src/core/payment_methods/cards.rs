@@ -224,7 +224,7 @@ pub async fn create_payment_method(
     state: &routes::SessionState,
     req: &api::PaymentMethodCreate,
     customer_id: &id_type::CustomerId,
-    payment_method_id: &str,
+    payment_method_id: id_type::GlobalPaymentMethodId,
     locker_id: Option<String>,
     merchant_id: &id_type::MerchantId,
     pm_metadata: Option<common_utils::pii::SecretSerdeValue>,
@@ -239,7 +239,7 @@ pub async fn create_payment_method(
     card_scheme: Option<String>,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let client_secret = pm_types::PaymentMethodClientSecret::generate(payment_method_id);
+    let client_secret = pm_types::PaymentMethodClientSecret::generate(&payment_method_id);
     let current_time = common_utils::date_time::now();
 
     let response = db
@@ -249,7 +249,7 @@ pub async fn create_payment_method(
             domain::PaymentMethod {
                 customer_id: customer_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
-                id: payment_method_id.to_string(),
+                id: payment_method_id,
                 locker_id,
                 payment_method: Some(req.payment_method),
                 payment_method_type: Some(req.payment_method_type),
@@ -277,21 +277,21 @@ pub async fn create_payment_method(
     Ok(response)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2",))]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method_for_intent(
     state: &routes::SessionState,
     metadata: Option<common_utils::pii::SecretSerdeValue>,
     customer_id: &id_type::CustomerId,
-    payment_method_id: &str,
+    payment_method_id: id_type::GlobalPaymentMethodId,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: MerchantStorageScheme,
     payment_method_billing_address: crypto::OptionalEncryptableValue,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let client_secret = pm_types::PaymentMethodClientSecret::generate(payment_method_id);
+    let client_secret = pm_types::PaymentMethodClientSecret::generate(&payment_method_id);
     let current_time = common_utils::date_time::now();
 
     let response = db
@@ -301,7 +301,7 @@ pub async fn create_payment_method_for_intent(
             domain::PaymentMethod {
                 customer_id: customer_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
-                id: payment_method_id.to_string(),
+                id: payment_method_id,
                 locker_id: None,
                 payment_method: None,
                 payment_method_type: None,
@@ -3968,6 +3968,10 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2"),
+))]
 async fn validate_payment_method_and_client_secret(
     state: &routes::SessionState,
     cs: &String,
@@ -4764,6 +4768,11 @@ pub async fn list_customer_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
+))]
 async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
@@ -4838,6 +4847,73 @@ async fn get_pm_list_context(
             hyperswitch_token_data: parent_payment_method_token
                 .map(|token| PaymentTokenData::temporary_generic(token.clone())),
         }),
+
+        _ => Some(PaymentMethodListContext {
+            card_details: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_details: None,
+            hyperswitch_token_data: is_payment_associated.then_some(
+                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
+            ),
+        }),
+    };
+
+    Ok(payment_method_retrieval_context)
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
+async fn get_pm_list_context(
+    state: &routes::SessionState,
+    payment_method: &enums::PaymentMethod,
+    _key_store: &domain::MerchantKeyStore,
+    pm: &domain::PaymentMethod,
+    _parent_payment_method_token: Option<String>,
+    is_payment_associated: bool,
+) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
+    let payment_method_retrieval_context = match payment_method {
+        enums::PaymentMethod::Card => {
+            let card_details = get_card_details_with_locker_fallback(pm, state).await?;
+
+            card_details.as_ref().map(|card| PaymentMethodListContext {
+                card_details: Some(card.clone()),
+                #[cfg(feature = "payouts")]
+                bank_transfer_details: None,
+                hyperswitch_token_data: is_payment_associated.then_some(
+                    PaymentTokenData::permanent_card(
+                        Some(pm.get_id().get_string_repr()),
+                        pm.locker_id.clone().or(Some(pm.get_id().get_string_repr())),
+                        pm.locker_id
+                            .clone()
+                            .unwrap_or(pm.get_id().get_string_repr()),
+                    ),
+                ),
+            })
+        }
+
+        enums::PaymentMethod::BankDebit => {
+            // Retrieve the pm_auth connector details so that it can be tokenized
+            let bank_account_token_data = get_bank_account_connector_details(pm)
+                .await
+                .unwrap_or_else(|err| {
+                    logger::error!(error=?err);
+                    None
+                });
+
+            bank_account_token_data.map(|data| {
+                let token_data = PaymentTokenData::AuthBankDebit(data);
+
+                PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                }
+            })
+        }
 
         _ => Some(PaymentMethodListContext {
             card_details: None,
@@ -5228,7 +5304,7 @@ async fn generate_saved_pm_response(
 
     let pma = api::CustomerPaymentMethod {
         payment_token: parent_payment_method_token.clone(),
-        payment_method_id: pm.get_id().clone(),
+        payment_method_id: pm.get_id().get_string_repr(),
         customer_id: pm.customer_id.to_owned(),
         payment_method,
         payment_method_type: pm.payment_method_type,
@@ -5242,7 +5318,7 @@ async fn generate_saved_pm_response(
             && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
         last_used_at: Some(pm.last_used_at),
         is_default: customer.default_payment_method_id.is_some()
-            && customer.default_payment_method_id.as_ref() == Some(pm.get_id()),
+            && customer.default_payment_method_id.as_ref() == Some(&pm.get_id().get_string_repr()),
         billing: payment_method_billing,
     };
 
@@ -5365,24 +5441,7 @@ pub async fn get_card_details_with_locker_fallback(
     pm: &domain::PaymentMethod,
     state: &routes::SessionState,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    let card_decrypted = pm
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose())
-        .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-        .and_then(|pmd| match pmd {
-            PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-            _ => None,
-        });
-
-    Ok(if let Some(crd) = card_decrypted {
-        Some(crd)
-    } else {
-        logger::debug!(
-            "Getting card details from locker as it is not found in payment methods table"
-        );
-        Some(get_card_details_from_locker(state, pm).await?)
-    })
+    todo!()
 }
 
 #[cfg(all(
@@ -5419,25 +5478,13 @@ pub async fn get_card_details_without_locker_fallback(
     pm: &domain::PaymentMethod,
     state: &routes::SessionState,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card_decrypted = pm
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose())
-        .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-        .and_then(|pmd| match pmd {
-            PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-            _ => None,
-        });
-    Ok(if let Some(crd) = card_decrypted {
-        crd
-    } else {
-        logger::debug!(
-            "Getting card details from locker as it is not found in payment methods table"
-        );
-        get_card_details_from_locker(state, pm).await?
-    })
+    todo!()
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_card_details_from_locker(
     state: &routes::SessionState,
     pm: &domain::PaymentMethod,
@@ -5446,7 +5493,7 @@ pub async fn get_card_details_from_locker(
         state,
         &pm.customer_id,
         &pm.merchant_id,
-        pm.locker_id.as_ref().unwrap_or(pm.get_id()),
+        pm.locker_id.as_ref().unwrap_or(&pm.get_id()),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5457,6 +5504,10 @@ pub async fn get_card_details_from_locker(
         .attach_printable("Get Card Details Failed")
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_lookup_key_from_locker(
     state: &routes::SessionState,
     payment_token: &str,
@@ -5733,8 +5784,16 @@ pub async fn get_bank_from_hs_locker(
     }
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub struct TempLockerCardSupport;
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 impl TempLockerCardSupport {
     #[instrument(skip_all)]
     async fn create_payment_method_data_in_temp_locker(

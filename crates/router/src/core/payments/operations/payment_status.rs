@@ -205,6 +205,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn get_tracker_for_sync<
+    'a,
+    F: Send + Clone,
+    Op: Operation<F, api::PaymentsRetrieveRequest> + 'a + Send + Sync,
+>(
+    payment_id: &api::PaymentIdType,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    state: &SessionState,
+    request: &api::PaymentsRetrieveRequest,
+    operation: Op,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest>> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,

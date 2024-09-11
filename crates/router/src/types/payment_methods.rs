@@ -85,10 +85,7 @@ pub struct PaymentMethodClientSecret;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodClientSecret {
-    pub fn generate(payment_method_id: &str) -> String {
-        generate_id(
-            consts::ID_LENGTH,
-            format!("{payment_method_id}_secret").as_str(),
-        )
+    pub fn generate(payment_method_id: &common_utils::id_type::GlobalPaymentMethodId) -> String {
+        todo!()
     }
 }

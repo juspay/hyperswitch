@@ -3672,6 +3672,22 @@ where
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
+    state: &SessionState,
+    payment_data: &mut PaymentData<F>,
+    routing_data: &mut storage::RoutingData,
+    connectors: Vec<api::ConnectorData>,
+    mandate_type: Option<api::MandateTransactionType>,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+) -> RouterResult<ConnectorCallType> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
     state: &SessionState,
     payment_data: &mut PaymentData<F>,
@@ -3783,7 +3799,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                             mandate_reference_record.connector_mandate_id.clone(),
                                         ),
                                         payment_method_id: Some(
-                                            payment_method_info.get_id().clone(),
+                                            payment_method_info.get_id(),
                                         ),
                                         update_history: None,
                                     },

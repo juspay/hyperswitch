@@ -415,6 +415,10 @@ fn generate_task_id_for_payment_method_status_update_workflow(
     format!("{runner}_{task}_{key_id}")
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
@@ -801,12 +805,16 @@ pub async fn create_payment_method(
         .attach_printable("Unable to encrypt Payment method billing address")?;
 
     // create pm
-    let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_id =
+        common_utils::id_type::GlobalPaymentMethodId::generate("random_cell_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
     let payment_method = cards::create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
-        payment_method_id.as_str(),
+        payment_method_id,
         merchant_id,
         key_store,
         merchant_account.storage_scheme,
@@ -904,13 +912,16 @@ pub async fn payment_method_intent_create(
 
     // create pm entry
 
-    // Need a global_id type for this
-    let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_id =
+        common_utils::id_type::GlobalPaymentMethodId::generate("random_cell_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
     let payment_method = cards::create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
-        payment_method_id.as_str(),
+        payment_method_id,
         merchant_id,
         key_store,
         merchant_account.storage_scheme,
@@ -937,6 +948,9 @@ pub async fn payment_method_intent_confirm(
 
     let db = &*state.store;
     let client_secret = req.client_secret.clone();
+    let pm_id = common_utils::id_type::GlobalPaymentMethodId::generate_from_string(pm_id)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = db
         .find_payment_method(
