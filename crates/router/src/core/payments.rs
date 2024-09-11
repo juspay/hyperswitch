@@ -3996,7 +3996,7 @@ where
                 .network_transaction_id
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to featch the network transaction id")?;
+                .attach_printable("Failed to fetch the network transaction id")?;
 
             let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
                 network_transaction_id.to_string(),
