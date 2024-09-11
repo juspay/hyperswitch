@@ -3187,7 +3187,7 @@ pub async fn get_aggregates_for_payments(
 ) -> RouterResponse<api::PaymentsAggregateResponse> {
     let db = state.store.as_ref();
     let intent_status_with_count = db
-        .get_intent_status_with_count(merchant.get_id(), profile_id_list.as_ref(), &time_range)
+        .get_intent_status_with_count(merchant.get_id(), profile_id_list, &time_range)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 

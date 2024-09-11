@@ -71,7 +71,7 @@ pub trait PaymentIntentInterface {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
-        profile_id_list: Option<&Vec<id_type::ProfileId>>,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
