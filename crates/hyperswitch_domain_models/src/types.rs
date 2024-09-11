@@ -8,10 +8,10 @@ use crate::{
         AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        SetupMandateRequestData,
+        SetupMandateRequestData, PayoutsData, 
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
+        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData, PayoutsResponseData,
     },
 };
 
@@ -33,3 +33,7 @@ pub type PaymentsCompleteAuthorizeRouterData =
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
+
+
+#[cfg(feature = "payouts")]
+pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;

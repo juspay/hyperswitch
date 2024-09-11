@@ -1,20 +1,26 @@
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutMethodData;
+
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    payment_address::PaymentAddress,
+    payment_method_data::PaymentMethodData, 
+    router_data::{ConnectorAuthType, RouterData, }, 
+    router_flow_types::refunds::{Execute, RSync}, 
+    router_request_types::ResponseId, 
+    router_response_types::{PaymentsResponseData, RefundsResponseData}, 
+    types::{PaymentsAuthorizeRouterData, PayoutsRouterData, RefundsRouterData}
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    types::{RefundsResponseRouterData, ResponseRouterData, },
+    utils::{PaymentsAuthorizeRequestData, RouterData as UtilsRouterData},
 };
+
+
 
 //TODO: Fill the struct with respective fields
 
@@ -35,14 +41,14 @@ pub enum TransactionType{
 }
 
 pub struct SourceInfo{
-    pub country_iso_code: enums::CountryAlpha3,
+    pub country_iso_code: enums::CountryAlpha3, // CountryAlpha3
     pub currency: enums::Currency,
-    pub amount: Option<f64>,
+    pub amount: Option<i64>,
 }
 
 pub struct DestinationInfo{
     pub currency: enums::Currency,
-    pub amount: Option<f64>,
+    pub amount: Option<i64>,
 }
 
 pub struct QuotationRequest{
@@ -104,10 +110,6 @@ pub struct QuotationResponse{
 }
 
 //----Transaction----------
-
-pub struct TransactionRequest{
-
-}
 
 pub struct CreditPartyIdentifier{
     pub msisdn : Option<String>,
@@ -188,6 +190,22 @@ pub struct Beneficiary{
     pub province_state: Option<String>,
 }
 
+pub struct TransactionRequest{
+    pub credit_party_identifier: CreditPartyIdentifier,
+    pub retail_rate: f64,
+    pub etail_fee: f64,
+    pub retail_fee_currency: enums::Currency,
+    pub sender: Sender,
+    pub beneficiary: Beneficiary,
+    pub external_id: String,
+    pub external_code: String,
+    pub callback_url: String,
+    pub purpose_of_remittance: String, 
+    pub additional_information_1: String, 
+    pub additional_information_2: String, 
+    pub additional_information_3: String, 
+}
+
 pub struct TransactionResponse{
     pub id: i64,
     pub status: String,
@@ -219,6 +237,48 @@ pub struct TransactionResponse{
     pub additional_information_3: Option<String>,
 
 }
+//--------------------------
+
+
+// fn get_country_code(address: Option<&payments::Address>) -> Option<api_enums::CountryAlpha2> {
+//     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
+// }
+
+
+// Payouts quote request transform
+impl<F> TryFrom<&PayoutsRouterData<F>> for QuotationRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item : &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+
+        let request=item.request.to_owned();
+        let payout_type = request.payout_type;
+
+        let country_iso2_code  = item.get_billing_country().unwrap_or(enums::CountryAlpha2::CA);
+        match payout_type {
+            Some(common_enums::PayoutType::Bank) => Ok(Self { 
+                external_id: request.payout_id, 
+                payer_id: 7899, // needs to change later
+                mode: QuotationMode::DestinationAmount, // may need changes
+                transaction_type: TransactionType::B2C, // may need changes
+                source: SourceInfo{
+                    
+                    //country_iso_code: common_enums::CountryAlpha2::from_alpha2_to_alpha3(item.address.shipping.clone().and_then(|shipping| shipping.address).and_then(|address|address.country).unwrap_or(enums::CountryAlpha2::CA)),
+                    //country_iso_code: // must chacnge
+                    country_iso_code: common_enums::CountryAlpha2::from_alpha2_to_alpha3(country_iso2_code),
+                    currency: request.source_currency,
+                    amount: None,
+                }, 
+                destination: DestinationInfo{
+                    currency: request.destination_currency,
+                    amount: Some(request.amount),
+                }
+            }),
+            _=>Err(errors::ConnectorError::NotImplemented("This payment method is not implemented for Thunes".to_string()).into()),
+        }
+
+    }
+}
+
 
 //--------------------------
 

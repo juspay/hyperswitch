@@ -38,6 +38,20 @@ use transformers as thunes;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
+
+
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
+    },
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
+};
+
+
+
 #[derive(Clone)]
 pub struct Thunes {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
@@ -561,3 +575,72 @@ impl webhooks::IncomingWebhook for Thunes {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+
+// impl api::payouts::PayoutQuote for Thunes {}
+// impl api::payouts::PayoutCreate for Thunes {}
+// impl api::payouts::PayoutFulfill for Thunes {}
+// impl api::payouts::PayoutEligibility for Thunes {}
+
+
+
+// impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Thunes{
+//     fn get_url(
+//             &self,
+//             _req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+//             _connectors: &Connectors,
+//         ) -> CustomResult<String, errors::ConnectorError> {
+        
+//     }
+
+//     fn get_headers(
+//             &self,
+//             _req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+//             _connectors: &Connectors,
+//         ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+//         // todo
+//     }
+
+//     fn build_request(co
+//             &self,
+//             req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+//             _connectors: &Connectors,
+//         ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+//         // todo
+//     }
+
+//     fn handle_response(
+//             &self,
+//             data: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+//             event_builder: Option<&mut ConnectorEvent>,
+//             _res: Response,
+//         ) -> CustomResult<RouterData<PoQuote, PayoutsData, PayoutsResponseData>, errors::ConnectorError>
+//         where
+//             PoQuote: Clone,
+//             PayoutsData: Clone,
+//             PayoutsResponseData: Clone, {
+//         // todo
+//     }
+
+//     fn get_error_response(
+//             &self,
+//             res: Response,
+//             event_builder: Option<&mut ConnectorEvent>,
+//         ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+//         // todo
+//     }
+// }
+
+
+// impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Thunes{
+
+// }
+
+// impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Thunes{
+
+// }
+
+// impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for Thunes{
+
+// }
+
