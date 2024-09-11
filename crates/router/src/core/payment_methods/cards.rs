@@ -4893,7 +4893,7 @@ async fn get_pm_list_context(
                 bank_transfer_details: None,
                 hyperswitch_token_data: is_payment_associated.then_some(
                     PaymentTokenData::permanent_card(
-                        Some(pm.get_id().get_string_repr()),
+                        Some(pm.get_id().clone()),
                         pm.locker_id.clone().or(Some(pm.get_id().get_string_repr())),
                         pm.locker_id
                             .clone()
