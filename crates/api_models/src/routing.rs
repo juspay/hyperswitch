@@ -70,23 +70,28 @@ pub struct ToggleDynamicRoutingQuery {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DynamicRoutingUpdateConfigQuery {
+    #[schema(value_type = String)]
     pub algorithm_id: common_utils::id_type::RoutingId,
+    #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ToggleDynamicRoutingWrapper {
+    #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub status: bool,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ToggleDynamicRoutingPath {
+    #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
+    #[schema(value_type = String)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
