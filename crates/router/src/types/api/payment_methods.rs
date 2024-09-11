@@ -5,11 +5,11 @@ pub use api_models::payment_methods::{
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodList,
-    PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
+    PaymentMethodIntentConfirm, PaymentMethodIntentConfirmInternal, PaymentMethodIntentCreate,
+    PaymentMethodList, PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
     PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
     PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, PaymentMethodIntentConfirmInternal
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),

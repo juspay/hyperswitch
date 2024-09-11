@@ -191,15 +191,15 @@ impl PaymentMethodIntentConfirm {
 pub struct PaymentMethodIntentConfirmInternal {
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub id: String,
-     /// The type of payment method use for the payment.
-     #[schema(value_type = PaymentMethod,example = "card")]
-     pub payment_method: api_enums::PaymentMethod,
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
 
-     /// This is a sub-category of payment method.
-     #[schema(value_type = PaymentMethodType,example = "credit")]
-     pub payment_method_type: api_enums::PaymentMethodType,
+    /// This is a sub-category of payment method.
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_type: api_enums::PaymentMethodType,
 
-       /// For SDK based calls, client_secret would be required
+    /// For SDK based calls, client_secret would be required
     pub client_secret: String,
 
     /// The unique identifier of the customer.
@@ -218,7 +218,7 @@ impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
             customer_id: item.customer_id,
-            payment_method_data: item.payment_method_data.clone()
+            payment_method_data: item.payment_method_data.clone(),
         }
     }
 }
