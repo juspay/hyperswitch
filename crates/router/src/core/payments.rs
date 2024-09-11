@@ -3873,8 +3873,8 @@ where
                         Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
                             payments_api::NetworkTokenWithNTIRef {
                                 network_transaction_id: nt_data.network_transaction_id.to_string(),
-                                token_exp_month: nt_data.network_token_exp.token_exp_month,
-                                token_exp_year: nt_data.network_token_exp.token_exp_year,
+                                token_exp_month: nt_data.token_exp_month,
+                                token_exp_year: nt_data.token_exp_year,
                             },
                         ));
                     let chosen_connector_data = filtered_nt_supported_connectors
@@ -4090,16 +4090,6 @@ pub fn filter_ntid_supported_connectors(
         .collect()
 }
 
-pub fn filter_network_tokenization_supported_connectors(
-    connectors: Vec<api::ConnectorData>,
-    network_tokenization_supported_connectors: &HashSet<enums::Connector>,
-) -> Vec<api::ConnectorData> {
-    connectors
-        .into_iter()
-        .filter(|data| network_tokenization_supported_connectors.contains(&data.connector_name))
-        .collect()
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenExpiry {
     pub token_exp_month: Option<Secret<String>>,
@@ -4108,15 +4098,24 @@ pub struct NetworkTokenExpiry {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NTWithNTIRef {
-    pub network_token_exp: NetworkTokenExpiry,
     pub network_transaction_id: String,
-    pub network_token_locker_id: String,
-    pub network_token_requestor_ref_id: String,
+    pub token_exp_month: Option<Secret<String>>,
+    pub token_exp_year: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
+}
+
+pub fn filter_network_tokenization_supported_connectors(
+    connectors: Vec<api::ConnectorData>,
+    network_tokenization_supported_connectors: &HashSet<enums::Connector>,
+) -> Vec<api::ConnectorData> {
+    connectors
+        .into_iter()
+        .filter(|data| network_tokenization_supported_connectors.contains(&data.connector_name))
+        .collect()
 }
 
 pub async fn decide_action_type(
@@ -4134,34 +4133,23 @@ pub async fn decide_action_type(
         ),
         !filtered_nt_supported_connectors.is_empty(),
     ) {
-        (
-            IsNtWithNtiFlow::NtWithNtiSupported(
-                network_transaction_id,
-                network_token_locker_id,
-                network_token_requestor_ref_id,
-            ),
-            true,
-        ) => {
+        (IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id), true) => {
             if let Ok((token_exp_month, token_exp_year)) =
                 network_tokenization::do_status_check_for_network_token(state, payment_method_info)
                     .await
             {
                 Some(ActionType::NetworkTokenWithNetworkTransactionId(
                     NTWithNTIRef {
-                        network_token_exp: NetworkTokenExpiry {
-                            token_exp_month,
-                            token_exp_year,
-                        },
+                        token_exp_month,
+                        token_exp_year,
                         network_transaction_id,
-                        network_token_locker_id,
-                        network_token_requestor_ref_id,
                     },
                 ))
             } else {
                 None
             }
         }
-        (IsNtWithNtiFlow::NtWithNtiSupported(_, _, _), false)
+        (IsNtWithNtiFlow::NtWithNtiSupported(_), false)
         | (IsNtWithNtiFlow::NTWithNTINotSupported, _) => None,
     }
 }
@@ -4185,8 +4173,8 @@ pub fn is_network_transaction_id_flow(
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub enum IsNtWithNtiFlow {
-    NtWithNtiSupported(String, String, String), //Network token with Network transaction id supported flow
-    NTWithNTINotSupported, //Network token with Network transaction id not supported
+    NtWithNtiSupported(String), //Network token with Network transaction id supported flow
+    NTWithNTINotSupported,      //Network token with Network transaction id not supported
 }
 
 pub fn is_network_token_with_network_transaction_id_flow(
@@ -4199,23 +4187,19 @@ pub fn is_network_token_with_network_transaction_id_flow(
         is_network_tokenization_enabled,
         payment_method_info.payment_method,
         payment_method_info.network_transaction_id.clone(),
-        payment_method_info.network_token_locker_id.clone(),
+        payment_method_info.network_token_locker_id.is_some(),
         payment_method_info
             .network_token_requestor_reference_id
-            .clone(),
+            .is_some(),
     ) {
         (
             Some(true),
             true,
             Some(storage_enums::PaymentMethod::Card),
             Some(network_transaction_id),
-            Some(network_token_locker_id),
-            Some(network_token_requestor_ref_id),
-        ) => IsNtWithNtiFlow::NtWithNtiSupported(
-            network_transaction_id,
-            network_token_locker_id,
-            network_token_requestor_ref_id,
-        ),
+            true,
+            true,
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
         _ => IsNtWithNtiFlow::NTWithNTINotSupported,
     }
 }
