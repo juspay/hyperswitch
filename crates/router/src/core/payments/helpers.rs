@@ -3680,7 +3680,7 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             shipping_cost: old_payment_attempt.shipping_cost,
-            order_tax_amount: old_payment_attempt.order_tax_amount,
+            order_tax_amount: None,
         }
     }
 
