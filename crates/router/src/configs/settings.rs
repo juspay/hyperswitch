@@ -848,10 +848,11 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
-        
+
         self.network_tokenization_service
-        .as_ref()
-        .map(|x| x.get_inner().validate()).transpose()?;
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
 
         Ok(())
     }

@@ -574,7 +574,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_issuer: None,
                 payment_method_type: None,
                 last_modified: common_utils::date_time::now(),
-                                network_token_locker_id: None,
+                network_token_locker_id: None,
                 network_token_payment_method_data: None,
             },
         }
