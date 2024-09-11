@@ -11596,7 +11596,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -11942,11 +11942,6 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
-          },
-          "skip_external_tax_calculation": {
-            "type": "boolean",
-            "description": "Whether to calculate tax for this payment intent",
-            "nullable": true
           }
         }
       },
@@ -11960,7 +11955,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
           },
           "currency": {
@@ -12312,11 +12307,6 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
-          },
-          "skip_external_tax_calculation": {
-            "type": "boolean",
-            "description": "Whether to calculate tax for this payment intent",
-            "nullable": true
           }
         }
       },
@@ -12938,7 +12928,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -13376,11 +13366,6 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
-          },
-          "skip_external_tax_calculation": {
-            "type": "boolean",
-            "description": "Whether to calculate tax for this payment intent",
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14048,7 +14033,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -14389,11 +14374,6 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
-          },
-          "skip_external_tax_calculation": {
-            "type": "boolean",
-            "description": "Whether to calculate tax for this payment intent",
-            "nullable": true
           }
         }
       },
