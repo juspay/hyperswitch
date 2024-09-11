@@ -523,11 +523,14 @@ impl OpenSearchQueryBuilder {
                     org_id: _,
                     merchant_ids,
                 } => {
-                    let must_clauses = vec![json!({
-                        "terms": {
-                            "merchant_id.keyword": merchant_ids
-                        }
-                    })];
+                    let must_clauses = vec![
+                        // TODO: Add org_id field to the filters
+                        json!({
+                            "terms": {
+                                "merchant_id.keyword": merchant_ids
+                            }
+                        }),
+                    ];
 
                     json!({
                         "bool": {
@@ -541,6 +544,7 @@ impl OpenSearchQueryBuilder {
                     profile_ids,
                 } => {
                     let must_clauses = vec![
+                        // TODO: Add org_id field to the filters
                         json!({
                             "term": {
                                 "merchant_id.keyword": {
