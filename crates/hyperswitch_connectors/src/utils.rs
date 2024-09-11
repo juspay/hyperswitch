@@ -176,6 +176,7 @@ pub trait RouterData {
     fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_last_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_line2(&self) -> Result<Secret<String>, Error>;
     fn get_billing_zip(&self) -> Result<Secret<String>, Error>;
     fn get_billing_state(&self) -> Result<Secret<String>, Error>;
     fn get_billing_state_code(&self) -> Result<Secret<String>, Error>;
@@ -420,6 +421,19 @@ impl<Flow, Request, Response> RouterData
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.line1",
+            ))
+    }
+    fn get_billing_line2(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line2.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line2",
             ))
     }
     fn get_billing_zip(&self) -> Result<Secret<String>, Error> {

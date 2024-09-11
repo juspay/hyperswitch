@@ -2,7 +2,7 @@ const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
   card_exp_month: "12",
   card_exp_year: "25",
-  card_holder_name: "Joseph Doe",
+  card_holder_name: "Max Mustermann",
   card_cvc: "123",
 };
 
@@ -10,7 +10,7 @@ const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
   card_exp_year: "25",
-  card_holder_name: "Joseph Doe",
+  card_holder_name: "Max Mustermann",
   card_cvc: "123",
 };
 
@@ -32,6 +32,24 @@ export const connectorDetails = {
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
+        billing: {
+          address: {
+              line1: "1467",
+              line2: "CA",
+              line3: "CA",
+              city: "Musterhausen",
+              state: "California",
+              zip: "12345",
+              country: "DE",
+              first_name: "Max",
+              last_name: "Mustermann"
+          },
+          email: "test@novalnet.de",
+          phone: {
+              number: "8056594427",
+              country_code: "+91"
+          }
+        },
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -48,6 +66,24 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
+        billing: {
+          address: {
+              line1: "1467",
+              line2: "CA",
+              line3: "CA",
+              city: "Musterhausen",
+              state: "California",
+              zip: "12345",
+              country: "DE",
+              first_name: "Max",
+              last_name: "Mustermann"
+          },
+          email: "test@novalnet.de",
+          phone: {
+              number: "8056594427",
+              country_code: "+91"
+          }
+        },
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },

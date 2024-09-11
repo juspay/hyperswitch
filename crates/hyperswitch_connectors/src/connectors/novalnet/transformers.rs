@@ -61,18 +61,18 @@ pub struct NovalnetPaymentsRequestMerchant {
 
 #[derive(Default, Debug, Serialize, PartialEq, Clone)]
 pub struct NovalnetPaymentsRequestBilling {
-    house_no: Option<Secret<String>>,
-    street: Option<Secret<String>>,
-    city: Option<String>,
-    zip: Option<Secret<String>>,
-    country_code: Option<api_enums::CountryAlpha2>,
+    house_no: Secret<String>,
+    street:Secret<String>,
+    city: String,
+    zip: Secret<String>,
+    country_code: api_enums::CountryAlpha2,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq, Clone)]
 pub struct NovalnetPaymentsRequestCustomer {
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
-    email: Option<Email>,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    email: Email,
     mobile: Option<Secret<String>>,
     billing: NovalnetPaymentsRequestBilling,
     customer_ip: Secret<String, IpAddress>,
@@ -83,8 +83,8 @@ pub struct NovalNetCard {
     card_number: CardNumber,
     card_expiry_month: Secret<String>,
     card_expiry_year: Secret<String>,
-    card_cvc: Option<Secret<String>>,
-    card_holder: Option<Secret<String>>,
+    card_cvc: Secret<String>,
+    card_holder: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -102,14 +102,14 @@ pub struct NovalnetCustom {
 pub struct NovalnetPaymentsRequestTransaction {
     test_mode: i8,
     payment_type: NovalNetPaymentTypes,
-    amount: Option<StringMinorUnit>,
-    currency: Option<String>,
-    order_no: Option<String>,
+    amount: StringMinorUnit,
+    currency: String,
+    order_no: String,
     payment_data: NovalNetPaymentData,
     hook_url: Option<String>,
     return_url: Option<String>,
     error_return_url: Option<String>,
-    enforce_3d: Option<i8>,
+    enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -138,8 +138,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     card_number: req_card.card_number,
                     card_expiry_month: req_card.card_exp_month,
                     card_expiry_year: req_card.card_exp_year,
-                    card_cvc: Some(req_card.card_cvc),
-                    card_holder: item.router_data.get_optional_billing_full_name(),
+                    card_cvc: req_card.card_cvc,
+                    card_holder: item.router_data.get_billing_full_name()?,
                 });
 
                 let enforce_3d = match item.router_data.auth_type {
@@ -156,9 +156,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
-                    amount: Some(item.amount.clone()),
-                    currency: Some(item.router_data.request.currency.to_string()),
-                    order_no: Some(item.router_data.connector_request_reference_id.clone()),
+                    amount: item.amount.clone(),
+                    currency: item.router_data.request.currency.to_string(),
+                    order_no: item.router_data.connector_request_reference_id.clone(),
                     hook_url,
                     return_url: return_url.clone(),
                     error_return_url: return_url.clone(),
@@ -167,11 +167,11 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 };
 
                 let billing = NovalnetPaymentsRequestBilling {
-                    house_no: item.router_data.get_optional_billing_line1(),
-                    street: item.router_data.get_optional_billing_line2(),
-                    city: item.router_data.get_optional_billing_city(),
-                    zip: item.router_data.get_optional_billing_zip(),
-                    country_code: item.router_data.get_optional_billing_country(),
+                    house_no: item.router_data.get_billing_line1()?,
+                    street: item.router_data.get_billing_line2()?,
+                    city: item.router_data.get_billing_city()?,
+                    zip: item.router_data.get_billing_zip()?,
+                    country_code: item.router_data.get_billing_country()?,
                 };
 
                 let customer_ip = item
@@ -181,9 +181,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     .get_ip_address()?;
 
                 let customer = NovalnetPaymentsRequestCustomer {
-                    first_name: item.router_data.get_optional_billing_first_name(),
-                    last_name: item.router_data.get_optional_billing_last_name(),
-                    email: item.router_data.get_optional_billing_email(),
+                    first_name: item.router_data.get_billing_first_name()?,
+                    last_name: item.router_data.get_billing_last_name()?,
+                    email: item.router_data.get_billing_email()?,
                     mobile: item.router_data.get_billing_phone_number().ok(),
                     billing,
                     customer_ip,
