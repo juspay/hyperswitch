@@ -4010,9 +4010,23 @@ pub async fn get_additional_payment_data(
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
+                    google_pay: None,
                 })
             }
-            _ => Some(api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None }),
+            domain::WalletData::GooglePay(google_pay_pm_data) => {
+                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: None,
+                    google_pay: Some(payment_additional_types::GooglePayWalletAdditionalData {
+                        display_name: google_pay_pm_data.description.clone(),
+                        network: google_pay_pm_data.info.card_network.clone(),
+                        pm_type: google_pay_pm_data.pm_type.clone(),
+                    }),
+                })
+            }
+            _ => Some(api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay: None,
+                google_pay: None,
+            }),
         },
         domain::PaymentMethodData::PayLater(_) => {
             Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })

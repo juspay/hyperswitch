@@ -2038,6 +2038,7 @@ pub enum AdditionalPaymentData {
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
+        google_pay: Option<additional_info::GooglePayWalletAdditionalData>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -3061,7 +3062,7 @@ where
                 | PaymentMethodDataResponse::PayLater(_)
                 | PaymentMethodDataResponse::RealTimePayment(_)
                 | PaymentMethodDataResponse::Upi(_)
-                | PaymentMethodDataResponse::Wallet {}
+                | PaymentMethodDataResponse::Wallet(_)
                 | PaymentMethodDataResponse::BankTransfer(_)
                 | PaymentMethodDataResponse::OpenBanking(_)
                 | PaymentMethodDataResponse::Voucher(_) => {
@@ -3082,7 +3083,7 @@ where
 pub enum PaymentMethodDataResponse {
     Card(Box<CardResponse>),
     BankTransfer(Box<BankTransferResponse>),
-    Wallet {},
+    Wallet(Box<WalletResponse>),
     PayLater(Box<PaylaterResponse>),
     BankRedirect(Box<BankRedirectResponse>),
     Crypto(Box<CryptoResponse>),
@@ -3177,6 +3178,19 @@ pub struct VoucherResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaylaterResponse {
     klarna_sdk: Option<KlarnaSdkPaymentMethodResponse>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct WalletResponse {
+    #[serde(flatten)]
+    details: Option<WalletResponseData>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletResponseData {
+    ApplePay(Box<ApplepayPaymentMethod>),
+    GooglePay(Box<additional_info::GooglePayWalletAdditionalData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4412,7 +4426,18 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
                 None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
-            AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
+            AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+            } => match (apple_pay, google_pay) {
+                (Some(apple_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::ApplePay(Box::new(apple_pay_pm))),
+                })),
+                (_, Some(google_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                })),
+                _ => Self::Wallet(Box::new(WalletResponse { details: None })),
+            },
             AdditionalPaymentData::BankRedirect { bank_name, details } => {
                 Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
             }
