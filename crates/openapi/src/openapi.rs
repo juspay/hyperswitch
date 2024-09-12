@@ -551,7 +551,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::DynamicRoutingConfigBody,
         api_models::routing::CurrentBlockThreshold,
         api_models::routing::DynamicRoutingUpdateConfigQuery,
-        api_models::routing::DynamicRoutingConfigId,
         api_models::routing::ToggleDynamicRoutingWrapper,
         api_models::routing::DynamicRoutingConfigParams,
         api_models::routing::DynamicRoutingConfigBody,

@@ -105,7 +105,6 @@ pub struct SessionState {
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
-    // #[cfg(feature = "dynamic_routing")]
     pub grpc_client: GrpcClients,
 }
 impl scheduler::SchedulerSessionState for SessionState {

@@ -224,7 +224,7 @@ impl std::fmt::Display for RoutableConnectorChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let base = self.connector.to_string();
         if let Some(mca_id) = &self.merchant_connector_id {
-            return write!(f, "{}:{:?}", base, mca_id);
+            return write!(f, "{}:{}", base, mca_id.get_string_repr());
         }
         write!(f, "{}", base)
     }
@@ -536,7 +536,7 @@ pub struct DynamicRoutingConfig {
     pub config: Option<DynamicRoutingConfigBody>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,

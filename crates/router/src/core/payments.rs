@@ -4171,6 +4171,7 @@ where
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -4182,6 +4183,7 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+
     let connector_data = connectors
         .into_iter()
         .map(|conn| {
@@ -4266,13 +4268,6 @@ pub async fn route_connector_v1_for_payouts(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
-    // Testing purpose
-    // let _dr = state
-    //     .grpc_client
-    //     .dynamic_routing
-    //     .calculate_success_rate(connectors.clone())
-    //     .await
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let first_connector_choice = connectors
         .first()
