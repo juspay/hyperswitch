@@ -735,7 +735,7 @@ connector_list = ""
 [grpc_client.dynamic_routing_client]
 host = "localhost"
 port = 7000
-enabled = true
+enabled = false
 
 [recipient_emails]
 recon = "recon@example.com"
