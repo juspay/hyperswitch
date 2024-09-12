@@ -326,7 +326,7 @@ pub async fn mk_add_locker_request_hs(
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
-            req_id.as_hyphenated().to_string().as_str().into(),
+            req_id.as_hyphenated().to_string().into(),
         );
     }
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
@@ -475,7 +475,7 @@ pub async fn mk_get_card_request_hs(
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
-            req_id.as_hyphenated().to_string().as_str().into(),
+            req_id.as_hyphenated().to_string().into(),
         );
     }
 
@@ -554,7 +554,7 @@ pub async fn mk_delete_card_request_hs(
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
-            req_id.as_hyphenated().to_string().as_str().into(),
+            req_id.as_hyphenated().to_string().into(),
         );
     }
 
@@ -600,7 +600,7 @@ pub async fn mk_delete_card_request_hs_by_id(
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
-            req_id.as_hyphenated().to_string().as_str().into(),
+            req_id.as_hyphenated().to_string().into(),
         );
     }
 
@@ -694,7 +694,7 @@ pub fn mk_crud_locker_request(
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
-            req_id.as_hyphenated().to_string().as_str().into(),
+            req_id.as_hyphenated().to_string().into(),
         );
     }
 
