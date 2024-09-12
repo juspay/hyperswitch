@@ -1,3 +1,4 @@
+use crate::errors::CustomResult;
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
 
@@ -19,6 +20,12 @@ use crate::{
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct GlobalPaymentMethodId(GlobalId);
 
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum GlobalPaymentMethodIdError {
+    #[error("Failed to construct GlobalPaymentMethodId")]
+    ConstructionError,
+}
+
 impl GlobalPaymentMethodId {
     fn get_global_id(&self) -> &GlobalId {
         &self.0
@@ -34,8 +41,9 @@ impl GlobalPaymentMethodId {
         todo!()
     }
 
-    pub fn generate_from_string(value: String) -> Result<Self, GlobalIdError> {
-        let id = GlobalId::from_string(value)?;
+    pub fn generate_from_string(value: String) -> CustomResult<Self, GlobalPaymentMethodIdError> {
+        let id = GlobalId::from_string(value)
+            .change_context(GlobalPaymentMethodIdError::ConstructionError)?;
         Ok(Self(id))
     }
 }
