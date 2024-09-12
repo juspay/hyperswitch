@@ -20,11 +20,13 @@ mod payment_intent_count;
 mod smart_retried_amount;
 mod successful_smart_retries;
 mod total_smart_retries;
+mod authorization_success_rate;
 
 use payment_intent_count::PaymentIntentCount;
 use smart_retried_amount::SmartRetriedAmount;
 use successful_smart_retries::SuccessfulSmartRetries;
 use total_smart_retries::TotalSmartRetries;
+use authorization_success_rate::AuthorizationSuccessRate;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct PaymentIntentMetricRow {
@@ -95,6 +97,11 @@ where
             }
             Self::PaymentIntentCount => {
                 PaymentIntentCount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::AuthorizationSuccessRate => {
+                AuthorizationSuccessRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

@@ -1,6 +1,6 @@
 use api_models::analytics::payment_intents::PaymentIntentMetricsBucketValue;
 use bigdecimal::ToPrimitive;
-
+use diesel_models::enums as storage_enums;
 use super::metrics::PaymentIntentMetricRow;
 
 #[derive(Debug, Default)]
@@ -9,6 +9,7 @@ pub struct PaymentIntentMetricsAccumulator {
     pub total_smart_retries: CountAccumulator,
     pub smart_retried_amount: SumAccumulator,
     pub payment_intent_count: CountAccumulator,
+    pub authorization_success_rate: AuthorizationRateAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -41,6 +42,12 @@ pub trait PaymentIntentMetricAccumulator {
 #[repr(transparent)]
 pub struct SumAccumulator {
     pub total: Option<i64>,
+}
+
+#[derive(Debug, Default)]
+pub struct AuthorizationRateAccumulator {
+    pub success: i64,
+    pub total: i64,
 }
 
 impl PaymentIntentMetricAccumulator for CountAccumulator {
@@ -78,6 +85,30 @@ impl PaymentIntentMetricAccumulator for SumAccumulator {
     }
 }
 
+impl PaymentIntentMetricAccumulator for AuthorizationRateAccumulator {
+    type MetricOutput = Option<f64>;
+
+    fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
+        if let Some(ref status) = metrics.status {
+            if status.as_ref() == &storage_enums::IntentStatus::Succeeded {
+                self.success += metrics.count.unwrap_or_default();
+            }
+        };
+        self.total += metrics.count.unwrap_or_default();
+    }
+
+    fn collect(self) -> Self::MetricOutput {
+        if self.total <= 0 {
+            None
+        } else {
+            Some(
+                f64::from(u32::try_from(self.success).ok()?) * 100.0
+                    / f64::from(u32::try_from(self.total).ok()?),
+            )
+        }
+    }
+}
+
 impl PaymentIntentMetricsAccumulator {
     pub fn collect(self) -> PaymentIntentMetricsBucketValue {
         PaymentIntentMetricsBucketValue {
@@ -85,6 +116,7 @@ impl PaymentIntentMetricsAccumulator {
             total_smart_retries: self.total_smart_retries.collect(),
             smart_retried_amount: self.smart_retried_amount.collect(),
             payment_intent_count: self.payment_intent_count.collect(),
+            authorization_success_rate: self.authorization_success_rate.collect(),
         }
     }
 }
