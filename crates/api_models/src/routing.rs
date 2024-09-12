@@ -539,7 +539,9 @@ pub struct DynamicRoutingConfig {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub enum DynamicRoutingConfigId {
+    #[schema(value_type = String)]
     MerchantId(common_utils::id_type::MerchantId),
+    #[schema(value_type = String)]
     ProfileId(common_utils::id_type::ProfileId),
 }
 

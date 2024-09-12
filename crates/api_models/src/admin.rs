@@ -1920,7 +1920,7 @@ pub struct BusinessProfileCreate {
     pub is_tax_connector_enabled: bool,
 
     /// Indicates if dynamic routing is enabled or not with the specific algorithmId.
-    #[serde(default)]
+    #[schema(value_type = String)]
     pub dynamic_routing_algorithm: Option<id_type::RoutingId>,
 }
 
@@ -2361,8 +2361,8 @@ pub struct BusinessProfileUpdate {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
 
-    /// Indicates if dynamic routing is enabled or not.
-    #[serde(default)]
+    /// Indicates if dynamic routing is enabled or not with the specific algorithmId.
+    #[schema(value_type = String)]
     pub dynamic_routing_algorithm: Option<id_type::RoutingId>,
 }
 
