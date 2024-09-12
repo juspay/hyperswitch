@@ -255,3 +255,56 @@ pub async fn routing_retrieve_default_config_for_profiles() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_update_default_config_for_profile() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Toggle Dynamic Routing for Profile
+///
+/// Create a Dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/toggle",
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
+        ("status" = bool, Query, description = "Boolean value for mentioning the expected state of dynamic routing"),
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Toggle dynamic routing algprithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn toggle_dynamic_routing() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Update Configs For Dynamic Routing
+///
+/// Update config for Dynamic Routing
+#[utoipa::path(
+    patch,
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/config",
+    request_body = Vec<RoutableConnectorChoice>,
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "The unique identifier for a profile"),
+        ("algorithm_id" = String, Path, description = "The unique identifier for a profile"),
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm updated", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Update default configs for all profiles",
+   security(("admin_api_key" = []), ("jwt_key" = []))
+)]
+pub async fn dynamic_routing_update_configs() {}

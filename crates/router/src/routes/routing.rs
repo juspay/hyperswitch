@@ -984,35 +984,46 @@ pub async fn toggle_dynamic_routing(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
     let flow = Flow::RoutingRetrieveActiveConfig;
+    let wrapper = routing_types::ToggleDynamicRoutingWrapper {
+        status: query.into_inner().status,
+        profile_id: path.into_inner().profile_id,
+    };
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        query.into_inner(),
-        |state, auth: AuthenticationData, query_params, _| {
+        wrapper.clone(),
+        |state,
+         auth: AuthenticationData,
+         wrapper: routing_types::ToggleDynamicRoutingWrapper,
+         _| {
             routing::toggle_dynamic_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,
                 // auth.profile_id,
-                query_params,
+                wrapper.status,
+                wrapper.profile_id,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::RoutingWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: wrapper.profile_id,
+                required_permission: Permission::RoutingWrite,
                 minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::RoutingWrite,
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: wrapper.profile_id,
+            required_permission: Permission::RoutingWrite,
             minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
@@ -1025,14 +1036,14 @@ pub async fn toggle_dynamic_routing(
 pub async fn dynamic_routing_update_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<routing_types::DynamicRoutingUpdateConfigQuery>,
+    path: web::Path<routing_types::DynamicRoutingUpdateConfigQuery>,
     json_payload: web::Json<routing_types::DynamicRoutingConfig>,
 ) -> impl Responder {
     let flow = Flow::UpdateDynamicRoutingConfigs;
     let routing_payload_wrapper = routing_types::DynamicRoutingPayloadWrapper {
         updated_config: json_payload.into_inner(),
-        algorithm_id: query.clone().into_inner().algorithm_id,
-        profile_id: query.clone().into_inner().profile_id,
+        algorithm_id: path.clone().algorithm_id,
+        profile_id: path.clone().profile_id,
     };
     Box::pin(oss_api::server_wrap(
         flow,

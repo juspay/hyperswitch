@@ -94,3 +94,15 @@ impl ApiEventMetric for crate::routing::DynamicRoutingPayloadWrapper {
         Some(ApiEventsType::Routing)
     }
 }
+
+impl ApiEventMetric for crate::routing::ToggleDynamicRoutingWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for crate::routing::DynamicRoutingUpdateConfigQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}

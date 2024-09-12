@@ -3884,6 +3884,167 @@
         ]
       }
     },
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle Dynamic Routing for Profile",
+        "description": "Create a Dynamic routing algorithm",
+        "operationId": "Toggle dynamic routing algprithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Boolean value for mentioning the expected state of dynamic routing",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/config": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update Configs For Dynamic Routing",
+        "description": "Update config for Dynamic Routing",
+        "operationId": "Update default configs for all profiles",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for a profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "The unique identifier for a profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -7804,9 +7965,8 @@
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           },
-          "is_dynamic_routing_enabled": {
-            "type": "boolean",
-            "description": "Indicates if dynamic routing is enabled or not.",
+          "dynamic_routing_algorithm": {
+            "description": "Indicates if dynamic routing is enabled or not with the specific algorithmId.",
             "nullable": true
           }
         },
@@ -10060,6 +10220,21 @@
             "description": "The Email ID for Doku billing",
             "example": "example@me.com",
             "nullable": true
+          }
+        }
+      },
+      "DynamicRoutingUpdateConfigQuery": {
+        "type": "object",
+        "required": [
+          "algorithm_id",
+          "profile_id"
+        ],
+        "properties": {
+          "algorithm_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
           }
         }
       },
@@ -22495,6 +22670,43 @@
         "properties": {
           "blocklist_guard_status": {
             "type": "string"
+          }
+        }
+      },
+      "ToggleDynamicRoutingPath": {
+        "type": "object",
+        "required": [
+          "profile_id"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToggleDynamicRoutingQuery": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ToggleDynamicRoutingWrapper": {
+        "type": "object",
+        "required": [
+          "profile_id",
+          "status"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "boolean"
           }
         }
       },
