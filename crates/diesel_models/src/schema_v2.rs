@@ -820,6 +820,8 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 32]
         card_network -> Nullable<Varchar>,
+        shipping_cost -> Nullable<Int8>,
+        order_tax_amount -> Nullable<Int8>,
     }
 }
 

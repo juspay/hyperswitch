@@ -2,6 +2,7 @@ use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
+use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -82,6 +83,8 @@ pub struct PaymentAttemptBatchNew {
     pub customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
     pub profile_id: common_utils::id_type::ProfileId,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[allow(dead_code)]
@@ -157,6 +160,8 @@ impl PaymentAttemptBatchNew {
             customer_acceptance: self.customer_acceptance,
             profile_id: self.profile_id,
             organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 }

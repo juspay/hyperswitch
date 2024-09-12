@@ -56,6 +56,7 @@ impl PaymentIntentInterface for MockDb {
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
+        _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _time_range: &api_models::payments::TimeRange,
     ) -> CustomResult<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         // [#172]: Implement function for `MockDb`

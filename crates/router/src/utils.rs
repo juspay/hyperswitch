@@ -20,7 +20,6 @@ use api_models::{
     payments::{self},
     webhooks,
 };
-use base64::Engine;
 use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto,
@@ -35,12 +34,11 @@ use common_utils::{
     types::keymanager::{Identifier, ToEncryptable},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use image::Luma;
 use nanoid::nanoid;
-use qrcode;
 use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -167,37 +165,6 @@ impl<E> ConnectorResponseExt
 #[inline]
 pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payout_id}_{attempt_count}")
-}
-#[derive(Debug)]
-pub struct QrImage {
-    pub data: String,
-}
-
-impl QrImage {
-    pub fn new_from_data(
-        data: String,
-    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
-        let qr_code = qrcode::QrCode::new(data.as_bytes())
-            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
-
-        // Renders the QR code into an image.
-        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
-        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
-
-        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
-
-        // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
-
-        let image_data_source = format!(
-            "{},{}",
-            consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.buffer())
-        );
-        Ok(Self {
-            data: image_data_source,
-        })
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -1212,15 +1179,5 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
         Err(err) => Err(err)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
     }
 }

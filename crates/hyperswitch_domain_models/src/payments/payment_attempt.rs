@@ -184,6 +184,8 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttempt {
@@ -276,6 +278,8 @@ pub struct PaymentAttemptNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttemptNew {
@@ -284,6 +288,8 @@ impl PaymentAttemptNew {
         self.amount
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_amount.unwrap_or_default()
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
     }
 
     pub fn populate_derived_fields(self) -> Self {
@@ -359,6 +365,8 @@ pub enum PaymentAttemptUpdate {
         client_source: Option<String>,
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
