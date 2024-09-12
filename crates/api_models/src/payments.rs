@@ -5616,7 +5616,7 @@ pub struct PaymentLinkDetails {
     pub sdk_layout: String,
     pub display_sdk_only: bool,
     pub locale: Option<String>,
-    pub transaction_details: Option<String>,
+    pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5642,7 +5642,7 @@ pub struct PaymentLinkStatusDetails {
     pub theme: String,
     pub return_url: String,
     pub locale: Option<String>,
-    pub transaction_details: Option<String>,
+    pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
 }
