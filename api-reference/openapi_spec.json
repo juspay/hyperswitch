@@ -10241,14 +10241,12 @@
       },
       "DynamicRoutingConfig": {
         "type": "object",
+        "required": [
+          "id"
+        ],
         "properties": {
           "id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/DynamicRoutingConfigId"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/DynamicRoutingConfigId"
           },
           "params": {
             "type": "array",
