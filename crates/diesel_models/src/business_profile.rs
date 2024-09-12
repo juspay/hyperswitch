@@ -53,7 +53,7 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -130,7 +130,7 @@ pub struct BusinessProfileUpdateInternal {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -271,7 +271,7 @@ pub struct BusinessProfile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
 }
 
 impl BusinessProfile {
