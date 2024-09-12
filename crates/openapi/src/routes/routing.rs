@@ -283,17 +283,17 @@ pub async fn routing_update_default_config_for_profile() {}
 pub async fn toggle_dynamic_routing() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Update Configs For Dynamic Routing
+/// Routing - Update Config For Dynamic Routing
 ///
 /// Update config for Dynamic Routing
 #[utoipa::path(
     patch,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/config",
-    request_body = Vec<RoutableConnectorChoice>,
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/config/:algorithm_id",
+    request_body = DynamicRoutingConfig,
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "The unique identifier for a profile"),
-        ("algorithm_id" = String, Path, description = "The unique identifier for a profile"),
+        ("algorithm_id" = String, Path, description = "The unique identifier for routing algorithm"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm updated", body = RoutingDictionaryRecord),
@@ -304,7 +304,7 @@ pub async fn toggle_dynamic_routing() {}
         (status = 403, description = "Forbidden"),
     ),
    tag = "Routing",
-   operation_id = "Update default configs for all profiles",
-   security(("admin_api_key" = []), ("jwt_key" = []))
+   operation_id = "Update configs for dynamic routing algorithm",
+   security(("admin_api_key" = []))
 )]
 pub async fn dynamic_routing_update_configs() {}
