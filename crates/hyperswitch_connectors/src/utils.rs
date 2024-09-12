@@ -16,7 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, PaymentMethodData,WalletData,ApplePayWalletData},
+    payment_method_data::{ApplePayWalletData, Card, PaymentMethodData, WalletData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
@@ -831,7 +831,8 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
     map
 });
 
-pub trait WalletData1 {//
+pub trait WalletData1 {
+    //
     fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
     fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where

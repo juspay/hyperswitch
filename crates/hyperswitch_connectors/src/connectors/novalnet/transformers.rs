@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
@@ -9,14 +10,14 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData,WalletData},
+    payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,TokenizationRouterData
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -26,10 +27,10 @@ use strum::Display;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self,
-        BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+    utils::{
+        self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
-        RouterData as OtherRouterData,WalletData1
+        RouterData as OtherRouterData, WalletData1,
     },
 };
 
@@ -278,7 +279,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             tariff: auth.tariff_id,
         };
 
-
         let enforce_3d = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => Some(1),
             enums::AuthenticationType::NoThreeDs => None,
@@ -350,10 +350,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     customer,
                     custom,
                 })
-            },
-            | PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
-                | WalletData::GooglePay(_) 
-                | WalletData::ApplePay(_) 
+            }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                WalletData::GooglePay(_)
+                | WalletData::ApplePay(_)
                 | WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -372,7 +372,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                 )
                 .into()),
-                | WalletData::PaypalSdk(_) => {
+                WalletData::PaypalSdk(_) => {
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::PAYPAL,
@@ -392,7 +392,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         custom,
                     })
                 }
-                | WalletData::SamsungPay(_)
+                WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
