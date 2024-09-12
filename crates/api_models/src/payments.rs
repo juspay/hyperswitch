@@ -4613,11 +4613,11 @@ pub struct PaymentsDynamicTaxCalculationResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
-    /// net amount
+    /// net amount = amount + order_tax_amount + shipping_cost
     pub net_amount: MinorUnit,
-    /// order tax amount
+    /// order tax amount calculated by tax connectors
     pub order_tax_amount: Option<MinorUnit>,
-    /// shipping cost
+    /// shipping cost for the order
     pub shipping_cost: Option<MinorUnit>,
 }
 

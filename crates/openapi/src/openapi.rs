@@ -602,6 +602,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
+        api_models::payments::PaymentsDynamicTaxCalculationResponse,
     )),
     modifiers(&SecurityAddon)
 )]
