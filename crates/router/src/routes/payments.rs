@@ -1776,7 +1776,7 @@ impl GetLockingInput for payment_types::PaymentsManualUpdateRequest {
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payments_aggregates_profile(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
