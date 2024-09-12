@@ -188,7 +188,6 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,

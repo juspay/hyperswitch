@@ -186,12 +186,13 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
-                self,
-                storage_scheme,
-                Op::Find,
-            )
-            .await;
+            let storage_scheme =
+                Box::pin(decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                    self,
+                    storage_scheme,
+                    Op::Find,
+                ))
+                .await;
             let get_pm = || async {
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -252,12 +253,13 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
-                self,
-                storage_scheme,
-                Op::Find,
-            )
-            .await;
+            let storage_scheme =
+                Box::pin(decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                    self,
+                    storage_scheme,
+                    Op::Find,
+                ))
+                .await;
             let get_pm = || async {
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -322,12 +324,13 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
-                self,
-                storage_scheme,
-                Op::Find,
-            )
-            .await;
+            let storage_scheme =
+                Box::pin(decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                    self,
+                    storage_scheme,
+                    Op::Find,
+                ))
+                .await;
             let get_pm = || async {
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -436,12 +439,13 @@ mod storage {
             payment_method: domain::PaymentMethod,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
-                self,
-                storage_scheme,
-                Op::Insert,
-            )
-            .await;
+            let storage_scheme =
+                Box::pin(decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                    self,
+                    storage_scheme,
+                    Op::Insert,
+                ))
+                .await;
 
             let mut payment_method_new = payment_method
                 .construct_new()
@@ -553,12 +557,13 @@ mod storage {
                 customer_id: &customer_id,
             };
             let field = format!("payment_method_id_{}", payment_method.get_id());
-            let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
-                self,
-                storage_scheme,
-                Op::Update(key.clone(), &field, payment_method.updated_by.as_deref()),
-            )
-            .await;
+            let storage_scheme =
+                Box::pin(decide_storage_scheme::<_, storage_types::PaymentMethod>(
+                    self,
+                    storage_scheme,
+                    Op::Update(key.clone(), &field, payment_method.updated_by.as_deref()),
+                ))
+                .await;
             let pm = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;

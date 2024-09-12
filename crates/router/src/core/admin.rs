@@ -1393,6 +1393,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Novalnet => {
+                novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Nuvei => {
                 nuvei::transformers::NuveiAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1453,7 +1457,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 stax::transformers::StaxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Taxjar => Ok(()),
+            api_enums::Connector::Taxjar => {
+                taxjar::transformers::TaxjarAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Stripe => {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())

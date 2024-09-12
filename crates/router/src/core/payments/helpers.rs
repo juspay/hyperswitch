@@ -3735,6 +3735,8 @@ impl AttemptType {
             customer_acceptance: old_payment_attempt.customer_acceptance,
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
+            shipping_cost: old_payment_attempt.shipping_cost,
+            order_tax_amount: None,
         }
     }
 

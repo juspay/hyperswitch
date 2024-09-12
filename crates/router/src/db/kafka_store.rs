@@ -2412,6 +2412,18 @@ impl RefundInterface for KafkaStore {
     }
 
     #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_refund_status_with_count(merchant_id, constraints, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &id_type::MerchantId,

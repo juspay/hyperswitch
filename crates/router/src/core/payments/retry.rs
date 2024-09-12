@@ -571,6 +571,8 @@ pub fn make_new_payment_attempt(
         customer_acceptance: Default::default(),
         profile_id: old_payment_attempt.profile_id,
         organization_id: old_payment_attempt.organization_id,
+        shipping_cost: old_payment_attempt.shipping_cost,
+        order_tax_amount: None,
     }
 }
 
