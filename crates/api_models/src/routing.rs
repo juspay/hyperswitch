@@ -532,20 +532,12 @@ pub struct RoutingLinkWrapper {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct DynamicRoutingConfig {
-    pub id: DynamicRoutingConfigId,
+    pub id: Option<common_utils::id_type::ProfileId>,
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<DynamicRoutingConfigBody>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub enum DynamicRoutingConfigId {
-    #[schema(value_type = String)]
-    MerchantId(common_utils::id_type::MerchantId),
-    #[schema(value_type = String)]
-    ProfileId(common_utils::id_type::ProfileId),
-}
-
-#[derive(serde::Serialize, serde::Deserialize, strum::Display, Debug, Clone, ToSchema)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,

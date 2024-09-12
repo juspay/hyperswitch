@@ -1141,7 +1141,6 @@ pub async fn toggle_dynamic_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    // authentication_profile_id: common_utils::id_type::ProfileId,
     status: bool,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -1164,9 +1163,7 @@ pub async fn toggle_dynamic_routing(
 
     if status {
         let default_dynamic_routing_config = api_models::routing::DynamicRoutingConfig {
-            id: api_models::routing::DynamicRoutingConfigId::MerchantId(
-                merchant_account.get_id().clone().to_owned(),
-            ),
+            id: Some(profile_id.clone()),
             params: Some(vec![
                 api_models::routing::DynamicRoutingConfigParams::PaymentMethod,
             ]),
