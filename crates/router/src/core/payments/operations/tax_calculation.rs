@@ -221,7 +221,12 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-        if business_profile.is_tax_connector_enabled {
+        let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+        let skip_external_tax_calculation = payment_data
+            .payment_intent
+            .skip_external_tax_calculation
+            .unwrap_or(false);
+        if is_tax_connector_enabled && !skip_external_tax_calculation {
             *should_continue_confirm_transaction = false;
             let db = state.store.as_ref();
             let key_manager_state: &KeyManagerState = &state.into();
