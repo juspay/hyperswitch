@@ -46,7 +46,7 @@ pub async fn dummy_connector_complete_payment(
         attempt_id,
         confirm: json_payload.confirm,
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -54,7 +54,7 @@ pub async fn dummy_connector_complete_payment(
         |state, _: (), req, _| core::payment_complete(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
@@ -65,7 +65,7 @@ pub async fn dummy_connector_payment(
 ) -> impl actix_web::Responder {
     let payload = json_payload.into_inner();
     let flow = types::Flow::DummyPaymentCreate;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -73,7 +73,7 @@ pub async fn dummy_connector_payment(
         |state, _: (), req, _| core::payment(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentRetrieve))]

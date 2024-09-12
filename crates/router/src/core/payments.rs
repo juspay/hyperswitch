@@ -4182,7 +4182,6 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
-
     let connector_data = connectors
         .into_iter()
         .map(|conn| {
