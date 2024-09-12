@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
@@ -10,14 +9,14 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PaymentMethodData,WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,TokenizationRouterData
     },
 };
 use hyperswitch_interfaces::errors;
@@ -27,10 +26,10 @@ use strum::Display;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
+    utils::{self,
         BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
-        RouterData as OtherRouterData,
+        RouterData as OtherRouterData,WalletData1
     },
 };
 
@@ -48,9 +47,156 @@ impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "method")]
+#[derive(serde::Deserialize)]
+pub enum NovalnetTokenRequest {
+    Googlepay(CheckoutGooglePayData),
+    Applepay(CheckoutApplePayData),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutGooglePayData {
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutApplePayData {
+    version: Secret<String>,
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: CheckoutApplePayHeader,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutApplePayHeader {
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NovalnetTokenResponse {
+    token: Option<Secret<String>>,
+    error: Option<String>,
+}
+
+impl TryFrom<&TokenizationRouterData> for NovalnetTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                WalletData::GooglePay(_data) => {
+                    let json_wallet_data: CheckoutGooglePayData =
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?; //
+                    Ok(Self::Googlepay(json_wallet_data))
+                }
+                WalletData::ApplePay(_data) => {
+                    let json_wallet_data: CheckoutApplePayData =
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
+                    Ok(Self::Applepay(json_wallet_data))
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+            },
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, NovalnetTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, NovalnetTokenResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let token = item.response.token.clone();
+        match token {
+            Some(token) => Ok(Self {
+                response: Ok(PaymentsResponseData::TokenizationResponse {
+                    token: token.expose(),
+                }),
+                ..item.data
+            }),
+            None => {
+                let error_reason = item
+                    .response
+                    .error
+                    .unwrap_or("Tokenization failed".to_string());
+                let http_code = item.http_code;
+                let response = Err(ErrorResponse {
+                    code: http_code.clone().to_string(),
+                    message: error_reason.clone(),
+                    reason: Some(error_reason),
+                    status_code: http_code.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                });
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
 #[derive(Debug, Copy, Serialize, Deserialize, Clone)]
 pub enum NovalNetPaymentTypes {
     CREDITCARD,
+    PAYPAL,
+    GOOGLEPAY,
+    APPLEPAY,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq, Clone)]
@@ -105,7 +251,7 @@ pub struct NovalnetPaymentsRequestTransaction {
     amount: StringMinorUnit,
     currency: String,
     order_no: String,
-    payment_data: NovalNetPaymentData,
+    payment_data: Option<NovalNetPaymentData>,
     hook_url: Option<String>,
     return_url: Option<String>,
     error_return_url: Option<String>,
@@ -125,15 +271,59 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
     fn try_from(
         item: &NovalnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        let merchant = NovalnetPaymentsRequestMerchant {
+            signature: auth.product_activation_key,
+            tariff: auth.tariff_id,
+        };
+
+
+        let enforce_3d = match item.router_data.auth_type {
+            enums::AuthenticationType::ThreeDs => Some(1),
+            enums::AuthenticationType::NoThreeDs => None,
+        };
+        let test_mode = match item.router_data.test_mode {
+            Some(true) => 1,
+            Some(false) | None => 0,
+        };
+
+        let return_url = item.router_data.request.get_return_url().ok();
+        let hook_url = item.router_data.request.get_webhook_url().ok();
+
+        let billing = NovalnetPaymentsRequestBilling {
+            house_no: item.router_data.get_billing_line1()?,
+            street: item.router_data.get_billing_line2()?,
+            city: item.router_data.get_billing_city()?,
+            zip: item.router_data.get_billing_zip()?,
+            country_code: item.router_data.get_billing_country()?,
+        };
+
+        let customer_ip = item
+            .router_data
+            .request
+            .get_browser_info()?
+            .get_ip_address()?;
+
+        let customer = NovalnetPaymentsRequestCustomer {
+            first_name: item.router_data.get_billing_first_name()?,
+            last_name: item.router_data.get_billing_last_name()?,
+            email: item.router_data.get_billing_email()?,
+            mobile: item.router_data.get_billing_phone_number().ok(),
+            billing,
+            customer_ip,
+        };
+
+        let lang = item
+            .router_data
+            .request
+            .get_optional_language_from_browser_info()
+            .unwrap_or("EN".to_string());
+
+        let custom = NovalnetCustom { lang };
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
-
-                let merchant = NovalnetPaymentsRequestMerchant {
-                    signature: auth.product_activation_key,
-                    tariff: auth.tariff_id,
-                };
-
                 let novalnet_card = NovalNetPaymentData::PaymentCard(NovalNetCard {
                     card_number: req_card.card_number,
                     card_expiry_month: req_card.card_exp_month,
@@ -141,18 +331,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     card_cvc: req_card.card_cvc,
                     card_holder: item.router_data.get_billing_full_name()?,
                 });
-
-                let enforce_3d = match item.router_data.auth_type {
-                    enums::AuthenticationType::ThreeDs => Some(1),
-                    enums::AuthenticationType::NoThreeDs => None,
-                };
-                let test_mode = match item.router_data.test_mode {
-                    Some(true) => 1,
-                    Some(false) | None => 0,
-                };
-
-                let return_url = item.router_data.request.get_return_url().ok();
-                let hook_url = item.router_data.request.get_webhook_url().ok();
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
@@ -162,40 +340,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     hook_url,
                     return_url: return_url.clone(),
                     error_return_url: return_url.clone(),
-                    payment_data: novalnet_card,
+                    payment_data: Some(novalnet_card),
                     enforce_3d,
                 };
-
-                let billing = NovalnetPaymentsRequestBilling {
-                    house_no: item.router_data.get_billing_line1()?,
-                    street: item.router_data.get_billing_line2()?,
-                    city: item.router_data.get_billing_city()?,
-                    zip: item.router_data.get_billing_zip()?,
-                    country_code: item.router_data.get_billing_country()?,
-                };
-
-                let customer_ip = item
-                    .router_data
-                    .request
-                    .get_browser_info()?
-                    .get_ip_address()?;
-
-                let customer = NovalnetPaymentsRequestCustomer {
-                    first_name: item.router_data.get_billing_first_name()?,
-                    last_name: item.router_data.get_billing_last_name()?,
-                    email: item.router_data.get_billing_email()?,
-                    mobile: item.router_data.get_billing_phone_number().ok(),
-                    billing,
-                    customer_ip,
-                };
-
-                let lang = item
-                    .router_data
-                    .request
-                    .get_optional_language_from_browser_info()
-                    .unwrap_or("EN".to_string());
-
-                let custom = NovalnetCustom { lang };
 
                 Ok(Self {
                     merchant,
@@ -203,7 +350,61 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     customer,
                     custom,
                 })
-            }
+            },
+            | PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                | WalletData::GooglePay(_) 
+                | WalletData::ApplePay(_) 
+                | WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+                | WalletData::PaypalSdk(_) => {
+                    let transaction = NovalnetPaymentsRequestTransaction {
+                        test_mode,
+                        payment_type: NovalNetPaymentTypes::PAYPAL,
+                        amount: item.amount.clone(),
+                        currency: item.router_data.request.currency.to_string(),
+                        order_no: item.router_data.connector_request_reference_id.clone(),
+                        hook_url,
+                        return_url: return_url.clone(),
+                        error_return_url: return_url.clone(),
+                        payment_data: None,
+                        enforce_3d,
+                    };
+                    Ok(Self {
+                        merchant,
+                        transaction,
+                        customer,
+                        custom,
+                    })
+                }
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
