@@ -17482,6 +17482,38 @@
           }
         }
       },
+      "PaymentsDynamicTaxCalculationResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "net_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
