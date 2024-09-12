@@ -4720,6 +4720,7 @@ impl SavedPMLPaymentsInfo {
             Some(common_enums::FutureUsage::OffSession)
         );
 
+        #[cfg(feature = "v1")]
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -4727,6 +4728,9 @@ impl SavedPMLPaymentsInfo {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?
             .clone();
+
+        #[cfg(feature = "v2")]
+        let profile_id = payment_intent.profile_id.clone();
 
         let business_profile = core_utils::validate_and_get_business_profile(
             db,

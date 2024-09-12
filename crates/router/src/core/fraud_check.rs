@@ -47,6 +47,32 @@ pub mod flows;
 pub mod operation;
 pub mod types;
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
+    state: &SessionState,
+    payment_data: &OperationData,
+    frm_data: &mut FrmData,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
+) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
+where
+    F: Send + Clone,
+
+    OperationData: payments::OperationSessionGetters<D> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    FrmData: ConstructFlowSpecificData<F, Req, frm_types::FraudCheckResponseData>,
+    oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>: FeatureFrm<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn Connector: services::api::ConnectorIntegration<F, Req, frm_types::FraudCheckResponseData>,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     state: &SessionState,

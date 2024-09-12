@@ -403,6 +403,7 @@ pub async fn find_mca_from_authentication_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_payment_intent(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,

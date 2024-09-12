@@ -832,7 +832,7 @@ diesel::table! {
         merchant_id -> Varchar,
         status -> IntentStatus,
         amount -> Int8,
-        currency -> Nullable<Currency>,
+        currency -> Currency,
         amount_captured -> Nullable<Int8>,
         #[max_length = 64]
         customer_id -> Nullable<Varchar>,
@@ -858,7 +858,7 @@ diesel::table! {
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
         #[max_length = 255]
         payment_link_id -> Nullable<Varchar>,
         payment_confirm_source -> Nullable<PaymentSource>,

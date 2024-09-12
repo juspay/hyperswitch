@@ -2360,6 +2360,7 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
+    #[cfg(feature = "v1")]
     let profile_id = payment_data
         .get_payment_intent()
         .profile_id
@@ -2368,6 +2369,9 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in payment_intent")?
         .clone();
+
+    #[cfg(feature = "v2")]
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -4843,8 +4847,14 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.recurring_details.as_ref()
     }
 
+    #[cfg(feature = "v1")]
     fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId> {
         self.payment_intent.profile_id.as_ref()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId> {
+        Some(&self.payment_intent.profile_id)
     }
 
     fn get_currency(&self) -> storage_enums::Currency {
