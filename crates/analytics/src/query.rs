@@ -345,8 +345,8 @@ pub enum FilterCombinator {
 impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
-            FilterCombinator::And => " AND ",
-            FilterCombinator::Or => " OR ",
+            Self::And => " AND ",
+            Self::Or => " OR ",
         }
         .to_owned())
     }
@@ -367,8 +367,8 @@ impl Default for Filter {
 impl<T: AnalyticsDataSource> ToSql<T> for Filter {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
-            Filter::Plain(l, op, r) => filter_type_to_sql(l, op, r),
-            Filter::NestedFilter(operator, filters) => {
+            Self::Plain(l, op, r) => filter_type_to_sql(l, op, r),
+            Self::NestedFilter(operator, filters) => {
                 format!(
                     "( {} )",
                     filters
