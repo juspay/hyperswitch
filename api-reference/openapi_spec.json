@@ -17028,7 +17028,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -17500,6 +17500,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17520,6 +17528,38 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "net_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18113,7 +18153,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -18610,6 +18650,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },

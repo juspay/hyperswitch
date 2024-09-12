@@ -265,7 +265,6 @@ where
             .payments_dynamic_tax_calculation(
                 state,
                 &mut payment_data,
-                &mut should_continue_transaction,
                 &connector_details,
                 &business_profile,
                 &key_store,

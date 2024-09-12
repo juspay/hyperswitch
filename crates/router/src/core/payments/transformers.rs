@@ -487,19 +487,29 @@ where
     ) -> RouterResponse<Self> {
         let mut amount = payment_data.get_payment_intent().amount;
         let shipping_cost = payment_data.get_payment_intent().shipping_cost;
+        if let Some(shipping_cost) = shipping_cost {
+            amount = amount + shipping_cost;
+        }
         let order_tax_amount = payment_data
             .get_payment_intent()
             .tax_details
             .clone()
-            .and_then(|tax| tax.payment_method_type.map(|a| a.order_tax_amount));
-        if let Some(shipping_cost) = shipping_cost {
-            amount = amount + shipping_cost;
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|a| a.order_tax_amount)
+                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
+            });
+        if let Some(tax_amount) = order_tax_amount {
+            amount = amount + tax_amount;
         }
-        if let Some(order_tax_amount) = order_tax_amount {
-            amount = amount + order_tax_amount;
-        }
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self { net_amount: amount },
+            Self {
+                net_amount: amount,
+                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                order_tax_amount,
+                shipping_cost,
+            },
             vec![],
         )))
     }
@@ -1029,6 +1039,21 @@ where
             update_mandate_id: d.update_mandate_id.clone(),
         });
 
+        let order_tax_amount = payment_data
+            .get_payment_attempt()
+            .order_tax_amount
+            .or_else(|| {
+                payment_data
+                    .get_payment_intent()
+                    .tax_details
+                    .clone()
+                    .and_then(|tax| {
+                        tax.payment_method_type
+                            .map(|a| a.order_tax_amount)
+                            .or_else(|| tax.default.map(|a| a.order_tax_amount))
+                    })
+            });
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -1126,6 +1151,7 @@ where
             charges: charges_response,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
+            order_tax_amount,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -1377,6 +1403,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             updated: None,
             charges: None,
             frm_metadata: None,
+            order_tax_amount: None,
         }
     }
 }

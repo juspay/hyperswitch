@@ -3719,8 +3719,8 @@ pub struct PaymentsResponse {
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
 
-    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,
-    /// If no surcharge_details, net_amount = amount
+    /// The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,
+    /// If no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount
     #[schema(value_type = i64, example = 6540)]
     pub net_amount: MinorUnit,
 
@@ -4020,6 +4020,8 @@ pub struct PaymentsResponse {
         example = "Custom_Order_id_123"
     )]
     pub merchant_order_reference_id: Option<String>,
+    /// order tax amount calculated by tax connectors
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 /// Fee information to be charged on the payment being collected
@@ -4608,8 +4610,15 @@ pub struct PaymentsDynamicTaxCalculationRequest {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsDynamicTaxCalculationResponse {
-    /// net amount
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// net amount = amount + order_tax_amount + shipping_cost
     pub net_amount: MinorUnit,
+    /// order tax amount calculated by tax connectors
+    pub order_tax_amount: Option<MinorUnit>,
+    /// shipping cost for the order
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
