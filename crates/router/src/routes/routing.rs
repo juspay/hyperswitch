@@ -1005,7 +1005,6 @@ pub async fn toggle_dynamic_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                // auth.profile_id,
                 wrapper.status,
                 wrapper.profile_id,
             )

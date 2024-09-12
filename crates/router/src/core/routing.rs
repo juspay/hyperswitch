@@ -674,6 +674,14 @@ pub async fn unlink_routing_config(
 
             match routing_algo_ref.algorithm_id {
                 Some(algorithm_id) => {
+                    let routing_algorithm: routing_types::RoutingAlgorithmRef =
+                        routing_types::RoutingAlgorithmRef {
+                            algorithm_id: None,
+                            timestamp,
+                            config_algo_id: routing_algo_ref.config_algo_id.clone(),
+                            surcharge_config_algo_id: routing_algo_ref.surcharge_config_algo_id,
+                        };
+
                     let record = db
                         .find_routing_algorithm_by_profile_id_algorithm_id(
                             &profile_id,
@@ -681,43 +689,16 @@ pub async fn unlink_routing_config(
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-                    let response = record.clone().foreign_into();
-                    match record.kind {
-                        diesel_models::enums::RoutingAlgorithmKind::Dynamic => {
-                            let dynamic_routing_algorithm =
-                                routing_types::DynamicRoutingAlgorithmRef {
-                                    algorithm_id: None,
-                                    timestamp,
-                                };
-                            helpers::update_business_profile_active_dynamic_algorithm_ref(
-                                db,
-                                key_manager_state,
-                                &key_store,
-                                business_profile,
-                                dynamic_routing_algorithm,
-                            )
-                            .await?;
-                        }
-                        _ => {
-                            let routing_algorithm: routing_types::RoutingAlgorithmRef =
-                                routing_types::RoutingAlgorithmRef {
-                                    algorithm_id: None,
-                                    timestamp,
-                                    config_algo_id: routing_algo_ref.config_algo_id.clone(),
-                                    surcharge_config_algo_id: routing_algo_ref
-                                        .surcharge_config_algo_id,
-                                };
-                            helpers::update_business_profile_active_algorithm_ref(
-                                db,
-                                key_manager_state,
-                                &key_store,
-                                business_profile,
-                                routing_algorithm,
-                                transaction_type,
-                            )
-                            .await?;
-                        }
-                    };
+                    let response = record.foreign_into();
+                    helpers::update_business_profile_active_algorithm_ref(
+                        db,
+                        key_manager_state,
+                        &key_store,
+                        business_profile,
+                        routing_algorithm,
+                        transaction_type,
+                    )
+                    .await?;
 
                     metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
                     Ok(service_api::ApplicationResponse::Json(response))
@@ -1173,7 +1154,6 @@ pub async fn toggle_dynamic_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    // authentication_profile_id: common_utils::id_type::ProfileId,
     status: bool,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -1196,9 +1176,7 @@ pub async fn toggle_dynamic_routing(
 
     if status {
         let default_dynamic_routing_config = api_models::routing::DynamicRoutingConfig {
-            id: Some(api_models::routing::DynamicRoutingConfigId::MerchantId(
-                merchant_account.get_id().clone().to_owned(),
-            )),
+            id: Some(profile_id.clone()), 
             params: Some(vec![
                 api_models::routing::DynamicRoutingConfigParams::PaymentMethod,
             ]),
@@ -1354,3 +1332,4 @@ pub async fn dynamic_routing_update_configs(
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
+
