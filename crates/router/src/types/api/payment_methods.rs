@@ -1,9 +1,3 @@
-use crate::core::{
-    errors::{self, RouterResult},
-    payments::helpers::validate_payment_method_type_against_payment_method,
-};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::utils;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardType, CustomerPaymentMethod,
@@ -33,6 +27,13 @@ pub use api_models::payment_methods::{
     TokenizedWalletValue2,
 };
 use error_stack::report;
+
+use crate::core::{
+    errors::{self, RouterResult},
+    payments::helpers::validate_payment_method_type_against_payment_method,
+};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::utils;
 
 pub(crate) trait PaymentMethodCreateExt {
     fn validate(&self) -> RouterResult<()>;
