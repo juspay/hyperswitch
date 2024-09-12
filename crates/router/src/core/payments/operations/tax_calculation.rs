@@ -215,7 +215,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
@@ -227,7 +226,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
             .skip_external_tax_calculation
             .unwrap_or(false);
         if is_tax_connector_enabled && !skip_external_tax_calculation {
-            *should_continue_confirm_transaction = false;
             let db = state.store.as_ref();
             let key_manager_state: &KeyManagerState = &state.into();
 

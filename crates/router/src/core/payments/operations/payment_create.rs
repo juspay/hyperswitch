@@ -579,7 +579,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
