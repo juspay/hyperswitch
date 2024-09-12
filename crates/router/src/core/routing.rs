@@ -1331,4 +1331,3 @@ pub async fn dynamic_routing_update_configs(
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
-
