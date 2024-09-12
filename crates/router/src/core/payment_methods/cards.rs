@@ -2121,6 +2121,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             payment_method_reference,
             locker_choice,
             state.tenant.name.clone(),
+            state.request_id,
         )
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)
@@ -2174,6 +2175,7 @@ pub async fn add_card_to_hs_locker(
             payload,
             locker_choice,
             state.tenant.name.clone(),
+            state.request_id,
         )
         .await?;
         call_locker_api::<payment_methods::StoreCardResp>(
@@ -2212,7 +2214,6 @@ where
 
     let response = services::call_connector_api(state, request, flow_name)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
         .change_context(errors::VaultError::ApiError)?;
 
     let is_locker_call_succeeded = response.is_ok();
@@ -2371,6 +2372,7 @@ pub async fn get_card_from_hs_locker<'a>(
             card_reference,
             Some(locker_choice),
             state.tenant.name.clone(),
+            state.request_id,
         )
         .await
         .change_context(errors::VaultError::FetchCardFailed)
@@ -2416,6 +2418,7 @@ pub async fn delete_card_from_hs_locker<'a>(
         merchant_id,
         card_reference,
         state.tenant.name.clone(),
+        state.request_id,
     )
     .await
     .change_context(errors::VaultError::DeleteCardFailed)
