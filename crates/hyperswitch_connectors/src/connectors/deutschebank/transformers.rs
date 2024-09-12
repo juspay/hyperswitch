@@ -31,15 +31,13 @@ use crate::{
     },
 };
 
-//TODO: Fill the struct with respective fields
 pub struct DeutschebankRouterData<T> {
-    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
 impl<T> From<(MinorUnit, T)> for DeutschebankRouterData<T> {
     fn from((amount, item): (MinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -144,8 +142,6 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
-// PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeutschebankSEPAMandateStatus {
@@ -681,7 +677,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DeutschebankErrorResponse {
     pub rc: String,
