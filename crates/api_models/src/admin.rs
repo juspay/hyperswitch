@@ -1921,7 +1921,7 @@ pub struct BusinessProfileCreate {
 
     /// Indicates if dynamic routing is enabled or not with the specific algorithmId.
     #[serde(default)]
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<id_type::RoutingId>,
 }
 
 #[nutype::nutype(
@@ -2363,7 +2363,7 @@ pub struct BusinessProfileUpdate {
 
     /// Indicates if dynamic routing is enabled or not.
     #[serde(default)]
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<id_type::RoutingId>,
 }
 
 #[cfg(feature = "v2")]

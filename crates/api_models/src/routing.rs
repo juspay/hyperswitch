@@ -456,18 +456,6 @@ pub struct RoutingAlgorithmRef {
     pub surcharge_config_algo_id: Option<String>,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DynamicRoutingAlgorithmRef {
-    pub algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub timestamp: i64,
-}
-
-impl DynamicRoutingAlgorithmRef {
-    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
-        self.algorithm_id = Some(new_id);
-        self.timestamp = common_utils::date_time::now_unix_timestamp();
-    }
-}
 impl RoutingAlgorithmRef {
     pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
         self.algorithm_id = Some(new_id);

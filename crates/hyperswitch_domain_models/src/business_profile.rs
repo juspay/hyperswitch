@@ -54,7 +54,7 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -91,7 +91,7 @@ pub struct BusinessProfileSetter {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -181,7 +181,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
-    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
 }
 
 #[cfg(feature = "v1")]
@@ -193,7 +193,7 @@ pub enum BusinessProfileUpdate {
         payout_routing_algorithm: Option<serde_json::Value>,
     },
     DynamicRoutingAlgorithmUpdate {
-        dynamic_routing_algorithm: Option<serde_json::Value>,
+       dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
