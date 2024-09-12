@@ -54,7 +54,7 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
-    pub is_dynamic_routing_enabled: Option<bool>,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -91,7 +91,7 @@ pub struct BusinessProfileSetter {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
-    pub is_dynamic_routing_enabled: Option<bool>,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -135,7 +135,7 @@ impl From<BusinessProfileSetter> for BusinessProfile {
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
             version: consts::API_VERSION,
-            is_dynamic_routing_enabled: value.is_dynamic_routing_enabled,
+            dynamic_routing_algorithm: value.dynamic_routing_algorithm,
         }
     }
 }
@@ -181,7 +181,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
-    pub is_dynamic_routing_enabled: Option<bool>,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -191,7 +191,9 @@ pub enum BusinessProfileUpdate {
     RoutingAlgorithmUpdate {
         routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
-        is_dynamic_routing_enabled: Option<bool>,
+    },
+    DynamicRoutingAlgorithmUpdate {
+        dynamic_routing_algorithm: Option<serde_json::Value>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
@@ -235,7 +237,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
-                    is_dynamic_routing_enabled,
+                    dynamic_routing_algorithm,
                 } = *update;
 
                 Self {
@@ -269,13 +271,12 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
-                    is_dynamic_routing_enabled,
+                    dynamic_routing_algorithm,
                 }
             }
             BusinessProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm,
                 payout_routing_algorithm,
-                is_dynamic_routing_enabled,
             } => Self {
                 profile_name: None,
                 modified_at: now,
@@ -306,7 +307,41 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
-                is_dynamic_routing_enabled,
+                dynamic_routing_algorithm: None,
+            },
+            BusinessProfileUpdate::DynamicRoutingAlgorithmUpdate {
+                dynamic_routing_algorithm,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm,
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -340,7 +375,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
-                is_dynamic_routing_enabled: None,
+                dynamic_routing_algorithm: None,
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -374,7 +409,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
-                is_dynamic_routing_enabled: None,
+                dynamic_routing_algorithm: None,
             },
         }
     }
@@ -427,7 +462,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
-            is_dynamic_routing_enabled: self.is_dynamic_routing_enabled,
+            dynamic_routing_algorithm: self.dynamic_routing_algorithm,
         })
     }
 
@@ -492,7 +527,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
                 version: item.version,
-                is_dynamic_routing_enabled: item.is_dynamic_routing_enabled,
+                dynamic_routing_algorithm: item.dynamic_routing_algorithm,
             })
         }
         .await
@@ -997,7 +1032,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
-            is_dynamic_routing_enabled: None,
+            dynamic_routing_algorithm: None,
         })
     }
 

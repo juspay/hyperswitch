@@ -63,15 +63,29 @@ pub struct RoutingRetrieveQuery {
     pub offset: Option<u8>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleDynamicRoutingQuery {
     pub status: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DynamicRoutingUpdateConfigQuery {
+    #[schema(value_type = String)]
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DynamicRoutingUpdateConfigQuery {
-    pub algorithm_id: common_utils::id_type::RoutingId,
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ToggleDynamicRoutingWrapper {
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub status: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ToggleDynamicRoutingPath {
+    #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
@@ -449,6 +463,18 @@ pub struct RoutingAlgorithmRef {
     pub surcharge_config_algo_id: Option<String>,
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicRoutingAlgorithmRef {
+    pub algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub timestamp: i64,
+}
+
+impl DynamicRoutingAlgorithmRef {
+    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
+        self.algorithm_id = Some(new_id);
+        self.timestamp = common_utils::date_time::now_unix_timestamp();
+    }
+}
 impl RoutingAlgorithmRef {
     pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
         self.algorithm_id = Some(new_id);
