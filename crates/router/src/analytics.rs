@@ -21,6 +21,7 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
+    use common_utils::id_type::{MerchantId, OrganizationId};
     use error_stack::{report, ResultExt};
 
     use crate::{
@@ -1840,10 +1841,17 @@ pub mod routes {
                     .map(|(i, _)| *i)
                     .collect();
 
+                let merchant_id: MerchantId = auth.merchant_id;
+                let org_id: OrganizationId = auth.org_id;
+                let search_params: Vec<AuthInfo> = vec![AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                }];
+
                 analytics::search::msearch_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_id,
+                    search_params,
                     accessible_indexes,
                 )
                 .await
@@ -1888,7 +1896,15 @@ pub mod routes {
                     .filter(|(ind, _)| *ind == index)
                     .find(|i| i.1.iter().any(|p| permissions.contains(p)))
                     .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
-                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
+
+                let merchant_id: MerchantId = auth.merchant_id;
+                let org_id: OrganizationId = auth.org_id;
+                let search_params: Vec<AuthInfo> = vec![AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                }];
+
+                analytics::search::search_results(&state.opensearch_client, req, search_params)
                     .await
                     .map(ApplicationResponse::Json)
             },

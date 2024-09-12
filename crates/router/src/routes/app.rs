@@ -555,6 +555,10 @@ impl Payments {
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
                 .service(web::resource("/aggregate").route(web::get().to(get_payments_aggregates)))
                 .service(
+                    web::resource("/profile/aggregate")
+                        .route(web::get().to(get_payments_aggregates_profile)),
+                )
+                .service(
                     web::resource("/v2/profile/filter")
                         .route(web::get().to(get_payment_filters_profile)),
                 )
