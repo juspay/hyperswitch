@@ -1,9 +1,9 @@
-use crate::errors::CustomResult;
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
 
 use crate::{
     errors,
+    errors::CustomResult,
     id_type::global_id::{CellId, GlobalEntity, GlobalId, GlobalIdError},
 };
 
