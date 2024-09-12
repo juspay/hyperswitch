@@ -296,7 +296,6 @@ default_imp_for_connector_redirect_response!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
-    connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,

@@ -1397,6 +1397,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Novalnet => {
+                novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Nuvei => {
                 nuvei::transformers::NuveiAuthType::try_from(self.auth_type)?;
                 Ok(())

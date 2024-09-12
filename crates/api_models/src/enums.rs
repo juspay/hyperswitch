@@ -46,7 +46,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Novalnet,
     // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -117,6 +116,7 @@ pub enum Connector {
     Nexinets,
     Nmi,
     Noon,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
@@ -215,7 +215,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Novalnet
 			// | Self::Nexixpay
 			// | Self::Fiuu
             | Self::Adyen
@@ -252,6 +251,7 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
@@ -516,6 +516,8 @@ pub enum FieldType {
     UserCpf,
     UserCnpj,
     UserIban,
+    BrowserLanguage,
+    BrowserIp,
 }
 
 impl FieldType {

@@ -2487,6 +2487,7 @@
           "alliance_bank",
           "am_bank",
           "bank_of_america",
+          "bank_of_china",
           "bank_islam",
           "bank_muamalat",
           "bank_rakyat",
@@ -5000,6 +5001,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -7104,6 +7106,18 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_language"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_ip"
             ]
           }
         ],
@@ -17101,6 +17115,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
