@@ -350,10 +350,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         self.router_store
-            .get_intent_status_with_count(merchant_id, time_range)
+            .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
             .await
     }
 
@@ -670,6 +671,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -680,6 +682,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .select((pi_dsl::status, diesel::dsl::count_star()))
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .into_boxed();
+
+        if let Some(profile_id) = profile_id_list {
+            query = query.filter(pi_dsl::profile_id.eq_any(profile_id));
+        }
 
         query = query.filter(pi_dsl::created_at.ge(time_range.start_time));
 

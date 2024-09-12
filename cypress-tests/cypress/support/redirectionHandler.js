@@ -320,6 +320,12 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
               });
           });
       });
+  } else if (connectorId === "novalnet") {
+    cy.get("form", { timeout: WAIT_TIME })
+      .should("exist")
+      .then((form) => {
+        cy.get('input[id="submit"]').click();
+      });
   } else if (connectorId === "stripe") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")

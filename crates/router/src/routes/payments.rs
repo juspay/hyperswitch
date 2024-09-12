@@ -1341,7 +1341,7 @@ pub async fn get_payments_aggregates(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(state, auth.merchant_account, req)
+            payments::get_aggregates_for_payments(state, auth.merchant_account, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::PaymentRead,
@@ -2073,4 +2073,35 @@ impl GetLockingInput for payment_types::PaymentsManualUpdateRequest {
             },
         }
     }
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payments_aggregates_profile(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_aggregates_for_payments(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::PaymentRead,
+            minimum_entity_level: EntityType::Profile,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }

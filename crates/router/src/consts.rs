@@ -58,10 +58,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
-// Qr Image data source starts with this string
-// The base64 image data will be appended to it to image data source
-pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
