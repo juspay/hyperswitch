@@ -1200,7 +1200,6 @@ pub async fn toggle_dynamic_routing(
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-
         helpers::update_business_profile_active_dynamic_algorithm_id(
             db,
             key_manager_state,

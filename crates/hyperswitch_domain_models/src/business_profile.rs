@@ -193,7 +193,7 @@ pub enum BusinessProfileUpdate {
         payout_routing_algorithm: Option<serde_json::Value>,
     },
     DynamicRoutingAlgorithmUpdate {
-       dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
+        dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
