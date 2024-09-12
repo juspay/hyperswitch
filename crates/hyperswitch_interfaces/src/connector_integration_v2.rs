@@ -9,8 +9,7 @@ use router_env::metrics::add_attributes;
 use serde_json::json;
 
 use crate::{
-    api::CaptureSyncMethod, configs::Connectors, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types,
+    api::CaptureSyncMethod, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
 /// alias for Box of a type that implements trait ConnectorIntegrationV2
@@ -47,7 +46,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_headers(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
@@ -66,7 +64,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_url(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(String::new())
     }
@@ -75,7 +72,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
     }
@@ -92,7 +88,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn build_request_v2(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         metrics::UNIMPLEMENTED_FLOW.add(
             &metrics::CONTEXT,

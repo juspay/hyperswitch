@@ -19,6 +19,8 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
@@ -30,7 +32,7 @@ use crate::{
         },
         payments::{
             customers::get_connector_customer_details_if_present, helpers as payment_helpers,
-            route_connector_v1, routing, CustomerDetails,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
         utils as core_utils,
@@ -800,7 +802,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -848,7 +850,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -886,15 +888,14 @@ pub async fn decide_payout_connector(
     }
 
     // 4. Route connector
-    route_connector_v1(
+    route_connector_v1_for_payouts(
         state,
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        TransactionData::<()>::Payout(payout_data),
+        payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }

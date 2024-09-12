@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
+use base64::Engine;
 use common_enums::{
     enums,
     enums::{CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
 };
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -23,6 +25,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
+use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -216,6 +219,7 @@ pub trait RouterData {
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
@@ -552,6 +556,16 @@ impl<Flow, Request, Response> RouterData
                     .address
                     .and_then(|billing_details| billing_details.state)
             })
+    }
+
+    fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_state().and_then(|state| {
+            if state.clone().expose().len() != 2 {
+                None
+            } else {
+                Some(state)
+            }
+        })
     }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
@@ -1528,4 +1542,49 @@ pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct QrImage {
+    pub data: String,
+}
+
+// Qr Image data source starts with this string
+// The base64 image data will be appended to it to image data source
+pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
+
+impl QrImage {
+    pub fn new_from_data(
+        data: String,
+    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
+        let qr_code = qrcode::QrCode::new(data.as_bytes())
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
+        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
+
+        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
+
+        // Encodes qrcode_dynamic_image and write it to image_bytes
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
+
+        let image_data_source = format!(
+            "{},{}",
+            QR_IMAGE_DATA_SOURCE_STRING,
+            BASE64_ENGINE.encode(image_bytes.buffer())
+        );
+        Ok(Self {
+            data: image_data_source,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
+    }
 }
