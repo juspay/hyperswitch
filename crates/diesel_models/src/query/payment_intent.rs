@@ -105,7 +105,7 @@ impl PaymentIntent {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
-    pub async fn find_optional_by_merchant_id_merchant_reference_id(
+    pub async fn find_optional_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
         merchant_reference_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,

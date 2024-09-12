@@ -98,7 +98,7 @@ pub struct PaymentIntent {
     pub customer_id: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub statement_descriptor: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -112,8 +112,8 @@ pub struct PaymentIntent {
     pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: id_type::ProfileId,
     pub payment_link_id: Option<String>,
@@ -121,7 +121,6 @@ pub struct PaymentIntent {
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub frm_merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,

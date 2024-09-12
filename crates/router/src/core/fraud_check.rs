@@ -376,6 +376,30 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
+    _db: &dyn StorageInterface,
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: D,
+    frm_routing_algorithm: FrmRoutingAlgorithm,
+    profile_id: common_utils::id_type::ProfileId,
+    frm_configs: FrmConfigsObject,
+    _customer: &Option<domain::Customer>,
+) -> RouterResult<FrmInfo<F, D>>
+where
+    F: Send + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
     _db: &dyn StorageInterface,

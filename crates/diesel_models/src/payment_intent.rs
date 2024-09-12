@@ -22,7 +22,7 @@ pub struct PaymentIntent {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -36,13 +36,12 @@ pub struct PaymentIntent {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
@@ -174,7 +173,7 @@ pub struct PaymentIntentNew {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -188,8 +187,8 @@ pub struct PaymentIntentNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
@@ -306,7 +305,7 @@ pub enum PaymentIntentUpdate {
         // incremental_authorization_allowed: Option<bool>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: pii::SecretSerdeValue,
         updated_by: String,
     },
     Update(Box<PaymentIntentUpdateFields>),
@@ -467,7 +466,7 @@ pub struct PaymentIntentUpdateFields {
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub updated_by: String,
     pub session_expiry: Option<PrimitiveDateTime>,
@@ -522,7 +521,7 @@ pub struct PaymentIntentUpdateInternal {
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub active_attempt_id: Option<String>,
     pub description: Option<String>,
