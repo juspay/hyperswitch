@@ -1786,6 +1786,7 @@ pub enum CardNetwork {
     #[serde(alias = "MASTERCARD")]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
+    #[serde(alias = "AMEX")]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
