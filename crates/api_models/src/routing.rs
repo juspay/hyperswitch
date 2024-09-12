@@ -532,7 +532,6 @@ pub struct RoutingLinkWrapper {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct DynamicRoutingConfig {
-    pub id: Option<common_utils::id_type::ProfileId>,
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<DynamicRoutingConfigBody>,
 }
@@ -568,7 +567,6 @@ pub struct DynamicRoutingPayloadWrapper {
 
 impl DynamicRoutingConfig {
     pub fn update(&mut self, new: Self) {
-        self.id = new.id;
         if let Some(params) = new.params {
             self.params = Some(params)
         }
