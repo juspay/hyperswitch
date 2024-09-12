@@ -200,7 +200,7 @@ impl SuccessBasedDynamicRouting for RoutingStrategy {
 }
 impl ForeignFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
     fn foreign_from(current_threshold: CurrentBlockThreshold) -> Self {
-        DynamicCurrentThreshold {
+        Self {
             duration_in_mins: current_threshold.duration_in_mins,
             max_total_count: current_threshold.max_total_count.unwrap_or_default(),
         }
