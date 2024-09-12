@@ -99,7 +99,7 @@ pub struct PaymentIntent {
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
-    pub statement_descriptor_name: Option<String>,
+    pub statement_descriptor: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -148,4 +148,5 @@ pub struct PaymentIntent {
     pub tax_on_surcharge: Option<MinorUnit>,
     pub organization_id: id_type::OrganizationId,
     pub skip_external_tax_calculation: Option<bool>,
+    pub enable_payment_link: Option<bool>,
 }

@@ -509,7 +509,7 @@ impl behaviour::Conversion for PaymentIntent {
             description: self.description,
             return_url: self.return_url,
             metadata: self.metadata,
-            statement_descriptor_name: self.statement_descriptor_name,
+            statement_descriptor: self.statement_descriptor,
             created_at: self.created_at,
             modified_at: self.modified_at,
             last_synced: self.last_synced,
@@ -551,6 +551,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            enable_payment_link: self.enable_payment_link,
         })
     }
     async fn convert_back(
@@ -584,7 +585,7 @@ impl behaviour::Conversion for PaymentIntent {
                 description: storage_model.description,
                 return_url: storage_model.return_url,
                 metadata: storage_model.metadata,
-                statement_descriptor_name: storage_model.statement_descriptor_name,
+                statement_descriptor: storage_model.statement_descriptor,
                 created_at: storage_model.created_at,
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
@@ -636,6 +637,7 @@ impl behaviour::Conversion for PaymentIntent {
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                enable_payment_link: storage_model.enable_payment_link,
             })
         }
         .await
@@ -655,7 +657,7 @@ impl behaviour::Conversion for PaymentIntent {
             description: self.description,
             return_url: self.return_url,
             metadata: self.metadata,
-            statement_descriptor_name: self.statement_descriptor_name,
+            statement_descriptor: self.statement_descriptor,
             created_at: self.created_at,
             modified_at: self.modified_at,
             last_synced: self.last_synced,

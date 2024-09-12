@@ -841,8 +841,6 @@ diesel::table! {
         #[max_length = 255]
         return_url -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
-        #[max_length = 255]
-        statement_descriptor_name -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
@@ -892,6 +890,9 @@ diesel::table! {
         tax_on_surcharge -> Nullable<Int8>,
         #[max_length = 64]
         frm_merchant_decision -> Nullable<Varchar>,
+        #[max_length = 255]
+        statement_descriptor -> Nullable<Varchar>,
+        enable_payment_link -> Nullable<Bool>,
         #[max_length = 64]
         id -> Varchar,
     }

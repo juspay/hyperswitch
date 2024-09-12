@@ -5,6 +5,7 @@ ADD COLUMN IF NOT EXISTS merchant_reference_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS default_billing_address BYTEA DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS default_shipping_address BYTEA DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS status "DeleteStatus" NOT NULL DEFAULT 'active';
+
 CREATE TYPE "OrderFulfillmentTimeOrigin" AS ENUM ('create', 'confirm');
 
 ALTER TABLE business_profile
@@ -22,8 +23,9 @@ ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
     ADD COLUMN capture_method "CaptureMethod",
     ADD COLUMN authentication_type "AuthenticationType",
     ADD COLUMN amount_to_capture bigint,
-    ADD COLUMN prerouting_algorithm JSONB, -- straight_through_algorithm from payment_attempt
+    ADD COLUMN prerouting_algorithm JSONB,
     ADD COLUMN surcharge_amount bigint,
-    ADD COLUMN tax_on_surcharge bigint, -- tax_amount from payment_attempt
-    ADD COLUMN frm_merchant_decision VARCHAR(64);
-
+    ADD COLUMN tax_on_surcharge bigint,
+    ADD COLUMN frm_merchant_decision VARCHAR(64),
+    ADD COLUMN statement_descriptor VARCHAR(255),
+    ADD COLUMN enable_payment_link BOOLEAN;

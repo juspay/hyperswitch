@@ -57,7 +57,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub description: Option<&'a String>,
     pub return_url: Option<&'a String>,
     pub metadata: Option<String>,
-    pub statement_descriptor_name: Option<&'a String>,
+    pub statement_descriptor: Option<&'a String>,
     #[serde(with = "time::serde::timestamp")]
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp")]
@@ -139,7 +139,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             description: intent.description.as_ref(),
             return_url: intent.return_url.as_ref(),
             metadata: intent.metadata.as_ref().map(|x| x.to_string()),
-            statement_descriptor_name: intent.statement_descriptor_name.as_ref(),
+            statement_descriptor: intent.statement_descriptor.as_ref(),
             created_at: intent.created_at.assume_utc(),
             modified_at: intent.modified_at.assume_utc(),
             last_synced: intent.last_synced.map(|i| i.assume_utc()),
