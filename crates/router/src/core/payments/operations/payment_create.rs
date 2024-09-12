@@ -77,7 +77,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
-        let (payment_intent, payment_attempt);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -322,9 +321,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        payment_intent = db
+        let payment_intent = db
             .insert_payment_intent(
-                &state.into(),
+                key_manager_state,
                 payment_intent_new,
                 merchant_key_store,
                 storage_scheme,
@@ -342,12 +341,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         }
 
-        payment_attempt = db
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+        let payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+
+        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+        let payment_attempt = db
+            .insert_payment_attempt(
+                key_manager_state,
+                merchant_key_store,
+                payment_attempt_new,
+                storage_scheme,
+            )
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
+
         let mandate_details_present = payment_attempt.mandate_details.is_some();
 
         helpers::validate_mandate_data_and_future_usage(

@@ -360,6 +360,7 @@ where
     );
 
     let db = &*state.store;
+    let key_manager_state = &state.into();
     let additional_payment_method_data =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
             payment_data
@@ -468,8 +469,22 @@ where
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     let payment_attempt = db
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
+        })?;
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    let payment_attempt = db
+        .insert_payment_attempt(
+            key_manager_state,
+            key_store,
+            new_payment_attempt,
+            storage_scheme,
+        )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
             payment_id: payment_data.get_payment_intent().get_id().to_owned(),
@@ -480,7 +495,7 @@ where
 
     let payment_intent = db
         .update_payment_intent(
-            &state.into(),
+            key_manager_state,
             payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.get_payment_attempt().attempt_id.clone(),
@@ -498,6 +513,7 @@ where
     Ok(())
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     connector: String,
@@ -540,6 +556,9 @@ pub fn make_new_payment_attempt(
         created_at,
         modified_at,
         last_synced,
+        profile_id: old_payment_attempt.profile_id,
+        organization_id: old_payment_attempt.organization_id,
+        shipping_cost: old_payment_attempt.shipping_cost,
         net_amount: Default::default(),
         error_message: Default::default(),
         cancellation_reason: Default::default(),
@@ -569,11 +588,19 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
-        profile_id: old_payment_attempt.profile_id,
-        organization_id: old_payment_attempt.organization_id,
-        shipping_cost: old_payment_attempt.shipping_cost,
-        order_tax_amount: None,
+        order_tax_amount: Default::default(),
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[instrument(skip_all)]
+pub fn make_new_payment_attempt(
+    _connector: String,
+    _old_payment_attempt: storage::PaymentAttempt,
+    _new_attempt_count: i16,
+    _is_step_up: bool,
+) -> storage::PaymentAttempt {
+    todo!()
 }
 
 pub async fn config_should_call_gsm(
