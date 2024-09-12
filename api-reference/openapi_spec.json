@@ -11143,6 +11143,28 @@
       "GooglePayThirdPartySdkData": {
         "type": "object"
       },
+      "GooglePayWalletAdditionalData": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "network",
+          "type"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "description": "User-facing message to describe the payment method that funds this transaction."
+          },
+          "network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          }
+        }
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -15466,7 +15488,7 @@
             ],
             "properties": {
               "wallet": {
-                "type": "object"
+                "$ref": "#/components/schemas/WalletResponse"
               }
             }
           },
@@ -23311,6 +23333,47 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          }
+        ]
+      },
+      "WalletResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletResponseData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "WalletResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/ApplepayPaymentMethod"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/GooglePayWalletAdditionalData"
               }
             }
           }

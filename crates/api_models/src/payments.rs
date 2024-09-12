@@ -3190,6 +3190,7 @@ pub struct WalletResponse {
 #[serde(rename_all = "snake_case")]
 pub enum WalletResponseData {
     ApplePay(Box<ApplepayPaymentMethod>),
+    #[schema(value_type = GooglePayWalletAdditionalData)]
     GooglePay(Box<additional_info::GooglePayWalletAdditionalData>),
 }
 
