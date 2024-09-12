@@ -98,9 +98,9 @@ impl DynamicRoutingClientConfig {
     pub async fn get_dynamic_routing_connection(
         self,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let uri = format!("http://{}:{}", self.host, self.port);
-        let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
         let success_rate_client = if self.enabled {
+            let uri = format!("http://{}:{}", self.host, self.port);
+            let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
             Some(SuccessRateCalculatorClient::new(channel))
         } else {
             None
