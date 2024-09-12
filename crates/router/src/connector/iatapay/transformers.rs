@@ -160,7 +160,7 @@ impl
                         | domain::BankRedirectData::Giropay { .. }
                         | domain::BankRedirectData::Interac { .. }
                         | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                        | domain::BankRedirectData::OnlineBankingFinland {}
+                        | domain::BankRedirectData::OnlineBankingFinland { .. }
                         | domain::BankRedirectData::OnlineBankingPoland { .. }
                         | domain::BankRedirectData::OnlineBankingSlovakia { .. }
                         | domain::BankRedirectData::OpenBankingUk { .. }
