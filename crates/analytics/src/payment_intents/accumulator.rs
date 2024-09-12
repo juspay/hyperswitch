@@ -1,6 +1,7 @@
 use api_models::analytics::payment_intents::PaymentIntentMetricsBucketValue;
 use bigdecimal::ToPrimitive;
 use diesel_models::enums as storage_enums;
+
 use super::metrics::PaymentIntentMetricRow;
 
 #[derive(Debug, Default)]

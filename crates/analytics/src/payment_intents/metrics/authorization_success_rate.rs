@@ -47,7 +47,7 @@ where
             QueryBuilder::new(AnalyticsCollection::PaymentIntent);
 
         let mut dimensions = dimensions.to_vec();
-        
+
         dimensions.push(PaymentIntentDimensions::PaymentIntentStatus);
 
         for dim in dimensions.iter() {
@@ -79,7 +79,6 @@ where
         query_builder
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Equal)
             .switch()?;
-
 
         time_range
             .set_filter_clause(&mut query_builder)
