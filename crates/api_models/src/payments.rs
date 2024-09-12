@@ -4020,6 +4020,8 @@ pub struct PaymentsResponse {
         example = "Custom_Order_id_123"
     )]
     pub merchant_order_reference_id: Option<String>,
+    /// order tax amount calculated by tax connectors
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 /// Fee information to be charged on the payment being collected
