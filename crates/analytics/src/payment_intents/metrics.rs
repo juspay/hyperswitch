@@ -16,12 +16,14 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 
+mod auth_declined_rate;
 mod authorization_success_rate;
 mod payment_intent_count;
 mod smart_retried_amount;
 mod successful_smart_retries;
 mod total_smart_retries;
 
+use auth_declined_rate::AuthDeclinedRate;
 use authorization_success_rate::AuthorizationSuccessRate;
 use payment_intent_count::PaymentIntentCount;
 use smart_retried_amount::SmartRetriedAmount;
@@ -102,6 +104,11 @@ where
             }
             Self::AuthorizationSuccessRate => {
                 AuthorizationSuccessRate
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::AuthDeclinedRate => {
+                AuthDeclinedRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

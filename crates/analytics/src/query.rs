@@ -335,6 +335,56 @@ pub struct TopN {
     pub order: Order,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub enum FilterCombinator {
+    #[default]
+    And,
+    Or,
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(match self {
+            FilterCombinator::And => " AND ",
+            FilterCombinator::Or => " OR ",
+        }
+        .to_owned())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Filter {
+    Plain(String, FilterTypes, String),
+    NestedFilter(FilterCombinator, Vec<Filter>),
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Self::NestedFilter(FilterCombinator::default(), Vec::new())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for Filter {
+    fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(match self {
+            Filter::Plain(l, op, r) => filter_type_to_sql(l, op, r),
+            Filter::NestedFilter(operator, filters) => {
+                format!(
+                    "( {} )",
+                    filters
+                        .iter()
+                        .map(|f| <Self as ToSql<T>>::to_sql(f, table_engine))
+                        .collect::<Result<Vec<String>, _>>()?
+                        .join(
+                            <FilterCombinator as ToSql<T>>::to_sql(operator, table_engine)?
+                                .as_ref()
+                        )
+                )
+            }
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct QueryBuilder<T>
 where
@@ -342,7 +392,7 @@ where
     AnalyticsCollection: ToSql<T>,
 {
     columns: Vec<String>,
-    filters: Vec<(String, FilterTypes, String)>,
+    filters: Filter,
     group_by: Vec<String>,
     having: Option<Vec<(String, FilterTypes, String)>>,
     outer_select: Vec<String>,
@@ -444,7 +494,7 @@ impl_to_sql_for_to_string!(
     DisputeStage
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum FilterTypes {
     Equal,
     NotEqual,
@@ -580,7 +630,7 @@ where
         rhs: impl ToSql<T>,
         comparison: FilterTypes,
     ) -> QueryResult<()> {
-        self.filters.push((
+        let filter = Filter::Plain(
             lhs.to_sql(&self.table_engine)
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter key")?,
@@ -588,8 +638,17 @@ where
             rhs.to_sql(&self.table_engine)
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter value")?,
-        ));
+        );
+        self.add_nested_filter_clause(filter);
         Ok(())
+    }
+    pub fn add_nested_filter_clause(&mut self, filter: Filter) {
+        match &mut self.filters {
+            Filter::NestedFilter(_, ref mut filters) => filters.push(filter),
+            f @ Filter::Plain(_, _, _) => {
+                self.filters = Filter::NestedFilter(FilterCombinator::And, vec![f.clone(), filter]);
+            }
+        }
     }
 
     pub fn add_filter_in_range_clause(
@@ -638,12 +697,9 @@ where
         Ok(())
     }
 
-    fn get_filter_clause(&self) -> String {
-        self.filters
-            .iter()
-            .map(|(l, op, r)| filter_type_to_sql(l, op, r))
-            .collect::<Vec<String>>()
-            .join(" AND ")
+    fn get_filter_clause(&self) -> QueryResult<String> {
+        <Filter as ToSql<T>>::to_sql(&self.filters, &self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
     }
 
     fn get_select_clause(&self) -> String {
@@ -731,9 +787,10 @@ where
                 .attach_printable("Error serializing table value")?,
         );
 
-        if !self.filters.is_empty() {
+        let filter_clause = self.get_filter_clause()?;
+        if !filter_clause.is_empty() {
             query.push_str(" WHERE ");
-            query.push_str(&self.get_filter_clause());
+            query.push_str(filter_clause.as_str());
         }
 
         if !self.group_by.is_empty() {

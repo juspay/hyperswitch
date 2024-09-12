@@ -62,6 +62,7 @@ pub enum PaymentIntentMetrics {
     SmartRetriedAmount,
     PaymentIntentCount,
     AuthorizationSuccessRate,
+    AuthDeclinedRate,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -77,6 +78,7 @@ pub mod metric_behaviour {
     pub struct SmartRetriedAmount;
     pub struct PaymentIntentCount;
     pub struct AuthorizationSuccessRate;
+    pub struct AuthDeclinedRate;
 }
 
 impl From<PaymentIntentMetrics> for NameDescription {
@@ -153,6 +155,7 @@ pub struct PaymentIntentMetricsBucketValue {
     pub smart_retried_amount: Option<u64>,
     pub payment_intent_count: Option<u64>,
     pub authorization_success_rate: Option<f64>,
+    pub auth_declined_rate: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

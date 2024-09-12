@@ -11,6 +11,7 @@ pub struct PaymentIntentMetricsAccumulator {
     pub smart_retried_amount: SumAccumulator,
     pub payment_intent_count: CountAccumulator,
     pub authorization_success_rate: AuthorizationRateAccumulator,
+    pub auth_declined_rate: AuthDeclinedRateAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -48,6 +49,12 @@ pub struct SumAccumulator {
 #[derive(Debug, Default)]
 pub struct AuthorizationRateAccumulator {
     pub success: i64,
+    pub total: i64,
+}
+
+#[derive(Debug, Default)]
+pub struct AuthDeclinedRateAccumulator {
+    pub failed: i64,
     pub total: i64,
 }
 
@@ -110,6 +117,30 @@ impl PaymentIntentMetricAccumulator for AuthorizationRateAccumulator {
     }
 }
 
+impl PaymentIntentMetricAccumulator for AuthDeclinedRateAccumulator {
+    type MetricOutput = Option<f64>;
+
+    fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
+        if let Some(ref status) = metrics.status {
+            if status.as_ref() == &storage_enums::IntentStatus::Failed {
+                self.failed += metrics.count.unwrap_or_default();
+            }
+        };
+        self.total += metrics.count.unwrap_or_default();
+    }
+
+    fn collect(self) -> Self::MetricOutput {
+        if self.total <= 0 {
+            None
+        } else {
+            Some(
+                f64::from(u32::try_from(self.failed).ok()?) * 100.0
+                    / f64::from(u32::try_from(self.total).ok()?),
+            )
+        }
+    }
+}
+
 impl PaymentIntentMetricsAccumulator {
     pub fn collect(self) -> PaymentIntentMetricsBucketValue {
         PaymentIntentMetricsBucketValue {
@@ -118,6 +149,7 @@ impl PaymentIntentMetricsAccumulator {
             smart_retried_amount: self.smart_retried_amount.collect(),
             payment_intent_count: self.payment_intent_count.collect(),
             authorization_success_rate: self.authorization_success_rate.collect(),
+            auth_declined_rate: self.auth_declined_rate.collect(),
         }
     }
 }

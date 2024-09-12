@@ -122,6 +122,9 @@ pub async fn get_metrics(
                         PaymentIntentMetrics::AuthorizationSuccessRate => metrics_builder
                             .authorization_success_rate
                             .add_metrics_bucket(&value),
+                        PaymentIntentMetrics::AuthDeclinedRate => metrics_builder
+                            .auth_declined_rate
+                            .add_metrics_bucket(&value),
                     }
                 }
 
