@@ -60,7 +60,7 @@ pub struct CardNetworkTokenResponse {
 #[serde(rename_all = "camelCase")]
 pub struct CardNetworkTokenResponsePayload {
     pub card_brand: api_enums::CardNetwork,
-    pub card_fingerprint: String,
+    pub card_fingerprint: Option<Secret<String>>,
     pub card_reference: String,
     pub correlation_id: String,
     pub customer_id: String,
