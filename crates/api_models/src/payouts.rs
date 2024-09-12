@@ -11,6 +11,7 @@ use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
+pub mod additonal_info;
 
 use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
@@ -535,6 +536,33 @@ pub struct PayoutCreateResponse {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+}
+
+/// The payout method information for response
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutMethodDataResponse {
+    Card(Box<CardPayoutResponse>),
+    Bank(Box<BankPayoutResponse>),
+    Wallet(Box<WalletPayoutResponse>),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CardPayoutResponse {
+    #[serde(flatten)]
+    details: additonal_info::CardAdditionalData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct BankPayoutResponse {
+    #[serde(flatten)]
+    details: Option<additonal_info::BankAdditionalData>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct WalletPayoutResponse {
+    #[serde(flatten)]
+    details: Option<additonal_info::WalletAdditonalData>,
 }
 
 #[derive(

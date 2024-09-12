@@ -131,6 +131,21 @@ impl From<Secret<String>> for MaskedIban {
     }
 }
 
+/// Masked IBAN
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedBic(Secret<String>);
+impl From<String> for MaskedBic {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 3, 3);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedBic {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
 /// Masked UPI ID
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MaskedUpiVpaId(Secret<String>);
