@@ -892,7 +892,6 @@ pub async fn list_invitations_for_user(
                     .map(|encryptable_name| encryptable_name.into_inner()),
             )
         })
-        .into_iter()
         .collect::<HashMap<_, _>>();
 
     let master_key = &state.store.get_master_key().to_vec().into();
