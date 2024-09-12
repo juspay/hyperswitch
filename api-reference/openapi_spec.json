@@ -3891,7 +3891,7 @@
         ],
         "summary": "Routing - Toggle Dynamic Routing for Profile",
         "description": "Create a Dynamic routing algorithm",
-        "operationId": "Toggle dynamic routing algprithm",
+        "operationId": "Toggle dynamic routing algorithm",
         "parameters": [
           {
             "name": "account_id",
@@ -3958,14 +3958,14 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/config": {
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/config/:algorithm_id": {
       "patch": {
         "tags": [
           "Routing"
         ],
         "summary": "Routing - Update Configs For Dynamic Routing",
         "description": "Update config for Dynamic Routing",
-        "operationId": "Update default configs for all profiles",
+        "operationId": "Update Dynamic routing configs for the specified algorithm id",
         "parameters": [
           {
             "name": "account_id",
@@ -3988,7 +3988,7 @@
           {
             "name": "algorithm_id",
             "in": "path",
-            "description": "The unique identifier for a profile",
+            "description": "The unique identifier for a routing algorithm",
             "required": true,
             "schema": {
               "type": "string"
@@ -3999,10 +3999,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/RoutableConnectorChoice"
-                }
+                "$ref": "#/components/schemas/DynamicRoutingConfig"
               }
             }
           },
@@ -4038,9 +4035,6 @@
         "security": [
           {
             "admin_api_key": []
-          },
-          {
-            "jwt_key": []
           }
         ]
       }
@@ -6278,6 +6272,7 @@
           "alliance_bank",
           "am_bank",
           "bank_of_america",
+          "bank_of_china",
           "bank_islam",
           "bank_muamalat",
           "bank_rakyat",
@@ -7801,6 +7796,9 @@
       },
       "BusinessProfileCreate": {
         "type": "object",
+        "required": [
+          "dynamic_routing_algorithm"
+        ],
         "properties": {
           "profile_name": {
             "type": "string",
@@ -7966,8 +7964,8 @@
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           },
           "dynamic_routing_algorithm": {
-            "description": "Indicates if dynamic routing is enabled or not with the specific algorithmId.",
-            "nullable": true
+            "type": "string",
+            "description": "Indicates if dynamic routing is enabled or not with the specific algorithmId."
           }
         },
         "additionalProperties": false
@@ -8811,6 +8809,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -9475,6 +9474,23 @@
           "ZAR",
           "ZMW"
         ]
+      },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -10223,6 +10239,99 @@
           }
         }
       },
+      "DynamicRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DynamicRoutingConfigId"
+              }
+            ],
+            "nullable": true
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DynamicRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "DynamicRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "DynamicRoutingConfigId": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "MerchantId"
+            ],
+            "properties": {
+              "MerchantId": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ProfileId"
+            ],
+            "properties": {
+              "ProfileId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "DynamicRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "Currency",
+          "AuthenticationType"
+        ]
+      },
       "DynamicRoutingUpdateConfigQuery": {
         "type": "object",
         "required": [
@@ -10902,6 +11011,18 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_language"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_ip"
             ]
           }
         ],
@@ -21737,6 +21858,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",

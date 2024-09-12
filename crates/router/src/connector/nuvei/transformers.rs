@@ -618,6 +618,7 @@ impl TryFrom<common_enums::enums::BankNames> for NuveiBIC {
             | common_enums::enums::BankNames::AllianceBank
             | common_enums::enums::BankNames::AmBank
             | common_enums::enums::BankNames::BankOfAmerica
+            | common_enums::enums::BankNames::BankOfChina
             | common_enums::enums::BankNames::BankIslam
             | common_enums::enums::BankNames::BankMuamalat
             | common_enums::enums::BankNames::BankRakyat
