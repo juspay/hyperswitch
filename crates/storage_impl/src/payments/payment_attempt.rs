@@ -93,6 +93,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -109,6 +110,39 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+
+        Conversion::convert(this)
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
+            .update_with_attempt_id(
+                &conn,
+                diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
+            )
+            .await
+            .map_err(|error| {
+                let new_error = diesel_error_to_data_error(error.current_context());
+                error.change_context(new_error)
+            })?
+            .convert(
+                key_manager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -574,6 +608,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -695,6 +730,28 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 Ok(updated_attempt)
             }
         }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .update_payment_attempt_with_attempt_id(
+                key_manager_state,
+                merchant_key_store,
+                this,
+                payment_attempt,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

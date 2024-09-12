@@ -206,6 +206,7 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn update_payment_attempt_with_attempt_id(
@@ -228,6 +229,19 @@ impl PaymentAttemptInterface for MockDb {
         );
 
         Ok(item.clone())
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+        _this: PaymentAttempt,
+        _payment_attempt: PaymentAttemptUpdate,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
     }
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

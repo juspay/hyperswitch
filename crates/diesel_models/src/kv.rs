@@ -109,8 +109,18 @@ impl DBOperation {
                 Updateable::PaymentIntentUpdate(a) => {
                     DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
+                )),
+                #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
+                    a.orig
+                        .update_with_attempt_id(
+                            conn,
+                            crate::PaymentAttemptUpdateInternal::from(a.update_data),
+                        )
+                        .await?,
                 )),
                 Updateable::RefundUpdate(a) => {
                     DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))

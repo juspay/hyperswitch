@@ -1371,6 +1371,7 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: storage::PaymentAttempt,
@@ -1380,6 +1381,37 @@ impl PaymentAttemptInterface for KafkaStore {
         let attempt = self
             .diesel_store
             .update_payment_attempt_with_attempt_id(this.clone(), payment_attempt, storage_scheme)
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
+            .await
+        {
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        }
+
+        Ok(attempt)
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        this: storage::PaymentAttempt,
+        payment_attempt: storage::PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        let attempt = self
+            .diesel_store
+            .update_payment_attempt_with_attempt_id(
+                key_manager_state,
+                merchant_key_store,
+                this.clone(),
+                payment_attempt,
+                storage_scheme,
+            )
             .await?;
 
         if let Err(er) = self
