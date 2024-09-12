@@ -541,6 +541,23 @@ pub struct DynamicRoutingConfig {
     pub config: Option<DynamicRoutingConfigBody>,
 }
 
+impl Default for DynamicRoutingConfig {
+    fn default() -> Self {
+        Self {
+            params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
+            config: Some(DynamicRoutingConfigBody {
+                min_aggregates_size: Some(2),
+                default_success_rate: Some(100.0),
+                max_aggregates_size: Some(3),
+                current_block_threshold: Some(CurrentBlockThreshold {
+                    duration_in_mins: Some(5),
+                    max_total_count: Some(2),
+                }),
+            }),
+        }
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,

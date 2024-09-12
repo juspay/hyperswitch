@@ -2,7 +2,7 @@ pub mod helpers;
 pub mod transformers;
 
 use api_models::{
-    enums, mandates as mandates_api,
+    enums, mandates as mandates_api, routing,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use diesel_models::routing_algorithm::RoutingAlgorithm;
@@ -388,7 +388,7 @@ pub async fn link_routing_config(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let routing_algorithm: RoutingAlgorithm = db
+    let routing_algorithm = db
         .find_routing_algorithm_by_algorithm_id_merchant_id(
             &algorithm_id,
             merchant_account.get_id(),
@@ -415,7 +415,7 @@ pub async fn link_routing_config(
         diesel_models::enums::RoutingAlgorithmKind::Dynamic => {
             let mut dynamic_routing_ref: routing_types::DynamicRoutingAlgorithmRef =
                 business_profile
-                    .routing_algorithm
+                    .dynamic_routing_algorithm
                     .clone()
                     .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
                     .transpose()
@@ -1175,20 +1175,7 @@ pub async fn toggle_dynamic_routing(
     })?;
 
     if status {
-        let default_dynamic_routing_config = api_models::routing::DynamicRoutingConfig {
-            params: Some(vec![
-                api_models::routing::DynamicRoutingConfigParams::PaymentMethod,
-            ]),
-            config: Some(api_models::routing::DynamicRoutingConfigBody {
-                min_aggregates_size: Some(2),
-                default_success_rate: Some(100.0),
-                max_aggregates_size: Some(3),
-                current_block_threshold: Some(api_models::routing::CurrentBlockThreshold {
-                    duration_in_mins: Some(5),
-                    max_total_count: Some(2),
-                }),
-            }),
-        };
+        let default_dynamic_routing_config = routing::DynamicRoutingConfig::default();
 
         let algorithm_id = common_utils::generate_routing_id_of_default_length();
         let timestamp = common_utils::date_time::now();
@@ -1204,10 +1191,12 @@ pub async fn toggle_dynamic_routing(
             modified_at: timestamp,
             algorithm_for: common_enums::TransactionType::Payment,
         };
+
         let record = db
             .insert_routing_algorithm(algo.clone())
             .await
-            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to insert record in routing algorithm table")?;
 
         let mut dynamic_routing_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
             .dynamic_routing_algorithm
@@ -1296,21 +1285,18 @@ pub async fn dynamic_routing_update_configs(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-    let mut config_to_update: api_models::routing::DynamicRoutingConfig =
-        serde_json::from_value::<api_models::routing::DynamicRoutingConfig>(
-            dynamic_routing_algo_to_update.algorithm_data,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "invalid data received for payment method auth config".to_string(),
-        })
-        .attach_printable("Failed to deserialize Payment Method Auth config")?;
+    let mut config_to_update = dynamic_routing_algo_to_update
+        .algorithm_data
+        .parse_value::<routing::DynamicRoutingConfig>("DynamicRoutingConfig")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize dynamic routing algorithm data")?;
 
     config_to_update.update(request);
 
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
     let algo = RoutingAlgorithm {
-        algorithm_id: algorithm_id.clone(),
+        algorithm_id,
         profile_id: dynamic_routing_algo_to_update.profile_id,
         merchant_id: dynamic_routing_algo_to_update.merchant_id,
         name: dynamic_routing_algo_to_update.name,
@@ -1322,9 +1308,10 @@ pub async fn dynamic_routing_update_configs(
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
     };
     let record = db
-        .insert_routing_algorithm(algo.clone())
+        .insert_routing_algorithm(algo)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
 
     let new_record = record.foreign_into();
 
