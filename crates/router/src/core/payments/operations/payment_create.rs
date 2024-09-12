@@ -150,6 +150,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.setup_future_usage,
             request.customer_acceptance.clone(),
             request.payment_token.clone(),
+            request.payment_method,
         )
         .change_context(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
