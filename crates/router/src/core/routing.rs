@@ -1176,7 +1176,7 @@ pub async fn toggle_dynamic_routing(
 
     if status {
         let default_dynamic_routing_config = api_models::routing::DynamicRoutingConfig {
-            id: Some(profile_id.clone()), 
+            id: Some(profile_id.clone()),
             params: Some(vec![
                 api_models::routing::DynamicRoutingConfigParams::PaymentMethod,
             ]),
@@ -1332,4 +1332,3 @@ pub async fn dynamic_routing_update_configs(
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
-
