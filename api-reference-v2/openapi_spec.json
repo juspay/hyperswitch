@@ -13453,6 +13453,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14543,6 +14551,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
