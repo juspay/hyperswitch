@@ -2,7 +2,10 @@
 use common_utils::generate_id;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{consts, types::api};
+use crate::{
+    consts,
+    types::{api, domain, storage},
+};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
@@ -88,4 +91,13 @@ impl PaymentMethodClientSecret {
     pub fn generate(payment_method_id: &common_utils::id_type::GlobalPaymentMethodId) -> String {
         todo!()
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct SavedPMLPaymentsInfo {
+    pub payment_intent: storage::PaymentIntent,
+    pub business_profile: Option<domain::BusinessProfile>,
+    pub requires_cvv: bool,
+    pub off_session_payment_flag: bool,
+    pub is_connector_agnostic_mit_enabled: bool,
 }

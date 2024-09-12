@@ -14,7 +14,8 @@ use router_env::{instrument, logger, tracing, Flow};
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::core::payment_methods::{
-    create_payment_method, payment_method_intent_confirm, payment_method_intent_create,
+    create_payment_method, list_customer_payment_method_util, payment_method_intent_confirm,
+    payment_method_intent_create,
 };
 use crate::{
     core::{
@@ -462,7 +463,7 @@ pub async fn list_customer_payment_method_for_payment(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_customer_payment_method_util(
+            list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -527,7 +528,7 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_customer_payment_method_util(
+            list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
                 auth.key_store,
