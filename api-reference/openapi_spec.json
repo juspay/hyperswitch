@@ -7959,10 +7959,6 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
-          },
-          "dynamic_routing_algorithm": {
-            "description": "Indicates if dynamic routing is enabled or not with the specific algorithmId.",
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22775,21 +22771,6 @@
           "status"
         ],
         "properties": {
-          "status": {
-            "type": "boolean"
-          }
-        }
-      },
-      "ToggleDynamicRoutingWrapper": {
-        "type": "object",
-        "required": [
-          "profile_id",
-          "status"
-        ],
-        "properties": {
-          "profile_id": {
-            "type": "string"
-          },
           "status": {
             "type": "boolean"
           }

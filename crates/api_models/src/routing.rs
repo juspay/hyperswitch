@@ -76,9 +76,8 @@ pub struct DynamicRoutingUpdateConfigQuery {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ToggleDynamicRoutingWrapper {
-    #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub status: bool,
 }

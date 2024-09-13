@@ -986,8 +986,7 @@ pub async fn toggle_dynamic_routing(
     query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
 ) -> impl Responder {
-    use crate::services::authentication::AuthenticationData;
-    let flow = Flow::RoutingRetrieveActiveConfig;
+    let flow = Flow::ToggleDynamicRouting;
     let wrapper = routing_types::ToggleDynamicRoutingWrapper {
         status: query.into_inner().status,
         profile_id: path.into_inner().profile_id,
@@ -997,10 +996,7 @@ pub async fn toggle_dynamic_routing(
         state,
         &req,
         wrapper.clone(),
-        |state,
-         auth: AuthenticationData,
-         wrapper: routing_types::ToggleDynamicRoutingWrapper,
-         _| {
+        |state, auth: auth::AuthenticationData, wrapper: routing_types::ToggleDynamicRoutingWrapper, _| {
             routing::toggle_dynamic_routing(
                 state,
                 auth.merchant_account,
