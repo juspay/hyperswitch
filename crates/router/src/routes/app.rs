@@ -1190,13 +1190,16 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
-                web::resource("/{id}/merchant_accounts")
-                    .route(web::get().to(admin::merchant_account_list)),
-            )
-            .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::organization_retrieve))
-                    .route(web::put().to(admin::organization_update)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::organization_retrieve))
+                            .route(web::put().to(admin::organization_update)),
+                    )
+                    .service(
+                        web::resource("/merchant_accounts")
+                            .route(web::get().to(admin::merchant_account_list)),
+                    ),
             )
     }
 }
@@ -1210,12 +1213,16 @@ impl MerchantAccount {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(
-                web::resource("/{id}/profiles").route(web::get().to(admin::business_profiles_list)),
-            )
-            .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::retrieve_merchant_account))
-                    .route(web::put().to(admin::update_merchant_account)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::retrieve_merchant_account))
+                            .route(web::put().to(admin::update_merchant_account)),
+                    )
+                    .service(
+                        web::resource("/profiles")
+                            .route(web::get().to(admin::business_profiles_list)),
+                    ),
             )
     }
 }
@@ -1578,7 +1585,8 @@ impl BusinessProfile {
                             .route(web::put().to(super::admin::business_profile_update)),
                     )
                     .service(
-                        web::resource("/connector_accounts").route(web::get().to(admin::connector_list)),
+                        web::resource("/connector_accounts")
+                            .route(web::get().to(admin::connector_list)),
                     )
                     .service(
                         web::resource("/fallback_routing")
