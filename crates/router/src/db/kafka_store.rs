@@ -2539,11 +2539,7 @@ impl ProfileInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, errors::StorageError> {
         self.diesel_store
-            .list_profile_by_merchant_id(
-                key_manager_state,
-                merchant_key_store,
-                merchant_id,
-            )
+            .list_profile_by_merchant_id(key_manager_state, merchant_key_store, merchant_id)
             .await
     }
 

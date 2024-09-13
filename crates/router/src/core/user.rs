@@ -2962,11 +2962,7 @@ pub async fn switch_merchant_for_user_in_org(
 
             let profile_id = state
                 .store
-                .list_profile_by_merchant_id(
-                    key_manager_state,
-                    &merchant_key_store,
-                    &merchant_id,
-                )
+                .list_profile_by_merchant_id(key_manager_state, &merchant_key_store, &merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to list business profiles by merchant_id")?

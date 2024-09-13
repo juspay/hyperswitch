@@ -55,7 +55,7 @@ use super::webhooks::*;
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
-    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*, profiles,
+    files::*, gsm::*, payment_link::*, profiles, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1555,8 +1555,8 @@ impl Profile {
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                        .route(web::get().to(profiles::profile_retrieve))
-                        .route(web::put().to(profiles::profile_update)),
+                            .route(web::get().to(profiles::profile_retrieve))
+                            .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
                         web::resource("/fallback_routing")
@@ -1616,8 +1616,8 @@ impl Profile {
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                        .route(web::get().to(profiles::profile_retrieve))
-                        .route(web::post().to(profiles::profile_update))
+                            .route(web::get().to(profiles::profile_retrieve))
+                            .route(web::post().to(profiles::profile_update))
                             .route(web::delete().to(profiles::profile_delete)),
                     )
                     .service(
@@ -1643,7 +1643,8 @@ impl ProfileNew {
                 web::resource("").route(web::get().to(profiles::profiles_list_at_profile_level)),
             )
             .service(
-                web::resource("/connectors").route(web::get().to(profiles::payment_connector_list_profile)),
+                web::resource("/connectors")
+                    .route(web::get().to(profiles::payment_connector_list_profile)),
             )
     }
 }

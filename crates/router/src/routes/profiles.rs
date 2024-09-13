@@ -14,7 +14,7 @@ use crate::{
 pub async fn profile_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<admin::ProfileCreate>,
+    json_payload: web::Json<admin::BusinessProfileCreate>,
     path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::ProfileCreate;
@@ -92,9 +92,7 @@ pub async fn profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, auth_data, profile_id, _| {
-            retrieve_profile(state, profile_id, auth_data.key_store)
-        },
+        |state, auth_data, profile_id, _| retrieve_profile(state, profile_id, auth_data.key_store),
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
@@ -124,9 +122,7 @@ pub async fn profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, auth_data, profile_id, _| {
-            retrieve_profile(state, profile_id, auth_data.key_store)
-        },
+        |state, auth_data, profile_id, _| retrieve_profile(state, profile_id, auth_data.key_store),
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
@@ -149,7 +145,7 @@ pub async fn profile_update(
         common_utils::id_type::MerchantId,
         common_utils::id_type::ProfileId,
     )>,
-    json_payload: web::Json<api_models::admin::ProfileUpdate>,
+    json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();
@@ -159,9 +155,7 @@ pub async fn profile_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth_data, req, _| {
-            update_profile(state, &profile_id, auth_data.key_store, req)
-        },
+        |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantAndProfileFromRoute {
@@ -193,9 +187,7 @@ pub async fn profile_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth_data, req, _| {
-            update_profile(state, &profile_id, auth_data.key_store, req)
-        },
+        |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {

@@ -928,11 +928,7 @@ pub async fn retrieve_linked_routing_config(
         })?
     } else {
         let business_profile = db
-            .list_profile_by_merchant_id(
-                key_manager_state,
-                &key_store,
-                merchant_account.get_id(),
-            )
+            .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_account.get_id())
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
         core_utils::filter_objects_based_on_profile_id_list(
@@ -988,11 +984,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
     let key_manager_state = &(&state).into();
 
     let all_profiles = db
-        .list_profile_by_merchant_id(
-            key_manager_state,
-            &key_store,
-            merchant_account.get_id(),
-        )
+        .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_account.get_id())
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("error retrieving all business profiles for merchant")?;

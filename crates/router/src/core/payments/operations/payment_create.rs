@@ -134,11 +134,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 &profile_id,
             )
             .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::ProfileNotFound {
-                    id: profile_id.get_string_repr().to_owned(),
-                },
-            )?
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?
         };
         let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 

@@ -19,8 +19,7 @@ use crate::{
 #[async_trait::async_trait]
 pub trait ProfileInterface
 where
-    domain::Profile:
-        Conversion<DstType = storage::Profile, NewDstType = storage::ProfileNew>,
+    domain::Profile: Conversion<DstType = storage::Profile, NewDstType = storage::ProfileNew>,
 {
     async fn insert_business_profile(
         &self,
@@ -173,10 +172,7 @@ impl ProfileInterface for Store {
         Conversion::convert(current_state)
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .update_by_profile_id(
-                &conn,
-                storage::ProfileUpdateInternal::from(profile_update),
-            )
+            .update_by_profile_id(&conn, storage::ProfileUpdateInternal::from(profile_update))
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -340,13 +336,12 @@ impl ProfileInterface for MockDb {
             .iter_mut()
             .find(|business_profile| business_profile.get_id() == current_state.get_id())
             .async_map(|business_profile| async {
-                let profile_updated =
-                    storage::ProfileUpdateInternal::from(profile_update)
-                        .apply_changeset(
-                            Conversion::convert(current_state)
-                                .await
-                                .change_context(errors::StorageError::EncryptionError)?,
-                        );
+                let profile_updated = storage::ProfileUpdateInternal::from(profile_update)
+                    .apply_changeset(
+                        Conversion::convert(current_state)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
                 *business_profile = profile_updated.clone();
 
                 profile_updated

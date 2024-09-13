@@ -270,7 +270,6 @@ pub async fn delete_merchant_account() {}
 )]
 pub async fn merchant_account_kv_status() {}
 
-
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant

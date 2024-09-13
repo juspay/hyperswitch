@@ -298,15 +298,15 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
-    /// Create a business profile
+    /// Create a profile
     ProfileCreate,
-    /// Update a business profile
+    /// Update a profile
     ProfileUpdate,
-    /// Retrieve a business profile
+    /// Retrieve a profile
     ProfileRetrieve,
-    /// Delete a business profile
+    /// Delete a profile
     ProfileDelete,
-    /// List all the business profiles for a merchant
+    /// List all the profiles for a merchant
     ProfileList,
     /// Different verification flows
     Verification,

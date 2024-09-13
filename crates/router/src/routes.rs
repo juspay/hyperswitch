@@ -35,6 +35,8 @@ pub mod payouts;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod pm_auth;
 pub mod poll;
+#[cfg(feature = "olap")]
+pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
@@ -51,8 +53,6 @@ pub mod verify_connector;
 #[cfg(feature = "olap")]
 pub mod webhook_events;
 pub mod webhooks;
-#[cfg(feature = "olap")]
-pub mod profiles; 
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
@@ -61,10 +61,10 @@ pub use self::app::Forex;
 #[cfg(all(feature = "olap", feature = "recon"))]
 pub use self::app::Recon;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, Profile, ProfileNew, Cache,
-    Cards, Configs, ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health,
-    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, Refunds, SessionState, User, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
+    Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates, MerchantAccount,
+    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Profile, ProfileNew,
+    Refunds, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

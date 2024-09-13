@@ -1,3 +1,1 @@
-pub use diesel_models::business_profile::{
-    Profile, ProfileNew, ProfileUpdateInternal,
-};
+pub use diesel_models::business_profile::{Profile, ProfileNew, ProfileUpdateInternal};

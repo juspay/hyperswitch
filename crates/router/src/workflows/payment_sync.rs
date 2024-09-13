@@ -180,11 +180,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             profile_id,
                         )
                         .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::ProfileNotFound {
-                                id: profile_id.get_string_repr().to_owned(),
-                            },
-                        )?;
+                        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                            id: profile_id.get_string_repr().to_owned(),
+                        })?;
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
