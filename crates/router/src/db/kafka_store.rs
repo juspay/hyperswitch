@@ -1225,6 +1225,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
         &self,
         state: &KeyManagerState,
