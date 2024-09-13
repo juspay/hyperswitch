@@ -17,7 +17,7 @@ function normalise(input) {
     paybox: "Paybox",
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
-    fiuu: "Fiuu"
+    fiuu: "Fiuu",
     // Add more known exceptions here
   };
 

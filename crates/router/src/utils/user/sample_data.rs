@@ -330,6 +330,8 @@ pub async fn generate_sample_data(
             customer_acceptance: None,
             profile_id: profile_id.clone(),
             organization_id: org_id.clone(),
+            shipping_cost: None,
+            order_tax_amount: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

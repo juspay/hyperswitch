@@ -173,7 +173,17 @@ function redirectToEndUrl(returnUrl) {
       }
       if (secondsLeft === 0) {
         setTimeout(function () {
-          window.location.href = returnUrl.toString();
+          try {
+            window.top.location.href = returnUrl.toString();
+          } catch (error) {
+            console.error(
+              "CRITICAL ERROR",
+              "Failed to redirect top document. Error - ",
+              error
+            );
+            console.info("Redirecting in current document");
+            window.location.href = returnUrl.toString();
+          }
         }, 1000);
       }
     }, i * 1000);

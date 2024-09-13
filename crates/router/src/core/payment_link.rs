@@ -9,7 +9,6 @@ use common_utils::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
         DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
-        DEFAULT_TRANSACTION_DETAILS,
     },
     ext_traits::{AsyncExt, OptionExt, ValueExt},
     types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
@@ -114,7 +113,7 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-                transaction_details: DEFAULT_TRANSACTION_DETAILS,
+                transaction_details: None,
             }
         };
 
@@ -616,24 +615,8 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         allowed_domains,
-        transaction_details: payment_create_link_config.and_then(|payment_link_config| {
-            payment_link_config
-                .theme_config
-                .transaction_details
-                .and_then(|transaction_details| {
-                    match serde_json::to_string(&transaction_details).change_context(
-                        errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "transaction_details",
-                        },
-                    ) {
-                        Ok(details) => Some(details),
-                        Err(err) => {
-                            logger::error!("Failed to serialize transaction details: {:?}", err);
-                            None
-                        }
-                    }
-                })
-        }),
+        transaction_details: payment_create_link_config
+            .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details),
     };
 
     Ok((payment_link_config, domain_name))
@@ -721,7 +704,7 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-            transaction_details: DEFAULT_TRANSACTION_DETAILS,
+            transaction_details: None,
         }
     };
 
