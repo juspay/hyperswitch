@@ -2918,15 +2918,13 @@ pub async fn list_payments(
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
         &state,
-        &constraints,
+        &(constraints, profile_id_list).try_into()?,
         merchant_id,
         &key_store,
         merchant.storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let payment_intents =
-        utils::filter_objects_based_on_profile_id_list(profile_id_list, payment_intents);
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -2989,25 +2987,25 @@ pub async fn apply_filters_on_payments(
 ) -> RouterResponse<api::PaymentListResponseV2> {
     let limit = &constraints.limit;
     helpers::validate_payment_list_request_for_joins(*limit)?;
-    let db = state.store.as_ref();
+    let db: &dyn StorageInterface = state.store.as_ref();
+    let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &(&state).into(),
             merchant.get_id(),
-            &constraints.clone().into(),
+            &pi_fetch_constraints,
             &merchant_key_store,
             merchant.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let list = utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     let active_attempt_ids = db
         .get_filtered_active_attempt_ids_for_total_count(
             merchant.get_id(),
-            &constraints.clone().into(),
+            &pi_fetch_constraints,
             merchant.storage_scheme,
         )
         .await
@@ -3022,6 +3020,7 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method_type,
             constraints.authentication_type,
             constraints.merchant_connector_id,
+            pi_fetch_constraints.get_profile_id_list(),
             merchant.storage_scheme,
         )
         .await
