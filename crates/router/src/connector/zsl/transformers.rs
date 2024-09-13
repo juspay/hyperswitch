@@ -385,7 +385,7 @@ pub struct ZslWebhookResponse {
     pub paid_ccy: api_models::enums::Currency,
     pub paid_amt: String,
     pub consr_paid_ccy: Option<api_models::enums::Currency>,
-    pub consr_paid_amt: Option<String>,
+    pub consr_paid_amt: String,
     pub service_fee_ccy: Option<api_models::enums::Currency>,
     pub service_fee: Option<String>,
     pub txn_amt: String,
@@ -428,7 +428,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let paid_amount = item
             .response
-            .paid_amt
+            .consr_paid_amt
             .parse::<i64>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let txn_amount = item

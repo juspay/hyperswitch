@@ -45,7 +45,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data"
 )]
 pub struct PaymentResponse;
 
@@ -181,7 +181,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
                 merchant_account.storage_scheme,
-                &payment_data.payment_intent.payment_id,
+                payment_data.payment_intent.get_id(),
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -394,7 +394,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             .store
             .find_all_authorizations_by_merchant_id_payment_id(
                 &router_data.merchant_id,
-                &payment_data.payment_intent.payment_id,
+                payment_data.payment_intent.get_id(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -484,6 +484,79 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             locale,
         ))
         .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpdateData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        _db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _router_data: types::RouterData<
+            F,
+            types::SdkPaymentsSessionUpdateData,
+            types::PaymentsResponseData,
+        >,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        // let session_update_details =
+        //     payment_data
+        //         .payment_intent
+        //         .tax_details
+        //         .clone()
+        //         .ok_or_else(|| {
+        //             report!(errors::ApiErrorResponse::InternalServerError)
+        //                 .attach_printable("missing tax_details in payment_intent")
+        //         })?;
+
+        // let pmt_amount = session_update_details
+        //     .pmt
+        //     .clone()
+        //     .map(|pmt| pmt.order_tax_amount)
+        //     .ok_or(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Missing tax_details.order_tax_amount")?;
+
+        // let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
+
+        // // if connector_ call successful -> payment_intent.amount update
+        // match router_data.response.clone() {
+        //     Err(_) => (None, None),
+        //     Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
+        //         if status == SessionUpdateStatus::Success {
+        //             (
+        //                 Some(
+        //                     storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+        //                         amount: total_amount,
+        //                         amount_capturable: total_amount,
+        //                     },
+        //                 ),
+        //                 Some(
+        //                     storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
+        //                         amount: pmt_amount,
+        //                     },
+        //                 ),
+        //             )
+        //         } else {
+        //             (None, None)
+        //         }
+        //     }
+        //     _ => Err(errors::ApiErrorResponse::InternalServerError)
+        //         .attach_printable("unexpected response in session_update flow")?,
+        // };
+
+        // let _shipping_address = payment_data.address.get_shipping();
+        // let _amount = payment_data.amount;
 
         Ok(payment_data)
     }
@@ -709,7 +782,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_id.clone(),
             merchant_connector_id.clone(),
             merchant_account.storage_scheme,
-            &payment_data.payment_intent.payment_id,
+            payment_data.payment_intent.get_id(),
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -773,6 +846,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
+    state: &SessionState,
+    _payment_id: &api::PaymentIdType,
+    mut payment_data: PaymentData<F>,
+    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    locale: &Option<String>,
+) -> RouterResult<PaymentData<F>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
@@ -1178,6 +1266,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
+                        // types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {

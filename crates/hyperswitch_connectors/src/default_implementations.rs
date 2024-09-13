@@ -28,8 +28,9 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Approve, AuthorizeSessionToken, CompleteAuthorize, CreateConnectorCustomer,
-            IncrementalAuthorization, PostProcessing, PreProcessing, Reject,
+            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
+            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PreProcessing,
+            Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
     },
@@ -37,13 +38,14 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, RetrieveFileRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
-        VerifyWebhookSourceResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -63,8 +65,9 @@ use hyperswitch_interfaces::{
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
-            PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
-            PaymentsPostProcessing, PaymentsPreProcessing,
+            PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
+            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
+            TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -99,8 +102,74 @@ default_imp_for_authorize_session_token!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
+);
+
+macro_rules! default_imp_for_calculate_tax {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl TaxCalculation for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                CalculateTax,
+                PaymentsTaxCalculationData,
+                TaxCalculationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_calculate_tax!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Helcim,
+    connectors::Stax,
+    connectors::Novalnet,
+    connectors::Nexixpay,
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Deutschebank
+);
+
+macro_rules! default_imp_for_session_update {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentSessionUpdate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                SdkSessionUpdate,
+                SdkPaymentsSessionUpdateData,
+                PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_session_update!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Helcim,
+    connectors::Stax,
+    connectors::Taxjar,
+    connectors::Novalnet,
+    connectors::Nexixpay,
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Deutschebank
 );
 
 use crate::connectors;
@@ -121,7 +190,6 @@ macro_rules! default_imp_for_complete_authorize {
 
 default_imp_for_complete_authorize!(
     connectors::Bitpay,
-    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -131,6 +199,7 @@ default_imp_for_complete_authorize!(
     connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -164,6 +233,7 @@ default_imp_for_incremental_authorization!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -196,6 +266,7 @@ default_imp_for_create_customer!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -225,11 +296,11 @@ default_imp_for_connector_redirect_response!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
-    connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -263,6 +334,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -296,6 +368,7 @@ default_imp_for_post_processing_steps!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -329,6 +402,7 @@ default_imp_for_approve!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -362,6 +436,7 @@ default_imp_for_reject!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -395,6 +470,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -429,6 +505,7 @@ default_imp_for_accept_dispute!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -462,6 +539,7 @@ default_imp_for_submit_evidence!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -495,6 +573,7 @@ default_imp_for_defend_dispute!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -537,6 +616,7 @@ default_imp_for_file_upload!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -572,6 +652,7 @@ default_imp_for_payouts_create!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -607,6 +688,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -642,6 +724,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -677,6 +760,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -712,6 +796,7 @@ default_imp_for_payouts_cancel!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -747,6 +832,7 @@ default_imp_for_payouts_quote!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -782,6 +868,7 @@ default_imp_for_payouts_recipient!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -817,6 +904,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -852,6 +940,7 @@ default_imp_for_frm_sale!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -887,6 +976,7 @@ default_imp_for_frm_checkout!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -922,6 +1012,7 @@ default_imp_for_frm_transaction!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -957,6 +1048,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -992,6 +1084,7 @@ default_imp_for_frm_record_return!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -1024,6 +1117,7 @@ default_imp_for_revoking_mandates!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );

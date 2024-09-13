@@ -3626,6 +3626,10 @@ pub async fn list_payment_methods(
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
+    let skip_external_tax_calculation = payment_intent
+        .as_ref()
+        .and_then(|intent| intent.skip_external_tax_calculation)
+        .unwrap_or(false);
     let request_external_three_ds_authentication = payment_intent
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
@@ -3652,23 +3656,33 @@ pub async fn list_payment_methods(
             api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
         };
 
-    let collect_shipping_details_from_wallets = business_profile
-        .as_ref()
-        .and_then(|business_profile| {
-            business_profile.always_collect_shipping_details_from_wallet_connector
-        })
-        .or(business_profile.as_ref().and_then(|business_profile| {
-            business_profile.collect_shipping_details_from_wallet_connector
-        }));
+    let collect_shipping_details_from_wallets =
+        business_profile.as_ref().and_then(|business_profile| {
+            if business_profile
+                .always_collect_shipping_details_from_wallet_connector
+                .unwrap_or(false)
+            {
+                business_profile.always_collect_shipping_details_from_wallet_connector
+            } else {
+                business_profile.collect_shipping_details_from_wallet_connector
+            }
+        });
 
-    let collect_billing_details_from_wallets = business_profile
-        .as_ref()
-        .and_then(|business_profile| {
-            business_profile.always_collect_billing_details_from_wallet_connector
-        })
-        .or(business_profile.as_ref().and_then(|business_profile| {
-            business_profile.collect_billing_details_from_wallet_connector
-        }));
+    let collect_billing_details_from_wallets =
+        business_profile.as_ref().and_then(|business_profile| {
+            if business_profile
+                .always_collect_billing_details_from_wallet_connector
+                .unwrap_or(false)
+            {
+                business_profile.always_collect_billing_details_from_wallet_connector
+            } else {
+                business_profile.collect_billing_details_from_wallet_connector
+            }
+        });
+
+    let is_tax_connector_enabled = business_profile.as_ref().map_or(false, |business_profile| {
+        business_profile.get_is_tax_connector_enabled()
+    });
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
@@ -3710,6 +3724,7 @@ pub async fn list_payment_methods(
             request_external_three_ds_authentication,
             collect_shipping_details_from_wallets,
             collect_billing_details_from_wallets,
+            is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
         },
     ))
 }
@@ -4643,7 +4658,7 @@ async fn perform_surcharge_ops(
             state
                 .store
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                    &payment_intent.payment_id,
+                    payment_intent.get_id(),
                     merchant_account.get_id(),
                     &payment_intent.active_attempt.get_id(),
                     merchant_account.storage_scheme,

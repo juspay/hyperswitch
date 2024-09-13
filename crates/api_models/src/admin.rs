@@ -9,7 +9,6 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-use indexmap::IndexMap;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -1911,7 +1910,8 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2014,7 +2014,8 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2131,7 +2132,8 @@ pub struct BusinessProfileResponse {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2238,7 +2240,8 @@ pub struct BusinessProfileResponse {
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2346,7 +2349,8 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2445,7 +2449,8 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
@@ -2466,6 +2471,10 @@ pub struct BusinessCollectLinkConfig {
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
     #[schema(value_type = Option<bool>, default = false)]
@@ -2574,8 +2583,32 @@ pub struct PaymentLinkConfigRequest {
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
-    #[schema(value_type = Option<Object>, example = r#"{ "value1": "some-value", "value2": "some-value" }"#)]
-    pub transaction_details: Option<IndexMap<String, String>>,
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkTransactionDetails {
+    /// Key for the transaction details
+    #[schema(value_type = String, max_length = 255, example = "Policy-Number")]
+    pub key: String,
+    /// Value for the transaction details
+    #[schema(value_type = String, max_length = 255, example = "297472368473924")]
+    pub value: String,
+    /// UI configuration for the transaction details
+    pub ui_configuration: Option<TransactionDetailsUiConfiguration>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct TransactionDetailsUiConfiguration {
+    /// Position of the key-value pair in the UI
+    #[schema(value_type = Option<i8>, example = 5)]
+    pub position: Option<i8>,
+    /// Whether the key should be bold
+    #[schema(default = false, example = true)]
+    pub is_key_bold: Option<bool>,
+    /// Whether the value should be bold
+    #[schema(default = false, example = true)]
+    pub is_value_bold: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -2595,7 +2628,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
-    pub transaction_details: Option<String>,
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

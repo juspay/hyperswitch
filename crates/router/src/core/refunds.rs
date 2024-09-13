@@ -191,7 +191,7 @@ pub async fn trigger_refund_to_gateway(
         &connector,
         merchant_account,
         &router_data,
-        creds_identifier.as_ref(),
+        creds_identifier.as_deref(),
     )
     .await?;
 
@@ -533,7 +533,7 @@ pub async fn sync_refund_with_gateway(
         &connector,
         merchant_account,
         &router_data,
-        creds_identifier.as_ref(),
+        creds_identifier.as_deref(),
     )
     .await?;
 
@@ -869,7 +869,7 @@ pub async fn validate_and_create_refund(
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -879,7 +879,7 @@ pub async fn refund_list(
     let refund_list = db
         .filter_refund_by_constraints(
             merchant_account.get_id(),
-            &req,
+            &(req.clone(), profile_id_list.clone()).try_into()?,
             merchant_account.storage_scheme,
             limit,
             offset,
@@ -895,7 +895,7 @@ pub async fn refund_list(
     let total_count = db
         .get_total_count_of_refunds(
             merchant_account.get_id(),
-            &req,
+            &(req, profile_id_list).try_into()?,
             merchant_account.storage_scheme,
         )
         .await
@@ -1030,6 +1030,32 @@ pub async fn get_filters_for_refunds(
             connector: connector_map,
             currency: enums::Currency::iter().collect(),
             refund_status: enums::RefundStatus::iter().collect(),
+        },
+    ))
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_refunds(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api_models::refunds::RefundAggregateResponse> {
+    let db = state.store.as_ref();
+    let refund_status_with_count = db
+        .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to find status count")?;
+    let mut status_map: HashMap<enums::RefundStatus, i64> =
+        refund_status_with_count.into_iter().collect();
+    for status in enums::RefundStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::RefundAggregateResponse {
+            status_with_count: status_map,
         },
     ))
 }

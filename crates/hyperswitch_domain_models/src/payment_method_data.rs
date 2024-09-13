@@ -1,10 +1,13 @@
-use api_models::payments::ExtendedCardInfo;
+use api_models::payments::{additional_info as payment_additional_types, ExtendedCardInfo};
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
+    new_type::{
+        MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+    },
     pii::{self, Email},
 };
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -281,6 +284,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
+        card_holder_name: Option<Secret<String>>,
     },
     Bizum {},
     Blik {
@@ -288,19 +292,26 @@ pub enum BankRedirectData {
     },
     Eps {
         bank_name: Option<common_enums::BankNames>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Giropay {
         bank_account_bic: Option<Secret<String>>,
         bank_account_iban: Option<Secret<String>>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Ideal {
         bank_name: Option<common_enums::BankNames>,
     },
-    Interac {},
+    Interac {
+        country: Option<api_enums::CountryAlpha2>,
+        email: Option<Email>,
+    },
     OnlineBankingCzechRepublic {
         issuer: common_enums::BankNames,
     },
-    OnlineBankingFinland {},
+    OnlineBankingFinland {
+        email: Option<Email>,
+    },
     OnlineBankingPoland {
         issuer: common_enums::BankNames,
     },
@@ -309,14 +320,18 @@ pub enum BankRedirectData {
     },
     OpenBankingUk {
         issuer: Option<common_enums::BankNames>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Przelewy24 {
         bank_name: Option<common_enums::BankNames>,
     },
     Sofort {
+        country: Option<api_enums::CountryAlpha2>,
         preferred_language: Option<String>,
     },
-    Trustly {},
+    Trustly {
+        country: Option<api_enums::CountryAlpha2>,
+    },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
     },
@@ -421,20 +436,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
+        card_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
@@ -577,6 +597,17 @@ impl From<api_models::payments::CardRedirectData> for CardRedirectData {
             api_models::payments::CardRedirectData::Benefit {} => Self::Benefit {},
             api_models::payments::CardRedirectData::MomoAtm {} => Self::MomoAtm {},
             api_models::payments::CardRedirectData::CardRedirect {} => Self::CardRedirect {},
+        }
+    }
+}
+
+impl From<CardRedirectData> for api_models::payments::CardRedirectData {
+    fn from(value: CardRedirectData) -> Self {
+        match value {
+            CardRedirectData::Knet {} => Self::Knet {},
+            CardRedirectData::Benefit {} => Self::Benefit {},
+            CardRedirectData::MomoAtm {} => Self::MomoAtm {},
+            CardRedirectData::CardRedirect {} => Self::CardRedirect {},
         }
     }
 }
@@ -729,34 +760,40 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
                 ..
             } => Self::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
             },
             api_models::payments::BankRedirectData::Bizum {} => Self::Bizum {},
             api_models::payments::BankRedirectData::Blik { blik_code } => Self::Blik { blik_code },
-            api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
-                Self::Eps { bank_name }
-            }
+            api_models::payments::BankRedirectData::Eps {
+                bank_name, country, ..
+            } => Self::Eps { bank_name, country },
             api_models::payments::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
                 ..
             } => Self::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
             },
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
                 Self::Ideal { bank_name }
             }
-            api_models::payments::BankRedirectData::Interac { .. } => Self::Interac {},
+            api_models::payments::BankRedirectData::Interac { country, email } => {
+                Self::Interac { country, email }
+            }
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Self::OnlineBankingCzechRepublic { issuer }
             }
-            api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => {
-                Self::OnlineBankingFinland {}
+            api_models::payments::BankRedirectData::OnlineBankingFinland { email } => {
+                Self::OnlineBankingFinland { email }
             }
             api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => {
                 Self::OnlineBankingPoland { issuer }
@@ -764,16 +801,23 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => {
                 Self::OnlineBankingSlovakia { issuer }
             }
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => {
-                Self::OpenBankingUk { issuer }
-            }
+            api_models::payments::BankRedirectData::OpenBankingUk {
+                country, issuer, ..
+            } => Self::OpenBankingUk { country, issuer },
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. } => {
                 Self::Przelewy24 { bank_name }
             }
             api_models::payments::BankRedirectData::Sofort {
-                preferred_language, ..
-            } => Self::Sofort { preferred_language },
-            api_models::payments::BankRedirectData::Trustly { .. } => Self::Trustly {},
+                preferred_language,
+                country,
+                ..
+            } => Self::Sofort {
+                country,
+                preferred_language,
+            },
+            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
+                country: Some(country),
+            },
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -800,6 +844,19 @@ impl From<api_models::payments::CryptoData> for CryptoData {
     }
 }
 
+impl From<CryptoData> for api_models::payments::CryptoData {
+    fn from(value: CryptoData) -> Self {
+        let CryptoData {
+            pay_currency,
+            network,
+        } = value;
+        Self {
+            pay_currency,
+            network,
+        }
+    }
+}
+
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
         match value {
@@ -807,6 +864,21 @@ impl From<api_models::payments::UpiData> for UpiData {
                 Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
             }
             api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
+        }
+    }
+}
+
+impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData {
+    fn from(value: UpiData) -> Self {
+        match value {
+            UpiData::UpiCollect(upi) => Self::UpiCollect(Box::new(
+                payment_additional_types::UpiCollectAdditionalData {
+                    vpa_id: upi.vpa_id.map(MaskedUpiVpaId::from),
+                },
+            )),
+            UpiData::UpiIntent(_) => {
+                Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
+            }
         }
     }
 }
@@ -842,6 +914,66 @@ impl From<api_models::payments::VoucherData> for VoucherData {
     }
 }
 
+impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherData> {
+    fn from(value: Box<BoletoVoucherData>) -> Self {
+        Self::new(api_models::payments::BoletoVoucherData {
+            social_security_number: value.social_security_number,
+        })
+    }
+}
+
+impl From<Box<AlfamartVoucherData>> for Box<api_models::payments::AlfamartVoucherData> {
+    fn from(_value: Box<AlfamartVoucherData>) -> Self {
+        Self::new(api_models::payments::AlfamartVoucherData {
+            first_name: None,
+            last_name: None,
+            email: None,
+        })
+    }
+}
+
+impl From<Box<IndomaretVoucherData>> for Box<api_models::payments::IndomaretVoucherData> {
+    fn from(_value: Box<IndomaretVoucherData>) -> Self {
+        Self::new(api_models::payments::IndomaretVoucherData {
+            first_name: None,
+            last_name: None,
+            email: None,
+        })
+    }
+}
+
+impl From<Box<JCSVoucherData>> for Box<api_models::payments::JCSVoucherData> {
+    fn from(_value: Box<JCSVoucherData>) -> Self {
+        Self::new(api_models::payments::JCSVoucherData {
+            first_name: None,
+            last_name: None,
+            email: None,
+            phone_number: None,
+        })
+    }
+}
+
+impl From<VoucherData> for api_models::payments::VoucherData {
+    fn from(value: VoucherData) -> Self {
+        match value {
+            VoucherData::Boleto(boleto_data) => Self::Boleto(boleto_data.into()),
+            VoucherData::Alfamart(alfa_mart) => Self::Alfamart(alfa_mart.into()),
+            VoucherData::Indomaret(info_maret) => Self::Indomaret(info_maret.into()),
+            VoucherData::SevenEleven(jcs_data)
+            | VoucherData::Lawson(jcs_data)
+            | VoucherData::MiniStop(jcs_data)
+            | VoucherData::FamilyMart(jcs_data)
+            | VoucherData::Seicomart(jcs_data)
+            | VoucherData::PayEasy(jcs_data) => Self::SevenEleven(jcs_data.into()),
+            VoucherData::Efecty => Self::Efecty,
+            VoucherData::PagoEfectivo => Self::PagoEfectivo,
+            VoucherData::RedCompra => Self::RedCompra,
+            VoucherData::RedPagos => Self::RedPagos,
+            VoucherData::Oxxo => Self::Oxxo,
+        }
+    }
+}
+
 impl From<api_models::payments::GiftCardData> for GiftCardData {
     fn from(value: api_models::payments::GiftCardData) -> Self {
         match value {
@@ -850,6 +982,29 @@ impl From<api_models::payments::GiftCardData> for GiftCardData {
                 cvc: details.cvc,
             }),
             api_models::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+        }
+    }
+}
+
+impl From<GiftCardData> for payment_additional_types::GiftCardAdditionalData {
+    fn from(value: GiftCardData) -> Self {
+        match value {
+            GiftCardData::Givex(details) => Self::Givex(Box::new(
+                payment_additional_types::GivexGiftCardAdditionalData {
+                    last4: details
+                        .number
+                        .peek()
+                        .chars()
+                        .rev()
+                        .take(4)
+                        .collect::<String>()
+                        .chars()
+                        .rev()
+                        .collect::<String>()
+                        .into(),
+                },
+            )),
+            GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
         }
     }
 }
@@ -867,12 +1022,23 @@ impl From<api_models::payments::CardToken> for CardToken {
     }
 }
 
+impl From<CardToken> for payment_additional_types::CardTokenAdditionalData {
+    fn from(value: CardToken) -> Self {
+        let CardToken {
+            card_holder_name, ..
+        } = value;
+        Self { card_holder_name }
+    }
+}
+
 impl From<api_models::payments::BankDebitData> for BankDebitData {
     fn from(value: api_models::payments::BankDebitData) -> Self {
         match value {
             api_models::payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
+                card_holder_name,
+                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
@@ -880,29 +1046,97 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             } => Self::AchBankDebit {
                 account_number,
                 routing_number,
+                card_holder_name,
+                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
             },
-            api_models::payments::BankDebitData::SepaBankDebit { iban, .. } => {
-                Self::SepaBankDebit { iban }
-            }
+            api_models::payments::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => Self::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            },
             api_models::payments::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
                 ..
             } => Self::BecsBankDebit {
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
             },
             api_models::payments::BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
+                bank_account_holder_name,
                 ..
             } => Self::BacsBankDebit {
                 account_number,
                 sort_code,
+                bank_account_holder_name,
             },
+        }
+    }
+}
+
+impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdditionalData {
+    fn from(value: BankDebitData) -> Self {
+        match value {
+            BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+                card_holder_name,
+                bank_account_holder_name,
+            } => Self::Ach(Box::new(
+                payment_additional_types::AchBankDebitAdditionalData {
+                    account_number: MaskedBankAccount::from(account_number),
+                    routing_number: MaskedRoutingNumber::from(routing_number),
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
+                    card_holder_name,
+                    bank_account_holder_name,
+                },
+            )),
+            BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => Self::Sepa(Box::new(
+                payment_additional_types::SepaBankDebitAdditionalData {
+                    iban: MaskedIban::from(iban),
+                    bank_account_holder_name,
+                },
+            )),
+            BankDebitData::BecsBankDebit {
+                account_number,
+                bsb_number,
+                bank_account_holder_name,
+            } => Self::Becs(Box::new(
+                payment_additional_types::BecsBankDebitAdditionalData {
+                    account_number: MaskedBankAccount::from(account_number),
+                    bsb_number,
+                    bank_account_holder_name,
+                },
+            )),
+            BankDebitData::BacsBankDebit {
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+            } => Self::Bacs(Box::new(
+                payment_additional_types::BacsBankDebitAdditionalData {
+                    account_number: MaskedBankAccount::from(account_number),
+                    sort_code: MaskedSortCode::from(sort_code),
+                    bank_account_holder_name,
+                },
+            )),
         }
     }
 }
@@ -954,6 +1188,37 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
     }
 }
 
+impl From<BankTransferData> for api_models::payments::additional_info::BankTransferAdditionalData {
+    fn from(value: BankTransferData) -> Self {
+        match value {
+            BankTransferData::AchBankTransfer {} => Self::Ach {},
+            BankTransferData::SepaBankTransfer {} => Self::Sepa {},
+            BankTransferData::BacsBankTransfer {} => Self::Bacs {},
+            BankTransferData::MultibancoBankTransfer {} => Self::Multibanco {},
+            BankTransferData::PermataBankTransfer {} => Self::Permata {},
+            BankTransferData::BcaBankTransfer {} => Self::Bca {},
+            BankTransferData::BniVaBankTransfer {} => Self::BniVa {},
+            BankTransferData::BriVaBankTransfer {} => Self::BriVa {},
+            BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
+            BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
+            BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
+            BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
+                api_models::payments::additional_info::PixBankTransferAdditionalData {
+                    pix_key: pix_key.map(MaskedBankAccount::from),
+                    cpf: cpf.map(MaskedBankAccount::from),
+                    cnpj: cnpj.map(MaskedBankAccount::from),
+                },
+            )),
+            BankTransferData::Pse {} => Self::Pse {},
+            BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(Box::new(
+                api_models::payments::additional_info::LocalBankTransferAdditionalData {
+                    bank_code: bank_code.map(MaskedBankAccount::from),
+                },
+            )),
+        }
+    }
+}
+
 impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
     fn from(value: api_models::payments::RealTimePaymentData) -> Self {
         match value {
@@ -965,10 +1230,29 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
     }
 }
 
+impl From<RealTimePaymentData> for api_models::payments::RealTimePaymentData {
+    fn from(value: RealTimePaymentData) -> Self {
+        match value {
+            RealTimePaymentData::Fps {} => Self::Fps {},
+            RealTimePaymentData::DuitNow {} => Self::DuitNow {},
+            RealTimePaymentData::PromptPay {} => Self::PromptPay {},
+            RealTimePaymentData::VietQr {} => Self::VietQr {},
+        }
+    }
+}
+
 impl From<api_models::payments::OpenBankingData> for OpenBankingData {
     fn from(value: api_models::payments::OpenBankingData) -> Self {
         match value {
             api_models::payments::OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
+        }
+    }
+}
+
+impl From<OpenBankingData> for api_models::payments::OpenBankingData {
+    fn from(value: OpenBankingData) -> Self {
+        match value {
+            OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
         }
     }
 }
@@ -1022,6 +1306,16 @@ pub struct TokenizedBankRedirectValue1 {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankDebitValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankDebitValue1 {
+    pub data: BankDebitData,
 }
 
 pub trait GetPaymentMethodType {

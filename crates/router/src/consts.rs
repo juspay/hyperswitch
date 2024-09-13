@@ -58,10 +58,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
-// Qr Image data source starts with this string
-// The base64 image data will be appended to it to image data source
-pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -90,7 +86,7 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
-pub const ROLE_CACHE_PREFIX: &str = "CR_";
+pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -136,3 +132,6 @@ pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
 //payment attempt default unified error code and unified error message
 pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_000";
 pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
+
+// Recon's feature tag
+pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";

@@ -1300,6 +1300,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Deutschebank => {
+                deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1393,6 +1397,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Novalnet => {
+                novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Nuvei => {
                 nuvei::transformers::NuveiAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1451,6 +1459,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             }
             api_enums::Connector::Stax => {
                 stax::transformers::StaxAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Taxjar => {
+                taxjar::transformers::TaxjarAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Stripe => {
@@ -1776,6 +1788,8 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
             api_enums::convert_pm_auth_connector(self.connector_name.to_string().as_str());
         let authentication_connector =
             api_enums::convert_authentication_connector(self.connector_name.to_string().as_str());
+        let tax_connector =
+            api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1788,6 +1802,13 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
             }
         } else if authentication_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::AuthenticationProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if tax_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::TaxProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
@@ -2642,6 +2663,7 @@ pub async fn create_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
     merchant_account: domain::MerchantAccount,
+    auth_profile_id: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2672,6 +2694,8 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
         .await?;
+
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
@@ -4007,13 +4031,10 @@ impl BusinessProfileWrapper {
         Ok(())
     }
 
-    pub fn get_routing_algorithm_id<'a, F>(
+    pub fn get_routing_algorithm_id<'a>(
         &'a self,
-        transaction_data: &'a routing::TransactionData<'_, F>,
-    ) -> Option<id_type::RoutingId>
-    where
-        F: Send + Clone,
-    {
+        transaction_data: &'a routing::TransactionData<'_>,
+    ) -> Option<id_type::RoutingId> {
         match transaction_data {
             routing::TransactionData::Payment(_) => self.profile.routing_algorithm_id.clone(),
             #[cfg(feature = "payouts")]

@@ -11,7 +11,7 @@ use crate::{
     id_type::{AlphaNumericId, AlphaNumericIdError, LengthId, LengthIdError},
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
 /// A global id that can be used to identify any entity
 /// This id will have information about the entity and cell in a distributed system architecture
 pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>);
