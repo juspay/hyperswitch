@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.02.0-hotfix4
+
+### Refactors
+
+- Return optional request body from build_request_v2 in ConnectorIntegrationV2 trait ([#5878](https://github.com/juspay/hyperswitch/pull/5878)) ([`f476db8`](https://github.com/juspay/hyperswitch/commit/f476db81a1259c01b10fb36e238bbdaa49670c2f))
+
+### Miscellaneous Tasks
+
+- Remove Connectors enum dependency from ConnectorIntegrationV2 trait ([#5856](https://github.com/juspay/hyperswitch/pull/5856)) ([`5e88185`](https://github.com/juspay/hyperswitch/commit/5e881850353db43e4fd899f9e816c66044807d03))
+
+- - -
+
 ## 2024.08.02.0-hotfix3
 
 ### Bug Fixes
