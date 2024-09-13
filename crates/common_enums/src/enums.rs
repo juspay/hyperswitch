@@ -228,7 +228,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
-    // Novalnet,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
@@ -2822,6 +2822,7 @@ pub enum BankNames {
     AllianceBank,
     AmBank,
     BankOfAmerica,
+    BankOfChina,
     BankIslam,
     BankMuamalat,
     BankRakyat,

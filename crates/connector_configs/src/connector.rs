@@ -139,6 +139,7 @@ pub struct ConnectorTomlConfig {
     pub gift_card: Option<Vec<Provider>>,
     pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
+    pub real_time_payment: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
@@ -188,6 +189,7 @@ pub struct ConnectorConfig {
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
+    pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
@@ -338,6 +340,7 @@ impl ConnectorConfig {
             Connector::Nexinets => Ok(connector_data.nexinets),
             Connector::Prophetpay => Ok(connector_data.prophetpay),
             Connector::Nmi => Ok(connector_data.nmi),
+            Connector::Novalnet => Ok(connector_data.novalnet),
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),

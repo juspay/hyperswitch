@@ -112,7 +112,7 @@ pub trait Connector:
     + ConnectorMandateRevokeV2
     + ExternalAuthentication
     + ExternalAuthenticationV2
-    + PaymentTaxCalculation
+    + TaxCalculation
 {
 }
 
@@ -141,7 +141,7 @@ impl<
             + ConnectorMandateRevokeV2
             + ExternalAuthentication
             + ExternalAuthenticationV2
-            + PaymentTaxCalculation,
+            + TaxCalculation,
     > Connector for T
 {
 }
@@ -422,7 +422,9 @@ impl ConnectorData {
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
-                // enums::Connector::Novalnet => Ok(ConnectorEnum::Old(Box::new(connector::Novalnet))),
+                enums::Connector::Novalnet => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
+                }
                 enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))

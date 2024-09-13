@@ -36,7 +36,7 @@ pub struct Connectors {
     pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
-    pub fiuu: ConnectorParams,
+    pub fiuu: ConnectorParamsWithThreeUrls,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
@@ -165,4 +165,15 @@ pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
     /// secondary base url
     pub secondary_base_url: String,
+}
+/// struct ConnectorParamsWithThreeUrls
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithThreeUrls {
+    /// base url
+    pub base_url: String,
+    /// secondary base url
+    pub secondary_base_url: String,
+    /// third base url
+    pub third_base_url: String,
 }

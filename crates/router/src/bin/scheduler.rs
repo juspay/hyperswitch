@@ -251,6 +251,7 @@ pub async fn deep_health_check_func(
 #[derive(Debug, Copy, Clone)]
 pub struct WorkflowRunner;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
@@ -355,6 +356,18 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
             },
         };
         Ok(())
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
+    async fn trigger_workflow<'a>(
+        &'a self,
+        _state: &'a routes::SessionState,
+        _process: storage::ProcessTracker,
+    ) -> CustomResult<(), ProcessTrackerError> {
+        todo!()
     }
 }
 

@@ -1577,6 +1577,7 @@ impl PaymentIntentInterface for KafkaStore {
         Ok(intent)
     }
 
+    #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -1596,7 +1597,20 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_id(
+        &self,
+        state: &KeyManagerState,
+        payment_id: &id_type::PaymentId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentIntent, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_intent_by_id(state, payment_id, key_store, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -1616,7 +1630,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -1636,18 +1650,19 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
         self.diesel_store
-            .get_intent_status_with_count(merchant_id, time_range)
+            .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -1673,7 +1688,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2390,6 +2405,18 @@ impl RefundInterface for KafkaStore {
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_meta_constraints(merchant_id, refund_details, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_refund_status_with_count(merchant_id, constraints, storage_scheme)
             .await
     }
 
