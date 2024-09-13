@@ -8,9 +8,9 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
+use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
 
-use router_env::metrics::add_attributes;
 #[cfg(feature = "payouts")]
 use super::payouts;
 #[cfg(feature = "v1")]
@@ -444,10 +444,10 @@ pub async fn link_routing_config(
             )
             .await?;
         }
-        diesel_models::enums::RoutingAlgorithmKind::Single |
-        diesel_models::enums::RoutingAlgorithmKind::Priority |
-        diesel_models::enums::RoutingAlgorithmKind::Advanced |
-        diesel_models::enums::RoutingAlgorithmKind::VolumeSplit => {
+        diesel_models::enums::RoutingAlgorithmKind::Single
+        | diesel_models::enums::RoutingAlgorithmKind::Priority
+        | diesel_models::enums::RoutingAlgorithmKind::Advanced
+        | diesel_models::enums::RoutingAlgorithmKind::VolumeSplit => {
             let mut routing_ref: routing_types::RoutingAlgorithmRef = business_profile
                 .routing_algorithm
                 .clone()
@@ -1161,7 +1161,11 @@ pub async fn toggle_dynamic_routing(
     status: bool,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]));
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+    );
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -1224,7 +1228,11 @@ pub async fn toggle_dynamic_routing(
 
         let new_record = record.foreign_into();
 
-        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]));
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+            &metrics::CONTEXT,
+            1,
+            &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        );
         Ok(service_api::ApplicationResponse::Json(new_record))
     } else {
         let timestamp = common_utils::date_time::now_unix_timestamp();
@@ -1252,7 +1260,11 @@ pub async fn toggle_dynamic_routing(
                 )
                 .await?;
 
-                metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]));
+                metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+                );
 
                 Ok(service_api::ApplicationResponse::Json(response))
             }
@@ -1270,7 +1282,11 @@ pub async fn dynamic_routing_update_configs(
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]));
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+    );
     let db = state.store.as_ref();
     let dynamic_routing_algo_to_update = db
         .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
@@ -1307,7 +1323,10 @@ pub async fn dynamic_routing_update_configs(
 
     let new_record = record.foreign_into();
 
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]));
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+    );
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
-
