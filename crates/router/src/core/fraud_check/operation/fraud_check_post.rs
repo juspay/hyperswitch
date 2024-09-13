@@ -99,7 +99,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             .ok();
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.payment_id.clone(),
+                payment_data.payment_intent.get_id().to_owned(),
                 payment_data.merchant_account.get_id().clone(),
             )
             .await
@@ -109,7 +109,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             _ => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: utils::generate_id(consts::ID_LENGTH, "frm"),
-                    payment_id: payment_data.payment_intent.payment_id.clone(),
+                    payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
@@ -202,6 +202,25 @@ where
         }))
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn execute_post_tasks(
+        &self,
+        _state: &SessionState,
+        _req_state: ReqState,
+        _frm_data: &mut FrmData,
+        _merchant_account: &domain::MerchantAccount,
+        _frm_configs: FrmConfigsObject,
+        _frm_suggestion: &mut Option<FrmSuggestion>,
+        _key_store: domain::MerchantKeyStore,
+        _payment_data: &mut D,
+        _customer: &Option<domain::Customer>,
+        _should_continue_capture: &mut bool,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn execute_post_tasks(
         &self,
@@ -225,7 +244,7 @@ where
             *frm_suggestion = Some(FrmSuggestion::FrmCancelTransaction);
 
             let cancel_req = api_models::payments::PaymentsCancelRequest {
-                payment_id: frm_data.payment_intent.payment_id.clone(),
+                payment_id: frm_data.payment_intent.get_id().to_owned(),
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
             };
@@ -278,7 +297,7 @@ where
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
-                payment_id: frm_data.payment_intent.payment_id.clone(),
+                payment_id: frm_data.payment_intent.get_id().to_owned(),
                 merchant_id: None,
                 amount_to_capture: None,
                 refund_uncaptured_amount: None,
@@ -362,6 +381,20 @@ where
         + Sync
         + Clone,
 {
+    #[cfg(feature = "v2")]
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        mut frm_data: FrmData,
+        payment_data: &mut D,
+        frm_suggestion: Option<FrmSuggestion>,
+        frm_router_data: FrmRouterData,
+    ) -> RouterResult<FrmData> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,

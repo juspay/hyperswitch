@@ -14804,7 +14804,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "string",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -14856,7 +14859,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "object",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -14906,6 +14912,35 @@
           "active",
           "expired"
         ]
+      },
+      "PaymentLinkTransactionDetails": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Key for the transaction details",
+            "example": "Policy-Number",
+            "maxLength": 255
+          },
+          "value": {
+            "type": "string",
+            "description": "Value for the transaction details",
+            "example": "297472368473924",
+            "maxLength": 255
+          },
+          "ui_configuration": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionDetailsUiConfiguration"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentListConstraints": {
         "type": "object",
@@ -16994,7 +17029,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -17466,6 +17501,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17486,6 +17529,38 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "net_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18079,7 +18154,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -18576,6 +18651,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20893,6 +20976,22 @@
           }
         }
       },
+      "RefundAggregateResponse": {
+        "type": "object",
+        "required": [
+          "status_with_count"
+        ],
+        "properties": {
+          "status_with_count": {
+            "type": "object",
+            "description": "The list of refund status with their count",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -22544,6 +22643,32 @@
       },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionDetailsUiConfiguration": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Position of the key-value pair in the UI",
+            "example": 5,
+            "nullable": true
+          },
+          "is_key_bold": {
+            "type": "boolean",
+            "description": "Whether the key should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "is_value_bold": {
+            "type": "boolean",
+            "description": "Whether the value should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          }
+        }
       },
       "TransactionStatus": {
         "type": "string",

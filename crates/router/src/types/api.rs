@@ -112,7 +112,7 @@ pub trait Connector:
     + ConnectorMandateRevokeV2
     + ExternalAuthentication
     + ExternalAuthenticationV2
-    + PaymentTaxCalculation
+    + TaxCalculation
 {
 }
 
@@ -141,7 +141,7 @@ impl<
             + ConnectorMandateRevokeV2
             + ExternalAuthentication
             + ExternalAuthenticationV2
-            + PaymentTaxCalculation,
+            + TaxCalculation,
     > Connector for T
 {
 }

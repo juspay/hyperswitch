@@ -112,8 +112,8 @@ pub trait PaymentIncrementalAuthorization:
 {
 }
 
-/// trait PaymentTaxCalculation
-pub trait PaymentTaxCalculation:
+/// trait TaxCalculation
+pub trait TaxCalculation:
     api::ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>
 {
 }

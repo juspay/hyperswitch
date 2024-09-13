@@ -4070,6 +4070,10 @@ api_secret="Shared Secret"
   payment_method_type = "CartesBancaires"
 [[fiuu.debit]]
   payment_method_type = "UnionPay"
+[[fiuu.real_time_payment]]
+  payment_method_type = "duit_now"
+[[fiuu.bank_redirect]]
+  payment_method_type = "online_banking_fpx"
 [fiuu.connector_auth.SignatureKey]
 api_key="Verify Key"
 key1="Merchant ID"
