@@ -996,7 +996,10 @@ pub async fn toggle_dynamic_routing(
         state,
         &req,
         wrapper.clone(),
-        |state, auth: auth::AuthenticationData, wrapper: routing_types::ToggleDynamicRoutingWrapper, _| {
+        |state,
+         auth: auth::AuthenticationData,
+         wrapper: routing_types::ToggleDynamicRoutingWrapper,
+         _| {
             routing::toggle_dynamic_routing(
                 state,
                 auth.merchant_account,
