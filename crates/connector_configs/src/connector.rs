@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "payouts")]
-use api_models::enums::{PayoutConnectors, TaxConnectors};
+use api_models::enums::PayoutConnectors;
 use api_models::{
-    enums::{AuthenticationConnectors, Connector, PmAuthConnectors},
+    enums::{AuthenticationConnectors, Connector, PmAuthConnectors, TaxConnectors},
     payments,
 };
 use serde::Deserialize;
@@ -285,7 +285,7 @@ impl ConnectorConfig {
         }
     }
 
-    pub fn get_tax_connector_config(
+    pub fn get_tax_processor_config(
         connector: TaxConnectors,
     ) -> Result<Option<ConnectorTomlConfig>, String> {
         let connector_data = Self::new()?;

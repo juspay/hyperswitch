@@ -331,7 +331,7 @@ pub fn get_authentication_connector_config(key: &str) -> JsResult {
 pub fn get_tax_connector_config(key: &str) -> JsResult {
     let key = api_model_enums::TaxConnectors::from_str(key)
         .map_err(|_| "Invalid key received".to_string())?;
-    let res = connector::ConnectorConfig::get_tax_connector_config(key)?;
+    let res = connector::ConnectorConfig::get_tax_processor_config(key)?;
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 
