@@ -84,7 +84,7 @@ pub use self::{
     opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme, payone::Payone,
     paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    square::Square, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay, volt::Volt,
+    square::Square, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldpay::Worldpay,
     zen::Zen, zsl::Zsl,
 };

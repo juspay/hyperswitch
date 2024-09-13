@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+         PaymentsSyncRouterData, RefundSyncRouterData,
         RefundsRouterData, TokenizationRouterData,
     },
 };
@@ -40,11 +40,11 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use masking::{ Mask, PeekInterface};
 use transformers as mollie;
 
 // use self::mollie::{webhook_headers, VoltWebhookBodyEventType};
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Debug, Clone)]
 pub struct Mollie;

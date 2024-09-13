@@ -1355,7 +1355,6 @@ default_imp_for_payouts_retrieve!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -1377,7 +1376,6 @@ default_imp_for_payouts_retrieve!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -1391,7 +1389,6 @@ default_imp_for_payouts_retrieve!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1448,7 +1445,6 @@ default_imp_for_payouts_eligibility!(
     connector::Dlocal,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -1471,7 +1467,6 @@ default_imp_for_payouts_eligibility!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -1484,7 +1479,6 @@ default_imp_for_payouts_eligibility!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1713,7 +1707,6 @@ default_imp_for_payouts_quote!(
     connector::Dlocal,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -1736,7 +1729,6 @@ default_imp_for_payouts_quote!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -1749,7 +1741,6 @@ default_imp_for_payouts_quote!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1804,7 +1795,6 @@ default_imp_for_payouts_recipient!(
     connector::Dlocal,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -1827,7 +1817,6 @@ default_imp_for_payouts_recipient!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -1839,7 +1828,6 @@ default_imp_for_payouts_recipient!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1898,7 +1886,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -1921,7 +1908,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -1934,7 +1920,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1988,7 +1973,6 @@ default_imp_for_approve!(
     connector::Dlocal,
     connector::Ebanx,
     connector::Forte,
-    connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
@@ -2012,7 +1996,6 @@ default_imp_for_approve!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2026,7 +2009,6 @@ default_imp_for_approve!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2081,7 +2063,6 @@ default_imp_for_reject!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2104,7 +2085,6 @@ default_imp_for_reject!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2118,7 +2098,6 @@ default_imp_for_reject!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2259,7 +2238,6 @@ default_imp_for_frm_sale!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2282,7 +2260,6 @@ default_imp_for_frm_sale!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2294,7 +2271,6 @@ default_imp_for_frm_sale!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2351,7 +2327,6 @@ default_imp_for_frm_checkout!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2374,7 +2349,6 @@ default_imp_for_frm_checkout!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2386,7 +2360,6 @@ default_imp_for_frm_checkout!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2443,7 +2416,6 @@ default_imp_for_frm_transaction!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2466,7 +2438,6 @@ default_imp_for_frm_transaction!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2478,7 +2449,6 @@ default_imp_for_frm_transaction!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2535,7 +2505,6 @@ default_imp_for_frm_fulfillment!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2558,7 +2527,6 @@ default_imp_for_frm_fulfillment!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2570,7 +2538,6 @@ default_imp_for_frm_fulfillment!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2627,7 +2594,6 @@ default_imp_for_frm_record_return!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2650,7 +2616,6 @@ default_imp_for_frm_record_return!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2662,7 +2627,6 @@ default_imp_for_frm_record_return!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2716,7 +2680,6 @@ default_imp_for_incremental_authorization!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2739,7 +2702,6 @@ default_imp_for_incremental_authorization!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2752,7 +2714,6 @@ default_imp_for_incremental_authorization!(
     connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2804,7 +2765,6 @@ default_imp_for_revoking_mandates!(
     connector::Ebanx,
     connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
@@ -2826,7 +2786,6 @@ default_imp_for_revoking_mandates!(
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
@@ -2838,7 +2797,6 @@ default_imp_for_revoking_mandates!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -3084,6 +3042,184 @@ default_imp_for_authorize_session_token!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_calculate_tax {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::TaxCalculation for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::CalculateTax,
+                types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::TaxCalculation for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CalculateTax,
+        types::PaymentsTaxCalculationData,
+        types::TaxCalculationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_calculate_tax!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Square,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Volt,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_session_update {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentSessionUpdate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::SdkSessionUpdate,
+                types::SdkPaymentsSessionUpdateData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentSessionUpdate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_session_update!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Square,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Volt,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl

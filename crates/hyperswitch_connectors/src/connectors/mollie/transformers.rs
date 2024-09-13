@@ -19,7 +19,7 @@ use crate::{
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData as CardDataUtil,
         PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData as _,
+         RouterData as _,
     },
 };
 

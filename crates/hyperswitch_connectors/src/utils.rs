@@ -111,27 +111,6 @@ pub(crate) fn missing_field_err(
     })
 }
 
-pub(crate) fn get_header_key_value<'a>(
-    key: &str,
-    headers: &'a actix_web::http::header::HeaderMap,
-) -> CustomResult<&'a str, errors::ConnectorError> {
-    get_header_field(headers.get(key))
-}
-
-pub(crate) fn get_header_field(
-    field: Option<&http::HeaderValue>,
-) -> CustomResult<&str, errors::ConnectorError> {
-    field
-        .map(|header_value| {
-            header_value
-                .to_str()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)
-        })
-        .ok_or(report!(
-            errors::ConnectorError::WebhookSourceVerificationFailed
-        ))?
-}
-
 pub(crate) fn construct_not_implemented_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &str,

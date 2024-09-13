@@ -3909,7 +3909,6 @@ version = "0.1.0"
 dependencies = [
  "actix-http",
  "actix-web",
- "actix-web",
  "api_models",
  "async-trait",
  "base64 0.22.1",

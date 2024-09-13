@@ -163,6 +163,7 @@ default_imp_for_session_update!(
     connectors::Helcim,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Mollie,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Fiuu,
@@ -171,7 +172,8 @@ default_imp_for_session_update!(
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Deutschebank
+    connectors::Deutschebank,
+    connectors::Volt
 );
 
 use crate::connectors;
