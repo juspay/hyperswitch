@@ -701,7 +701,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for De
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let response: deutschebank::DeutschebankPaymentsResponse = res
             .response
-            .parse_struct("Deutschebank PaymentsCaptureResponse")
+            .parse_struct("Deutschebank PaymentsCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

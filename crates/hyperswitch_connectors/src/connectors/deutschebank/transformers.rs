@@ -211,37 +211,40 @@ impl
             Some(date) => date.chars().take(10).collect(),
             None => time::OffsetDateTime::now_utc().date().to_string(),
         };
-        Ok(Self {
-            status: if item.response.rc == "0" {
-                match item.response.state {
-                    Some(state) => common_enums::AttemptStatus::from(state),
-                    None => common_enums::AttemptStatus::Failure,
-                }
-            } else {
-                common_enums::AttemptStatus::Failure
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: Some(RedirectForm::Form {
-                    endpoint: item.data.request.get_complete_authorize_url()?,
-                    method: common_utils::request::Method::Get,
-                    form_fields: HashMap::from([
-                        (
-                            "reference".to_string(),
-                            item.response.reference.unwrap_or("".to_string()),
-                        ),
-                        ("signed_on".to_string(), signed_on),
-                    ]),
+        match item.response.reference {
+            Some(reference) => Ok(Self {
+                status: if item.response.rc == "0" {
+                    match item.response.state {
+                        Some(state) => common_enums::AttemptStatus::from(state),
+                        None => common_enums::AttemptStatus::Failure,
+                    }
+                } else {
+                    common_enums::AttemptStatus::Failure
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Some(RedirectForm::Form {
+                        endpoint: item.data.request.get_complete_authorize_url()?,
+                        method: common_utils::request::Method::Get,
+                        form_fields: HashMap::from([
+                            ("reference".to_string(), reference),
+                            ("signed_on".to_string(), signed_on),
+                        ]),
+                    }),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
                 }),
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+                ..item.data
             }),
-            ..item.data
-        })
+            None => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -399,7 +402,7 @@ pub struct DeutschebankPaymentsResponse {
     event_id: Option<String>,
     kind: Option<String>,
     tx_action: Option<DeutschebankTXAction>,
-    tx_id: Option<String>,
+    tx_id: String,
     amount_total: Option<DeutschebankAmount>,
     transaction_info: Option<DeutschebankTransactionInfo>,
 }
@@ -423,11 +426,6 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let resource_id = ResponseId::ConnectorTransactionId(
-            item.response
-                .tx_id
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-        );
         Ok(Self {
             status: if item.response.rc == "0" {
                 match item.data.request.is_auto_capture()? {
@@ -438,7 +436,7 @@ impl
                 common_enums::AttemptStatus::Failure
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
+                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -453,9 +451,15 @@ impl
 }
 
 #[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DeutschebankTransactionKind {
+    Directdebit,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
 pub struct DeutschebankCaptureRequest {
     changed_amount: MinorUnit,
-    kind: String,
+    kind: DeutschebankTransactionKind,
 }
 
 impl TryFrom<&DeutschebankRouterData<&PaymentsCaptureRouterData>> for DeutschebankCaptureRequest {
@@ -465,7 +469,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCaptureRouterData>> for Deutscheba
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             changed_amount: item.amount,
-            kind: "DIRECTDEBIT".to_string(),
+            kind: DeutschebankTransactionKind::Directdebit,
         })
     }
 }
@@ -489,14 +493,9 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let resource_id = ResponseId::ConnectorTransactionId(
-            item.response
-                .tx_id
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-        );
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
+                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -565,16 +564,16 @@ impl
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct DeutschebankReversalRequest {
-    kind: String,
+    kind: DeutschebankTransactionKind,
 }
 
 impl TryFrom<&PaymentsCancelRouterData> for DeutschebankReversalRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            kind: "DIRECTDEBIT".to_string(),
+            kind: DeutschebankTransactionKind::Directdebit,
         })
     }
 }
@@ -597,10 +596,10 @@ impl TryFrom<PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct DeutschebankRefundRequest {
     changed_amount: MinorUnit,
-    kind: String,
+    kind: DeutschebankTransactionKind,
 }
 
 impl<F> TryFrom<&DeutschebankRouterData<&RefundsRouterData<F>>> for DeutschebankRefundRequest {
@@ -608,7 +607,7 @@ impl<F> TryFrom<&DeutschebankRouterData<&RefundsRouterData<F>>> for Deutschebank
     fn try_from(item: &DeutschebankRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             changed_amount: item.amount.to_owned(),
-            kind: "DIRECTDEBIT".to_string(),
+            kind: DeutschebankTransactionKind::Directdebit,
         })
     }
 }
@@ -620,13 +619,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = item
-            .response
-            .tx_id
-            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id,
+                connector_refund_id: item.response.tx_id,
                 refund_status: if item.response.rc == "0" {
                     enums::RefundStatus::Success
                 } else {
