@@ -1,6 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{core::api_locking, services::authorization::permissions::Permission};
@@ -48,7 +49,10 @@ pub async fn retrieve_dispute(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -97,7 +101,10 @@ pub async fn retrieve_disputes_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -152,7 +159,10 @@ pub async fn retrieve_disputes_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -276,7 +286,10 @@ pub async fn accept_dispute(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -319,7 +332,10 @@ pub async fn submit_dispute_evidence(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -370,7 +386,10 @@ pub async fn attach_dispute_evidence(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -413,7 +432,10 @@ pub async fn retrieve_dispute_evidence(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -451,7 +473,10 @@ pub async fn delete_dispute_evidence(
         |state, auth, req, _| disputes::delete_evidence(state, auth.merchant_account, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

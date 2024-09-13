@@ -19,6 +19,8 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
@@ -30,7 +32,7 @@ use crate::{
         },
         payments::{
             customers::get_connector_customer_details_if_present, helpers as payment_helpers,
-            route_connector_v1, routing, CustomerDetails,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
         utils as core_utils,
@@ -324,7 +326,12 @@ pub async fn save_payout_data_to_locker(
 
             // Use locker ref as payment_method_id
             let existing_pm_by_pmid = db
-                .find_payment_method(&locker_ref, merchant_account.storage_scheme)
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    &locker_ref,
+                    merchant_account.storage_scheme,
+                )
                 .await;
 
             match existing_pm_by_pmid {
@@ -343,6 +350,8 @@ pub async fn save_payout_data_to_locker(
                     if err.current_context().is_db_not_found() {
                         match db
                             .find_payment_method_by_locker_id(
+                                &(state.into()),
+                                key_store,
                                 &locker_ref,
                                 merchant_account.storage_scheme,
                             )
@@ -570,6 +579,8 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
+                &(state.into()),
+                key_store,
                 merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
@@ -585,10 +596,16 @@ pub async fn save_payout_data_to_locker(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
         };
-        db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in db")?;
+        db.update_payment_method(
+            &(state.into()),
+            key_store,
+            existing_pm,
+            pm_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
     };
 
     // Store card_reference in payouts table
@@ -785,7 +802,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -833,7 +850,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -871,15 +888,14 @@ pub async fn decide_payout_connector(
     }
 
     // 4. Route connector
-    route_connector_v1(
+    route_connector_v1_for_payouts(
         state,
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        TransactionData::<()>::Payout(payout_data),
+        payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }
@@ -1094,6 +1110,15 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data.payouts.customer_id.clone()
     };
 
+    // We have to do this because the function that is being used to create / get address is from payments
+    // which expects a payment_id
+    let payout_id_as_payment_id_type =
+        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payout_id contains invalid data".to_string(),
+            })
+            .attach_printable("Error converting payout_id to PaymentId type")?;
+
     // Fetch address details from request and create new or else use existing address that was attached
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         state,
@@ -1102,7 +1127,7 @@ pub async fn update_payouts_and_payout_attempt(
         merchant_account.get_id(),
         customer_id.as_ref(),
         merchant_key_store,
-        &payout_id,
+        &payout_id_as_payment_id_type,
         merchant_account.storage_scheme,
     )
     .await?;

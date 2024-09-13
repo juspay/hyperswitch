@@ -121,7 +121,8 @@ mod tests {
     #[tokio::test]
     async fn test_payment_attempt_insert() {
         let state = create_single_connection_test_transaction_pool().await;
-        let payment_id = Uuid::new_v4().to_string();
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
         let payment_attempt = PaymentAttemptNew {
@@ -183,6 +184,8 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
 
         let store = state
@@ -204,7 +207,8 @@ mod tests {
     async fn test_find_payment_attempt() {
         let state = create_single_connection_test_transaction_pool().await;
         let current_time = common_utils::date_time::now();
-        let payment_id = Uuid::new_v4().to_string();
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
         let connector = types::Connector::DummyConnector1.to_string();
@@ -268,6 +272,8 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -302,11 +308,14 @@ mod tests {
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant1"))
                 .unwrap();
+
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
-            payment_id: uuid.clone(),
+            payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
             connector: Some(connector),
             created_at: current_time.into(),
@@ -364,6 +373,8 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -376,7 +387,7 @@ mod tests {
 
         let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                &uuid,
+                &payment_id,
                 &merchant_id,
                 &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,

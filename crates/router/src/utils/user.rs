@@ -75,9 +75,14 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_in_merchant_scope(
+            state,
+            &self.role_id,
+            &self.merchant_id,
+            &self.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
     }
 }
 
@@ -108,13 +113,25 @@ pub async fn generate_jwt_auth_token_without_profile(
     Ok(Secret::new(token))
 }
 
+pub async fn generate_jwt_auth_token_with_attributes_without_profile(
+    state: &SessionState,
+    user_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
+    role_id: String,
+) -> UserResult<Secret<String>> {
+    let token =
+        AuthToken::new_token(user_id, merchant_id, role_id, &state.conf, org_id, None).await?;
+    Ok(Secret::new(token))
+}
+
 pub async fn generate_jwt_auth_token_with_attributes(
     state: &SessionState,
     user_id: String,
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
-    profile_id: Option<id_type::ProfileId>,
+    profile_id: id_type::ProfileId,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,
@@ -122,7 +139,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
         role_id,
         &state.conf,
         org_id,
-        profile_id,
+        Some(profile_id),
     )
     .await?;
     Ok(Secret::new(token))

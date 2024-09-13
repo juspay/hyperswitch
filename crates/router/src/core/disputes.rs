@@ -67,6 +67,19 @@ pub async fn retrieve_disputes_list(
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn accept_dispute(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    req: disputes::DisputeId,
+) -> RouterResponse<dispute_models::DisputeResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_filters_for_disputes(
     state: SessionState,
@@ -146,6 +159,7 @@ pub async fn accept_dispute(
         })
         },
     )?;
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
@@ -156,6 +170,7 @@ pub async fn accept_dispute(
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
@@ -219,6 +234,19 @@ pub async fn accept_dispute(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn submit_evidence(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    req: dispute_models::SubmitEvidenceRequest,
+) -> RouterResponse<dispute_models::DisputeResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
@@ -262,6 +290,7 @@ pub async fn submit_evidence(
         &dispute,
     )
     .await?;
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
@@ -272,6 +301,7 @@ pub async fn submit_evidence(
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,

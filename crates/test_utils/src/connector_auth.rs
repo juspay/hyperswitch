@@ -31,6 +31,7 @@ pub struct ConnectorAuthentication {
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub datatrans: Option<HeaderKey>,
+    pub deutschebank: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
@@ -76,6 +77,7 @@ pub struct ConnectorAuthentication {
     pub stripe: Option<HeaderKey>,
     pub taxjar: Option<HeaderKey>,
     pub threedsecureio: Option<HeaderKey>,
+    pub thunes: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,

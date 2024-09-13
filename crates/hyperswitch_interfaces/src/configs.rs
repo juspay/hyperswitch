@@ -29,13 +29,14 @@ pub struct Connectors {
     pub cryptopay: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub datatrans: ConnectorParams,
+    pub deutschebank: ConnectorParams,
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
-    pub fiuu: ConnectorParams,
+    pub fiuu: ConnectorParamsWithThreeUrls,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
@@ -77,6 +78,7 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub taxjar: ConnectorParams,
     pub threedsecureio: ConnectorParams,
+    pub thunes: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub volt: ConnectorParams,
@@ -163,4 +165,15 @@ pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
     /// secondary base url
     pub secondary_base_url: String,
+}
+/// struct ConnectorParamsWithThreeUrls
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithThreeUrls {
+    /// base url
+    pub base_url: String,
+    /// secondary base url
+    pub secondary_base_url: String,
+    /// third base url
+    pub third_base_url: String,
 }

@@ -212,6 +212,8 @@ pub enum Flow {
     RefundsList,
     /// Refunds filters flow
     RefundsFilters,
+    /// Refunds aggregates flow
+    RefundsAggregate,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -368,6 +370,12 @@ pub enum Flow {
     GetRolesInfo,
     /// List roles
     ListRoles,
+    /// List roles v2
+    ListRolesV2,
+    /// List invitable roles at entity level
+    ListInvitableRolesAtEntityLevel,
+    /// List updatable roles at entity level
+    ListUpdatableRolesAtEntityLevel,
     /// Get role
     GetRole,
     /// Get role from token
@@ -420,10 +428,14 @@ pub enum Flow {
     VerifyEmailRequest,
     /// Update user account details
     UpdateUserAccountDetails,
-    /// Accept user invitation
+    /// Accept user invitation using merchant_ids
     AcceptInvitation,
+    /// Accept user invitation using entities
+    AcceptInvitationsV2,
     /// Select merchant from invitations
     MerchantSelect,
+    /// Accept user invitation using entities before user login
+    AcceptInvitationsPreAuth,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -470,6 +482,8 @@ pub enum Flow {
     ListProfileForUserInOrgAndMerchant,
     /// List Users in Org
     ListUsersInLineage,
+    /// List invitations for user
+    ListInvitationsForUser,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -488,6 +502,8 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Dynamic Tax Calcultion
+    SessionUpdateTaxCalculation,
 }
 
 ///

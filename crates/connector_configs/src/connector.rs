@@ -82,6 +82,17 @@ pub enum KlarnaEndpoint {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
+pub struct ConfigMerchantAdditionalDetails {
+    pub open_banking_recipient_data: Option<MetaDataInupt>,
+    pub account_data: Option<MetaDataInupt>,
+    pub iban: Option<Vec<MetaDataInupt>>,
+    pub bacs: Option<Vec<MetaDataInupt>>,
+    pub connector_recipient_id: Option<MetaDataInupt>,
+    pub wallet_id: Option<MetaDataInupt>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<MetaDataInupt>,
     pub merchant_account_id: Option<MetaDataInupt>,
@@ -112,6 +123,7 @@ pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
     pub metadata: Option<Box<ConfigMetadata>>,
+    pub additional_merchant_data: Option<Box<ConfigMerchantAdditionalDetails>>,
     pub credit: Option<Vec<CardProvider>>,
     pub debit: Option<Vec<CardProvider>>,
     pub bank_transfer: Option<Vec<Provider>>,
@@ -127,6 +139,7 @@ pub struct ConnectorTomlConfig {
     pub gift_card: Option<Vec<Provider>>,
     pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
+    pub real_time_payment: Option<Vec<Provider>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
@@ -158,11 +171,12 @@ pub struct ConnectorConfig {
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
+    pub deutschebank: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
-    // pub fiuu: Option<ConnectorTomlConfig>,
+    pub fiuu: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
@@ -176,6 +190,7 @@ pub struct ConnectorConfig {
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
+    pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
@@ -214,6 +229,7 @@ pub struct ConnectorConfig {
     pub paypal_test: Option<ConnectorTomlConfig>,
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
+    pub taxjar: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -307,11 +323,12 @@ impl ConnectorConfig {
             Connector::Opennode => Ok(connector_data.opennode),
             Connector::Bambora => Ok(connector_data.bambora),
             Connector::Datatrans => Ok(connector_data.datatrans),
+            Connector::Deutschebank => Ok(connector_data.deutschebank),
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
-            // Connector::Fiuu => Ok(connector_data.fiuu),
+            Connector::Fiuu => Ok(connector_data.fiuu),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
@@ -325,6 +342,7 @@ impl ConnectorConfig {
             Connector::Nexinets => Ok(connector_data.nexinets),
             Connector::Prophetpay => Ok(connector_data.prophetpay),
             Connector::Nmi => Ok(connector_data.nmi),
+            Connector::Novalnet => Ok(connector_data.novalnet),
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),
@@ -345,6 +363,7 @@ impl ConnectorConfig {
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
+            Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),

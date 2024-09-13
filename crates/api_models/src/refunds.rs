@@ -19,9 +19,10 @@ pub struct RefundRequest {
     #[schema(
         max_length = 30,
         min_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
     )]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment. If this is not passed by the merchant, this field shall be auto generated and provided in the API response. It is recommended to generate uuid(v4) as the refund_id.
     #[schema(
@@ -129,7 +130,8 @@ pub struct RefundResponse {
     /// Unique Identifier for the refund
     pub refund_id: String,
     /// The payment id against which refund is initiated
-    pub payment_id: String,
+    #[schema(value_type = String)]
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
@@ -169,7 +171,8 @@ pub struct RefundResponse {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListRequest {
     /// The identifier for the payment
-    pub payment_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// The identifier for the refund
     pub refund_id: Option<String>,
     /// The identifier for business profile
@@ -229,6 +232,12 @@ pub struct RefundListFilters {
     /// The list of available refund status filters
     #[schema(value_type = Vec<RefundStatus>)]
     pub refund_status: Vec<enums::RefundStatus>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct RefundAggregateResponse {
+    /// The list of refund status with their count
+    pub status_with_count: HashMap<enums::RefundStatus, i64>,
 }
 
 /// The status for refunds

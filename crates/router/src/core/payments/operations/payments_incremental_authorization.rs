@@ -30,6 +30,9 @@ use crate::{
 #[operation(operations = "all", flow = "incremental_authorization")]
 pub struct PaymentIncrementalAuthorization;
 
+type PaymentIncrementalAuthorizationOperation<'b, F> =
+    BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
@@ -45,8 +48,14 @@ impl<F: Send + Clone>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest>>
-    {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            PaymentsIncrementalAuthorizationRequest,
+            payments::PaymentData<F>,
+        >,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -89,7 +98,7 @@ impl<F: Send + Clone>
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
@@ -158,6 +167,7 @@ impl<F: Send + Clone>
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -189,7 +199,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
+        PaymentIncrementalAuthorizationOperation<'b, F>,
         payments::PaymentData<F>,
     )>
     where
@@ -265,7 +275,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest>
+impl<F: Send + Clone>
+    ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -274,7 +285,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
+        PaymentIncrementalAuthorizationOperation<'b, F>,
         operations::ValidateResult,
     )> {
         Ok((
@@ -290,7 +301,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -303,7 +314,12 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
+            BoxedOperation<
+                'a,
+                F,
+                PaymentsIncrementalAuthorizationRequest,
+                payments::PaymentData<F>,
+            >,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -321,7 +337,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _customer: &Option<domain::Customer>,
         _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
+        PaymentIncrementalAuthorizationOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {

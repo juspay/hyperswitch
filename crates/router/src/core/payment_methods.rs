@@ -34,13 +34,15 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
-use super::errors::{RouterResponse, StorageErrorExt};
+use super::{
+    errors::{RouterResponse, StorageErrorExt},
+    pm_auth,
+};
 use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
         payments::helpers,
-        pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
     services,
@@ -77,9 +79,22 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
+            let payment_token = helpers::store_payment_method_data_in_vault(
+                state,
+                payment_attempt,
+                payment_intent,
+                enums::PaymentMethod::BankDebit,
+                pm,
+                merchant_key_store,
+                business_profile,
+            )
+            .await?;
+
+            Ok((pm_opt.to_owned(), payment_token))
+        }
         pm @ Some(domain::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(domain::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
@@ -400,7 +415,7 @@ fn generate_task_id_for_payment_method_status_update_workflow(
 
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
-    payment_method: &diesel_models::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -410,7 +425,7 @@ pub async fn add_payment_method_status_update_task(
         created_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
     let tracking_data = storage::PaymentMethodStatusTrackingData {
-        payment_method_id: payment_method.payment_method_id.clone(),
+        payment_method_id: payment_method.get_id().clone(),
         prev_status,
         curr_status,
         merchant_id: merchant_id.to_owned(),
@@ -421,7 +436,7 @@ pub async fn add_payment_method_status_update_task(
     let tag = [PAYMENT_METHOD_STATUS_TAG];
 
     let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
-        payment_method.payment_method_id.as_str(),
+        payment_method.get_id().as_str(),
         &runner,
         task,
     );
@@ -443,13 +458,28 @@ pub async fn add_payment_method_status_update_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
-                payment_method.payment_method_id.clone()
+                payment_method.get_id().clone()
             )
         })?;
 
     Ok(())
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_with_token(
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _token_data: &storage::PaymentTokenData,
+    _payment_intent: &PaymentIntent,
+    _card_token_data: Option<&domain::CardToken>,
+    _customer: &Option<domain::Customer>,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
+) -> RouterResult<storage::PaymentMethodDataWithId> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,
@@ -562,7 +592,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
-            core_pm_auth::retrieve_payment_method_from_auth_service(
+            pm_auth::retrieve_payment_method_from_auth_service(
                 state,
                 merchant_key_store,
                 auth_token,
@@ -626,7 +656,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .flatten(),
                     };
                     let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: payment_method,
+                        payment_method,
                         payment_method_type: payment_method_type
                             .get_required_value("Payment_method_type")
                             .change_context(errors::ApiErrorResponse::MissingRequiredField {

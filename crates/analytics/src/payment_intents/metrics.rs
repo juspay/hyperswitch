@@ -11,6 +11,7 @@ use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
@@ -29,6 +30,7 @@ use total_smart_retries::TotalSmartRetries;
 pub struct PaymentIntentMetricRow {
     pub status: Option<DBEnumWrapper<storage_enums::IntentStatus>>,
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
+    pub profile_id: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -47,7 +49,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -68,7 +70,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -78,50 +80,22 @@ where
         match self {
             Self::SuccessfulSmartRetries => {
                 SuccessfulSmartRetries
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::TotalSmartRetries => {
                 TotalSmartRetries
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::SmartRetriedAmount => {
                 SmartRetriedAmount
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::PaymentIntentCount => {
                 PaymentIntentCount
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
         }

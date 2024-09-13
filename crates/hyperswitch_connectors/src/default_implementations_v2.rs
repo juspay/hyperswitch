@@ -12,9 +12,9 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+            PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
@@ -27,13 +27,14 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -73,9 +74,9 @@ use hyperswitch_interfaces::{
         payments_v2::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
-            PaymentRejectV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2,
-            PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2,
-            PaymentsPreProcessingV2,
+            PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2,
+            PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+            PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
@@ -104,6 +105,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl ConnectorCustomerV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
+            impl TaxCalculationV2 for $path::$connector{}
+            impl PaymentSessionUpdateV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -176,6 +179,18 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 AuthorizeSessionTokenData,
                 PaymentsResponseData
         > for $path::$connector{}
+        impl ConnectorIntegrationV2<
+            CalculateTax,
+            PaymentFlowData,
+            PaymentsTaxCalculationData,
+            TaxCalculationResponseData,
+            > for $path::$connector{}
+         impl ConnectorIntegrationV2<
+            SdkSessionUpdate,
+            PaymentFlowData,
+            SdkPaymentsSessionUpdateData,
+            PaymentsResponseData,
+            > for $path::$connector{}
     )*
     };
 }
@@ -183,14 +198,20 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 default_imp_for_new_connector_integration_payment!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -212,14 +233,20 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 default_imp_for_new_connector_integration_refund!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -236,14 +263,20 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -266,14 +299,20 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
@@ -295,14 +334,20 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -324,14 +369,20 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -363,14 +414,20 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -394,14 +451,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -425,14 +488,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -456,14 +525,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -487,14 +562,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -518,14 +599,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -549,14 +636,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -580,14 +673,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "payouts")]
@@ -611,14 +710,20 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -640,14 +745,20 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "frm")]
@@ -671,14 +782,20 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "frm")]
@@ -702,14 +819,20 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "frm")]
@@ -733,14 +856,20 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "frm")]
@@ -764,14 +893,20 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 #[cfg(feature = "frm")]
@@ -795,14 +930,20 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -823,12 +964,18 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline
 );

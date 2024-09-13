@@ -58,7 +58,7 @@ pub async fn add_access_token<
     connector: &api_types::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
-    creds_identifier: Option<&String>,
+    creds_identifier: Option<&str>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -77,7 +77,7 @@ pub async fn add_access_token<
             .merchant_connector_id
             .clone()
             .map(|mca_id| mca_id.get_string_repr().to_string())
-            .or(creds_identifier.cloned())
+            .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
         let old_access_token = store
@@ -89,7 +89,7 @@ pub async fn add_access_token<
         let res = match old_access_token {
             Some(access_token) => {
                 router_env::logger::debug!(
-                    "Access token found in redis for merchant_id: {:?}, payment_id: {}, connector: {} which has expiry of: {} seconds",
+                    "Access token found in redis for merchant_id: {:?}, payment_id: {:?}, connector: {} which has expiry of: {} seconds",
                     merchant_account.get_id(),
                     router_data.payment_id,
                     connector.connector_name,

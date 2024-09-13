@@ -10,11 +10,11 @@ pub mod diesel_exports {
         DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
         DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
         DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
-        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
-        DbFraudCheckStatus as FraudCheckStatus, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
-        DbRefundStatus as RefundStatus,
+        DbDeleteStatus as DeleteStatus, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbFraudCheckStatus as FraudCheckStatus,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -208,11 +208,12 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Datatrans,
+    Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
     Fiservemea,
-    // Fiuu,
+    Fiuu,
     Forte,
     Globalpay,
     Globepay,
@@ -227,7 +228,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
-    // Novalnet,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
@@ -250,6 +251,7 @@ pub enum RoutableConnectors {
     Stripe,
     // Taxjar,
     Trustpay,
+    // Thunes
     // Tsys,
     Tsys,
     Volt,
@@ -401,6 +403,26 @@ pub enum AuthorizationStatus {
     Unresolved,
 }
 
+// #[derive(
+//     Clone,
+//     Debug,
+//     Eq,
+//     PartialEq,
+//     serde::Deserialize,
+//     serde::Serialize,
+//     strum::Display,
+//     strum::EnumString,
+//     ToSchema,
+//     Hash,
+// )]
+// #[router_derive::diesel_enum(storage_type = "text")]
+// #[serde(rename_all = "snake_case")]
+// #[strum(serialize_all = "snake_case")]
+// pub enum SessionUpdateStatus {
+//     Success,
+//     Failure,
+// }
+
 #[derive(
     Clone,
     Debug,
@@ -491,6 +513,8 @@ pub enum ConnectorType {
     PaymentMethodAuth,
     /// 3DS Authentication Service Providers
     AuthenticationProcessor,
+    /// Tax Calculation Processor
+    TaxProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -2774,6 +2798,7 @@ pub enum PermissionGroup {
     MerchantDetailsView,
     MerchantDetailsManage,
     OrganizationManage,
+    ReconOps,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -2799,6 +2824,7 @@ pub enum BankNames {
     AllianceBank,
     AmBank,
     BankOfAmerica,
+    BankOfChina,
     BankIslam,
     BankMuamalat,
     BankRakyat,
@@ -3135,4 +3161,45 @@ pub enum PayoutRetryType {
 pub enum OrderFulfillmentTimeOrigin {
     Create,
     Confirm,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UIWidgetFormLayout {
+    Tabs,
+    Journey,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum DeleteStatus {
+    Active,
+    Redacted,
 }

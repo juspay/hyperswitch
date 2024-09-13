@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type::PaymentId};
 use error_stack::{Report, ResultExt};
 
 use crate::{
@@ -8,8 +8,8 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    types,
-    types::storage,
+    services::authentication::AuthenticationData,
+    types::{self, storage},
 };
 
 pub async fn check_existence_and_add_domain_to_db(
@@ -30,10 +30,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -45,7 +42,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount = {
         let _ = merchant_connector_id;
         let _ = key_store;
@@ -67,10 +64,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .collect();
 
     already_verified_domains.append(&mut new_verified_domains);
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
         connector_type: None,
         connector_name: None,
@@ -89,7 +83,7 @@ pub async fn check_existence_and_add_domain_to_db(
         connector_wallets_details: None,
         additional_merchant_data: None,
     };
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
         connector_type: None,
         connector_account_details: None,
@@ -135,4 +129,34 @@ pub fn log_applepay_verification_response_if_error(
         res.as_ref()
             .map_err(|error| logger::error!(applepay_domain_verification_error= ?error))
     });
+}
+pub async fn check_if_profile_id_is_present_in_payment_intent(
+    payment_id: PaymentId,
+    state: &SessionState,
+    auth_data: &AuthenticationData,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let db = &*state.store;
+    #[cfg(feature = "v1")]
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &state.into(),
+            &payment_id,
+            auth_data.merchant_account.get_id(),
+            &auth_data.key_store,
+            auth_data.merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+    #[cfg(feature = "v2")]
+    let payment_intent = db
+        .find_payment_intent_by_id(
+            &state.into(),
+            &payment_id,
+            &auth_data.key_store,
+            auth_data.merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
 }
