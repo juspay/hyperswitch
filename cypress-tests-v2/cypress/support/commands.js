@@ -852,6 +852,7 @@ Cypress.Commands.add("userLogin", (globalState) => {
     if (response.status === 200) {
       if (response.body.token_type === "totp") {
         expect(response.body).to.have.property("token").and.to.not.be.empty;
+
         globalState.set("totpToken", response.body.token);
         cy.task("setGlobalState", globalState.data);
       }
@@ -867,17 +868,16 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
   // Define the necessary variables and constant
   const base_url = globalState.get("baseUrl");
   const query_params = `skip_two_factor_auth=true`;
-  const auth = globalState.get("totpToken");
+  const api_key = globalState.get("totpToken");
   const url = `${base_url}/user/2fa/terminate?${query_params}`;
 
   cy.request({
     method: "GET",
     url: url,
     headers: {
-      Authorization: `Bearer ${auth}`,
+      Authorization: `Bearer ${api_key}`,
       "Content-Type": "application/json",
     },
-    body: signin_body,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -885,6 +885,7 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
     if (response.status === 200) {
       if (response.body.token_type === "user_info") {
         expect(response.body).to.have.property("token").and.to.not.be.empty;
+
         globalState.set("userInfoToken", response.body.token);
         cy.task("setGlobalState", globalState.data);
       }
@@ -899,30 +900,28 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
 Cypress.Commands.add("userInfo", (globalState) => {
   // Define the necessary variables and constant
   const base_url = globalState.get("baseUrl");
-  const auth = globalState.get("userInfoToken");
-  const merchant_id = globalState.get("merchantId");
-  const organization_id = globalState.get("organizationId");
+  const api_key = globalState.get("userInfoToken");
   const url = `${base_url}/user`;
 
   cy.request({
     method: "GET",
     url: url,
     headers: {
-      Authorization: `Bearer ${auth}`,
+      Authorization: `Bearer ${api_key}`,
       "Content-Type": "application/json",
     },
-    body: signin_body,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
     if (response.status === 200) {
-      expect(response.body)
-        .to.have.property("merchant_id")
-        .and.to.equal(merchant_id);
-      expect(response.body)
-        .to.have.property("org_id")
-        .and.to.equal(organization_id);
+      expect(response.body).to.have.property("merchant_id").and.to.not.be.empty;
+      expect(response.body).to.have.property("org_id").and.to.not.be.empty;
+      expect(response.body).to.have.property("profile_id").and.to.not.be.empty;
+
+      globalState.set("merchantId", response.body.merchant_id);
+      globalState.set("organizationId", response.body.org_id);
+      globalState.set("profileId", response.body.profile_id);
     } else {
       // to be updated
       throw new Error(
