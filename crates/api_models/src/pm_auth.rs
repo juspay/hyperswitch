@@ -1,9 +1,10 @@
-use crate::enums as api_enums;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type, impl_api_event_type,
 };
+
+use crate::enums as api_enums;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
