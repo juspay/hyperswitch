@@ -505,7 +505,8 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicRoutingAlgorithmRef {
-    pub success_based_algorithm: Option<DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>>,
+    pub success_based_algorithm:
+        Option<DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>>,
 }
 
 impl DynamicRoutingAlgorithmRef {

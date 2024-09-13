@@ -1247,13 +1247,14 @@ pub async fn toggle_success_based_routing(
         match success_based_dynamic_routing_algo_ref.success_based_algorithm {
             Some(algorithm_ref) => {
                 if let Some(algorithm_id) = algorithm_ref.algorithm_id {
-                    let dynamic_routing_algorithm =
-                        routing_types::DynamicRoutingAlgorithmRef {
-                            success_based_algorithm: Some(routing_types::DynamicAlgorithmWithTimestamp {
+                    let dynamic_routing_algorithm = routing_types::DynamicRoutingAlgorithmRef {
+                        success_based_algorithm: Some(
+                            routing_types::DynamicAlgorithmWithTimestamp {
                                 algorithm_id: None,
                                 timestamp,
-                            }),
-                        };
+                            },
+                        ),
+                    };
 
                     let record = db
                         .find_routing_algorithm_by_profile_id_algorithm_id(
