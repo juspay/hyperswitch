@@ -87,7 +87,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .map(|charges| match amount {
                 api::payments::Amount::Zero => {
-                    if charges.fees != 0 {
+                    if charges.fees.get_amount_as_i64() != 0 {
                         Err(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "charges.fees",
                         })
@@ -96,7 +96,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     }
                 }
                 api::payments::Amount::Value(amount) => {
-                    if charges.fees > amount.into() {
+                    if charges.fees.get_amount_as_i64() > amount.into() {
                         Err(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "charges.fees",
                         })
