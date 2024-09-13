@@ -90,8 +90,8 @@ pub trait PaymentIncrementalAuthorizationV2:
 {
 }
 
-///trait PaymentTaxCalculationV2
-pub trait PaymentTaxCalculationV2:
+///trait TaxCalculationV2
+pub trait TaxCalculationV2:
     ConnectorIntegrationV2<
     CalculateTax,
     PaymentFlowData,
@@ -186,7 +186,7 @@ pub trait PaymentV2:
     + PaymentsPostProcessingV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
-    + PaymentTaxCalculationV2
+    + TaxCalculationV2
     + PaymentSessionUpdateV2
 {
 }

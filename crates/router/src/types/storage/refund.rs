@@ -37,6 +37,12 @@ pub trait RefundDbExt: Sized {
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
+
+    async fn get_refund_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -288,5 +294,34 @@ impl RefundDbExt for Refund {
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
+    }
+
+    async fn get_refund_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
+        let mut query = <Self as HasTable>::table()
+            .group_by(dsl::refund_status)
+            .select((dsl::refund_status, diesel::dsl::count_star()))
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        query = query.filter(dsl::created_at.ge(time_range.start_time));
+
+        query = match time_range.end_time {
+            Some(ending_at) => query.filter(dsl::created_at.le(ending_at)),
+            None => query,
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            query.get_results_async::<(RefundStatus, i64)>(conn),
+            db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering status count of refunds")
     }
 }
