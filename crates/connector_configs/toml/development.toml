@@ -1353,6 +1353,14 @@ api_key="Key"
 key1="Merchant ID"
 api_secret="Shared Secret"
 
+[deutschebank]
+[[deutschebank.bank_debit]]
+  payment_method_type = "sepa"
+[deutschebank.connector_auth.SignatureKey]
+api_key="Client ID"
+key1="Merchant ID"
+api_secret="Client Key"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
