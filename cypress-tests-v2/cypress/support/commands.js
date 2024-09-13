@@ -930,3 +930,81 @@ Cypress.Commands.add("userInfo", (globalState) => {
     }
   });
 });
+
+// List API calls
+Cypress.Commands.add("listMcaCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/account/${merchant_id}/connectors`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "api-key": api_key,
+      "Content-Type": "application/json",
+      ...customHeaders,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      // Control never comes here until the API endpoints are introduced
+      console.log("List MCA call successful");
+      globalState.set(
+        "adyenMerchantConnectorId",
+        response.body[2].merchant_connector_id
+      );
+      globalState.set(
+        "bluesnapMerchantConnectorId",
+        response.body[0].merchant_connector_id
+      );
+      globalState.set(
+        "stripeMerchantConnectorId",
+        response.body[1].merchant_connector_id
+      );
+    } else if (response.status === 404) {
+      expect(response.body.error)
+        .to.have.property("message")
+        .and.to.equal("Unrecognized request URL");
+      expect(response.body.error)
+        .to.have.property("type")
+        .and.to.equal("invalid_request");
+
+      // hard code MCA values for now
+      if (base_url.includes("integ")) {
+        globalState.set("adyenMerchantConnectorId", "mca_YOGOW6CdrjudsT9Mvg7w");
+        globalState.set(
+          "bluesnapMerchantConnectorId",
+          "mca_cdKJoouwpmkHqwVJ1bzV"
+        );
+        globalState.set(
+          "stripeMerchantConnectorId",
+          "mca_KyxoOnfLXWE1hzPSsl9H"
+        );
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `MCA list call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
+// templates
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
