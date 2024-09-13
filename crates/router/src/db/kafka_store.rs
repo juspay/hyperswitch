@@ -1654,10 +1654,11 @@ impl PaymentIntentInterface for KafkaStore {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
         self.diesel_store
-            .get_intent_status_with_count(merchant_id, time_range)
+            .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
             .await
     }
 
@@ -2404,6 +2405,18 @@ impl RefundInterface for KafkaStore {
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_meta_constraints(merchant_id, refund_details, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_refund_status_with_count(merchant_id, constraints, storage_scheme)
             .await
     }
 

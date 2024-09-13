@@ -79,8 +79,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
         };
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Insert).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -154,11 +158,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             payment_id: &payment_id,
         };
         let field = format!("pi_{}", this.get_id().get_string_repr());
-        let storage_scheme = decide_storage_scheme::<_, DieselPaymentIntent>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
             self,
             storage_scheme,
             Op::Update(key.clone(), &field, Some(&this.updated_by)),
-        )
+        ))
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
@@ -244,8 +248,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentIntent>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         let diesel_payment_intent = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
@@ -393,10 +401,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         self.router_store
-            .get_intent_status_with_count(merchant_id, time_range)
+            .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
             .await
     }
 
@@ -763,6 +772,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -773,6 +783,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .select((pi_dsl::status, diesel::dsl::count_star()))
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .into_boxed();
+
+        if let Some(profile_id) = profile_id_list {
+            query = query.filter(pi_dsl::profile_id.eq_any(profile_id));
+        }
 
         query = query.filter(pi_dsl::created_at.ge(time_range.start_time));
 

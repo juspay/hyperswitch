@@ -65,7 +65,7 @@ impl api::Refund for Taxjar {}
 impl api::RefundExecute for Taxjar {}
 impl api::RefundSync for Taxjar {}
 impl api::PaymentToken for Taxjar {}
-impl api::PaymentTaxCalculation for Taxjar {}
+impl api::TaxCalculation for Taxjar {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Taxjar
