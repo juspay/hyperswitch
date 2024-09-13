@@ -1226,21 +1226,26 @@ pub async fn vault_payment_method(
     let db = &*state.store;
 
     // get fingerprint_id from locker
-    let fingerprint_id_from_locker = cards::get_fingerprint_id_from_locker(state, pmd).await?;
+    let fingerprint_id_from_locker = cards::get_fingerprint_id_from_locker(state, pmd)
+        .await
+        .attach_printable("Failed to get fingerprint_id from vault")?;
 
     // throw back error if payment method is duplicated
     when(
-        db.find_payment_method_by_fingerprint_id(
-            &(state.into()),
-            key_store,
-            &fingerprint_id_from_locker,
+        Some(
+            db.find_payment_method_by_fingerprint_id(
+                &(state.into()),
+                key_store,
+                &fingerprint_id_from_locker,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to find payment method by fingerprint_id")?,
         )
-        .await
-        .ok()
         .is_some(),
         || {
             Err(report!(errors::ApiErrorResponse::DuplicatePaymentMethod)
-                .attach_printable("Cannot vault duplicate payment method"));
+                .attach_printable("Cannot vault duplicate payment method"))
         },
     )?;
 
