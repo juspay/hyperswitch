@@ -1,57 +1,15 @@
 {
   "routing_create": {
-    "name": "newalgo",
-    "description": "It is my ADVANCED config",
+    "name": "",
+    "description": "",
     "algorithm": {
-      "type": "advanced",
-      "data": {
-        "defaultSelection": {
-          "type": "priority",
-          "data": [
-            { "connector": "adyen", "merchant_connector_id": "{{mca_id}}" }
-          ]
-        },
-        "rules": [
-          {
-            "name": "adyen",
-            "connectorSelection": {
-              "type": "priority",
-              "data": [
-                {
-                  "connector": "adyen",
-                  "merchant_connector_id": "{{mca_id}}"
-                },
-                {
-                  "connector": "cybersource",
-                  "merchant_connector_id": "{{mca_id}}"
-                }
-              ]
-            },
-            "statements": [
-              {
-                "condition": [
-                  {
-                    "lhs": "payment_amount",
-                    "comparison": "greater_than",
-                    "value": {
-                      "type": "number",
-                      "value": 100077
-                    },
-                    "metadata": {}
-                  }
-                ],
-                "nested": null
-              }
-            ]
-          }
-        ],
-        "metadata": {}
-      }
+      "type": "",
+      "data": {}
     },
     "profile_id": "{{profile_id}}"
   },
   "routing_activate": {
-    "routing_algorithm_id": "{{routing_algorithm_id}}"
+    "routing_algorithm_id": ""
   },
-  "default_fallback_update": ["checkout", "stripe", "adyen", "authorizedotnet"]
+  "default_fallback_update": []
 }
