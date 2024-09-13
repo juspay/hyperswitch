@@ -459,5 +459,7 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         recipient_emails: conf.recipient_emails,
+        #[cfg(feature = "v2")]
+        global_cell_id: conf.global_cell_id
     }
 }

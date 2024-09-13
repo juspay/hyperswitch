@@ -32,8 +32,8 @@ impl GlobalEntity {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub(crate) struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Deserialize)]
+pub struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CellIdError {

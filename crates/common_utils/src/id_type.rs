@@ -21,6 +21,8 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+#[cfg(feature = "v2")]
+pub use global_id::CellId;
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;

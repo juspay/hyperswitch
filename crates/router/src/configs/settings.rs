@@ -47,8 +47,7 @@ pub struct CmdLineConf {
     pub config_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
@@ -121,6 +120,8 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub recipient_emails: RecipientMails,
+    #[cfg(feature = "v2")]
+    pub global_cell_id: GlobalCellId,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -906,6 +907,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Deserialize)]
+pub struct GlobalCellId {
+    pub cell_id: common_utils::id_type::CellId,
+}
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct RecipientMails {
     pub recon: Email,
