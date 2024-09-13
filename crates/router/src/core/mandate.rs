@@ -58,6 +58,7 @@ pub async fn get_mandate(
     ))
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn revoke_mandate(
     state: SessionState,
