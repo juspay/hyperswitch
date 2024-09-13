@@ -318,4 +318,6 @@ jobs:
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2"
