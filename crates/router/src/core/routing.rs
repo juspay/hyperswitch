@@ -430,9 +430,9 @@ pub async fn link_routing_config(
                 matches!(
                     dynamic_routing_ref.success_based_algorithm,
                     Some(routing_types::DynamicAlgorithmWithTimestamp {
-                        algorithm_id: Some(_),
+                        algorithm_id: Some(ref id),
                         timestamp: _
-                    })
+                    }) if id == &algorithm_id
                 ),
                 || {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
