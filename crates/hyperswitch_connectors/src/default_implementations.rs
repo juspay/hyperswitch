@@ -131,6 +131,7 @@ default_imp_for_calculate_tax!(
     connectors::Helcim,
     connectors::Stax,
     connectors::Novalnet,
+    connectors::Mollie,
     connectors::Nexixpay,
     connectors::Fiuu,
     connectors::Globepay,
@@ -138,6 +139,7 @@ default_imp_for_calculate_tax!(
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
+    connectors::Volt,
     connectors::Deutschebank
 );
 

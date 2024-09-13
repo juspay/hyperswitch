@@ -18,8 +18,7 @@ use crate::{
     unimplemented_payment_method,
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData as CardDataUtil,
-        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
-         RouterData as _,
+        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
 
