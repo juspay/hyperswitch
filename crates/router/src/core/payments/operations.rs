@@ -1,16 +1,29 @@
+#[cfg(feature = "v1")]
 pub mod payment_approve;
+#[cfg(feature = "v1")]
 pub mod payment_cancel;
+#[cfg(feature = "v1")]
 pub mod payment_capture;
+#[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
+#[cfg(feature = "v1")]
 pub mod payment_confirm;
+#[cfg(feature = "v1")]
 pub mod payment_create;
+#[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
+#[cfg(feature = "v1")]
 pub mod payment_session;
+#[cfg(feature = "v1")]
 pub mod payment_start;
+#[cfg(feature = "v1")]
 pub mod payment_status;
+#[cfg(feature = "v1")]
 pub mod payment_update;
+#[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
+#[cfg(feature = "v1")]
 pub mod tax_calculation;
 
 use api_models::enums::FrmSuggestion;
@@ -18,11 +31,12 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+pub use self::payment_response::PaymentResponse;
+#[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_reject::PaymentReject,
-    payment_response::PaymentResponse, payment_session::PaymentSession,
+    payment_create::PaymentCreate, payment_reject::PaymentReject, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,

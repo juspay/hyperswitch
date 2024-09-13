@@ -181,7 +181,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
                 merchant_account.storage_scheme,
-                &payment_data.payment_intent.payment_id,
+                payment_data.payment_intent.get_id(),
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -394,7 +394,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             .store
             .find_all_authorizations_by_merchant_id_payment_id(
                 &router_data.merchant_id,
-                &payment_data.payment_intent.payment_id,
+                payment_data.payment_intent.get_id(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -782,7 +782,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_id.clone(),
             merchant_connector_id.clone(),
             merchant_account.storage_scheme,
-            &payment_data.payment_intent.payment_id,
+            payment_data.payment_intent.get_id(),
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -846,6 +846,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
+    state: &SessionState,
+    _payment_id: &api::PaymentIdType,
+    mut payment_data: PaymentData<F>,
+    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    locale: &Option<String>,
+) -> RouterResult<PaymentData<F>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,

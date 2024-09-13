@@ -1577,6 +1577,7 @@ impl PaymentIntentInterface for KafkaStore {
         Ok(intent)
     }
 
+    #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -1596,7 +1597,20 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_id(
+        &self,
+        state: &KeyManagerState,
+        payment_id: &id_type::PaymentId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentIntent, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_intent_by_id(state, payment_id, key_store, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -1616,7 +1630,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -1636,7 +1650,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1648,7 +1662,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -1674,7 +1688,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &id_type::MerchantId,

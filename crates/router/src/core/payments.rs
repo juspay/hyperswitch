@@ -52,16 +52,16 @@ use scheduler::utils as pt_utils;
 use strum::IntoEnumIterator;
 use time;
 
+#[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentSessionUpdate,
+    PaymentStatus, PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
-    helpers::get_key_params_for_surcharge_details,
-    operations::{payment_complete_authorize, BoxedOperation, Operation},
+    operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
@@ -535,6 +535,7 @@ where
 
             #[cfg(feature = "frm")]
             if let Some(fraud_info) = &mut frm_info {
+                #[cfg(feature = "v1")]
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
                     req_state,
@@ -613,7 +614,7 @@ where
         .to_domain()?
         .store_extended_card_info_temporarily(
             state,
-            &payment_data.get_payment_intent().payment_id,
+            payment_data.get_payment_intent().get_id(),
             &business_profile,
             payment_data.get_payment_method_data(),
         )
@@ -729,7 +730,7 @@ where
         let raw_card_key = payment_data
             .payment_method_data
             .as_ref()
-            .and_then(get_key_params_for_surcharge_details)
+            .and_then(helpers::get_key_params_for_surcharge_details)
             .map(|(payment_method, payment_method_type, card_network)| {
                 types::SurchargeKey::PaymentMethodData(
                     payment_method,
@@ -1030,6 +1031,7 @@ pub trait PaymentRedirectFlow: Sync {
 #[derive(Clone, Debug)]
 pub struct PaymentRedirectCompleteAuthorize;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
@@ -1073,7 +1075,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             merchant_account,
             None,
             merchant_key_store.clone(),
-            payment_complete_authorize::CompleteAuthorize,
+            operations::payment_complete_authorize::CompleteAuthorize,
             payment_confirm_req,
             services::api::AuthFlow::Merchant,
             connector_action,
@@ -1167,6 +1169,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
 #[derive(Clone, Debug)]
 pub struct PaymentRedirectSync;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl PaymentRedirectFlow for PaymentRedirectSync {
     type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
@@ -1263,6 +1266,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 #[derive(Clone, Debug)]
 pub struct PaymentAuthenticateCompleteAuthorize;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     type PaymentFlowResponse = router_types::AuthenticatePaymentFlowResponse;
@@ -2043,40 +2047,49 @@ where
                 merchant_connector_account.get_mca_id(),
             )?;
 
-            let connector_label = utils::get_connector_label(
-                payment_data.get_payment_intent().business_country,
-                payment_data.get_payment_intent().business_label.as_ref(),
-                payment_data
-                    .get_payment_attempt()
-                    .business_sub_label
-                    .as_ref(),
-                &connector_name,
-            );
+            #[cfg(feature = "v1")]
+            let label = {
+                let connector_label = utils::get_connector_label(
+                    payment_data.get_payment_intent().business_country,
+                    payment_data.get_payment_intent().business_label.as_ref(),
+                    payment_data
+                        .get_payment_attempt()
+                        .business_sub_label
+                        .as_ref(),
+                    &connector_name,
+                );
 
-            let connector_label = if let Some(connector_label) = merchant_connector_account
-                .get_mca_id()
-                .map(|mca_id| mca_id.get_string_repr().to_string())
-                .or(connector_label)
-            {
-                connector_label
-            } else {
-                let profile_id = payment_data
-                    .get_payment_intent()
-                    .profile_id
-                    .as_ref()
-                    .get_required_value("profile_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("profile_id is not set in payment_intent")?;
+                if let Some(connector_label) = merchant_connector_account
+                    .get_mca_id()
+                    .map(|mca_id| mca_id.get_string_repr().to_string())
+                    .or(connector_label)
+                {
+                    connector_label
+                } else {
+                    let profile_id = payment_data
+                        .get_payment_intent()
+                        .profile_id
+                        .as_ref()
+                        .get_required_value("profile_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("profile_id is not set in payment_intent")?;
 
-                format!("{connector_name}_{}", profile_id.get_string_repr())
+                    format!("{connector_name}_{}", profile_id.get_string_repr())
+                }
+            };
+
+            #[cfg(feature = "v2")]
+            let label = {
+                merchant_connector_account
+                    .get_mca_id()
+                    .get_required_value("merchant_connector_account_id")?
+                    .get_string_repr()
+                    .to_owned()
             };
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state,
-                    &connector,
-                    customer,
-                    &connector_label,
+                    state, &connector, customer, &label,
                 );
 
             if should_call_connector {
@@ -2098,7 +2111,7 @@ where
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
-                    &connector_label,
+                    &label,
                     customer.as_ref(),
                     &connector_customer_id,
                 )
@@ -2872,6 +2885,7 @@ impl CustomerDetailsExt for CustomerDetails {
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
@@ -2896,6 +2910,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn is_confirm<'a, F: Clone + Send, R, Op>(
     operation: &'a Op,
     confirm: Option<bool>,
@@ -2977,7 +2992,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -3050,7 +3065,8 @@ pub async fn list_payments(
         },
     ))
 }
-#[cfg(feature = "olap")]
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -3108,7 +3124,7 @@ pub async fn apply_filters_on_payments(
     ))
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_filters_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -3149,7 +3165,7 @@ pub async fn get_filters_for_payments(
     ))
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payment_filters(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -3229,7 +3245,7 @@ pub async fn get_payment_filters(
     ))
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_aggregates_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
@@ -4541,7 +4557,7 @@ pub async fn get_extended_card_info(
     ))
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_manual_update(
     state: SessionState,
     req: api_models::payments::PaymentsManualUpdateRequest,
@@ -4586,6 +4602,7 @@ pub async fn payments_manual_update(
         .attach_printable(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
+
     let payment_intent = state
         .store
         .find_payment_intent_by_payment_id_merchant_id(
@@ -4598,6 +4615,7 @@ pub async fn payments_manual_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
         .as_ref()
         .zip(error_message.as_ref())

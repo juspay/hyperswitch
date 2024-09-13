@@ -688,6 +688,7 @@ pub async fn get_token_pm_type_mandate_details(
     })
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_token_for_recurring_mandate(
     state: &SessionState,
     req: &api::PaymentsRequest,
@@ -1147,7 +1148,7 @@ pub fn create_startpay_url(
     format!(
         "{}/payments/redirect/{}/{}/{}",
         base_url,
-        payment_intent.payment_id.get_string_repr(),
+        payment_intent.get_id().get_string_repr(),
         payment_intent.merchant_id.get_string_repr(),
         payment_attempt.attempt_id
     )
@@ -2445,7 +2446,7 @@ where
     Some(func(option1?, option2?))
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
     constraints: &PaymentIntentFetchConstraints,
@@ -2889,11 +2890,23 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 },
             )?;
 
+            #[cfg(feature = "v1")]
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
                     &state.into(),
                     &payment_id,
                     merchant_account.get_id(),
+                    key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            #[cfg(feature = "v2")]
+            let payment_intent = db
+                .find_payment_intent_by_id(
+                    &state.into(),
+                    &payment_id,
                     key_store,
                     merchant_account.storage_scheme,
                 )
@@ -2948,6 +2961,7 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
     Ok(payment_id.to_string())
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -3715,7 +3729,7 @@ impl AttemptType {
                     )
                     .await
                     .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: fetched_payment_intent.payment_id.to_owned(),
+                        payment_id: fetched_payment_intent.get_id().to_owned(),
                     })?;
 
                 let updated_payment_intent = db
@@ -3743,7 +3757,7 @@ impl AttemptType {
 
                 logger::info!(
                     "manual_retry payment for {:?} with attempt_id {}",
-                    updated_payment_intent.payment_id,
+                    updated_payment_intent.get_id(),
                     new_payment_attempt.attempt_id
                 );
 

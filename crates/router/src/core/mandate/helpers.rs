@@ -11,6 +11,7 @@ use crate::{
     types::{api, domain},
 };
 
+#[cfg(feature = "v1")]
 pub async fn get_profile_id_for_mandate(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
