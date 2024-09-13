@@ -418,7 +418,7 @@ pub async fn link_routing_config(
                 business_profile
                     .dynamic_routing_algorithm
                     .clone()
-                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                    .map(|val| val.parse_value("SuccessBasedDynamicRoutingAlgorithmRef"))
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
