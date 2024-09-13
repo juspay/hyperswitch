@@ -4655,7 +4655,7 @@ pub async fn perform_surcharge_ops(
             state
                 .store
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                    &payment_intent.payment_id,
+                    payment_intent.get_id(),
                     merchant_account.get_id(),
                     &payment_intent.active_attempt.get_id(),
                     merchant_account.storage_scheme,

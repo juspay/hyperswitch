@@ -1,8 +1,9 @@
 pub mod admin;
 pub mod api_keys;
 pub mod app;
+#[cfg(feature = "v1")]
 pub mod apple_pay_certificates_migration;
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
@@ -22,9 +23,11 @@ pub mod fraud_check;
 pub mod gsm;
 pub mod health;
 pub mod lock_utils;
+#[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandates;
 pub mod metrics;
+#[cfg(feature = "v1")]
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
@@ -37,6 +40,7 @@ pub mod pm_auth;
 pub mod poll;
 #[cfg(feature = "recon")]
 pub mod recon;
+#[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -48,15 +52,16 @@ pub mod user_role;
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub mod webhook_events;
+#[cfg(feature = "v1")]
 pub mod webhooks;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub use self::app::Forex;
-#[cfg(all(feature = "olap", feature = "recon"))]
+#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, BusinessProfileNew, Cache,

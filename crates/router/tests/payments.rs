@@ -277,6 +277,7 @@ fn connector_list() {
     assert_eq!(true, true);
 }
 
+#[cfg(feature = "v1")]
 #[actix_rt::test]
 #[ignore] // AWS
 async fn payments_create_core() {
@@ -534,6 +535,7 @@ async fn payments_create_core() {
 //     assert_eq!(expected_response, actual_response);
 // }
 
+#[cfg(feature = "v1")]
 #[actix_rt::test]
 #[ignore]
 async fn payments_create_core_adyen_no_redirect() {

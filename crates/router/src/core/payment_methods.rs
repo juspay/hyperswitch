@@ -45,7 +45,10 @@ use masking::Secret;
 use router_env::{instrument, tracing};
 use time::Duration;
 
-use super::errors::{RouterResponse, StorageErrorExt};
+use super::{
+    errors::{RouterResponse, StorageErrorExt},
+    pm_auth,
+};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     configs::settings,
@@ -65,7 +68,6 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::helpers as payment_helpers,
-        pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
     services,
@@ -479,16 +481,16 @@ pub async fn add_payment_method_status_update_task(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
-    state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    token_data: &storage::PaymentTokenData,
-    payment_intent: &PaymentIntent,
-    card_token_data: Option<&domain::CardToken>,
-    customer: &Option<domain::Customer>,
-    storage_scheme: common_enums::enums::MerchantStorageScheme,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _token_data: &storage::PaymentTokenData,
+    _payment_intent: &PaymentIntent,
+    _card_token_data: Option<&domain::CardToken>,
+    _customer: &Option<domain::Customer>,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     todo!()
 }
@@ -609,7 +611,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
-            core_pm_auth::retrieve_payment_method_from_auth_service(
+            pm_auth::retrieve_payment_method_from_auth_service(
                 state,
                 merchant_key_store,
                 auth_token,

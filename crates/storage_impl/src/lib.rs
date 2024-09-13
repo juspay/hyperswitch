@@ -329,6 +329,21 @@ impl UniqueConstraints for diesel_models::Address {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+impl UniqueConstraints for diesel_models::PaymentIntent {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "pi_{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.merchant_reference_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentIntent"
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl UniqueConstraints for diesel_models::PaymentIntent {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(

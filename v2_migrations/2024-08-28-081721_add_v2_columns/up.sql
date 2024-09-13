@@ -14,3 +14,16 @@ ADD COLUMN routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN frm_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN payout_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN default_fallback_routing JSONB DEFAULT NULL;
+
+ALTER TABLE payment_intent
+ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
+    ADD COLUMN billing_address BYTEA DEFAULT NULL,
+    ADD COLUMN shipping_address BYTEA DEFAULT NULL,
+    ADD COLUMN capture_method "CaptureMethod",
+    ADD COLUMN authentication_type "AuthenticationType",
+    ADD COLUMN amount_to_capture bigint,
+    ADD COLUMN prerouting_algorithm JSONB, -- straight_through_algorithm from payment_attempt
+    ADD COLUMN surcharge_amount bigint,
+    ADD COLUMN tax_on_surcharge bigint, -- tax_amount from payment_attempt
+    ADD COLUMN frm_merchant_decision VARCHAR(64);
+
