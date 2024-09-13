@@ -804,26 +804,263 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
 });
 
 // Routing API calls
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add(
+  "routingSetupCall",
+  (routingSetupBody, type, payload, globalState) => {
+    // Define the necessary variables and constants
+    const api_key = globalState.get("userInfoToken");
+    const base_url = globalState.get("baseUrl");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/routing_algorithm`;
+
+    // Update request body
+    routingSetupBody.algorithm.data = payload.data;
+    routingSetupBody.algorithm.type = type;
+    routingSetupBody.description = payload.description;
+    routingSetupBody.name = payload.name;
+    routingSetupBody.profile_id = profile_id;
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        Authorization: `Bearer ${api_key}`,
+        "Content-Type": "application/json",
+      },
+      body: routingSetupBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("id").and.to.include("routing_");
+        expect(response.body).to.have.property("kind").and.to.equal(type);
+        expect(response.body)
+          .to.have.property("profile_id")
+          .and.to.equal(profile_id);
+
+        globalState.set("routingAlgorithmId", response.body.id);
+      } else {
+        // to be updated
+        throw new Error(
+          `Routing algorithm setup call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
+  }
+);
+Cypress.Commands.add(
+  "routingActivateCall",
+  (routingActivationBody, globalState) => {
+    // Define the necessary variables and constants
+    const api_key = globalState.get("userInfoToken");
+    const base_url = globalState.get("baseUrl");
+    const profile_id = globalState.get("profileId");
+    const routing_algorithm_id = globalState.get("routingAlgorithmId");
+    const url = `${base_url}/v2/profiles/${profile_id}/activate_routing_algorithm`;
+
+    // Update request body
+    routingActivationBody.routing_algorithm_id = routing_algorithm_id;
+
+    cy.request({
+      method: "PATCH",
+      url: url,
+      headers: {
+        Authorization: `Bearer ${api_key}`,
+        "Content-Type": "application/json",
+      },
+      body: routingActivationBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("id").and.to.include("routing_");
+        expect(response.body)
+          .to.have.property("profile_id")
+          .and.to.equal(profile_id);
+      } else {
+        // to be updated
+        throw new Error(
+          `Routing algorithm activation call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
+  }
+);
+Cypress.Commands.add("routingActivationRetrieveCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("userInfoToken");
+  const base_url = globalState.get("baseUrl");
+  const profile_id = globalState.get("profileId");
+  const query_params = "limit=10";
+  const routing_algorithm_id = globalState.get("routingAlgorithmId");
+  const url = `${base_url}/v2/profiles/${profile_id}/routing_algorithm?${query_params}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      Authorization: `Bearer ${api_key}`,
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.be.an("array").and.to.not.be.empty;
+      for (const key in response.body) {
+        expect(response.body[key])
+          .to.have.property("id")
+          .and.to.include("routing_");
+        expect(response.body[key])
+          .to.have.property("profile_id")
+          .and.to.equal(profile_id);
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add("routingDeactivateCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("userInfoToken");
+  const base_url = globalState.get("baseUrl");
+  const profile_id = globalState.get("profileId");
+  const routing_algorithm_id = globalState.get("routingAlgorithmId");
+  const url = `${base_url}/v2/profiles/${profile_id}/deactivate_routing_algorithm`;
+
+  cy.request({
+    method: "PATCH",
+    url: url,
+    headers: {
+      Authorization: `Bearer ${api_key}`,
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body)
+        .to.have.property("id")
+        .and.to.include("routing_")
+        .and.to.equal(routing_algorithm_id);
+      expect(response.body)
+        .to.have.property("profile_id")
+        .and.to.equal(profile_id);
+    } else {
+      // to be updated
+      throw new Error(
+        `Routing algorithm deactivation call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add("routingRetrieveCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("userInfoToken");
+  const base_url = globalState.get("baseUrl");
+  const profile_id = globalState.get("profileId");
+  const routing_algorithm_id = globalState.get("routingAlgorithmId");
+  const url = `${base_url}/v2/routing_algorithm/${routing_algorithm_id}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      Authorization: `Bearer ${api_key}`,
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body)
+        .to.have.property("id")
+        .and.to.include("routing_")
+        .and.to.equal(routing_algorithm_id);
+      expect(response.body)
+        .to.have.property("profile_id")
+        .and.to.equal(profile_id);
+      expect(response.body).to.have.property("algorithm").and.to.be.a("object")
+        .and.not.be.empty;
+    } else {
+      // to be updated
+      throw new Error(
+        `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
-});
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
-});
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
-});
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add(
+  "routingDefaultFallbackCall",
+  (routingDefaultFallbackBody, payload, globalState) => {
+    // Define the necessary variables and constants
+    const api_key = globalState.get("userInfoToken");
+    const base_url = globalState.get("baseUrl");
+    const profile_id = globalState.get("profileId");
+    const routing_algorithm_id = globalState.get("routingAlgorithmId");
+    const url = `${base_url}/v2/profiles/${profile_id}/fallback_routing`;
+
+    // Update request body
+    routingDefaultFallbackBody = payload;
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        Authorization: `Bearer ${api_key}`,
+        "Content-Type": "application/json",
+      },
+      body: routingDefaultFallbackBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body).to.deep.equal(routingDefaultFallbackBody);
+      } else {
+        // to be updated
+        throw new Error(
+          `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
+  }
+);
+Cypress.Commands.add("routingFallbackRetrieveCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("userInfoToken");
+  const base_url = globalState.get("baseUrl");
+  const profile_id = globalState.get("profileId");
+  const url = `${base_url}/v2/profiles/${profile_id}/fallback_routing`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      Authorization: `Bearer ${api_key}`,
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.be.an("array").and.to.not.be.empty;
+    } else {
+      // to be updated
+      throw new Error(
+        `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
 
 // User API calls
