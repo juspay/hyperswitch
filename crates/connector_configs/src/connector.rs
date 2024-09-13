@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "payouts")]
-use api_models::enums::PayoutConnectors;
+use api_models::enums::{PayoutConnectors, TaxConnectors};
 use api_models::{
     enums::{AuthenticationConnectors, Connector, PmAuthConnectors},
     payments,
@@ -282,6 +282,15 @@ impl ConnectorConfig {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
+        }
+    }
+
+    pub fn get_tax_connector_config(
+        connector: TaxConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            TaxConnectors::Taxjar => Ok(connector_data.taxjar),
         }
     }
 
