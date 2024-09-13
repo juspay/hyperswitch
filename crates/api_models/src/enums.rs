@@ -46,7 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Fiservemea,
+    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -94,9 +94,12 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Datatrans,
+    // Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
+    Fiservemea,
+    Fiuu,
     Forte,
     Globalpay,
     Globepay,
@@ -113,6 +116,7 @@ pub enum Connector {
     Nexinets,
     Nmi,
     Noon,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
@@ -131,8 +135,9 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
-    // Taxjar,
+    Taxjar,
     Threedsecureio,
+    //Thunes,
     Trustpay,
     Tsys,
     Volt,
@@ -209,8 +214,8 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Taxjar
-			// | Self::Fiservemea
+			// | Self::Nexixpay
+			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -226,9 +231,12 @@ impl Connector {
             | Self::Cashtocode
             | Self::Coinbase
             | Self::Cryptopay
+			// | Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
+			| Self::Fiservemea
+            | Self::Fiuu
             | Self::Forte
             | Self::Globalpay
             | Self::Globepay
@@ -242,6 +250,7 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
@@ -256,6 +265,8 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            | Self::Taxjar
+            //| Self::Thunes
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
@@ -408,6 +419,26 @@ pub enum FrmConnectors {
 }
 
 #[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+
+pub enum TaxConnectors {
+    Taxjar,
+}
+
+#[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
@@ -483,6 +514,9 @@ pub enum FieldType {
     UserPixKey,
     UserCpf,
     UserCnpj,
+    UserIban,
+    BrowserLanguage,
+    BrowserIp,
 }
 
 impl FieldType {
@@ -646,6 +680,10 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
+    TaxConnectors::from_str(connector_name).ok()
 }
 
 #[derive(

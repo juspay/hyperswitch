@@ -35,6 +35,7 @@ pub enum Permission {
     PayoutRead,
     PayoutWrite,
     GenerateReport,
+    ReconAdmin,
 }
 
 impl Permission {
@@ -77,6 +78,7 @@ impl Permission {
             Self::PayoutRead => "View all payouts",
             Self::PayoutWrite => "Create payout, download payout data",
             Self::GenerateReport => "Generate reports for payments, refunds and disputes",
+            Self::ReconAdmin => "View and manage reconciliation reports",
         }
     }
 }

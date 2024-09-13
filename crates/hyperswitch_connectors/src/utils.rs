@@ -1,8 +1,15 @@
+use std::collections::HashMap;
+
 use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
-use common_enums::{enums, enums::FutureUsage};
+use base64::Engine;
+use common_enums::{
+    enums,
+    enums::{CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
+};
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::{CustomResult, ReportSwitchExt},
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
@@ -18,7 +25,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
+use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::Serializer;
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -164,6 +174,16 @@ pub(crate) fn convert_amount<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
+pub(crate) fn convert_back_amount_to_minor_units<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert_back(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
 pub trait RouterData {
     fn get_billing(&self) -> Result<&Address, Error>;
@@ -180,6 +200,10 @@ pub trait RouterData {
     fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_last_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_line2(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_zip(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_state(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error>;
     fn get_billing_city(&self) -> Result<String, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
@@ -217,6 +241,7 @@ pub trait RouterData {
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
@@ -422,6 +447,56 @@ impl<Flow, Request, Response> RouterData
                 "payment_method_data.billing.address.line1",
             ))
     }
+    fn get_billing_line2(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line2.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line2",
+            ))
+    }
+    fn get_billing_zip(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.zip.clone())
+            })
+            .ok_or_else(missing_field_err("payment_method_data.billing.address.zip"))
+    }
+    fn get_billing_state(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.state.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.state",
+            ))
+    }
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error> {
+        let country = self.get_billing_country()?;
+        let state = self.get_billing_state()?;
+        match country {
+            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
+                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            _ => Ok(state.clone()),
+        }
+    }
     fn get_billing_city(&self) -> Result<String, Error> {
         self.address
             .get_payment_method_billing()
@@ -516,6 +591,16 @@ impl<Flow, Request, Response> RouterData
                     .address
                     .and_then(|billing_details| billing_details.state)
             })
+    }
+
+    fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_state().and_then(|state| {
+            if state.clone().expose().len() != 2 {
+                None
+            } else {
+                Some(state)
+            }
+        })
     }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
@@ -628,8 +713,21 @@ impl<Flow, Request, Response> RouterData
     }
 }
 
+#[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
+pub enum CardIssuer {
+    AmericanExpress,
+    Master,
+    Maestro,
+    Visa,
+    Discover,
+    DinersClub,
+    JCB,
+    CarteBlanche,
+}
+
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
@@ -651,6 +749,9 @@ impl CardData for Card {
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
     }
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
@@ -712,6 +813,45 @@ impl CardData for Card {
     }
 }
 
+#[track_caller]
+fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
+    for (k, v) in CARD_REGEX.iter() {
+        let regex: Regex = v
+            .clone()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        if regex.is_match(card_number) {
+            return Ok(*k);
+        }
+    }
+    Err(error_stack::Report::new(
+        errors::ConnectorError::NotImplemented("Card Type".into()),
+    ))
+}
+
+static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+    // [#379]: Determine card issuer from card BIN number
+    map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
+    map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
+    map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
+    map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+    map.insert(
+        CardIssuer::Maestro,
+        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+    );
+    map.insert(
+        CardIssuer::DinersClub,
+        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+    );
+    map.insert(
+        CardIssuer::JCB,
+        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+    );
+    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
+    map
+});
+
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
@@ -723,6 +863,10 @@ pub trait AddressDetailsData {
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
+    fn get_optional_city(&self) -> Option<String>;
+    fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
 }
 
@@ -795,6 +939,40 @@ impl AddressDetailsData for AddressDetails {
         )))
     }
 
+    fn to_state_code(&self) -> Result<Secret<String>, Error> {
+        let country = self.get_country()?;
+        let state = self.get_state()?;
+        match country {
+            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
+                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            _ => Ok(state.clone()),
+        }
+    }
+    fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
+        self.state
+            .as_ref()
+            .map(|state| {
+                if state.peek().len() == 2 {
+                    Ok(state.to_owned())
+                } else {
+                    self.to_state_code()
+                }
+            })
+            .transpose()
+    }
+
+    fn get_optional_city(&self) -> Option<String> {
+        self.city.clone()
+    }
+
+    fn get_optional_line1(&self) -> Option<Secret<String>> {
+        self.line1.clone()
+    }
+
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
     }
@@ -841,6 +1019,7 @@ impl PhoneDetailsData for PhoneDetails {
 }
 
 pub trait PaymentsAuthorizeRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -882,6 +1061,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
+    }
+
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
             .clone()
@@ -1013,6 +1198,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 }
 
 pub trait PaymentsCaptureRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
@@ -1025,6 +1211,11 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 
@@ -1056,6 +1247,7 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
 }
 
 pub trait PaymentsCancelRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
@@ -1079,9 +1271,15 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
+    }
 }
 
 pub trait RefundsRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -1104,6 +1302,11 @@ impl RefundsRequestData for RefundsData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 
@@ -1248,6 +1451,34 @@ impl BrowserInformationData for BrowserInformation {
     }
 }
 
+pub fn get_header_key_value<'a>(
+    key: &str,
+    headers: &'a actix_web::http::header::HeaderMap,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    get_header_field(headers.get(key))
+}
+
+pub fn get_http_header<'a>(
+    key: &str,
+    headers: &'a http::HeaderMap,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    get_header_field(headers.get(key))
+}
+
+fn get_header_field(
+    field: Option<&http::HeaderValue>,
+) -> CustomResult<&str, errors::ConnectorError> {
+    field
+        .map(|header_value| {
+            header_value
+                .to_str()
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        })
+        .ok_or(report!(
+            errors::ConnectorError::WebhookSourceVerificationFailed
+        ))?
+}
+
 #[macro_export]
 macro_rules! unimplemented_payment_method {
     ($payment_method:expr, $connector:expr) => {
@@ -1262,4 +1493,170 @@ macro_rules! unimplemented_payment_method {
             $payment_method, $flow, $connector
         ))
     };
+}
+
+impl ForeignTryFrom<String> for UsStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "UsStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alabama" => Ok(Self::AL),
+                    "alaska" => Ok(Self::AK),
+                    "american samoa" => Ok(Self::AS),
+                    "arizona" => Ok(Self::AZ),
+                    "arkansas" => Ok(Self::AR),
+                    "california" => Ok(Self::CA),
+                    "colorado" => Ok(Self::CO),
+                    "connecticut" => Ok(Self::CT),
+                    "delaware" => Ok(Self::DE),
+                    "district of columbia" | "columbia" => Ok(Self::DC),
+                    "federated states of micronesia" | "micronesia" => Ok(Self::FM),
+                    "florida" => Ok(Self::FL),
+                    "georgia" => Ok(Self::GA),
+                    "guam" => Ok(Self::GU),
+                    "hawaii" => Ok(Self::HI),
+                    "idaho" => Ok(Self::ID),
+                    "illinois" => Ok(Self::IL),
+                    "indiana" => Ok(Self::IN),
+                    "iowa" => Ok(Self::IA),
+                    "kansas" => Ok(Self::KS),
+                    "kentucky" => Ok(Self::KY),
+                    "louisiana" => Ok(Self::LA),
+                    "maine" => Ok(Self::ME),
+                    "marshall islands" => Ok(Self::MH),
+                    "maryland" => Ok(Self::MD),
+                    "massachusetts" => Ok(Self::MA),
+                    "michigan" => Ok(Self::MI),
+                    "minnesota" => Ok(Self::MN),
+                    "mississippi" => Ok(Self::MS),
+                    "missouri" => Ok(Self::MO),
+                    "montana" => Ok(Self::MT),
+                    "nebraska" => Ok(Self::NE),
+                    "nevada" => Ok(Self::NV),
+                    "new hampshire" => Ok(Self::NH),
+                    "new jersey" => Ok(Self::NJ),
+                    "new mexico" => Ok(Self::NM),
+                    "new york" => Ok(Self::NY),
+                    "north carolina" => Ok(Self::NC),
+                    "north dakota" => Ok(Self::ND),
+                    "northern mariana islands" => Ok(Self::MP),
+                    "ohio" => Ok(Self::OH),
+                    "oklahoma" => Ok(Self::OK),
+                    "oregon" => Ok(Self::OR),
+                    "palau" => Ok(Self::PW),
+                    "pennsylvania" => Ok(Self::PA),
+                    "puerto rico" => Ok(Self::PR),
+                    "rhode island" => Ok(Self::RI),
+                    "south carolina" => Ok(Self::SC),
+                    "south dakota" => Ok(Self::SD),
+                    "tennessee" => Ok(Self::TN),
+                    "texas" => Ok(Self::TX),
+                    "utah" => Ok(Self::UT),
+                    "vermont" => Ok(Self::VT),
+                    "virgin islands" => Ok(Self::VI),
+                    "virginia" => Ok(Self::VA),
+                    "washington" => Ok(Self::WA),
+                    "west virginia" => Ok(Self::WV),
+                    "wisconsin" => Ok(Self::WI),
+                    "wyoming" => Ok(Self::WY),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.to_uppercase().clone(), "CanadaStatesAbbreviation");
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => {
+                let binding = value.as_str().to_lowercase();
+                let state = binding.as_str();
+                match state {
+                    "alberta" => Ok(Self::AB),
+                    "british columbia" => Ok(Self::BC),
+                    "manitoba" => Ok(Self::MB),
+                    "new brunswick" => Ok(Self::NB),
+                    "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
+                    "northwest territories" => Ok(Self::NT),
+                    "nova scotia" => Ok(Self::NS),
+                    "nunavut" => Ok(Self::NU),
+                    "ontario" => Ok(Self::ON),
+                    "prince edward island" => Ok(Self::PE),
+                    "quebec" => Ok(Self::QC),
+                    "saskatchewan" => Ok(Self::SK),
+                    "yukon" => Ok(Self::YT),
+                    _ => Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "address.state",
+                    }
+                    .into()),
+                }
+            }
+        }
+    }
+}
+
+pub trait ForeignTryFrom<F>: Sized {
+    type Error;
+
+    fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
+}
+
+#[derive(Debug)]
+pub struct QrImage {
+    pub data: String,
+}
+
+// Qr Image data source starts with this string
+// The base64 image data will be appended to it to image data source
+pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
+
+impl QrImage {
+    pub fn new_from_data(
+        data: String,
+    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
+        let qr_code = qrcode::QrCode::new(data.as_bytes())
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
+        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
+
+        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
+
+        // Encodes qrcode_dynamic_image and write it to image_bytes
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
+
+        let image_data_source = format!(
+            "{},{}",
+            QR_IMAGE_DATA_SOURCE_STRING,
+            BASE64_ENGINE.encode(image_bytes.buffer())
+        );
+        Ok(Self {
+            data: image_data_source,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
+    }
 }

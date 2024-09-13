@@ -1,6 +1,6 @@
 use api_models::customers::CustomerRequestWithEncryption;
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// use common_enums::SoftDeleteStatus;
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use common_enums::DeleteStatus;
 use common_utils::{
     crypto, date_time,
     encryption::Encryption,
@@ -56,23 +56,9 @@ pub struct Customer {
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    // pub status: Option<SoftDeleteStatus>,
     pub id: String,
     pub version: common_enums::ApiVersion,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
-        self.customer_id.clone()
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
-        todo!()
-    }
+    pub status: DeleteStatus,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -196,7 +182,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: self.default_billing_address.map(Encryption::from),
             default_shipping_address: self.default_shipping_address.map(Encryption::from),
             version: self.version,
-            // status: self.status,
+            status: self.status,
         })
     }
 
@@ -250,7 +236,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
             version: item.version,
-            // status: item.status,
+            status: item.status,
         })
     }
 
@@ -273,8 +259,8 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
-            // status: self.status,
             version: crate::consts::API_VERSION,
+            status: self.status,
         })
     }
 }
@@ -284,7 +270,7 @@ impl super::behaviour::Conversion for Customer {
 pub enum CustomerUpdate {
     Update {
         name: crypto::OptionalEncryptableName,
-        email: crypto::OptionalEncryptableEmail,
+        email: Box<crypto::OptionalEncryptableEmail>,
         phone: Box<crypto::OptionalEncryptablePhone>,
         description: Option<Description>,
         phone_country_code: Option<String>,
@@ -293,6 +279,7 @@ pub enum CustomerUpdate {
         default_billing_address: Option<Encryption>,
         default_shipping_address: Option<Encryption>,
         default_payment_method_id: Option<Option<String>>,
+        status: Option<DeleteStatus>,
     },
     ConnectorCustomer {
         connector_customer: Option<pii::SecretSerdeValue>,
@@ -317,6 +304,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 default_billing_address,
                 default_shipping_address,
                 default_payment_method_id,
+                status,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -330,6 +318,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 default_shipping_address,
                 default_payment_method_id,
                 updated_by: None,
+                status,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
@@ -344,6 +333,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 updated_by: None,
                 default_billing_address: None,
                 default_shipping_address: None,
+                status: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
@@ -360,6 +350,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 updated_by: None,
                 default_billing_address: None,
                 default_shipping_address: None,
+                status: None,
             },
         }
     }

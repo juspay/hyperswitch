@@ -243,6 +243,7 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::AllianceBank
             | BankNames::AmBank
             | BankNames::BankOfAmerica
+            | BankNames::BankOfChina
             | BankNames::BankIslam
             | BankNames::BankMuamalat
             | BankNames::BankRakyat

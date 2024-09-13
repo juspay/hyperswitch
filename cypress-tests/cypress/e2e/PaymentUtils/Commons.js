@@ -17,14 +17,17 @@ function normalise(input) {
     paybox: "Paybox",
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
+    fiuu: "Fiuu",
     // Add more known exceptions here
   };
 
-  if (exceptions[input.toLowerCase()]) {
-    return exceptions[input.toLowerCase()];
-  } else {
-    return input;
+  if (typeof input !== "string") {
+    const spec_name = Cypress.spec.name.split("-")[1].split(".")[0];
+    return `${spec_name}`;
   }
+
+  const lowerCaseInput = input.toLowerCase();
+  return exceptions[lowerCaseInput] || input;
 }
 
 const successfulNo3DSCardDetails = {

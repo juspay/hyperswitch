@@ -42,7 +42,7 @@ pub fn is_enabled(
 
 pub async fn check_if_connector_exists(
     state: &SessionState,
-    connector_id: &str,
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<()> {
     let key_manager_state = &state.into();
@@ -56,10 +56,7 @@ pub async fn check_if_connector_exists(
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let _connector = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -70,10 +67,10 @@ pub async fn check_if_connector_exists(
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: connector_id.to_string(),
+            id: connector_id.get_string_repr().to_string(),
         })?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     {
         let _ = connector_id;
         let _ = key_store;
@@ -85,7 +82,7 @@ pub async fn check_if_connector_exists(
 
 pub async fn set_tracking_id_in_configs(
     state: &SessionState,
-    connector_id: &str,
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     connector: enums::Connector,
 ) -> RouterResult<()> {
     let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
@@ -130,7 +127,7 @@ pub async fn set_tracking_id_in_configs(
 
 pub async fn get_tracking_id_from_configs(
     state: &SessionState,
-    connector_id: &str,
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     connector: enums::Connector,
 ) -> RouterResult<String> {
     let timestamp = state
@@ -144,14 +141,17 @@ pub async fn get_tracking_id_from_configs(
         .attach_printable("Error getting data from configs table")?
         .config;
 
-    Ok(format!("{}_{}", connector_id, timestamp))
+    Ok(format!("{}_{}", connector_id.get_string_repr(), timestamp))
 }
 
-fn build_key(connector_id: &str, connector: enums::Connector) -> String {
+fn build_key(
+    connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+    connector: enums::Connector,
+) -> String {
     format!(
         "{}_{}_{}",
         consts::CONNECTOR_ONBOARDING_CONFIG_PREFIX,
         connector,
-        connector_id,
+        connector_id.get_string_repr(),
     )
 }

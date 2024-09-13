@@ -329,12 +329,27 @@ impl UniqueConstraints for diesel_models::Address {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl UniqueConstraints for diesel_models::PaymentIntent {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
             "pi_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id
+            self.merchant_reference_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentIntent"
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+impl UniqueConstraints for diesel_models::PaymentIntent {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "pi_{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.payment_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {
@@ -347,7 +362,7 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
         vec![format!(
             "pa_{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.attempt_id
         )]
     }
@@ -406,9 +421,23 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.id)]
     }
     fn table_name(&self) -> &str {
         "PaymentMethod"

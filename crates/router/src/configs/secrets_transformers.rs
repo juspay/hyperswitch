@@ -115,13 +115,22 @@ impl SecretsHandler for settings::ApiKeys {
         let expiry_reminder_days = api_keys.expiry_reminder_days.clone();
 
         #[cfg(feature = "partial-auth")]
-        let checksum_auth_context = secret_management_client
-            .get_secret(api_keys.checksum_auth_context.clone())
-            .await?;
+        let enable_partial_auth = api_keys.enable_partial_auth;
+
         #[cfg(feature = "partial-auth")]
-        let checksum_auth_key = secret_management_client
-            .get_secret(api_keys.checksum_auth_key.clone())
-            .await?;
+        let (checksum_auth_context, checksum_auth_key) = {
+            if enable_partial_auth {
+                let checksum_auth_context = secret_management_client
+                    .get_secret(api_keys.checksum_auth_context.clone())
+                    .await?;
+                let checksum_auth_key = secret_management_client
+                    .get_secret(api_keys.checksum_auth_key.clone())
+                    .await?;
+                (checksum_auth_context, checksum_auth_key)
+            } else {
+                (String::new().into(), String::new().into())
+            }
+        };
 
         Ok(value.transition_state(|_| Self {
             hash_key,
@@ -132,12 +141,14 @@ impl SecretsHandler for settings::ApiKeys {
             checksum_auth_key,
             #[cfg(feature = "partial-auth")]
             checksum_auth_context,
+            #[cfg(feature = "partial-auth")]
+            enable_partial_auth,
         }))
     }
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::ApplePayDecryptConifg {
+impl SecretsHandler for settings::ApplePayDecryptConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
@@ -247,17 +258,15 @@ impl SecretsHandler for settings::Secrets {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let secrets = value.get_inner();
-        let (jwt_secret, admin_api_key, recon_admin_api_key, master_enc_key) = tokio::try_join!(
+        let (jwt_secret, admin_api_key, master_enc_key) = tokio::try_join!(
             secret_management_client.get_secret(secrets.jwt_secret.clone()),
             secret_management_client.get_secret(secrets.admin_api_key.clone()),
-            secret_management_client.get_secret(secrets.recon_admin_api_key.clone()),
             secret_management_client.get_secret(secrets.master_enc_key.clone())
         )?;
 
         Ok(value.transition_state(|_| Self {
             jwt_secret,
             admin_api_key,
-            recon_admin_api_key,
             master_enc_key,
         }))
     }
@@ -338,7 +347,7 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt connector_onboarding configs");
 
     #[allow(clippy::expect_used)]
-    let applepay_decrypt_keys = settings::ApplePayDecryptConifg::convert_to_raw_secret(
+    let applepay_decrypt_keys = settings::ApplePayDecryptConfig::convert_to_raw_secret(
         conf.applepay_decrypt_keys,
         secret_management_client,
     )
@@ -449,5 +458,6 @@ pub(crate) async fn fetch_raw_secrets(
         user_auth_methods,
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
+        recipient_emails: conf.recipient_emails,
     }
 }

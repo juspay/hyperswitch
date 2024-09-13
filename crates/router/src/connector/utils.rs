@@ -758,11 +758,13 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<domain::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
+    fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -804,6 +806,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
@@ -843,6 +848,18 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
+
+    fn get_optional_network_transaction_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                    Some(network_transaction_id.clone())
+                }
+                Some(payments::MandateReferenceId::ConnectorMandateId(_)) | None => None,
+            })
+    }
+
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage.map_or(false, |setup_future_usage| {
@@ -1649,6 +1666,7 @@ pub trait AddressDetailsData {
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1747,6 +1765,9 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
+    }
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
     }
 }
 

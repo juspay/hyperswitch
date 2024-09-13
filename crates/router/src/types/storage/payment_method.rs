@@ -95,10 +95,13 @@ pub struct PaymentsMandateReferenceRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference(pub HashMap<String, PaymentsMandateReferenceRecord>);
+pub struct PaymentsMandateReference(
+    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
+);
 
 impl Deref for PaymentsMandateReference {
-    type Target = HashMap<String, PaymentsMandateReferenceRecord>;
+    type Target =
+        HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

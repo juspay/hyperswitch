@@ -28,6 +28,16 @@ pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -62,8 +72,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .await?;
 
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, customer, _, _) = Box::pin(
-            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+        let (mut payment_data, _, customer, _, _) =
+            Box::pin(payment_flows::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                payment_flows::PaymentData<api::PSync>,
+            >(
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
@@ -75,9 +91,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 services::AuthFlow::Client,
                 None,
                 api::HeaderPayload::default(),
-            ),
-        )
-        .await?;
+            ))
+            .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -177,7 +192,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.to_string(),
+                                id: profile_id.get_string_repr().to_owned(),
                             },
                         )?;
 

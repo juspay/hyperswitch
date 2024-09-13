@@ -126,13 +126,15 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsStart
             | Flow::PaymentsList
             | Flow::PaymentsFilters
+            | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
-            | Flow::PaymentsManualUpdate => Self::Payments,
+            | Flow::PaymentsManualUpdate
+            | Flow::SessionUpdateTaxCalculation => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -151,6 +153,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList
             | Flow::RefundsFilters
+            | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
@@ -211,7 +214,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::SwitchOrg
             | Flow::SwitchMerchant
+            | Flow::SwitchMerchantV2
+            | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
@@ -243,21 +249,30 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::ListOrgForUser
+            | Flow::ListMerchantsForUserInOrg
+            | Flow::ListProfileForUserInOrgAndMerchant
+            | Flow::ListInvitationsForUser
             | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
+            | Flow::ListRolesV2
+            | Flow::ListInvitableRolesAtEntityLevel
+            | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
             | Flow::AcceptInvitation
+            | Flow::AcceptInvitationsV2
             | Flow::MerchantSelect
+            | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership
             | Flow::CreateRole
             | Flow::UpdateRole
-            | Flow::UserFromEmail => Self::UserRole,
+            | Flow::UserFromEmail
+            | Flow::ListUsersInLineage => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

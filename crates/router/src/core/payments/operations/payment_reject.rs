@@ -26,6 +26,8 @@ use crate::{
 #[operation(operations = "all", flow = "cancel")]
 pub struct PaymentReject;
 
+type PaymentRejectOperation<'b, F> = BoxedOperation<'b, F, PaymentsCancelRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for PaymentReject {
     #[instrument(skip_all)]
@@ -38,7 +40,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsCancelRequest>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsCancelRequest, PaymentData<F>>>
+    {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -73,7 +76,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
@@ -134,7 +137,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let payment_data = PaymentData {
@@ -180,6 +183,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -208,7 +212,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
         key_store: &domain::MerchantKeyStore,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, PaymentsCancelRequest>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentRejectOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -260,16 +264,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsCancelRequest> for PaymentReject {
+impl<F: Send + Clone> ValidateRequest<F, PaymentsCancelRequest, PaymentData<F>> for PaymentReject {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsCancelRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsCancelRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentRejectOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

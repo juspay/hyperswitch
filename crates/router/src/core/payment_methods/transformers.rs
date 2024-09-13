@@ -1,3 +1,6 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
+
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -15,7 +18,7 @@ use crate::{
     headers,
     pii::{prelude::*, Secret},
     services::{api as services, encryption},
-    types::{api, storage},
+    types::{api, domain},
     utils::OptionExt,
 };
 
@@ -79,6 +82,14 @@ pub enum DataDuplicationCheck {
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
     pub merchant_customer_id: id_type::CustomerId,
+    pub card_reference: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardReqBodyV2 {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: String, // Not changing this as it might lead to api contract failure
     pub card_reference: String,
 }
 
@@ -312,7 +323,11 @@ pub async fn mk_add_locker_request_hs(
     Ok(request)
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2"),
+    feature = "payouts"
+))]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
@@ -337,6 +352,20 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2", feature = "payouts"))]
+pub fn mk_add_bank_response_hs(
+    _bank: api::BankPayout,
+    _bank_reference: String,
+    _req: api::PaymentMethodCreate,
+    _merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -384,6 +413,16 @@ pub fn mk_add_card_response_hs(
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn mk_add_card_response_hs(
+    _card: api::CardDetail,
+    _card_reference: String,
+    _req: api::PaymentMethodCreate,
+    _merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    todo!()
 }
 
 pub async fn mk_get_card_request_hs(
@@ -492,6 +531,42 @@ pub async fn mk_delete_card_request_hs(
     Ok(request)
 }
 
+// Need to fix this once we start moving to v2 completion
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn mk_delete_card_request_hs_by_id(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = id.to_owned();
+    let card_req_body = CardReqBodyV2 {
+        merchant_id: merchant_id.to_owned(),
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let payload = card_req_body
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/delete");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+    Ok(request)
+}
+
 pub fn mk_delete_card_response(
     response: DeleteCardResponse,
 ) -> errors::RouterResult<DeleteCardResp> {
@@ -502,8 +577,12 @@ pub fn mk_delete_card_response(
     })
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -518,6 +597,33 @@ pub fn get_card_detail(
         expiry_month: Some(response.card_exp_month),
         expiry_year: Some(response.card_exp_year),
         card_token: None,
+        card_fingerprint: None,
+        card_holder_name: response.name_on_card,
+        nick_name: response.nick_name.map(Secret::new),
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
+    };
+    Ok(card_detail)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn get_card_detail(
+    _pm: &domain::PaymentMethod,
+    response: Card,
+) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
+    let card_number = response.card_number;
+    let last4_digits = card_number.clone().get_last4();
+    //fetch form card bin
+
+    let card_detail = api::CardDetailFromLocker {
+        issuer_country: None,
+        last4_digits: Some(last4_digits),
+        card_number: Some(card_number),
+        expiry_month: Some(response.card_exp_month),
+        expiry_year: Some(response.card_exp_year),
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
         nick_name: response.nick_name.map(Secret::new),

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
@@ -5,11 +7,12 @@ use common_utils::{
     pii::{self, Email},
 };
 use masking::Secret;
+use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payments};
+use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -144,7 +147,8 @@ pub struct PayoutCreateRequest {
     pub payout_token: Option<String>,
 
     /// The business profile to use for this payout, especially if there are multiple business profiles associated with the account, otherwise default business profile associated with the merchant account will be used.
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     /// The send method which will be required for processing payouts, check options for better understanding.
     #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
@@ -202,6 +206,16 @@ pub struct PayoutCreatePayoutLinkConfig {
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
+
+    /// `test_mode` allows for opening payout links without any restrictions. This removes
+    /// - domain name validations
+    /// - check for making sure link is accessed within an iframe
+    #[schema(value_type = Option<bool>, example = false)]
+    pub test_mode: Option<bool>,
 }
 
 /// The payout method information required for carrying out a payout
@@ -404,7 +418,7 @@ pub struct PayoutCreateResponse {
     pub payout_type: Option<api_enums::PayoutType>,
 
     /// The billing address for the payout
-    #[schema(value_type = Option<Object>, example = json!(r#"{
+    #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
             "line1": "1467",
             "line2": "Harrison Street",
@@ -466,7 +480,7 @@ pub struct PayoutCreateResponse {
 
     /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Current status of the Payout
     #[schema(value_type = PayoutStatus, example = RequiresConfirmation)]
@@ -481,7 +495,8 @@ pub struct PayoutCreateResponse {
     pub error_code: Option<String>,
 
     /// The business profile that is associated with this payout
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// Time when the payout was created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -685,7 +700,8 @@ pub struct PayoutListFilterConstraints {
 )]
     pub payout_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
     /// The identifier for customer
     #[schema(value_type = Option<String>,example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -769,9 +785,29 @@ pub struct PayoutLinkDetails {
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
+    pub enabled_payment_methods_with_required_fields: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
     pub locale: String,
+    pub form_layout: Option<common_enums::UIWidgetFormLayout>,
+    pub test_mode: bool,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutEnabledPaymentMethodsInfo {
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_types_info: Vec<PaymentMethodTypeInfo>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodTypeInfo {
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, FlatStruct)]
+pub struct RequiredFieldsOverrideRequest {
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -787,4 +823,5 @@ pub struct PayoutLinkStatusDetails {
     pub error_message: Option<String>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
+    pub test_mode: bool,
 }

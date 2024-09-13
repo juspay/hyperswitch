@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, pii::Email};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -94,7 +94,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
-    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
+    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -120,6 +120,7 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    pub recipient_emails: RecipientMails,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -490,6 +491,10 @@ pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
@@ -513,7 +518,6 @@ pub struct RequiredFieldFinal {
 pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
-    pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
 }
 
@@ -669,6 +673,9 @@ pub struct ApiKeys {
 
     #[cfg(feature = "partial-auth")]
     pub checksum_auth_key: Secret<String>,
+
+    #[cfg(feature = "partial-auth")]
+    pub enable_partial_auth: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -684,7 +691,7 @@ pub struct WebhookSourceVerificationCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct ApplePayDecryptConifg {
+pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
     pub apple_pay_merchant_cert: Secret<String>,
@@ -838,6 +845,8 @@ impl Settings<RawSecret> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+    #[serde(default)]
+    pub required_fields: PayoutRequiredFields,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -895,6 +904,11 @@ pub struct ServerTls {
     pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
     pub certificate: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct RecipientMails {
+    pub recon: Email,
 }
 
 fn deserialize_hashmap_inner<K, V>(

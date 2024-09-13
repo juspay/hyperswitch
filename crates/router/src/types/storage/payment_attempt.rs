@@ -121,7 +121,8 @@ mod tests {
     #[tokio::test]
     async fn test_payment_attempt_insert() {
         let state = create_single_connection_test_transaction_pool().await;
-        let payment_id = Uuid::new_v4().to_string();
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
         let payment_attempt = PaymentAttemptNew {
@@ -129,7 +130,62 @@ mod tests {
             connector: Some(connector),
             created_at: current_time.into(),
             modified_at: current_time.into(),
-            ..PaymentAttemptNew::default()
+            merchant_id: Default::default(),
+            attempt_id: Default::default(),
+            status: Default::default(),
+            amount: Default::default(),
+            net_amount: Default::default(),
+            currency: Default::default(),
+            save_to_locker: Default::default(),
+            error_message: Default::default(),
+            offer_amount: Default::default(),
+            surcharge_amount: Default::default(),
+            tax_amount: Default::default(),
+            payment_method_id: Default::default(),
+            payment_method: Default::default(),
+            capture_method: Default::default(),
+            capture_on: Default::default(),
+            confirm: Default::default(),
+            authentication_type: Default::default(),
+            last_synced: Default::default(),
+            cancellation_reason: Default::default(),
+            amount_to_capture: Default::default(),
+            mandate_id: Default::default(),
+            browser_info: Default::default(),
+            payment_token: Default::default(),
+            error_code: Default::default(),
+            connector_metadata: Default::default(),
+            payment_experience: Default::default(),
+            payment_method_type: Default::default(),
+            payment_method_data: Default::default(),
+            business_sub_label: Default::default(),
+            straight_through_algorithm: Default::default(),
+            preprocessing_step_id: Default::default(),
+            mandate_details: Default::default(),
+            error_reason: Default::default(),
+            connector_response_reference_id: Default::default(),
+            multiple_capture_count: Default::default(),
+            amount_capturable: Default::default(),
+            updated_by: Default::default(),
+            authentication_data: Default::default(),
+            encoded_data: Default::default(),
+            merchant_connector_id: Default::default(),
+            unified_code: Default::default(),
+            unified_message: Default::default(),
+            external_three_ds_authentication_attempted: Default::default(),
+            authentication_connector: Default::default(),
+            authentication_id: Default::default(),
+            mandate_data: Default::default(),
+            payment_method_billing_address_id: Default::default(),
+            fingerprint_id: Default::default(),
+            charge_id: Default::default(),
+            client_source: Default::default(),
+            client_version: Default::default(),
+            customer_acceptance: Default::default(),
+            profile_id: common_utils::generate_profile_id_of_default_length(),
+            organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
 
         let store = state
@@ -151,7 +207,8 @@ mod tests {
     async fn test_find_payment_attempt() {
         let state = create_single_connection_test_transaction_pool().await;
         let current_time = common_utils::date_time::now();
-        let payment_id = Uuid::new_v4().to_string();
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
         let connector = types::Connector::DummyConnector1.to_string();
@@ -163,7 +220,60 @@ mod tests {
             created_at: current_time.into(),
             modified_at: current_time.into(),
             attempt_id: attempt_id.clone(),
-            ..PaymentAttemptNew::default()
+            status: Default::default(),
+            amount: Default::default(),
+            net_amount: Default::default(),
+            currency: Default::default(),
+            save_to_locker: Default::default(),
+            error_message: Default::default(),
+            offer_amount: Default::default(),
+            surcharge_amount: Default::default(),
+            tax_amount: Default::default(),
+            payment_method_id: Default::default(),
+            payment_method: Default::default(),
+            capture_method: Default::default(),
+            capture_on: Default::default(),
+            confirm: Default::default(),
+            authentication_type: Default::default(),
+            last_synced: Default::default(),
+            cancellation_reason: Default::default(),
+            amount_to_capture: Default::default(),
+            mandate_id: Default::default(),
+            browser_info: Default::default(),
+            payment_token: Default::default(),
+            error_code: Default::default(),
+            connector_metadata: Default::default(),
+            payment_experience: Default::default(),
+            payment_method_type: Default::default(),
+            payment_method_data: Default::default(),
+            business_sub_label: Default::default(),
+            straight_through_algorithm: Default::default(),
+            preprocessing_step_id: Default::default(),
+            mandate_details: Default::default(),
+            error_reason: Default::default(),
+            connector_response_reference_id: Default::default(),
+            multiple_capture_count: Default::default(),
+            amount_capturable: Default::default(),
+            updated_by: Default::default(),
+            authentication_data: Default::default(),
+            encoded_data: Default::default(),
+            merchant_connector_id: Default::default(),
+            unified_code: Default::default(),
+            unified_message: Default::default(),
+            external_three_ds_authentication_attempted: Default::default(),
+            authentication_connector: Default::default(),
+            authentication_id: Default::default(),
+            mandate_data: Default::default(),
+            payment_method_billing_address_id: Default::default(),
+            fingerprint_id: Default::default(),
+            charge_id: Default::default(),
+            client_source: Default::default(),
+            client_version: Default::default(),
+            customer_acceptance: Default::default(),
+            profile_id: common_utils::generate_profile_id_of_default_length(),
+            organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -198,19 +308,73 @@ mod tests {
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant1"))
                 .unwrap();
+
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
-            payment_id: uuid.clone(),
+            payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
             connector: Some(connector),
             created_at: current_time.into(),
             modified_at: current_time.into(),
-            // Adding a mandate_id
             mandate_id: Some("man_121212".to_string()),
             attempt_id: uuid.clone(),
-            ..PaymentAttemptNew::default()
+            status: Default::default(),
+            amount: Default::default(),
+            net_amount: Default::default(),
+            currency: Default::default(),
+            save_to_locker: Default::default(),
+            error_message: Default::default(),
+            offer_amount: Default::default(),
+            surcharge_amount: Default::default(),
+            tax_amount: Default::default(),
+            payment_method_id: Default::default(),
+            payment_method: Default::default(),
+            capture_method: Default::default(),
+            capture_on: Default::default(),
+            confirm: Default::default(),
+            authentication_type: Default::default(),
+            last_synced: Default::default(),
+            cancellation_reason: Default::default(),
+            amount_to_capture: Default::default(),
+            browser_info: Default::default(),
+            payment_token: Default::default(),
+            error_code: Default::default(),
+            connector_metadata: Default::default(),
+            payment_experience: Default::default(),
+            payment_method_type: Default::default(),
+            payment_method_data: Default::default(),
+            business_sub_label: Default::default(),
+            straight_through_algorithm: Default::default(),
+            preprocessing_step_id: Default::default(),
+            mandate_details: Default::default(),
+            error_reason: Default::default(),
+            connector_response_reference_id: Default::default(),
+            multiple_capture_count: Default::default(),
+            amount_capturable: Default::default(),
+            updated_by: Default::default(),
+            authentication_data: Default::default(),
+            encoded_data: Default::default(),
+            merchant_connector_id: Default::default(),
+            unified_code: Default::default(),
+            unified_message: Default::default(),
+            external_three_ds_authentication_attempted: Default::default(),
+            authentication_connector: Default::default(),
+            authentication_id: Default::default(),
+            mandate_data: Default::default(),
+            payment_method_billing_address_id: Default::default(),
+            fingerprint_id: Default::default(),
+            charge_id: Default::default(),
+            client_source: Default::default(),
+            client_version: Default::default(),
+            customer_acceptance: Default::default(),
+            profile_id: common_utils::generate_profile_id_of_default_length(),
+            organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -223,7 +387,7 @@ mod tests {
 
         let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                &uuid,
+                &payment_id,
                 &merchant_id,
                 &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,
