@@ -29,6 +29,11 @@ impl SerializableSecret for u8 {}
 impl SerializableSecret for u16 {}
 impl SerializableSecret for i8 {}
 impl SerializableSecret for i32 {}
+impl SerializableSecret for i64 {}
+impl SerializableSecret for url::Url {}
+
+#[cfg(feature = "time")]
+impl SerializableSecret for time::Date {}
 
 impl<'de, T, I> Deserialize<'de> for Secret<T, I>
 where

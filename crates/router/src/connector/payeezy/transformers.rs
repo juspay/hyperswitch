@@ -134,8 +134,10 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for Payeez
             | diesel_models::enums::PaymentMethod::Crypto
             | diesel_models::enums::PaymentMethod::BankDebit
             | diesel_models::enums::PaymentMethod::Reward
+            | diesel_models::enums::PaymentMethod::RealTimePayment
             | diesel_models::enums::PaymentMethod::Upi
             | diesel_models::enums::PaymentMethod::Voucher
+            | diesel_models::enums::PaymentMethod::OpenBanking
             | diesel_models::enums::PaymentMethod::GiftCard => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
@@ -254,12 +256,17 @@ fn get_payment_method_data(
         | domain::PaymentMethodData::Crypto(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::Voucher(_)
         | domain::PaymentMethodData::GiftCard(_)
-        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("Payeezy"),
-        ))?,
+        | domain::PaymentMethodData::OpenBanking(_)
+        | domain::PaymentMethodData::CardToken(_)
+        | domain::PaymentMethodData::NetworkToken(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Payeezy"),
+            ))?
+        }
     }
 }
 

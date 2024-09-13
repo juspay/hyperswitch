@@ -7,17 +7,17 @@ use scheduler::{
 use crate::{
     core::payouts,
     errors as core_errors,
-    routes::AppState,
+    routes::SessionState,
     types::{api, storage},
 };
 
 pub struct AttachPayoutAccountWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for AttachPayoutAccountWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         // Gather context
@@ -31,22 +31,23 @@ impl ProcessTrackerWorkflow<AppState> for AttachPayoutAccountWorkflow {
             .merchant_id
             .clone()
             .get_required_value("merchant_id")?;
-
+        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                merchant_id.as_ref(),
+                key_manager_state,
+                &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await?;
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
 
         let mut payout_data =
-            payouts::make_payout_data(state, &merchant_account, &key_store, &request).await?;
+            payouts::make_payout_data(state, &merchant_account, None, &key_store, &request).await?;
 
         payouts::payouts_core(
             state,
@@ -63,7 +64,7 @@ impl ProcessTrackerWorkflow<AppState> for AttachPayoutAccountWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> core_errors::CustomResult<(), errors::ProcessTrackerError> {

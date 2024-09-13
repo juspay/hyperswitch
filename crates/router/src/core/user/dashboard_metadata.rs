@@ -12,14 +12,14 @@ use router_env::logger;
 use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
-    routes::{app::ReqState, AppState},
+    routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
 
 pub async fn set_metadata(
-    state: AppState,
+    state: SessionState,
     user: UserFromToken,
     request: api::SetMetaDataRequest,
     _req_state: ReqState,
@@ -33,7 +33,7 @@ pub async fn set_metadata(
 }
 
 pub async fn get_multiple_metadata(
-    state: AppState,
+    state: SessionState,
     user: UserFromToken,
     request: GetMultipleMetaDataPayload,
     _req_state: ReqState,
@@ -230,7 +230,7 @@ fn into_response(
 }
 
 async fn insert_metadata(
-    state: &AppState,
+    state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     metadata_value: types::MetaData,
@@ -571,7 +571,7 @@ async fn insert_metadata(
 }
 
 async fn fetch_metadata(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromToken,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
@@ -606,13 +606,14 @@ async fn fetch_metadata(
 }
 
 pub async fn backfill_metadata(
-    state: &AppState,
+    state: &SessionState,
     user: &UserFromToken,
     key: &DBEnum,
 ) -> UserResult<Option<DashboardMetadata>> {
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state.into(),
             &user.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -652,7 +653,7 @@ pub async fn backfill_metadata(
                     user.to_owned(),
                     DBEnum::StripeConnected,
                     types::MetaData::StripeConnected(api::ProcessorConnected {
-                        processor_id: mca.merchant_connector_id,
+                        processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
                     }),
                 )
@@ -692,7 +693,7 @@ pub async fn backfill_metadata(
                     user.to_owned(),
                     DBEnum::PaypalConnected,
                     types::MetaData::PaypalConnected(api::ProcessorConnected {
-                        processor_id: mca.merchant_connector_id,
+                        processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
                     }),
                 )
@@ -705,22 +706,34 @@ pub async fn backfill_metadata(
 }
 
 pub async fn get_merchant_connector_account_by_name(
-    state: &AppState,
-    merchant_id: &str,
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: &str,
     key_store: &MerchantKeyStore,
 ) -> UserResult<Option<domain::MerchantConnectorAccount>> {
-    state
-        .store
-        .find_merchant_connector_account_by_merchant_id_connector_name(
-            merchant_id,
-            connector_name,
-            key_store,
-        )
-        .await
-        .map_err(|e| {
-            e.change_context(UserErrors::InternalServerError)
-                .attach_printable("DB Error Fetching DashboardMetaData")
-        })
-        .map(|data| data.first().cloned())
+    #[cfg(feature = "v1")]
+    {
+        state
+            .store
+            .find_merchant_connector_account_by_merchant_id_connector_name(
+                &state.into(),
+                merchant_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .map_err(|e| {
+                e.change_context(UserErrors::InternalServerError)
+                    .attach_printable("DB Error Fetching DashboardMetaData")
+            })
+            .map(|data| data.first().cloned())
+    }
+    #[cfg(feature = "v2")]
+    {
+        let _ = state;
+        let _ = merchant_id;
+        let _ = connector_name;
+        let _ = key_store;
+        todo!()
+    }
 }

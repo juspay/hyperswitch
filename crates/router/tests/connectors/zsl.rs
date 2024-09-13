@@ -8,13 +8,13 @@ impl ConnectorActions for ZslTest {}
 impl utils::Connector for ZslTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Zsl;
-        types::api::ConnectorData {
-            connector: Box::new(&Zsl),
-            connector_name: types::Connector::Adyen,
+        utils::construct_connector_data_old(
+            Box::new(&Zsl),
+            types::Connector::Adyen,
             // Added as Dummy connector as template code is added for future usage
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

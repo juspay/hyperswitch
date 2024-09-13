@@ -6,6 +6,7 @@ pub enum ApiIdentifier {
     Payments,
     Refunds,
     Webhooks,
+    Organization,
     MerchantAccount,
     MerchantConnector,
     Configs,
@@ -35,6 +36,7 @@ pub enum ApiIdentifier {
     ConnectorOnboarding,
     Recon,
     Poll,
+    ApplePayCertificatesMigration,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -44,7 +46,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
+            | Flow::MerchantTransferKey
             | Flow::MerchantAccountList => Self::MerchantAccount,
+
+            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
+                Self::Organization
+            }
 
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
@@ -92,11 +99,13 @@ impl From<Flow> for ApiIdentifier {
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
 
             Flow::PaymentMethodsCreate
+            | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
+            | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
@@ -117,12 +126,15 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsStart
             | Flow::PaymentsList
             | Flow::PaymentsFilters
+            | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
-            | Flow::PaymentsCompleteAuthorize => Self::Payments,
+            | Flow::PaymentsCompleteAuthorize
+            | Flow::PaymentsManualUpdate
+            | Flow::SessionUpdateTaxCalculation => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -131,14 +143,18 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFulfill
             | Flow::PayoutsList
             | Flow::PayoutsFilter
-            | Flow::PayoutsAccounts => Self::Payouts,
+            | Flow::PayoutsAccounts
+            | Flow::PayoutsConfirm
+            | Flow::PayoutLinkInitiate => Self::Payouts,
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList
-            | Flow::RefundsFilters => Self::Refunds,
+            | Flow::RefundsFilters
+            | Flow::RefundsAggregate
+            | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
@@ -175,6 +191,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
+            | Flow::PaymentSecureLinkInitiate
             | Flow::PaymentLinkList
             | Flow::PaymentLinkStatus => Self::PaymentLink,
 
@@ -186,6 +203,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
 
+            Flow::ApplePayCertificatesMigration => Self::ApplePayCertificatesMigration,
+
             Flow::UserConnectAccount
             | Flow::UserSignUp
             | Flow::UserSignIn
@@ -195,7 +214,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::SwitchOrg
             | Flow::SwitchMerchant
+            | Flow::SwitchMerchantV2
+            | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
@@ -214,22 +236,43 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails
             | Flow::TotpBegin
+            | Flow::TotpReset
             | Flow::TotpVerify
+            | Flow::TotpUpdate
             | Flow::RecoveryCodeVerify
             | Flow::RecoveryCodesGenerate
-            | Flow::TerminateTwoFactorAuth => Self::User,
+            | Flow::TerminateTwoFactorAuth
+            | Flow::TwoFactorAuthStatus
+            | Flow::CreateUserAuthenticationMethod
+            | Flow::UpdateUserAuthenticationMethod
+            | Flow::ListUserAuthenticationMethods
+            | Flow::UserTransferKey
+            | Flow::GetSsoAuthUrl
+            | Flow::SignInWithSso
+            | Flow::ListOrgForUser
+            | Flow::ListMerchantsForUserInOrg
+            | Flow::ListProfileForUserInOrgAndMerchant
+            | Flow::ListInvitationsForUser
+            | Flow::AuthSelect => Self::User,
+
             Flow::ListRoles
+            | Flow::ListRolesV2
+            | Flow::ListInvitableRolesAtEntityLevel
+            | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
+            | Flow::GetRolesInfo
             | Flow::AcceptInvitation
+            | Flow::AcceptInvitationsV2
             | Flow::MerchantSelect
+            | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership
             | Flow::CreateRole
             | Flow::UpdateRole
-            | Flow::UserFromEmail => Self::UserRole,
+            | Flow::UserFromEmail
+            | Flow::ListUsersInLineage => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

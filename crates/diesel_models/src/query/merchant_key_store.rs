@@ -16,7 +16,7 @@ impl MerchantKeyStoreNew {
 impl MerchantKeyStore {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -27,7 +27,7 @@ impl MerchantKeyStore {
 
     pub async fn delete_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -38,7 +38,7 @@ impl MerchantKeyStore {
 
     pub async fn list_multiple_key_stores(
         conn: &PgPooledConn,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -50,6 +50,26 @@ impl MerchantKeyStore {
             dsl::merchant_id.eq_any(merchant_ids),
             None,
             None,
+            None,
+        )
+        .await
+    }
+
+    pub async fn list_all_key_stores(
+        conn: &PgPooledConn,
+        from: u32,
+        limit: u32,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as diesel::Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id.ne_all(vec!["".to_string()]),
+            Some(limit.into()),
+            Some(from.into()),
             None,
         )
         .await

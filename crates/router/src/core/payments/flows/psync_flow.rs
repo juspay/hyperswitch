@@ -4,27 +4,28 @@ use async_trait::async_trait;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    connector::utils::RouterData,
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
-    routes::AppState,
-    services::{self, logger},
-    types::{self, api, domain, storage},
+    routes::SessionState,
+    services::{self, api::ConnectorValidation, logger},
+    types::{self, api, domain},
 };
-
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -39,8 +40,20 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -50,14 +63,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 {
     async fn decide_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
+        _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -72,7 +85,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
                 Ok(services::CaptureSyncMethod::Individual),
             ) => {
-                let resp = self
+                let mut new_router_data = self
                     .execute_connector_processing_step_for_each_capture(
                         state,
                         pending_connector_capture_id_list,
@@ -80,12 +93,20 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         connector_integration,
                     )
                     .await?;
-                Ok(resp)
+                // Initiating Integrity checks
+                let integrity_result = helpers::check_integrity_based_on_flow(
+                    &new_router_data.request,
+                    &new_router_data.response,
+                );
+
+                new_router_data.integrity_check = integrity_result;
+
+                Ok(new_router_data)
             }
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let resp = services::execute_connector_processing_step(
+                let mut new_router_data = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     &self,
@@ -94,23 +115,34 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 )
                 .await
                 .to_payment_failed_response()?;
-                Ok(resp)
+
+                // Initiating Integrity checks
+                let integrity_result = helpers::check_integrity_based_on_flow(
+                    &new_router_data.request,
+                    &new_router_data.response,
+                );
+
+                new_router_data.integrity_check = integrity_result;
+
+                Ok(new_router_data)
             }
         }
     }
 
     async fn add_access_token<'a>(
         &self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 
     async fn build_flow_specific_connector_request(
         &mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
@@ -119,7 +151,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 //validate_psync_reference_id if call_connector_action is trigger
                 if connector
                     .connector
-                    .validate_psync_reference_id(self)
+                    .validate_psync_reference_id(
+                        &self.request,
+                        self.is_three_ds(),
+                        self.status,
+                        self.connector_meta_data.clone(),
+                    )
                     .is_err()
                 {
                     logger::warn!(
@@ -127,8 +164,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     );
                     return Ok((None, false));
                 }
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::PSync,
                     types::PaymentsSyncData,
                     types::PaymentsResponseData,
@@ -152,11 +188,10 @@ where
 {
     async fn execute_connector_processing_step_for_each_capture(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
         _pending_connector_capture_id_list: Vec<String>,
         _call_connector_action: payments::CallConnectorAction,
-        _connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        _connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -170,11 +205,10 @@ impl RouterDataPSync
 {
     async fn execute_connector_processing_step_for_each_capture(
         &self,
-        state: &AppState,
+        state: &SessionState,
         pending_connector_capture_id_list: Vec<String>,
         call_connector_action: payments::CallConnectorAction,
-        connector_integration: services::BoxedConnectorIntegration<
-            '_,
+        connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
@@ -185,7 +219,7 @@ impl RouterDataPSync
             // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
             let resp = services::execute_connector_processing_step(
                 state,
-                connector_integration.clone(),
+                connector_integration,
                 self,
                 call_connector_action.clone(),
                 None,
@@ -203,7 +237,7 @@ impl RouterDataPSync
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
                 let resp = services::execute_connector_processing_step(
                     state,
-                    connector_integration.clone(),
+                    connector_integration.clone_box(),
                     &cloned_router_data,
                     call_connector_action.clone(),
                     None,

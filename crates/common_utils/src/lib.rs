@@ -1,26 +1,38 @@
-#![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
+
+use masking::{PeekInterface, Secret};
 
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+#[allow(missing_docs)] // Todo: add docs
+pub mod encryption;
 pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+pub mod id_type;
+#[cfg(feature = "keymanager")]
+pub mod keymanager;
+pub mod link_utils;
 pub mod macros;
+pub mod new_type;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
-#[allow(missing_docs)] // Todo: add docs
-pub mod static_cache;
+pub mod transformers;
 pub mod types;
 pub mod validation;
+
+/// Used for hashing
+pub mod hashing;
+#[cfg(feature = "metrics")]
+pub mod metrics;
 
 /// Date-time utilities.
 pub mod date_time {
@@ -193,10 +205,52 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
+/// Generate a ReferenceId with the default length with the given prefix
+fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
+    prefix: &str,
+) -> id_type::LengthId<MAX_LENGTH, MIN_LENGTH> {
+    id_type::LengthId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+}
+
+/// Generate a customer id with default length, with prefix as `cus`
+pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
+    use id_type::GenerateId;
+
+    id_type::CustomerId::generate()
+}
+
+/// Generate a organization id with default length, with prefix as `org`
+pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
+    use id_type::GenerateId;
+
+    id_type::OrganizationId::generate()
+}
+
+/// Generate a profile id with default length, with prefix as `pro`
+pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
+    use id_type::GenerateId;
+
+    id_type::ProfileId::generate()
+}
+
+/// Generate a routing id with default length, with prefix as `routing`
+pub fn generate_routing_id_of_default_length() -> id_type::RoutingId {
+    use id_type::GenerateId;
+
+    id_type::RoutingId::generate()
+}
+/// Generate a merchant_connector_account id with default length, with prefix as `mca`
+pub fn generate_merchant_connector_account_id_of_default_length(
+) -> id_type::MerchantConnectorAccountId {
+    use id_type::GenerateId;
+
+    id_type::MerchantConnectorAccountId::generate()
+}
+
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
-    let len = consts::ID_LENGTH;
+    let len: usize = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
 
@@ -204,4 +258,53 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
 #[inline]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
+}
+
+#[allow(missing_docs)]
+pub trait DbConnectionParams {
+    fn get_username(&self) -> &str;
+    fn get_password(&self) -> Secret<String>;
+    fn get_host(&self) -> &str;
+    fn get_port(&self) -> u16;
+    fn get_dbname(&self) -> &str;
+    fn get_database_url(&self, schema: &str) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c search_path%3D{}",
+            self.get_username(),
+            self.get_password().peek(),
+            self.get_host(),
+            self.get_port(),
+            self.get_dbname(),
+            schema,
+            schema,
+        )
+    }
+}
+
+#[cfg(test)]
+mod nanoid_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use crate::{
+        consts::{
+            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH, MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
+        },
+        id_type::AlphaNumericId,
+    };
+
+    #[test]
+    fn test_generate_id_with_alphanumeric_id() {
+        let alphanumeric_id = AlphaNumericId::from(generate_id(10, "def").into());
+        assert!(alphanumeric_id.is_ok())
+    }
+
+    #[test]
+    fn test_generate_merchant_ref_id_with_default_length() {
+        let ref_id = id_type::LengthId::<
+            MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
+            MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
+        >::from(generate_id_with_default_len("def").into());
+
+        assert!(ref_id.is_ok())
+    }
 }

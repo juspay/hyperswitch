@@ -2,7 +2,8 @@
 check-filename = true
 
 [default.extend-identifiers]
-"ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ACTIVITE = "ACTIVITE" # French translation of activity
 AER = "AER" # An alias to Api Error Response
 ANG = "ANG" # Netherlands Antillean guilder currency code
 BA = "BA"  # Bosnia and Herzegovina country code
@@ -37,6 +38,7 @@ ws2ipdef = "ws2ipdef" # WinSock Extension
 ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
 JOD = "JOD" # Jordan currency code
+UE_000 = "UE_000" #default unified error code
 
 
 [default.extend-words]
@@ -62,4 +64,6 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
+    "crates/router/locales/*.yml", # locales
+    "crates/router/src/core/payment_link/locale.js", # this file contains conversion of static strings in various languages
 ]

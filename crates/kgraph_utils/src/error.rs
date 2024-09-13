@@ -5,6 +5,8 @@ use euclid::{dssa::types::AnalysisErrorType, frontend::dir};
 pub enum KgraphError {
     #[error("Invalid connector name encountered: '{0}'")]
     InvalidConnectorName(String),
+    #[error("Error in domain creation")]
+    DomainCreationError,
     #[error("There was an error constructing the graph: {0}")]
     GraphConstructionError(hyperswitch_constraint_graph::GraphError<dir::DirValue>),
     #[error("There was an error constructing the context")]

@@ -5,8 +5,6 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 viz = ["dep:graphviz-rust"]
 
@@ -15,6 +13,8 @@ erased-serde = "0.3.28"
 graphviz-rust = { version = "0.6.2", optional = true }
 rustc-hash = "1.1.0"
 serde = { version = "1.0.163", features = ["derive", "rc"] }
-serde_json = "1.0.96"
 strum = { version = "0.25", features = ["derive"] }
 thiserror = "1.0.43"
+
+[lints]
+workspace = true

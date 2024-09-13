@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::blocklist as api_blocklist;
+use common_enums::EntityType;
 use router_env::Flow;
 
 use crate::{
@@ -35,8 +36,11 @@ pub async fn add_entry_to_blocklist(
             blocklist::add_entry_to_blocklist(state, auth.merchant_account, body)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -71,8 +75,11 @@ pub async fn remove_entry_from_blocklist(
             blocklist::remove_entry_from_blocklist(state, auth.merchant_account, body)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -109,8 +116,11 @@ pub async fn list_blocked_payment_methods(
             blocklist::list_blocklist_entries(state, auth.merchant_account, query)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -147,8 +157,11 @@ pub async fn toggle_blocklist_guard(
             blocklist::toggle_blocklist_guard(state, auth.merchant_account, query)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

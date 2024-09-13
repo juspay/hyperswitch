@@ -103,7 +103,7 @@ impl AppClient<Admin> {
     pub async fn create_connector<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         api_key: &str,
     ) -> T
@@ -112,7 +112,10 @@ impl AppClient<Admin> {
         B: MessageBody,
     {
         let request = TestRequest::post()
-            .uri(&format!("/account/{merchant_id}/connectors"))
+            .uri(&format!(
+                "/account/{}/connectors",
+                merchant_id.get_string_repr()
+            ))
             .append_header(("api-key".to_owned(), self.state.authkey.clone()))
             .set_json(mk_connector(connector_name, api_key))
             .to_request();
@@ -143,7 +146,7 @@ impl AppClient<User> {
     pub async fn create_refund<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         amount: usize,
     ) -> T
     where
@@ -334,7 +337,7 @@ fn _mk_payment_confirm() -> Value {
     })
 }
 
-fn mk_refund(payment_id: &str, amount: usize) -> Value {
+fn mk_refund(payment_id: &common_utils::id_type::PaymentId, amount: usize) -> Value {
     let timestamp = common_utils::date_time::now().to_string();
 
     json!({
@@ -384,7 +387,7 @@ macro_rules! hlist_pat {
 
 #[derive(Deserialize, Deref)]
 pub struct MerchantId {
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Deserialize, Deref)]
@@ -404,7 +407,7 @@ pub struct Message {
 
 #[derive(Deserialize, Deref)]
 pub struct PaymentId {
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Deserialize, Deref)]

@@ -9,19 +9,20 @@
 The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
-  <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
-  <a href="/docs/try_local_system.md">Local Setup Guide</a> •
-  <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
-  <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
-  <a href="#-supported-features">Supported Features</a> •
-  <br>
-  <a href="#whats-included">What's Included</a> •
-  <a href="#-join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
-  <a href="#-community">Community</a> •
-  <a href="#-bugs-and-feature-requests">Bugs and feature requests</a> •
-  <a href="#-FAQs">FAQs</a> •
-  <a href="#-versioning">Versioning</a> •
-  <a href="#%EF%B8%8F-copyright-and-license">Copyright and License</a>
+  <a href="#try-a-payment">Try a Payment</a> •
+  <a href="#for-enterprises">For Enterprises</a> •
+  <a href="#for-contributors">For Contributors</a> •
+  <a href="#quick-setup">Quick Setup</a> •
+  <a href="/docs/try_local_system.md">Local Setup Guide (Hyperswitch App Server)</a> •
+  <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> 
+   <br>
+  <a href="#supported-features">Supported Features</a> •
+  <a href="#community">Community</a> •
+  <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#versioning">Versioning</a> •
+  <a href="#FAQs">FAQs</a> •
+  <a href="#copyright-and-license">Copyright and License</a>
 </p>
 
 <p align="center">
@@ -33,6 +34,17 @@ The single API to access payment ecosystems across 130+ countries</div>
   </a>
   <a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/Made_in-Rust-orange" />
+  </a>
+</p>
+<p align="center">
+  <a href="https://www.linkedin.com/company/hyperswitch/">
+    <img src="https://img.shields.io/badge/follow-hyperswitch-blue?logo=linkedin&labelColor=grey"/>
+  </a>
+  <a href="https://x.com/hyperswitchio">
+    <img src="https://img.shields.io/badge/follow-%40hyperswitchio-white?logo=x&labelColor=grey"/>
+  </a>
+  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw">
+    <img src="https://img.shields.io/badge/chat-on_slack-blue?logo=slack&labelColor=grey&color=%233f0e40"/>
   </a>
 </p>
 
@@ -53,8 +65,38 @@ Using Hyperswitch, you can:
 <br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
 
-<a href="#Quick Start Guide">
-  <h2 id="Quick Start Guide">⚡️ Quick Start Guide</h2>
+<a href="https://app.hyperswitch.io/">
+  <h2 id="try-a-payment">⚡️ Try a Payment</h2>
+</a>
+
+To quickly experience the ease that Hyperswitch provides while handling the payment, you can signup on [hyperswitch-control-center][dashboard-link], and try a payment.
+
+Congratulations 🎉 on making your first payment with Hyperswitch. 
+
+<a href="#Get Started with Hyperswitch">
+  <h2 id="get-started-with-hyperswitch">Get Started with Hyperswitch</h2>
+</a>
+
+### [For Enterprises][docs-link-for-enterprise]
+  Hyperswitch helps enterprises in -  
+  - Improving profitability
+  - Increasing conversion rates
+  - Lowering payment costs
+  - Streamlining payment operations 
+  
+  Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our offerings**][website-link]. 
+
+### [For Contributors][contributing-guidelines]
+  
+  Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
+
+  Utilise the following resources to quickstart your journey with Hyperswitch -
+  - [Guide for contributors][contributing-guidelines]
+  - [Developer Docs][docs-link-for-developers]
+  - [Learning Resources][learning-resources]
+
+<a href="#Quick Setup">
+  <h2 id="quick-setup">⚡️ Quick Setup</h2>
 </a>
 
 ### One-click deployment on AWS cloud
@@ -85,11 +127,16 @@ This will start the app server, web client and control center.
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
 
+[docs-link-for-enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
+[docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
+[contributing-guidelines]: docs/CONTRIBUTING.md
+[dashboard-link]: https://app.hyperswitch.io/
+[website-link]: https://hyperswitch.io/
+[learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
-
 <a href="#Fast-Integration-for-Stripe-Users">
-  <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
+  <h2 id="fast-integration-for-stripe-users">🔌 Fast Integration for Stripe Users</h2>
 </a>
 
 If you are already using Stripe, integrating with Hyperswitch is fun, fast & easy.
@@ -103,14 +150,14 @@ Try the steps below to get a feel for how quick the setup is:
 [migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
 
 <a href="#Supported-Features">
-  <h2 id="Supported Features">✅ Supported Features</h2>
+  <h2 id="supported-features">✅ Supported Features</h2>
 </a>
 
 ### 🌟 Supported Payment Processors and Methods
 
-As of Sept 2023, we support 50+ payment processors and multiple global payment methods.
+As of Aug 2024, Hyperswitch supports 50+ payment processors and multiple global payment methods.
 In addition, we are continuously integrating new processors based on their reach and community requests.
-Our target is to support 100+ processors by H2 2023.
+Our target is to support 100+ processors by H2 2024.
 You can find the latest list of payment processors, supported methods, and features [here][supported-connectors-and-features].
 
 [supported-connectors-and-features]: https://hyperswitch.io/pm-list
@@ -146,15 +193,6 @@ analytics, and operations end-to-end:
 
 You can [try the hosted version in our sandbox][dashboard].
 
-<a href="#FAQs">
-  <h2 id="FAQs">🤔 FAQs</h2>
-</a>
-
-Got more questions?
-Please refer to our [FAQs page][faqs].
-
-[faqs]: https://hyperswitch.io/docs/devSupport
-
 <!--
 ## Documentation
 
@@ -167,58 +205,10 @@ Please refer to the following documentation pages:
 - Router Architecture [Link]
  -->
 
-<a href="#what's-Included❓">
-  <h2 id="what's-Included❓">What's Included❓</h2>
-</a>
-
-Within the repositories, you'll find the following directories and files,
-logically grouping common assets and providing both compiled and minified
-variations.
-
-### Repositories
-
-The current setup contains a single repo, which contains the core payment router
-and the various connector integrations under the `src/connector` sub-directory.
-
 <!-- ### Sub-Crates -->
 
-### 🌳 Files Tree Layout
-
-<!-- FIXME: this table should either be generated by a script or smoke test
-should be introduced, checking it agrees with the actual structure -->
-
-```text
-.
-├── config                             : Initial startup config files for the router
-├── connector-template                 : boilerplate code for connectors
-├── crates                             : sub-crates
-│   ├── api_models                     : Request/response models for the `router` crate
-│   ├── cards                          : Types to handle card masking and validation
-│   ├── common_enums                   : Enums shared across the request/response types and database types
-│   ├── common_utils                   : Utilities shared across `router` and other crates
-│   ├── data_models                    : Represents the data/domain models used by the business/domain layer
-│   ├── diesel_models                  : Database models shared across `router` and other crates
-│   ├── drainer                        : Application that reads Redis streams and executes queries in database
-│   ├── external_services              : Interactions with external systems like emails, AWS KMS, etc.
-│   ├── masking                        : Personal Identifiable Information protection
-│   ├── redis_interface                : A user-friendly interface to Redis
-│   ├── router                         : Main crate of the project
-│   ├── router_derive                  : Utility macros for the `router` crate
-│   ├── router_env                     : Environment of payment router: logger, basic config, its environment awareness
-│   ├── scheduler                      : Scheduling and executing deferred tasks like mail scheduling
-│   ├── storage_impl                   : Storage backend implementations for data structures & objects
-│   └── test_utils                     : Utilities to run Postman and connector UI tests
-├── docs                               : hand-written documentation
-├── loadtest                           : performance benchmarking setup
-├── migrations                         : diesel DB setup
-├── monitoring                         : Grafana & Loki monitoring related configuration files
-├── openapi                            : automatically generated OpenAPI spec
-├── postman                            : postman scenarios API
-└── scripts                            : automation, testing, and other utility scripts
-```
-
 <a href="#Join-us-in-building-Hyperswitch">
-  <h2 id="Join-us-in-building-Hyperswitch">💪 Join us in building Hyperswitch</h2>
+  <h2 id="join-us-in-building-hyperswitch">💪 Join us in building Hyperswitch</h2>
 </a>
 
 ### 🤝 Our Belief
@@ -272,7 +262,7 @@ development.
   For example, some of the code in core functions (e.g., `payments_core`) is written to be more readable than pure-idiomatic.
 
 <a href="#Community">
-  <h2 id="Community">👥 Community</h2>
+  <h2 id="community">👥 Community</h2>
 </a>
 
 Get updates on Hyperswitch development and chat with the community:
@@ -304,7 +294,7 @@ Get updates on Hyperswitch development and chat with the community:
 </div>
 
 <a href="#Bugs and feature requests">
-  <h2 id="Bugs and feature requests">🐞 Bugs and feature requests</h2>
+  <h2 id="bugs-and-feature-requests">🐞 Bugs and feature requests</h2>
 </a>
 
 Please read the issue guidelines and search for [existing and closed issues].
@@ -314,13 +304,22 @@ If your problem or idea is not addressed yet, please [open a new issue].
 [open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
 
 <a href="#Versioning">
-  <h2 id="Versioning">🔖 Versioning</h2>
+  <h2 id="versioning">🔖 Versioning</h2>
 </a>
 
 Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 
+<a href="#FAQs">
+  <h2 id="FAQs">🤔 FAQs</h2>
+</a>
+
+Got more questions?
+Please refer to our [FAQs page][faqs].
+
+[faqs]: https://hyperswitch.io/docs/devSupport
+
 <a href="#©Copyright and License">
-  <h2 id="©Copyright and License">©️ Copyright and License</h2>
+  <h2 id="copyright-and-license">©️ Copyright and License</h2>
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).

@@ -10,12 +10,12 @@ impl ConnectorActions for HelcimTest {}
 impl utils::Connector for HelcimTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Helcim;
-        types::api::ConnectorData {
-            connector: Box::new(&Helcim),
-            connector_name: types::Connector::Helcim,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Helcim),
+            types::Connector::Helcim,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

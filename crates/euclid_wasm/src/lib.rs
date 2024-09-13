@@ -33,12 +33,12 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 
-struct SeedData<'a> {
-    cgraph: hyperswitch_constraint_graph::ConstraintGraph<'a, dir::DirValue>,
+struct SeedData {
+    cgraph: hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>,
     connectors: Vec<ast::ConnectorChoice>,
 }
 
-static SEED_DATA: OnceCell<SeedData<'_>> = OnceCell::new();
+static SEED_DATA: OnceCell<SeedData> = OnceCell::new();
 static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
@@ -84,8 +84,6 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
                 connector: RoutableConnectors::from_str(&mca.connector_name)?,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: mca.business_sub_label.clone(),
             })
         })
         .collect::<Result<_, _>>()
@@ -262,6 +260,8 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::GiftCardType => dir_enums::GiftCardType::VARIANTS,
         dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
         dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
+        dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
+        dir::DirKeyKind::OpenBankingType => dir_enums::OpenBankingType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
@@ -324,6 +324,14 @@ pub fn get_authentication_connector_config(key: &str) -> JsResult {
     let key = api_model_enums::AuthenticationConnectors::from_str(key)
         .map_err(|_| "Invalid key received".to_string())?;
     let res = connector::ConnectorConfig::get_authentication_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getPMAuthenticationProcessorConfig)]
+pub fn get_pm_authentication_processor_config(key: &str) -> JsResult {
+    let key: api_model_enums::PmAuthConnectors = api_model_enums::PmAuthConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_pm_authentication_processor_config(key)?;
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 

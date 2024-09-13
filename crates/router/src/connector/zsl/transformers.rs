@@ -158,7 +158,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                     | domain::BankTransferData::CimbVaBankTransfer { .. }
                     | domain::BankTransferData::DanamonVaBankTransfer { .. }
                     | domain::BankTransferData::MandiriVaBankTransfer { .. }
-                    | domain::BankTransferData::Pix {}
+                    | domain::BankTransferData::Pix { .. }
                     | domain::BankTransferData::Pse {} => {
                         Err(errors::ConnectorError::NotImplemented(
                             connector_utils::get_unimplemented_payment_method_error_message(
@@ -177,10 +177,13 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::OpenBanking(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message(
                         item.router_data.connector.as_str(),
@@ -237,7 +240,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             .customer_id
             .clone()
             .and_then(|customer_id| {
-                let cust_id = customer_id.replace(['_', '-'], "");
+                let cust_id = customer_id.get_string_repr().replace(['_', '-'], "");
                 let id_len = cust_id.len();
                 if id_len > 10 {
                     cust_id.get(id_len - 10..id_len).map(|id| id.to_string())
@@ -323,9 +326,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.response.mer_ref.clone(),
-                        ),
+                        resource_id: types::ResponseId::NoResponseId,
                         redirection_data: Some(services::RedirectForm::Form {
                             endpoint: redirect_url,
                             method: services::Method::Get,
@@ -383,10 +384,10 @@ pub struct ZslWebhookResponse {
     pub txn_date: String,
     pub paid_ccy: api_models::enums::Currency,
     pub paid_amt: String,
-    pub consr_paid_ccy: api_models::enums::Currency,
+    pub consr_paid_ccy: Option<api_models::enums::Currency>,
     pub consr_paid_amt: String,
-    pub service_fee_ccy: api_models::enums::Currency,
-    pub service_fee: String,
+    pub service_fee_ccy: Option<api_models::enums::Currency>,
+    pub service_fee: Option<String>,
     pub txn_amt: String,
     pub ccy: String,
     pub mer_ref: String,
@@ -406,19 +407,48 @@ impl types::transformers::ForeignFrom<String> for api_models::webhooks::Incoming
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            ZslWebhookResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ZslWebhookResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            ZslWebhookResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
+        let paid_amount = item
+            .response
+            .consr_paid_amt
+            .parse::<i64>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let txn_amount = item
+            .response
+            .txn_amt
+            .parse::<i64>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = if txn_amount > paid_amount {
+            enums::AttemptStatus::PartialCharged
+        } else {
+            enums::AttemptStatus::Charged
+        };
+
         if item.response.status == "0" {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status,
+                amount_captured: Some(paid_amount),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.mer_ref.clone(),
+                        item.response.txn_id.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,

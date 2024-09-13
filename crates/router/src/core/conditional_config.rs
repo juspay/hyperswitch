@@ -1,29 +1,39 @@
-use api_models::{
-    conditional_configs::{DecisionManager, DecisionManagerRecord, DecisionManagerResponse},
-    routing,
+use api_models::conditional_configs::{
+    DecisionManager, DecisionManagerRecord, DecisionManagerResponse,
 };
-use common_utils::ext_traits::{Encode, StringExt, ValueExt};
-use diesel_models::configs;
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
-use euclid::frontend::ast;
 
-use super::routing::helpers::{
-    get_payment_config_routing_id, update_merchant_active_algorithm_ref,
-};
 use crate::{
     core::errors::{self, RouterResponse},
-    routes::AppState,
+    routes::SessionState,
     services::api as service_api,
     types::domain,
-    utils::OptionExt,
 };
 
+#[cfg(feature = "v2")]
 pub async fn upsert_conditional_config(
-    state: AppState,
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+    _request: DecisionManager,
+) -> RouterResponse<DecisionManagerRecord> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn upsert_conditional_config(
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
+    use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+    use diesel_models::configs;
+    use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+
     let db = state.store.as_ref();
     let (name, prog) = match request {
         DecisionManager::DecisionManagerv0(ccr) => {
@@ -52,7 +62,7 @@ pub async fn upsert_conditional_config(
         }
     };
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -61,10 +71,10 @@ pub async fn upsert_conditional_config(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let key = get_payment_config_routing_id(merchant_account.merchant_id.as_str());
+    let key = merchant_account.get_id().get_payment_config_routing_id();
     let read_config_key = db.find_config_by_key(&key).await;
 
-    ast::lowering::lower_program(prog.clone())
+    euclid::frontend::ast::lowering::lower_program(prog.clone())
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })
@@ -99,8 +109,9 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error serializing the config")?;
 
-            algo_id.update_conditional_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            algo_id.update_conditional_config_id(key.clone());
+            let config_key = cache::CacheKind::DecisionManager(key.into());
+            update_merchant_active_algorithm_ref(&state, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -134,8 +145,9 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error fetching the config")?;
 
-            algo_id.update_conditional_config_id(key);
-            update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+            algo_id.update_conditional_config_id(key.clone());
+            let config_key = cache::CacheKind::DecisionManager(key.into());
+            update_merchant_active_algorithm_ref(&state, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update routing algorithm ref")?;
@@ -148,14 +160,29 @@ pub async fn upsert_conditional_config(
     }
 }
 
+#[cfg(feature = "v2")]
 pub async fn delete_conditional_config(
-    state: AppState,
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+) -> RouterResponse<()> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn delete_conditional_config(
+    state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
+    use common_utils::ext_traits::ValueExt;
+    use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+
     let db = state.store.as_ref();
-    let key = get_payment_config_routing_id(&merchant_account.merchant_id);
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let key = merchant_account.get_id().get_payment_config_routing_id();
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|value| value.parse_value("routing algorithm"))
@@ -164,7 +191,8 @@ pub async fn delete_conditional_config(
         .attach_printable("Could not decode the conditional_config algorithm")?
         .unwrap_or_default();
     algo_id.config_algo_id = None;
-    update_merchant_active_algorithm_ref(db, &key_store, algo_id)
+    let config_key = cache::CacheKind::DecisionManager(key.clone().into());
+    update_merchant_active_algorithm_ref(&state, &key_store, config_key, algo_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update deleted algorithm ref")?;
@@ -177,11 +205,11 @@ pub async fn delete_conditional_config(
 }
 
 pub async fn retrieve_conditional_config(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<DecisionManagerResponse> {
     let db = state.store.as_ref();
-    let algorithm_id = get_payment_config_routing_id(merchant_account.merchant_id.as_str());
+    let algorithm_id = merchant_account.get_id().get_payment_config_routing_id();
     let algo_config = db
         .find_config_by_key(&algorithm_id)
         .await

@@ -1,5 +1,5 @@
-use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
 
 use crate::{
     consts,
@@ -8,7 +8,7 @@ use crate::{
         payments,
     },
     errors::RouterResult,
-    routes::AppState,
+    routes::SessionState,
     services::{self, execute_connector_processing_step},
     types::{
         api, authentication::AuthenticationResponseData, domain, storage,
@@ -48,7 +48,7 @@ pub fn get_connector_data_if_separate_authn_supported(
 }
 
 pub async fn update_trackers<F: Clone, Req>(
-    state: &AppState,
+    state: &SessionState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
     acquirer_details: Option<super::types::AcquirerDetails>,
@@ -77,13 +77,18 @@ pub async fn update_trackers<F: Clone, Req>(
                     .as_ref()
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
                 acquirer_merchant_id: acquirer_details
-                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                acquirer_country_code: acquirer_details
+                    .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                 directory_server_id,
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
                 authentication_value,
                 trans_status,
+                connector_metadata,
+                ds_trans_id,
             } => {
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
@@ -97,6 +102,8 @@ pub async fn update_trackers<F: Clone, Req>(
                     acs_signed_content: authn_flow_type.get_acs_signed_content(),
                     authentication_type: authn_flow_type.get_decoupled_authentication_type(),
                     authentication_status,
+                    connector_metadata,
+                    ds_trans_id,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -111,11 +118,36 @@ pub async fn update_trackers<F: Clone, Req>(
                 authentication_value,
                 eci,
             },
+            AuthenticationResponseData::PreAuthVersionCallResponse {
+                maximum_supported_3ds_version,
+            } => storage::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+                message_version: maximum_supported_3ds_version.clone(),
+                maximum_supported_3ds_version,
+            },
+            AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                connector_metadata,
+            } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                connector_metadata,
+                acquirer_bin: acquirer_details
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                acquirer_merchant_id: acquirer_details
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+            },
         },
         Err(error) => storage::AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
             authentication_status: common_enums::AuthenticationStatus::Failed,
-            error_message: Some(error.message),
+            error_message: error
+                .reason
+                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
+                .or(Some(error.message)),
             error_code: Some(error.code),
         },
     };
@@ -142,13 +174,13 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
 }
 
 pub async fn create_new_authentication(
-    state: &AppState,
-    merchant_id: String,
+    state: &SessionState,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
-    profile_id: String,
-    payment_id: Option<String>,
-    merchant_connector_id: String,
+    profile_id: common_utils::id_type::ProfileId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -183,7 +215,9 @@ pub async fn create_new_authentication(
         profile_id,
         payment_id,
         merchant_connector_id,
+        ds_trans_id: None,
         directory_server_id: None,
+        acquirer_country_code: None,
     };
     state
         .store
@@ -198,7 +232,7 @@ pub async fn create_new_authentication(
 }
 
 pub async fn do_auth_connector_call<F, Req, Res>(
-    state: &AppState,
+    state: &SessionState,
     authentication_connector_name: String,
     router_data: RouterData<F, Req, Res>,
 ) -> RouterResult<RouterData<F, Req, Res>>
@@ -207,11 +241,16 @@ where
     Res: std::fmt::Debug + Clone + 'static,
     F: std::fmt::Debug + Clone + 'static,
     dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
+    dyn api::ConnectorV2 + Sync:
+        services::api::ConnectorIntegrationV2<F, ExternalAuthenticationFlowData, Req, Res>,
 {
     let connector_data =
         api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;
-    let connector_integration: services::BoxedConnectorIntegration<'_, F, Req, Res> =
-        connector_data.connector.get_connector_integration();
+    let connector_integration: services::BoxedExternalAuthenticationConnectorIntegrationInterface<
+        F,
+        Req,
+        Res,
+    > = connector_data.connector.get_connector_integration();
     let router_data = execute_connector_processing_step(
         state,
         connector_integration,
@@ -225,42 +264,35 @@ where
 }
 
 pub async fn get_authentication_connector_data(
-    state: &AppState,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<(
-    api_models::enums::AuthenticationConnectors,
+    common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
 )> {
-    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
-        business_profile
-            .authentication_connector_details
-            .clone()
-            .get_required_value("authentication_details")
-            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "authentication_connector_details is not available in business profile"
-                    .into(),
-            })
-            .attach_printable("authentication_connector_details not configured by the merchant")?
-            .parse_value("AuthenticationConnectorDetails")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Error while parsing authentication_connector_details from business_profile",
-            )?;
+    let authentication_details = business_profile
+        .authentication_connector_details
+        .clone()
+        .get_required_value("authentication_details")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "authentication_connector_details is not available in business profile".into(),
+        })
+        .attach_printable("authentication_connector_details not configured by the merchant")?;
     let authentication_connector = authentication_details
         .authentication_connectors
         .first()
         .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
             message: format!(
-                "No authentication_connector found for profile_id {}",
-                business_profile.profile_id
+                "No authentication_connector found for profile_id {:?}",
+                business_profile.get_id()
             ),
         })
         .attach_printable(
             "No authentication_connector found from merchant_account.authentication_details",
         )?
         .to_owned();
-    let profile_id = &business_profile.profile_id;
+    let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,
         &business_profile.merchant_id,

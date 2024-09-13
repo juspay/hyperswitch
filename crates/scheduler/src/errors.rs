@@ -59,6 +59,8 @@ pub enum ProcessTrackerError {
     EEmailError(error_stack::Report<EmailError>),
     #[error("Type Conversion error")]
     TypeConversionError,
+    #[error("Tenant not found")]
+    TenantNotFound,
 }
 
 #[macro_export]
@@ -99,7 +101,7 @@ impl<T: PTError + std::fmt::Debug + std::fmt::Display> From<error_stack::Report<
     for ProcessTrackerError
 {
     fn from(error: error_stack::Report<T>) -> Self {
-        logger::error!(error=%error.current_context());
+        logger::error!(?error);
         error.current_context().to_pt_error()
     }
 }

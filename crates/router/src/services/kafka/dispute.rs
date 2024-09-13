@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 use masking::Secret;
 use time::OffsetDateTime;
@@ -11,9 +12,9 @@ pub struct KafkaDispute<'a> {
     pub currency: &'a String,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
-    pub payment_id: &'a String,
+    pub payment_id: &'a id_type::PaymentId,
     pub attempt_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a id_type::MerchantId,
     pub connector_status: &'a String,
     pub connector_dispute_id: &'a String,
     pub connector_reason: Option<&'a String>,
@@ -30,8 +31,9 @@ pub struct KafkaDispute<'a> {
     pub modified_at: OffsetDateTime,
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,
-    pub profile_id: Option<&'a String>,
-    pub merchant_connector_id: Option<&'a String>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
+    pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
+    pub organization_id: &'a id_type::OrganizationId,
 }
 
 impl<'a> KafkaDispute<'a> {
@@ -58,6 +60,7 @@ impl<'a> KafkaDispute<'a> {
             evidence: &dispute.evidence,
             profile_id: dispute.profile_id.as_ref(),
             merchant_connector_id: dispute.merchant_connector_id.as_ref(),
+            organization_id: &dispute.organization_id,
         }
     }
 }
@@ -66,7 +69,9 @@ impl<'a> super::KafkaMessage for KafkaDispute<'a> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",
-            self.merchant_id, self.payment_id, self.dispute_id
+            self.merchant_id.get_string_repr(),
+            self.payment_id.get_string_repr(),
+            self.dispute_id
         )
     }
 

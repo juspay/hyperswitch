@@ -1,11 +1,9 @@
-#[cfg(feature = "backwards_compatibility")]
-pub use api_models::routing::RoutableChoiceKind;
 pub use api_models::{
     enums as api_enums,
     routing::{
-        ConnectorVolumeSplit, RoutableConnectorChoice, RoutingAlgorithm, RoutingAlgorithmKind,
-        RoutingAlgorithmRef, RoutingConfigRequest, RoutingDictionary, RoutingDictionaryRecord,
-        StraightThroughAlgorithm,
+        ConnectorVolumeSplit, RoutableChoiceKind, RoutableConnectorChoice, RoutingAlgorithm,
+        RoutingAlgorithmKind, RoutingAlgorithmRef, RoutingConfigRequest, RoutingDictionary,
+        RoutingDictionaryRecord, StraightThroughAlgorithm,
     },
 };
 
@@ -13,8 +11,6 @@ use super::types::api as api_oss;
 
 pub struct SessionRoutingChoice {
     pub connector: api_oss::ConnectorData,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub sub_label: Option<String>,
     pub payment_method_type: api_enums::PaymentMethodType,
 }
 

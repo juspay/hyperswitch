@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+#[cfg(feature = "dummy_connector")]
+use common_utils::errors;
 use utoipa::ToSchema;
 
 #[derive(
@@ -44,6 +46,8 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    // Nexixpay,
+    Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -77,6 +81,7 @@ pub enum Connector {
     Airwallex,
     Authorizedotnet,
     Bambora,
+    Bamboraapac,
     Bankofamerica,
     Billwerk,
     Bitpay,
@@ -88,45 +93,56 @@ pub enum Connector {
     Coinbase,
     Cryptopay,
     Cybersource,
+    Datatrans,
+    // Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
+    Fiservemea,
+    Fiuu,
     Forte,
     Globalpay,
     Globepay,
     Gocardless,
-    // Gpayments, Added as template code for future usage
+    Gpayments,
     Helcim,
     Iatapay,
+    Itaubank,
     Klarna,
-    // Mifinity, Added as template code for future usage
+    Mifinity,
     Mollie,
     Multisafepay,
     Netcetera,
     Nexinets,
     Nmi,
     Noon,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
+    Paybox,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
-    // Payone, added as template code for future usage
+    Payone,
     Paypal,
     Payu,
     Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Shift4,
     Square,
     Stax,
     Stripe,
+    Taxjar,
     Threedsecureio,
+    //Thunes,
     Trustpay,
-    // Tsys,
     Tsys,
     Volt,
+    Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -139,22 +155,28 @@ pub enum Connector {
 
 impl Connector {
     #[cfg(feature = "payouts")]
-    pub fn supports_instant_payout(&self, payout_method: PayoutType) -> bool {
+    pub fn supports_instant_payout(&self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, PayoutType::Wallet) | (_, PayoutType::Card)
+            (Self::Paypal, Some(PayoutType::Wallet))
+                | (_, Some(PayoutType::Card))
+                | (Self::Adyenplatform, _)
         )
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(&self, payout_method: PayoutType) -> bool {
-        matches!((self, payout_method), (_, PayoutType::Bank))
+    pub fn supports_create_recipient(&self, payout_method: Option<PayoutType>) -> bool {
+        matches!((self, payout_method), (_, Some(PayoutType::Bank)))
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_payout_eligibility(&self, payout_method: PayoutType) -> bool {
-        matches!((self, payout_method), (_, PayoutType::Card))
+    pub fn supports_payout_eligibility(&self, payout_method: Option<PayoutType>) -> bool {
+        matches!((self, payout_method), (_, Some(PayoutType::Card)))
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_access_token_for_payout(&self, payout_method: PayoutType) -> bool {
+    pub fn is_payout_quote_call_required(&self) -> bool {
+        matches!(self, Self::Wise)
+    }
+    #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_payout(&self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
     }
     #[cfg(feature = "payouts")]
@@ -171,6 +193,7 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
+                | (Self::Itaubank, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -190,10 +213,15 @@ impl Connector {
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
             Self::Aci
+            // Add Separate authentication support for connectors
+			// | Self::Nexixpay
+			// | Self::Fiuu
             | Self::Adyen
+            | Self::Adyenplatform
             | Self::Airwallex
             | Self::Authorizedotnet
             | Self::Bambora
+            | Self::Bamboraapac
             | Self::Bankofamerica
             | Self::Billwerk
             | Self::Bitpay
@@ -203,25 +231,31 @@ impl Connector {
             | Self::Cashtocode
             | Self::Coinbase
             | Self::Cryptopay
+			// | Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
+			| Self::Fiservemea
+            | Self::Fiuu
             | Self::Forte
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
-            // | Self::Gpayments  Added as template code for future usage
+            | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+            | Self::Itaubank
             | Self::Klarna
-            // | Self::Mifinity Added as template code for future usage
+            | Self::Mifinity
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
-            | Self::Payme
-            // | Self::Payone  Added as a template code for future usage
+			| Self::Paybox
+			| Self::Payme
+            | Self::Payone
             | Self::Paypal
             | Self::Payu
             | Self::Placetopay
@@ -231,9 +265,13 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            | Self::Taxjar
+            //| Self::Thunes
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
+            | Self::Wellsfargo
+			// | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -241,43 +279,42 @@ impl Connector {
             | Self::Zsl
             | Self::Signifyd
             | Self::Plaid
+            | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
+            | Self::Datatrans
             | Self::Netcetera
-            | Self::Cybersource
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi => true,
+            Self::Checkout | Self::Nmi | Self::Cybersource => true,
         }
     }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationConnectors {
-    Threedsecureio,
-    Netcetera,
-    Gpayments,
-}
-
-impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
-        match self {
-            Self::Threedsecureio | Self::Netcetera => false,
-            Self::Gpayments => true,
+    pub fn is_pre_processing_required_before_authorize(&self) -> bool {
+        matches!(self, Self::Airwallex)
+    }
+    #[cfg(feature = "dummy_connector")]
+    pub fn validate_dummy_connector_enabled(
+        &self,
+        is_dummy_connector_enabled: bool,
+    ) -> errors::CustomResult<(), errors::ValidationError> {
+        if !is_dummy_connector_enabled
+            && matches!(
+                self,
+                Self::DummyConnector1
+                    | Self::DummyConnector2
+                    | Self::DummyConnector3
+                    | Self::DummyConnector4
+                    | Self::DummyConnector5
+                    | Self::DummyConnector6
+                    | Self::DummyConnector7
+            )
+        {
+            Err(errors::ValidationError::InvalidValue {
+                message: "Invalid connector name".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
         }
     }
 }
@@ -300,11 +337,13 @@ impl AuthenticationConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    Adyenplatform,
+    Cybersource,
+    Ebanx,
+    Payone,
+    Paypal,
     Stripe,
     Wise,
-    Paypal,
-    Ebanx,
-    Cybersource,
 }
 
 #[cfg(feature = "payouts")]
@@ -312,11 +351,13 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Adyenplatform => Self::Adyenplatform,
+            PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Payone => Self::Payone,
+            PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
-            PayoutConnectors::Paypal => Self::Paypal,
-            PayoutConnectors::Ebanx => Self::Ebanx,
-            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -326,11 +367,13 @@ impl From<PayoutConnectors> for Connector {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Adyenplatform => Self::Adyenplatform,
+            PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Payone => Self::Payone,
+            PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
-            PayoutConnectors::Paypal => Self::Paypal,
-            PayoutConnectors::Ebanx => Self::Ebanx,
-            PayoutConnectors::Cybersource => Self::Cybersource,
         }
     }
 }
@@ -341,11 +384,13 @@ impl TryFrom<Connector> for PayoutConnectors {
     fn try_from(value: Connector) -> Result<Self, Self::Error> {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
+            Connector::Adyenplatform => Ok(Self::Adyenplatform),
+            Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Payone => Ok(Self::Payone),
+            Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
-            Connector::Paypal => Ok(Self::Paypal),
-            Connector::Ebanx => Ok(Self::Ebanx),
-            Connector::Cybersource => Ok(Self::Cybersource),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }
@@ -371,6 +416,26 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+
+pub enum TaxConnectors {
+    Taxjar,
 }
 
 #[derive(
@@ -421,9 +486,10 @@ pub enum FieldType {
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountryCode,                      //phone number's country code
+    UserPhoneNumberCountryCode,           //phone number's country code
     UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
     UserCurrency { options: Vec<String> },
+    UserCryptoCurrencyNetwork, //for crypto network associated with the cryptopcurrency
     UserBillingName,
     UserAddressLine1,
     UserAddressLine2,
@@ -442,6 +508,15 @@ pub enum FieldType {
     UserBank,
     Text,
     DropDown { options: Vec<String> },
+    UserDateOfBirth,
+    UserVpaId,
+    LanguagePreference { options: Vec<String> },
+    UserPixKey,
+    UserCpf,
+    UserCnpj,
+    UserIban,
+    BrowserLanguage,
+    BrowserIp,
 }
 
 impl FieldType {
@@ -481,7 +556,7 @@ impl PartialEq for FieldType {
             (Self::UserFullName, Self::UserFullName) => true,
             (Self::UserEmailAddress, Self::UserEmailAddress) => true,
             (Self::UserPhoneNumber, Self::UserPhoneNumber) => true,
-            (Self::UserCountryCode, Self::UserCountryCode) => true,
+            (Self::UserPhoneNumberCountryCode, Self::UserPhoneNumberCountryCode) => true,
             (
                 Self::UserCountry {
                     options: options_self,
@@ -498,6 +573,7 @@ impl PartialEq for FieldType {
                     options: options_other,
                 },
             ) => options_self.eq(options_other),
+            (Self::UserCryptoCurrencyNetwork, Self::UserCryptoCurrencyNetwork) => true,
             (Self::UserBillingName, Self::UserBillingName) => true,
             (Self::UserAddressLine1, Self::UserAddressLine1) => true,
             (Self::UserAddressLine2, Self::UserAddressLine2) => true,
@@ -525,6 +601,12 @@ impl PartialEq for FieldType {
                     options: options_other,
                 },
             ) => options_self.eq(options_other),
+            (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
+            (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::UserPixKey, Self::UserPixKey) => true,
+            (Self::UserCpf, Self::UserCpf) => true,
+            (Self::UserCnpj, Self::UserCnpj) => true,
+            (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }
     }
@@ -548,6 +630,7 @@ mod test {
     }
 }
 
+/// Denotes the retry action
 #[derive(
     Debug,
     serde::Deserialize,
@@ -583,7 +666,6 @@ pub enum LockerChoice {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
@@ -598,6 +680,10 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
+    TaxConnectors::from_str(connector_name).ok()
 }
 
 #[derive(

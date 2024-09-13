@@ -5,6 +5,7 @@ use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
+    id_type,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
     types::MinorUnit,
 };
@@ -14,6 +15,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
+    connector::utils::AddressData,
     consts,
     core::errors,
     pii::{Email, PeekInterface},
@@ -84,6 +86,8 @@ pub enum StripePaymentMethodType {
     Card,
     Wallet,
     Upi,
+    BankRedirect,
+    RealTimePayment,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
@@ -92,6 +96,8 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
             StripePaymentMethodType::Card => Self::Card,
             StripePaymentMethodType::Wallet => Self::Wallet,
             StripePaymentMethodType::Upi => Self::Upi,
+            StripePaymentMethodType::BankRedirect => Self::BankRedirect,
+            StripePaymentMethodType::RealTimePayment => Self::RealTimePayment,
         }
     }
 }
@@ -238,7 +244,7 @@ pub struct OnlineMandate {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
-    pub id: Option<String>,
+    pub id: Option<id_type::PaymentId>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
@@ -246,7 +252,7 @@ pub struct StripePaymentIntentRequest {
     pub amount_capturable: Option<i64>,
     pub confirm: Option<bool>,
     pub capture_method: Option<api_enums::CaptureMethod>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
     pub receipt_email: Option<Email>,
@@ -255,7 +261,7 @@ pub struct StripePaymentIntentRequest {
     pub shipping: Option<Shipping>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     pub client_secret: Option<masking::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -287,13 +293,9 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             .map(|connector| {
                 api_models::routing::RoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
-                        #[cfg(feature = "backwards_compatibility")]
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
-                        #[cfg(feature = "connector_choice_mca_id")]
                         merchant_connector_id: None,
-                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                        sub_label: None,
                     },
                 ))
             })
@@ -316,14 +318,17 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
         let amount = item.amount.map(|amount| MinorUnit::new(amount).into());
 
         let payment_method_data = item.payment_method_data.as_ref().map(|pmd| {
+            let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
-                None => get_pmd_based_on_payment_method_type(item.payment_method_types),
+                None => {
+                    get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone())
+                }
             };
 
             payments::PaymentMethodDataRequest {
                 payment_method_data,
-                billing: pmd.billing_details.clone().map(payments::Address::from),
+                billing,
             }
         });
 
@@ -457,19 +462,19 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
-    pub id: Option<String>,
+    pub id: id_type::PaymentId,
     pub object: &'static str,
     pub amount: i64,
     pub amount_received: Option<i64>,
-    pub amount_capturable: Option<i64>,
+    pub amount_capturable: i64,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<masking::Secret<String>>,
     pub created: Option<i64>,
-    pub customer: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate: Option<String>,
-    pub metadata: Option<SecretSerdeValue>,
+    pub metadata: Option<serde_json::Value>,
     pub charges: Charges,
     pub connector: Option<String>,
     pub description: Option<String>,
@@ -515,7 +520,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             id: resp.payment_id,
             status: StripePaymentStatus::from(resp.status),
             amount: resp.amount.get_amount_as_i64(),
-            amount_capturable: resp.amount_capturable.map(|amt| amt.get_amount_as_i64()),
+            amount_capturable: resp.amount_capturable.get_amount_as_i64(),
             amount_received: resp.amount_received.map(|amt| amt.get_amount_as_i64()),
             connector: resp.connector,
             client_secret: resp.client_secret,
@@ -609,9 +614,9 @@ impl Charges {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
-    pub customer: Option<String>,
-    pub starting_after: Option<String>,
-    pub ending_before: Option<String>,
+    pub customer: Option<id_type::CustomerId>,
+    pub starting_after: Option<id_type::PaymentId>,
+    pub ending_before: Option<id_type::PaymentId>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     pub created: Option<i64>,
@@ -855,6 +860,7 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -897,11 +903,51 @@ pub struct StripePaymentRetrieveBody {
 //To handle payment types that have empty payment method data
 fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
+    billing_details: Option<payments::Address>,
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
             payments::UpiData::UpiIntent(payments::UpiIntentData {}),
         )),
+        Some(api_enums::PaymentMethodType::Fps) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::Fps {},
+            )))
+        }
+        Some(api_enums::PaymentMethodType::DuitNow) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::DuitNow {},
+            )))
+        }
+        Some(api_enums::PaymentMethodType::PromptPay) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::PromptPay {},
+            )))
+        }
+        Some(api_enums::PaymentMethodType::VietQr) => {
+            Some(payments::PaymentMethodData::RealTimePayment(Box::new(
+                payments::RealTimePaymentData::VietQr {},
+            )))
+        }
+        Some(api_enums::PaymentMethodType::Ideal) => Some(
+            payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::Ideal {
+                billing_details: billing_details.as_ref().map(|billing_data| {
+                    payments::BankRedirectBilling {
+                        billing_name: billing_data.get_optional_full_name(),
+                        email: billing_data.email.clone(),
+                    }
+                }),
+                bank_name: None,
+                country: billing_details
+                    .as_ref()
+                    .and_then(|billing_data| billing_data.get_optional_country()),
+            }),
+        ),
+        Some(api_enums::PaymentMethodType::LocalBankRedirect) => {
+            Some(payments::PaymentMethodData::BankRedirect(
+                payments::BankRedirectData::LocalBankRedirect {},
+            ))
+        }
         _ => None,
     }
 }

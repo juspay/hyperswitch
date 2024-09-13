@@ -11,27 +11,43 @@ use crate::{
     },
     errors, services,
     types::{
-        api::fraud_check as frm_api,
+        api::{self, fraud_check as frm_api},
         domain,
         fraud_check::{FraudCheckResponseData, FraudCheckSaleData, FrmSaleRouterData},
         storage::enums as storage_enums,
-        ConnectorAuthType, ResponseId, RouterData,
+        ConnectorAuthType, MerchantRecipientData, ResponseId, RouterData,
     },
-    AppState,
+    SessionState,
 };
 
 #[async_trait]
 impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>
     for FrmData
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn construct_router_data<'a>(
         &self,
-        _state: &AppState,
+        _state: &SessionState,
+        _connector_id: &str,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
+    ) -> RouterResult<RouterData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>> {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn construct_router_data<'a>(
+        &self,
+        _state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
     ) -> RouterResult<RouterData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>> {
         let status = storage_enums::AttemptStatus::Pending;
 
@@ -46,10 +62,10 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: merchant_account.merchant_id.clone(),
+            merchant_id: merchant_account.get_id().clone(),
             customer_id,
             connector: connector_id.to_string(),
-            payment_id: self.payment_intent.payment_id.clone(),
+            payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
             status,
             payment_method: self
@@ -62,7 +78,9 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
+            connector_wallets_details: None,
             amount_captured: None,
+            minor_amount_captured: None,
             request: FraudCheckSaleData {
                 amount: self.payment_attempt.amount.get_amount_as_i64(),
                 order_details: self.order_details.clone(),
@@ -109,9 +127,21 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         };
 
         Ok(router_data)
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -119,7 +149,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
 impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
     async fn decide_frm_flows<'a>(
         mut self,
-        state: &AppState,
+        state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
@@ -137,13 +167,12 @@ impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
 
 pub async fn decide_frm_flow<'a, 'b>(
     router_data: &'b mut FrmSaleRouterData,
-    state: &'a AppState,
+    state: &'a SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<FrmSaleRouterData> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Sale,
         FraudCheckSaleData,
         FraudCheckResponseData,

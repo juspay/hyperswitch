@@ -10,7 +10,7 @@ use crate::{
     events::api_logs::ApiEventMetric,
     routes::{
         app::{AppStateInfo, ReqState},
-        metrics, AppState,
+        metrics, AppState, SessionState,
     },
     services::{self, api, authentication as auth, logger},
 };
@@ -22,11 +22,11 @@ pub async fn compatibility_api_wrap<'a, 'b, U, T, Q, F, Fut, S, E, E2>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_authentication: &dyn auth::AuthenticateAndFetch<U, AppState>,
+    api_authentication: &dyn auth::AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
@@ -43,13 +43,12 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
-    let req_state = state.get_req_state();
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
             state.clone().into(),
-            req_state,
+            request.headers(),
             request,
             payload,
             func,
@@ -139,11 +138,24 @@ where
             .map_into_boxed_body()
         }
 
+        Ok(api::ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = (boxed_generic_link_data).data.to_string();
+            match services::generic_link_response::build_generic_link_html(
+                boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
+            ) {
+                Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
+                Err(_) => {
+                    api::http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
+        }
+
         Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match api::build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
                                 "error": {
@@ -155,7 +167,7 @@ where
                 }
                 api::PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match api::get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
                                 "error": {

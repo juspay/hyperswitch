@@ -6,14 +6,23 @@ use std::{
     process::{exit, Command},
 };
 
-use clap::{arg, command, Parser};
+use anyhow::{Context, Result};
+use clap::{arg, command, Parser, ValueEnum};
 use masking::PeekInterface;
 use regex::Regex;
 
-use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
+use crate::connector_auth::{
+    ConnectorAuthType, ConnectorAuthentication, ConnectorAuthenticationMap,
+};
+
+#[derive(ValueEnum, Clone, Copy)]
+pub enum Module {
+    Connector,
+    Users,
+}
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
-struct Args {
+pub struct Args {
     /// Admin API Key of the environment
     #[arg(short, long)]
     admin_api_key: String,
@@ -22,7 +31,10 @@ struct Args {
     base_url: String,
     /// Name of the connector
     #[arg(short, long)]
-    connector_name: String,
+    connector_name: Option<String>,
+    /// Name of the module
+    #[arg(short, long)]
+    module_name: Option<Module>,
     /// Custom headers
     #[arg(short = 'H', long = "header")]
     custom_headers: Option<Vec<String>>,
@@ -36,6 +48,13 @@ struct Args {
     /// Optional Verbose logs
     #[arg(short, long)]
     verbose: bool,
+}
+
+impl Args {
+    /// Getter for the `module_name` field
+    pub fn get_module_name(&self) -> Option<Module> {
+        self.module_name
+    }
 }
 
 pub struct ReturnArgs {
@@ -82,10 +101,93 @@ where
     Ok(())
 }
 
-pub fn generate_newman_command() -> ReturnArgs {
+// This function gives runner for connector or a module
+pub fn generate_runner() -> Result<ReturnArgs> {
     let args = Args::parse();
 
-    let connector_name = args.connector_name;
+    match args.get_module_name() {
+        Some(Module::Users) => generate_newman_command_for_users(),
+        Some(Module::Connector) => generate_newman_command_for_connector(),
+        // Running connector tests when no module is passed to keep the previous test behavior same
+        None => generate_newman_command_for_connector(),
+    }
+}
+
+pub fn generate_newman_command_for_users() -> Result<ReturnArgs> {
+    let args = Args::parse();
+    let base_url = args.base_url;
+    let admin_api_key = args.admin_api_key;
+
+    let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+        .with_context(|| "connector authentication file path not set")?;
+
+    let authentication: ConnectorAuthentication = toml::from_str(
+        &fs::read_to_string(path)
+            .with_context(|| "connector authentication config file not found")?,
+    )
+    .with_context(|| "connector authentication file path not set")?;
+
+    let users_configs = authentication
+        .users
+        .with_context(|| "user configs not found in authentication file")?;
+    let collection_path = get_collection_path("users");
+
+    let mut newman_command = Command::new("newman");
+    newman_command.args(["run", &collection_path]);
+    newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
+    newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
+    newman_command.args([
+        "--env-var",
+        &format!("user_email={}", users_configs.user_email),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!(
+            "user_base_email_for_signup={}",
+            users_configs.user_base_email_for_signup
+        ),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!(
+            "user_domain_for_signup={}",
+            users_configs.user_domain_for_signup
+        ),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!("user_password={}", users_configs.user_password),
+    ]);
+    newman_command.args([
+        "--env-var",
+        &format!("wrong_password={}", users_configs.wrong_password),
+    ]);
+
+    newman_command.args([
+        "--delay-request",
+        format!("{}", &args.delay_request).as_str(),
+    ]);
+
+    newman_command.arg("--color").arg("on");
+
+    if args.verbose {
+        newman_command.arg("--verbose");
+    }
+
+    Ok(ReturnArgs {
+        newman_command,
+        modified_file_paths: vec![],
+        collection_path,
+    })
+}
+
+pub fn generate_newman_command_for_connector() -> Result<ReturnArgs> {
+    let args = Args::parse();
+
+    let connector_name = args
+        .connector_name
+        .with_context(|| "invalid parameters: connector/module name not found in arguments")?;
+
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
@@ -216,11 +318,11 @@ pub fn generate_newman_command() -> ReturnArgs {
         newman_command.arg("--verbose");
     }
 
-    ReturnArgs {
+    Ok(ReturnArgs {
         newman_command,
         modified_file_paths: vec![modified_collection_file_paths, custom_header_exist],
         collection_path,
-    }
+    })
 }
 
 pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Option<String> {

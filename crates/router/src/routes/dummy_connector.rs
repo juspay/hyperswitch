@@ -27,7 +27,7 @@ pub async fn dummy_connector_authorize_payment(
         state,
         &req,
         payload,
-        |state, _, req, _| core::payment_authorize(state, req),
+        |state, _: (), req, _| core::payment_authorize(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -51,7 +51,7 @@ pub async fn dummy_connector_complete_payment(
         state,
         &req,
         payload,
-        |state, _, req, _| core::payment_complete(state, req),
+        |state, _: (), req, _| core::payment_complete(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -70,7 +70,7 @@ pub async fn dummy_connector_payment(
         state,
         &req,
         payload,
-        |state, _, req, _| core::payment(state, req),
+        |state, _: (), req, _| core::payment(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -90,7 +90,7 @@ pub async fn dummy_connector_payment_data(
         state,
         &req,
         payload,
-        |state, _, req, _| core::payment_data(state, req),
+        |state, _: (), req, _| core::payment_data(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -101,17 +101,17 @@ pub async fn dummy_connector_refund(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<types::DummyConnectorRefundRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl actix_web::Responder {
     let flow = types::Flow::DummyRefundCreate;
     let mut payload = json_payload.into_inner();
-    payload.payment_id = Some(path.to_string());
+    payload.payment_id = Some(path.into_inner());
     api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, _, req, _| core::refund_payment(state, req),
+        |state, _: (), req, _| core::refund_payment(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -131,7 +131,7 @@ pub async fn dummy_connector_refund_data(
         state,
         &req,
         payload,
-        |state, _, req, _| core::refund_data(state, req),
+        |state, _: (), req, _| core::refund_data(state, req),
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     )

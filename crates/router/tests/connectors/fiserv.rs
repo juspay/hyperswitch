@@ -15,12 +15,12 @@ impl ConnectorActions for FiservTest {}
 impl utils::Connector for FiservTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Fiserv;
-        types::api::ConnectorData {
-            connector: Box::new(&Fiserv),
-            connector_name: types::Connector::Fiserv,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Fiserv),
+            types::Connector::Fiserv,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

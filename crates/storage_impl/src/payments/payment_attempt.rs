@@ -14,6 +14,7 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    behaviour::Conversion,
     errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::{
@@ -78,8 +79,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -100,8 +101,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -121,8 +122,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -142,7 +143,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -163,8 +164,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -188,15 +189,17 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        let intents = pi
-            .iter()
-            .cloned()
-            .map(|pi| pi.to_storage_model())
-            .collect::<Vec<diesel_models::PaymentIntent>>();
+        let intents = futures::future::try_join_all(pi.iter().cloned().map(|pi| async {
+            pi.convert()
+                .await
+                .change_context(errors::StorageError::EncryptionError)
+        }))
+        .await?;
+
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {
@@ -226,7 +229,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -247,8 +250,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentAttempt>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -269,7 +272,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -286,13 +289,14 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
         payment_method: Option<Vec<PaymentMethod>>,
         payment_method_type: Option<Vec<PaymentMethodType>>,
         authentication_type: Option<Vec<AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -315,6 +319,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             payment_method,
             payment_method_type,
             authentication_type,
+            profile_id_list,
             merchant_connector_id,
         )
         .await
@@ -333,9 +338,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_attempt: PaymentAttemptNew,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Insert)
-                .await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -352,7 +360,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 };
                 let key_str = key.to_string();
                 let created_attempt = PaymentAttempt {
-                    id: Default::default(),
                     payment_id: payment_attempt.payment_id.clone(),
                     merchant_id: payment_attempt.merchant_id.clone(),
                     attempt_id: payment_attempt.attempt_id.clone(),
@@ -416,6 +423,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charge_id: payment_attempt.charge_id.clone(),
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
+                    customer_acceptance: payment_attempt.customer_acceptance.clone(),
+                    organization_id: payment_attempt.organization_id.clone(),
+                    profile_id: payment_attempt.profile_id.clone(),
+                    shipping_cost: payment_attempt.shipping_cost,
+                    order_tax_amount: payment_attempt.order_tax_amount,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -432,7 +444,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let reverse_lookup = ReverseLookupNew {
                     lookup_id: format!(
                         "pa_{}_{}",
-                        &created_attempt.merchant_id, &created_attempt.attempt_id,
+                        created_attempt.merchant_id.get_string_repr(),
+                        &created_attempt.attempt_id,
                     ),
                     pk_id: key_str.clone(),
                     sk_id: field.clone(),
@@ -479,11 +492,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             payment_id: &this.payment_id,
         };
         let field = format!("pa_{}", this.attempt_id);
-        let storage_scheme = decide_storage_scheme::<_, DieselPaymentAttempt>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
             self,
             storage_scheme,
             Op::Update(key.clone(), &field, Some(&this.updated_by)),
-        )
+        ))
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
@@ -524,7 +537,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         add_connector_txn_id_to_reverse_lookup(
                             self,
                             key_str.as_str(),
-                            this.merchant_id.as_str(),
+                            &this.merchant_id,
                             updated_attempt.attempt_id.as_str(),
                             connector_transaction_id.as_str(),
                             storage_scheme,
@@ -536,7 +549,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             add_connector_txn_id_to_reverse_lookup(
                                 self,
                                 key_str.as_str(),
-                                this.merchant_id.as_str(),
+                                &this.merchant_id,
                                 updated_attempt.attempt_id.as_str(),
                                 connector_transaction_id.as_str(),
                                 storage_scheme,
@@ -552,7 +565,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         add_preprocessing_id_to_reverse_lookup(
                             self,
                             key_str.as_str(),
-                            this.merchant_id.as_str(),
+                            &this.merchant_id,
                             updated_attempt.attempt_id.as_str(),
                             preprocessing_id.as_str(),
                             storage_scheme,
@@ -564,7 +577,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             add_preprocessing_id_to_reverse_lookup(
                                 self,
                                 key_str.as_str(),
-                                this.merchant_id.as_str(),
+                                &this.merchant_id,
                                 updated_attempt.attempt_id.as_str(),
                                 preprocessing_id.as_str(),
                                 storage_scheme,
@@ -594,12 +607,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -613,7 +630,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
-                let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
+                let lookup_id = format!(
+                    "pa_conn_trans_{}_{connector_transaction_id}",
+                    merchant_id.get_string_repr()
+                );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -645,8 +665,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let database_call = || {
@@ -657,8 +677,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     storage_scheme,
                 )
         };
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -699,8 +723,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let database_call = || {
@@ -711,8 +735,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     storage_scheme,
                 )
         };
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -756,12 +784,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -773,7 +805,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("pa_conn_trans_{merchant_id}_{connector_txn_id}");
+                let lookup_id = format!(
+                    "pa_conn_trans_{}_{connector_txn_id}",
+                    merchant_id.get_string_repr()
+                );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -817,13 +852,17 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -867,11 +906,15 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -883,7 +926,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("pa_{merchant_id}_{attempt_id}");
+                let lookup_id = format!("pa_{}_{attempt_id}", merchant_id.get_string_repr());
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -928,11 +971,15 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -944,7 +991,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("pa_preprocessing_{merchant_id}_{preprocessing_id}");
+                let lookup_id = format!(
+                    "pa_preprocessing_{}_{preprocessing_id}",
+                    merchant_id.get_string_repr()
+                );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -988,12 +1038,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPaymentAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -1034,7 +1088,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError> {
         self.router_store
@@ -1045,13 +1099,14 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
         payment_method: Option<Vec<PaymentMethod>>,
         payment_method_type: Option<Vec<PaymentMethodType>>,
         authentication_type: Option<Vec<AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1063,6 +1118,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
+                profile_id_list,
                 storage_scheme,
             )
             .await
@@ -1132,12 +1188,12 @@ impl DataModelExt for MandateDataType {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttempt {
-            id: self.id,
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1176,6 +1232,15 @@ impl DataModelExt for PaymentAttempt {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
+            card_network: self
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card"))
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
@@ -1201,13 +1266,17 @@ impl DataModelExt for PaymentAttempt {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            organization_id: self.organization_id,
+            profile_id: self.profile_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
-            id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
@@ -1268,6 +1337,169 @@ impl DataModelExt for PaymentAttempt {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
+            organization_id: storage_model.organization_id,
+            profile_id: storage_model.profile_id,
+            shipping_cost: storage_model.shipping_cost,
+            order_tax_amount: storage_model.order_tax_amount,
+        }
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+impl DataModelExt for PaymentAttempt {
+    type StorageModel = DieselPaymentAttempt;
+
+    fn to_storage_model(self) -> Self::StorageModel {
+        DieselPaymentAttempt {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            attempt_id: self.attempt_id,
+            status: self.status,
+            amount: self.amount.get_amount_as_i64(),
+            net_amount: Some(self.net_amount.get_amount_as_i64()),
+            currency: self.currency,
+            save_to_locker: self.save_to_locker,
+            connector: self.connector,
+            error_message: self.error_message,
+            offer_amount: self
+                .offer_amount
+                .map(|offer_amt| offer_amt.get_amount_as_i64()),
+            surcharge_amount: self
+                .surcharge_amount
+                .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
+            tax_amount: self.tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+            payment_method_id: self.payment_method_id,
+            payment_method: self.payment_method,
+            connector_transaction_id: self.connector_transaction_id,
+            capture_method: self.capture_method,
+            capture_on: self.capture_on,
+            confirm: self.confirm,
+            authentication_type: self.authentication_type,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            cancellation_reason: self.cancellation_reason,
+            amount_to_capture: self
+                .amount_to_capture
+                .map(|capture_amt| capture_amt.get_amount_as_i64()),
+            mandate_id: self.mandate_id,
+            browser_info: self.browser_info,
+            error_code: self.error_code,
+            payment_token: self.payment_token,
+            connector_metadata: self.connector_metadata,
+            payment_experience: self.payment_experience,
+            payment_method_type: self.payment_method_type,
+            card_network: self
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card"))
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
+            payment_method_data: self.payment_method_data,
+            business_sub_label: self.business_sub_label,
+            straight_through_algorithm: self.straight_through_algorithm,
+            preprocessing_step_id: self.preprocessing_step_id,
+            mandate_details: self.mandate_details.map(|d| d.to_storage_model()),
+            error_reason: self.error_reason,
+            multiple_capture_count: self.multiple_capture_count,
+            connector_response_reference_id: self.connector_response_reference_id,
+            amount_capturable: self.amount_capturable.get_amount_as_i64(),
+            updated_by: self.updated_by,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
+            merchant_connector_id: self.merchant_connector_id,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
+            external_three_ds_authentication_attempted: self
+                .external_three_ds_authentication_attempted,
+            authentication_connector: self.authentication_connector,
+            authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
+            fingerprint_id: self.fingerprint_id,
+            charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            organization_id: self.organization_id,
+            profile_id: self.profile_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
+        }
+    }
+
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        Self {
+            net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
+            payment_id: storage_model.payment_id,
+            merchant_id: storage_model.merchant_id,
+            attempt_id: storage_model.attempt_id,
+            status: storage_model.status,
+            amount: MinorUnit::new(storage_model.amount),
+            currency: storage_model.currency,
+            save_to_locker: storage_model.save_to_locker,
+            connector: storage_model.connector,
+            error_message: storage_model.error_message,
+            offer_amount: storage_model.offer_amount.map(MinorUnit::new),
+            surcharge_amount: storage_model.surcharge_amount.map(MinorUnit::new),
+            tax_amount: storage_model.tax_amount.map(MinorUnit::new),
+            payment_method_id: storage_model.payment_method_id,
+            payment_method: storage_model.payment_method,
+            connector_transaction_id: storage_model.connector_transaction_id,
+            capture_method: storage_model.capture_method,
+            capture_on: storage_model.capture_on,
+            confirm: storage_model.confirm,
+            authentication_type: storage_model.authentication_type,
+            created_at: storage_model.created_at,
+            modified_at: storage_model.modified_at,
+            last_synced: storage_model.last_synced,
+            cancellation_reason: storage_model.cancellation_reason,
+            amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
+            mandate_id: storage_model.mandate_id,
+            browser_info: storage_model.browser_info,
+            error_code: storage_model.error_code,
+            payment_token: storage_model.payment_token,
+            connector_metadata: storage_model.connector_metadata,
+            payment_experience: storage_model.payment_experience,
+            payment_method_type: storage_model.payment_method_type,
+            payment_method_data: storage_model.payment_method_data,
+            business_sub_label: storage_model.business_sub_label,
+            straight_through_algorithm: storage_model.straight_through_algorithm,
+            preprocessing_step_id: storage_model.preprocessing_step_id,
+            mandate_details: storage_model
+                .mandate_details
+                .map(MandateDataType::from_storage_model),
+            error_reason: storage_model.error_reason,
+            multiple_capture_count: storage_model.multiple_capture_count,
+            connector_response_reference_id: storage_model.connector_response_reference_id,
+            amount_capturable: MinorUnit::new(storage_model.amount_capturable),
+            updated_by: storage_model.updated_by,
+            authentication_data: storage_model.authentication_data,
+            encoded_data: storage_model.encoded_data,
+            merchant_connector_id: storage_model.merchant_connector_id,
+            unified_code: storage_model.unified_code,
+            unified_message: storage_model.unified_message,
+            external_three_ds_authentication_attempted: storage_model
+                .external_three_ds_authentication_attempted,
+            authentication_connector: storage_model.authentication_connector,
+            authentication_id: storage_model.authentication_id,
+            mandate_data: storage_model
+                .mandate_data
+                .map(MandateDetails::from_storage_model),
+            payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
+            fingerprint_id: storage_model.fingerprint_id,
+            charge_id: storage_model.charge_id,
+            client_source: storage_model.client_source,
+            client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
+            organization_id: storage_model.organization_id,
+            profile_id: storage_model.profile_id,
+            shipping_cost: storage_model.shipping_cost,
+            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }
@@ -1300,8 +1532,10 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: self.capture_on,
             confirm: self.confirm,
             authentication_type: self.authentication_type,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
+            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
+            modified_at: self
+                .modified_at
+                .unwrap_or_else(common_utils::date_time::now),
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
             amount_to_capture: self
@@ -1314,6 +1548,15 @@ impl DataModelExt for PaymentAttemptNew {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
+            card_network: self
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card"))
+                .and_then(|value| value.as_object())
+                .and_then(|map| map.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
@@ -1339,6 +1582,11 @@ impl DataModelExt for PaymentAttemptNew {
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            organization_id: self.organization_id,
+            profile_id: self.profile_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 
@@ -1363,8 +1611,8 @@ impl DataModelExt for PaymentAttemptNew {
             capture_on: storage_model.capture_on,
             confirm: storage_model.confirm,
             authentication_type: storage_model.authentication_type,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
+            created_at: Some(storage_model.created_at),
+            modified_at: Some(storage_model.modified_at),
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
             amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
@@ -1404,6 +1652,11 @@ impl DataModelExt for PaymentAttemptNew {
             charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
+            customer_acceptance: storage_model.customer_acceptance,
+            organization_id: storage_model.organization_id,
+            profile_id: storage_model.profile_id,
+            shipping_cost: storage_model.shipping_cost,
+            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }
@@ -1528,6 +1781,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: amount.get_amount_as_i64(),
                 currency,
@@ -1560,6 +1816,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             },
             Self::VoidUpdate {
                 status,
@@ -1650,6 +1909,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1663,6 +1923,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -1745,6 +2006,25 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_connector,
                 authentication_id,
                 updated_by,
+            },
+            Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+            } => DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
             },
         }
     }
@@ -1844,6 +2124,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             } => Self::ConfirmUpdate {
                 amount: MinorUnit::new(amount),
                 currency,
@@ -1874,6 +2157,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 client_source,
                 client_version,
+                customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -1981,6 +2267,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -1993,6 +2280,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
                 payment_method_data,
+                authentication_type,
             },
             DieselPaymentAttemptUpdate::CaptureUpdate {
                 amount_to_capture,
@@ -2075,6 +2363,25 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_id,
                 updated_by,
             },
+            DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+            } => Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+            },
         }
     }
 }
@@ -2084,14 +2391,18 @@ impl DataModelExt for PaymentAttemptUpdate {
 async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     updated_attempt_attempt_id: &str,
     connector_transaction_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("pa_conn_trans_{}_{}", merchant_id, connector_transaction_id),
+        lookup_id: format!(
+            "pa_conn_trans_{}_{}",
+            merchant_id.get_string_repr(),
+            connector_transaction_id
+        ),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
@@ -2107,14 +2418,18 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
 async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     updated_attempt_attempt_id: &str,
     preprocessing_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("pa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("pa_preprocessing_{}_{}", merchant_id, preprocessing_id),
+        lookup_id: format!(
+            "pa_preprocessing_{}_{}",
+            merchant_id.get_string_repr(),
+            preprocessing_id
+        ),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),

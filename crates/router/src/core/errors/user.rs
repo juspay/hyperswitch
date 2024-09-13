@@ -78,6 +78,18 @@ pub enum UserErrors {
     TwoFactorAuthRequired,
     #[error("TwoFactorAuthNotSetup")]
     TwoFactorAuthNotSetup,
+    #[error("TOTP secret not found")]
+    TotpSecretNotFound,
+    #[error("User auth method already exists")]
+    UserAuthMethodAlreadyExists,
+    #[error("Invalid user auth method operation")]
+    InvalidUserAuthMethodOperation,
+    #[error("Auth config parsing error")]
+    AuthConfigParsingError,
+    #[error("Invalid SSO request")]
+    SSOFailed,
+    #[error("profile_id missing in JWT")]
+    JwtProfileIdMissing,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -199,6 +211,24 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::TwoFactorAuthNotSetup => {
                 AER::BadRequest(ApiError::new(sub_code, 41, self.get_error_message(), None))
             }
+            Self::TotpSecretNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 42, self.get_error_message(), None))
+            }
+            Self::UserAuthMethodAlreadyExists => {
+                AER::BadRequest(ApiError::new(sub_code, 43, self.get_error_message(), None))
+            }
+            Self::InvalidUserAuthMethodOperation => {
+                AER::BadRequest(ApiError::new(sub_code, 44, self.get_error_message(), None))
+            }
+            Self::AuthConfigParsingError => {
+                AER::BadRequest(ApiError::new(sub_code, 45, self.get_error_message(), None))
+            }
+            Self::SSOFailed => {
+                AER::BadRequest(ApiError::new(sub_code, 46, self.get_error_message(), None))
+            }
+            Self::JwtProfileIdMissing => {
+                AER::Unauthorized(ApiError::new(sub_code, 47, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -241,6 +271,12 @@ impl UserErrors {
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
+            Self::TotpSecretNotFound => "TOTP secret not found",
+            Self::UserAuthMethodAlreadyExists => "User auth method already exists",
+            Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
+            Self::AuthConfigParsingError => "Auth config parsing error",
+            Self::SSOFailed => "Invalid SSO request",
+            Self::JwtProfileIdMissing => "profile_id missing in JWT",
         }
     }
 }

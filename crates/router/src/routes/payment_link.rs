@@ -54,14 +54,19 @@ pub async fn payment_link_retrieve(
 pub async fn initiate_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::PaymentId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
+
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
     };
+    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -71,8 +76,46 @@ pub async fn initiate_payment_link(
             initiate_payment_link_flow(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
+                headers,
+            )
+        },
+        &crate::services::authentication::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn initiate_secure_payment_link(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::PaymentId,
+    )>,
+) -> impl Responder {
+    let flow = Flow::PaymentSecureLinkInitiate;
+    let (merchant_id, payment_id) = path.into_inner();
+    let payload = api_models::payments::PaymentLinkInitiateRequest {
+        payment_id,
+        merchant_id: merchant_id.clone(),
+    };
+    let headers = req.headers();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, auth, _, _| {
+            initiate_secure_payment_link_flow(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payload.merchant_id.clone(),
+                payload.payment_id.clone(),
+                headers,
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
@@ -112,29 +155,34 @@ pub async fn payments_link_list(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkList;
     let payload = payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth, payload, _| list_payment_link(state, auth.merchant_account, payload),
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
 pub async fn payment_link_status(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::PaymentId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkStatus;
     let (merchant_id, payment_id) = path.into_inner();
+
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
     };
+    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -144,8 +192,10 @@ pub async fn payment_link_status(
             get_payment_link_status(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
+                headers,
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),

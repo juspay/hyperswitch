@@ -151,7 +151,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             }
             _ => None,
         }
-        .get_required_value("payment_method not implemnted")
+        .get_required_value("payment_method not implemented")
         .change_context(errors::ConnectorError::NotImplemented(
             "payment_method".to_owned(),
         ))?;

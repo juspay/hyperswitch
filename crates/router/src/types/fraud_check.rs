@@ -1,12 +1,14 @@
-pub use hyperswitch_domain_models::router_request_types::fraud_check::{
-    FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-    FraudCheckSaleData, FraudCheckTransactionData, RefundMethod,
+pub use hyperswitch_domain_models::{
+    router_request_types::fraud_check::{
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
+        FraudCheckSaleData, FraudCheckTransactionData, RefundMethod,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
 };
 
 use crate::{
-    pii::Serialize,
     services,
-    types::{api, storage_enums, ErrorResponse, ResponseId, RouterData},
+    types::{api, ErrorResponse, RouterData},
 };
 
 pub type FrmSaleRouterData = RouterData<api::Sale, FraudCheckSaleData, FraudCheckResponseData>;
@@ -16,8 +18,9 @@ pub type FrmSaleType =
 
 #[derive(Debug, Clone)]
 pub struct FrmRouterData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector: String,
+    // TODO: change this to PaymentId type
     pub payment_id: String,
     pub attempt_id: String,
     pub request: FrmRequest,
@@ -38,27 +41,6 @@ pub enum FrmResponse {
     Transaction(Result<FraudCheckResponseData, ErrorResponse>),
     Fulfillment(Result<FraudCheckResponseData, ErrorResponse>),
     RecordReturn(Result<FraudCheckResponseData, ErrorResponse>),
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
-pub enum FraudCheckResponseData {
-    TransactionResponse {
-        resource_id: ResponseId,
-        status: storage_enums::FraudCheckStatus,
-        connector_metadata: Option<serde_json::Value>,
-        reason: Option<serde_json::Value>,
-        score: Option<i32>,
-    },
-    FulfillmentResponse {
-        order_id: String,
-        shipment_ids: Vec<String>,
-    },
-    RecordReturnResponse {
-        resource_id: ResponseId,
-        connector_metadata: Option<serde_json::Value>,
-        return_id: Option<String>,
-    },
 }
 
 pub type FrmCheckoutRouterData =

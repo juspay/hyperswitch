@@ -11,12 +11,12 @@ use crate::{
     db::gsm::GsmInterface,
     services,
     types::transformers::ForeignInto,
-    AppState,
+    SessionState,
 };
 
 #[instrument(skip_all)]
 pub async fn create_gsm_rule(
-    state: AppState,
+    state: SessionState,
     gsm_rule: gsm_api_types::GsmCreateRequest,
 ) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
@@ -30,7 +30,7 @@ pub async fn create_gsm_rule(
 
 #[instrument(skip_all)]
 pub async fn retrieve_gsm_rule(
-    state: AppState,
+    state: SessionState,
     gsm_request: gsm_api_types::GsmRetrieveRequest,
 ) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
@@ -51,7 +51,7 @@ pub async fn retrieve_gsm_rule(
 
 #[instrument(skip_all)]
 pub async fn update_gsm_rule(
-    state: AppState,
+    state: SessionState,
     gsm_request: gsm_api_types::GsmUpdateRequest,
 ) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
@@ -94,7 +94,7 @@ pub async fn update_gsm_rule(
 
 #[instrument(skip_all)]
 pub async fn delete_gsm_rule(
-    state: AppState,
+    state: SessionState,
     gsm_request: gsm_api_types::GsmDeleteRequest,
 ) -> RouterResponse<gsm_api_types::GsmDeleteResponse> {
     let db = state.store.as_ref();

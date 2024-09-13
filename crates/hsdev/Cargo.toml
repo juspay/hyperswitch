@@ -1,0 +1,19 @@
+[package]
+name = "hsdev"
+version = "0.1.0"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "A simple diesel postgres migrator that uses TOML files"
+repository = "https://github.com/juspay/hyperswitch.git"
+readme = "README.md"
+
+[dependencies]
+clap = { version = "4.1.8", features = ["derive"] }
+diesel = { version = "2.2.3", features = ["postgres"] }
+diesel_migrations = "2.1.0"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.5"
+
+[lints]
+workspace = true

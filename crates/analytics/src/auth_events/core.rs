@@ -5,7 +5,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetAuthEventMetricRequest, MetricsResponse,
 };
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 
 use super::AuthEventMetricsAccumulator;
 use crate::{
@@ -17,8 +17,8 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &String,
-    publishable_key: Option<&String>,
+    merchant_id: &common_utils::id_type::MerchantId,
+    publishable_key: &String,
     req: GetAuthEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -26,86 +26,76 @@ pub async fn get_metrics(
         AuthEventMetricsAccumulator,
     > = HashMap::new();
 
-    if let Some(publishable_key) = publishable_key {
-        let mut set = tokio::task::JoinSet::new();
-        for metric_type in req.metrics.iter().cloned() {
-            let req = req.clone();
-            let merchant_id_scoped = merchant_id.to_owned();
-            let publishable_key_scoped = publishable_key.to_owned();
-            let pool = pool.clone();
-            set.spawn(async move {
-                let data = pool
-                    .get_auth_event_metrics(
-                        &metric_type,
-                        &merchant_id_scoped,
-                        &publishable_key_scoped,
-                        &req.time_series.map(|t| t.granularity),
-                        &req.time_range,
-                    )
-                    .await
-                    .change_context(AnalyticsError::UnknownError);
-                (metric_type, data)
-            });
-        }
+    let mut set = tokio::task::JoinSet::new();
+    for metric_type in req.metrics.iter().cloned() {
+        let req = req.clone();
+        let merchant_id_scoped = merchant_id.to_owned();
+        let publishable_key_scoped = publishable_key.to_owned();
+        let pool = pool.clone();
+        set.spawn(async move {
+            let data = pool
+                .get_auth_event_metrics(
+                    &metric_type,
+                    &merchant_id_scoped,
+                    &publishable_key_scoped,
+                    &req.time_series.map(|t| t.granularity),
+                    &req.time_range,
+                )
+                .await
+                .change_context(AnalyticsError::UnknownError);
+            (metric_type, data)
+        });
+    }
 
-        while let Some((metric, data)) = set
-            .join_next()
-            .await
-            .transpose()
-            .change_context(AnalyticsError::UnknownError)?
-        {
-            for (id, value) in data? {
-                let metrics_builder = metrics_accumulator.entry(id).or_default();
-                match metric {
-                    AuthEventMetrics::ThreeDsSdkCount => metrics_builder
-                        .three_ds_sdk_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::AuthenticationAttemptCount => metrics_builder
-                        .authentication_attempt_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::AuthenticationSuccessCount => metrics_builder
-                        .authentication_success_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::ChallengeFlowCount => metrics_builder
-                        .challenge_flow_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::ChallengeAttemptCount => metrics_builder
-                        .challenge_attempt_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::ChallengeSuccessCount => metrics_builder
-                        .challenge_success_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::FrictionlessFlowCount => metrics_builder
-                        .frictionless_flow_count
-                        .add_metrics_bucket(&value),
-                    AuthEventMetrics::FrictionlessSuccessCount => metrics_builder
-                        .frictionless_success_count
-                        .add_metrics_bucket(&value),
-                }
+    while let Some((metric, data)) = set
+        .join_next()
+        .await
+        .transpose()
+        .change_context(AnalyticsError::UnknownError)?
+    {
+        for (id, value) in data? {
+            let metrics_builder = metrics_accumulator.entry(id).or_default();
+            match metric {
+                AuthEventMetrics::ThreeDsSdkCount => metrics_builder
+                    .three_ds_sdk_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationAttemptCount => metrics_builder
+                    .authentication_attempt_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationSuccessCount => metrics_builder
+                    .authentication_success_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::ChallengeFlowCount => metrics_builder
+                    .challenge_flow_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::ChallengeAttemptCount => metrics_builder
+                    .challenge_attempt_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::ChallengeSuccessCount => metrics_builder
+                    .challenge_success_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::FrictionlessFlowCount => metrics_builder
+                    .frictionless_flow_count
+                    .add_metrics_bucket(&value),
+                AuthEventMetrics::FrictionlessSuccessCount => metrics_builder
+                    .frictionless_success_count
+                    .add_metrics_bucket(&value),
             }
         }
-
-        let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
-            .into_iter()
-            .map(|(id, val)| MetricsBucketResponse {
-                values: val.collect(),
-                dimensions: id,
-            })
-            .collect();
-
-        Ok(MetricsResponse {
-            query_data,
-            meta_data: [AnalyticsMetadata {
-                current_time_range: req.time_range,
-            }],
-        })
-    } else {
-        logger::error!("Publishable key not present for merchant ID");
-        Ok(MetricsResponse {
-            query_data: vec![],
-            meta_data: [AnalyticsMetadata {
-                current_time_range: req.time_range,
-            }],
-        })
     }
+
+    let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
+        .into_iter()
+        .map(|(id, val)| MetricsBucketResponse {
+            values: val.collect(),
+            dimensions: id,
+        })
+        .collect();
+
+    Ok(MetricsResponse {
+        query_data,
+        meta_data: [AnalyticsMetadata {
+            current_time_range: req.time_range,
+        }],
+    })
 }

@@ -2,7 +2,10 @@ use api_models::{
     enums::{CountryAlpha2, UsStatesAbbreviation},
     payments::AddressDetails,
 };
-use common_utils::pii::{self, IpAddress};
+use common_utils::{
+    id_type,
+    pii::{self, IpAddress},
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -59,7 +62,7 @@ pub struct GocardlessCustomer {
 
 #[derive(Default, Debug, Serialize)]
 pub struct CustomerMetaData {
-    crm_id: Option<Secret<String>>,
+    crm_id: Option<Secret<id_type::CustomerId>>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest {
@@ -239,10 +242,13 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 )
@@ -279,6 +285,7 @@ impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for Custo
             domain::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
+                ..
             } => {
                 let country_code = item.get_billing_country()?;
                 let account_holder_name = item.get_billing_full_name()?;
@@ -407,10 +414,13 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))

@@ -90,7 +90,8 @@ fn fetch_payment_instrument(
             | domain::WalletData::WeChatPayRedirect(_)
             | domain::WalletData::CashappQr(_)
             | domain::WalletData::SwishQr(_)
-            | domain::WalletData::WeChatPayQr(_) => Err(errors::ConnectorError::NotImplemented(
+            | domain::WalletData::WeChatPayQr(_)
+            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
             .into()),
@@ -102,14 +103,19 @@ fn fetch_payment_instrument(
         | domain::PaymentMethodData::Crypto(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::Reward
+        | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::Voucher(_)
         | domain::PaymentMethodData::CardRedirect(_)
         | domain::PaymentMethodData::GiftCard(_)
-        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("worldpay"),
-        )
-        .into()),
+        | domain::PaymentMethodData::OpenBanking(_)
+        | domain::PaymentMethodData::CardToken(_)
+        | domain::PaymentMethodData::NetworkToken(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into())
+        }
     }
 }
 
@@ -142,7 +148,11 @@ impl
                     currency: item.router_data.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.router_data.merchant_id.clone().replace('_', "-"),
+                    line1: item
+                        .router_data
+                        .merchant_id
+                        .get_string_repr()
+                        .replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(

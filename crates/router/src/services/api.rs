@@ -1,38 +1,63 @@
 pub mod client;
+pub mod generic_link_response;
 pub mod request;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     error::Error,
     fmt::Debug,
     future::Future,
     str,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
+use actix_http::header::HeaderMap;
 use actix_web::{
-    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
-    ResponseError,
+    body,
+    http::header::{HeaderName, HeaderValue},
+    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_enums::Currency;
+pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
+    consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
 use error_stack::{report, Report, ResultExt};
-use masking::{Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
+pub use hyperswitch_domain_models::{
+    api::{
+        ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
+        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
+        RedirectionFormData,
+    },
+    payment_method_data::PaymentMethodData,
+    router_response_types::RedirectForm,
+};
+pub use hyperswitch_interfaces::{
+    api::{
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
+        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorValidation,
+    },
+    connector_integration_v2::{
+        BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
+    },
+};
+use masking::{Maskable, PeekInterface};
+use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
-use tera::{Context, Tera};
+use tera::{Context, Error as TeraError, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
-use super::authentication::AuthenticateAndFetch;
+use super::{
+    authentication::AuthenticateAndFetch,
+    connector_integration_interface::BoxedConnectorIntegrationInterface,
+};
 use crate::{
-    configs::{settings::Connectors, Settings},
+    configs::Settings,
     consts,
     core::{
         api_locking,
@@ -45,246 +70,38 @@ use crate::{
     },
     logger,
     routes::{
-        app::{AppStateInfo, ReqState},
-        metrics::{self, request as metrics_request},
-        AppState,
+        app::{AppStateInfo, ReqState, SessionStateInfo},
+        metrics, AppState, SessionState,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-        ErrorResponse,
+    services::{
+        connector_integration_interface::RouterDataConversion,
+        generic_link_response::build_generic_link_html,
     },
+    types::{self, api, ErrorResponse},
 };
 
-pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
-    Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
-
-pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
-}
-
-impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
-where
-    S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
-{
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
-        Box::new(self)
-    }
-}
-
-pub trait ConnectorValidation: ConnectorCommon {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: types::domain::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        data.request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-            .map(|_| ())
-    }
-
-    fn is_webhook_source_verification_mandatory(&self) -> bool {
-        false
-    }
-}
-
-#[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
-    fn get_headers(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        mime::APPLICATION_JSON.essence_str()
-    }
-
-    /// primarily used when creating signature based on request method of payment flow
-    fn get_http_method(&self) -> Method {
-        Method::Post
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(String::new())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
-    }
-
-    fn get_request_form_data(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    /// This module can be called before executing a payment flow where a pre-task is needed
-    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
-    async fn execute_pretasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    /// This module can be called after executing a payment flow where a post-task needed
-    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
-    async fn execute_posttasks(
-        &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
-        _app_state: &AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Ok(())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &[metrics::request::add_attributes(
-                "connector",
-                req.connector.clone(),
-            )],
-        );
-        Ok(None)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RouterData<T, Req, Resp>,
-        event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
-    ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
-    where
-        T: Clone,
-        Req: Clone,
-        Resp: Clone,
-    {
-        event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
-        Ok(data.clone())
-    }
-
-    fn get_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
-        Ok(ErrorResponse::get_not_implemented())
-    }
-
-    fn get_5xx_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
-        let error_message = match res.status_code {
-            500 => "internal_server_error",
-            501 => "not_implemented",
-            502 => "bad_gateway",
-            503 => "service_unavailable",
-            504 => "gateway_timeout",
-            505 => "http_version_not_supported",
-            506 => "variant_also_negotiates",
-            507 => "insufficient_storage",
-            508 => "loop_detected",
-            510 => "not_extended",
-            511 => "network_authentication_required",
-            _ => "unknown_error",
-        };
-        Ok(ErrorResponse {
-            code: res.status_code.to_string(),
-            message: error_message.to_string(),
-            reason: String::from_utf8(res.response.to_vec()).ok(),
-            status_code: res.status_code,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
-    }
-
-    // whenever capture sync is implemented at the connector side, this method should be overridden
-    fn get_multiple_capture_sync_method(
-        &self,
-    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
-    }
-
-    fn get_certificate(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    fn get_certificate_key(
-        &self,
-        _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(None)
-    }
-}
-
-pub enum CaptureSyncMethod {
-    Individual,
-    Bulk,
-}
+pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
+pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::RefundFlowData, Req, Resp>;
+#[cfg(feature = "frm")]
+pub type BoxedFrmConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FrmFlowData, Req, Resp>;
+pub type BoxedDisputeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::DisputesFlowData, Req, Resp>;
+pub type BoxedMandateRevokeConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::MandateRevokeFlowData, Req, Resp>;
+#[cfg(feature = "payouts")]
+pub type BoxedPayoutConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PayoutFlowData, Req, Resp>;
+pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
+pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
+pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -294,11 +111,12 @@ pub async fn execute_connector_processing_step<
     'b,
     'a,
     T,
+    ResourceCommonData: Clone + RouterDataConversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    state: &'b AppState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
+    state: &'b SessionState,
+    connector_integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
@@ -310,7 +128,7 @@ where
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     tracing::Span::current().record("connector_name", &req.connector);
-    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
+    tracing::Span::current().record("payment_method", req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
@@ -348,9 +166,9 @@ where
             metrics::CONNECTOR_CALL_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes(
+                &add_attributes([
+                    ("connector", req.connector.to_string()),
+                    (
                         "flow",
                         std::any::type_name::<T>()
                             .split("::")
@@ -358,14 +176,14 @@ where
                             .unwrap_or_default()
                             .to_string(),
                     ),
-                ],
+                ]),
             );
 
             let connector_request = match connector_request {
                 Some(connector_request) => Some(connector_request),
                 None => connector_integration
                     .build_request(req, &state.conf.connectors)
-                    .map_err(|error| {
+                    .inspect_err(|error| {
                         if matches!(
                             error.current_context(),
                             &errors::ConnectorError::RequestEncodingFailed
@@ -374,13 +192,9 @@ where
                             metrics::REQUEST_BUILD_FAILURE.add(
                                 &metrics::CONTEXT,
                                 1,
-                                &[metrics::request::add_attributes(
-                                    "connector",
-                                    req.connector.to_string(),
-                                )],
+                                &add_attributes([("connector", req.connector.to_string())]),
                             )
                         }
-                        error
                     })?,
             };
 
@@ -435,20 +249,19 @@ where
                                     let connector_http_status_code = Some(body.status_code);
                                     let handle_response_result = connector_integration
                                         .handle_response(req, Some(&mut connector_event), body)
-                                        .map_err(|error| {
+                                        .inspect_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
                                         {
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
                                                 &metrics::CONTEXT,
                                                 1,
-                                                &[metrics::request::add_attributes(
+                                                &add_attributes([(
                                                     "connector",
                                                     req.connector.to_string(),
-                                                )],
+                                                )]),
                                             )
                                         }
-                                            error
                                         });
                                     match handle_response_result {
                                         Ok(mut data) => {
@@ -483,10 +296,7 @@ where
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
-                                        &[metrics::request::add_attributes(
-                                            "connector",
-                                            req.connector.clone(),
-                                        )],
+                                        &add_attributes([("connector", req.connector.clone())]),
                                     );
 
                                     let error = match body.status_code {
@@ -508,6 +318,7 @@ where
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
+                                            state.event_handler().log_event(&connector_event);
                                             error_res
                                         }
                                     };
@@ -555,7 +366,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn call_connector_api(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     flow_name: &str,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -572,11 +383,11 @@ pub async fn call_connector_api(
             let status_code = resp.status().as_u16();
             let elapsed_time = current_time.elapsed();
             logger::info!(
-                headers=?headers,
-                url=?url,
-                status_code=?status_code,
+                ?headers,
+                url,
+                status_code,
                 flow=?flow_name,
-                elapsed_time=?elapsed_time
+                ?elapsed_time
             );
         }
         Err(err) => {
@@ -591,7 +402,7 @@ pub async fn call_connector_api(
 
 #[instrument(skip_all)]
 pub async fn send_request(
-    state: &AppState,
+    state: &SessionState,
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
@@ -604,9 +415,19 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+        || proxy_bypass_urls(
+            state.conf.key_manager.get_inner(),
+            &state.conf.locker,
+            &state.conf.proxy.bypass_proxy_urls,
+        )
+        .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+    let should_bypass_proxy = proxy_bypass_urls(
+        &state.conf.key_manager.get_inner(),
+        &state.conf.locker,
+        &state.conf.proxy.bypass_proxy_urls,
+    )
+    .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -712,9 +533,10 @@ pub async fn send_request(
             .attach_printable("Unable to send request to connector")
     };
 
-    let response = metrics_request::record_operation_time(
+    let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
+        &metrics::CONTEXT,
         &[metrics_tag.clone()],
     )
     .await;
@@ -739,9 +561,10 @@ pub async fn send_request(
                     logger::info!(
                         "Retrying request due to connection closed before message could complete"
                     );
-                    metrics_request::record_operation_time(
+                    common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
+                        &metrics::CONTEXT,
                         &[metrics_tag],
                     )
                     .await
@@ -849,112 +672,9 @@ async fn handle_response(
         .await
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum ApplicationResponse<R> {
-    Json(R),
-    StatusOk,
-    TextPlain(String),
-    JsonForRedirection(api::RedirectionResponse),
-    Form(Box<RedirectionFormData>),
-    PaymentLinkForm(Box<PaymentLinkAction>),
-    FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentLinkAction {
-    PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLinkStatus(PaymentLinkStatusData),
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
-    pub js_script: String,
-    pub css_script: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkStatusData {
-    pub js_script: String,
-    pub css_script: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct RedirectionFormData {
-    pub redirect_form: RedirectForm,
-    pub payment_method_data: Option<api::PaymentMethodData>,
-    pub amount: String,
-    pub currency: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentAction {
-    PSync,
-    CompleteAuthorize,
-    PaymentAuthenticateCompleteAuthorize,
-}
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RedirectForm {
-    Form {
-        endpoint: String,
-        method: Method,
-        form_fields: HashMap<String, String>,
-    },
-    Html {
-        html_data: String,
-    },
-    BlueSnap {
-        payment_fields_token: String, // payment-field-token
-    },
-    CybersourceAuthSetup {
-        access_token: String,
-        ddc_url: String,
-        reference_id: String,
-    },
-    CybersourceConsumerAuth {
-        access_token: String,
-        step_up_url: String,
-    },
-    Payme,
-    Braintree {
-        client_token: String,
-        card_token: String,
-        bin: String,
-    },
-    Nmi {
-        amount: String,
-        currency: Currency,
-        public_key: Secret<String>,
-        customer_vault_id: String,
-        order_id: String,
-    },
-}
-
-impl From<(url::Url, Method)> for RedirectForm {
-    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
-        let form_fields = HashMap::from_iter(
-            redirect_url
-                .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
-        );
-
-        // Do not include query params in the endpoint
-        redirect_url.set_query(None);
-
-        Self::Form {
-            endpoint: redirect_url.to_string(),
-            method,
-            form_fields,
-        }
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -965,21 +685,21 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(request, payload, state, func, api_auth, request_state),
+    skip(request, payload, state, func, api_auth, incoming_request_header),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
-    mut request_state: ReqState,
+    incoming_request_header: &HeaderMap,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a + ApiEventMetric,
@@ -993,25 +713,61 @@ where
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    request_state.event_context.record_info(request_id);
-    request_state
-        .event_context
-        .record_info(("flow".to_string(), flow.to_string()));
-    // request_state.event_context.record_info(request.clone());
-
     let mut app_state = state.get_ref().clone();
 
-    app_state.add_request_id(request_id);
     let start_instant = Instant::now();
     let serialized_request = masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
+    let tenants: HashSet<_> = state
+        .conf
+        .multitenancy
+        .get_tenant_names()
+        .into_iter()
+        .collect();
+    let tenant_id = if !state.conf.multitenancy.enabled {
+        DEFAULT_TENANT.to_string()
+    } else {
+        incoming_request_header
+            .get(TENANT_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
+            .map(|req_tenant_id| {
+                if !tenants.contains(req_tenant_id) {
+                    Err(errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: req_tenant_id.to_string(),
+                    }
+                    .switch())
+                } else {
+                    Ok(req_tenant_id.to_string())
+                }
+            })??
+    };
+    // let tenant_id = "public".to_string();
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.clone(),
+            }
+            .switch()
+        })?;
+    session_state.add_request_id(request_id);
+    let mut request_state = session_state.get_req_state();
+
+    request_state.event_context.record_info(request_id);
+    request_state
+        .event_context
+        .record_info(("flow".to_string(), flow.to_string()));
+
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
-        .authenticate_and_fetch(request.headers(), &app_state)
+        .authenticate_and_fetch(request.headers(), &session_state)
         .await
         .switch()?;
 
@@ -1019,26 +775,24 @@ where
 
     let merchant_id = auth_type
         .get_merchant_id()
-        .unwrap_or("MERCHANT_ID_NOT_FOUND")
-        .to_string();
-
-    app_state.add_merchant_id(Some(merchant_id.clone()));
+        .cloned()
+        .unwrap_or(common_utils::id_type::MerchantId::get_merchant_id_not_found());
 
     app_state.add_flow_name(flow.to_string());
 
-    tracing::Span::current().record("merchant_id", &merchant_id);
+    tracing::Span::current().record("merchant_id", merchant_id.get_string_repr().to_owned());
 
     let output = {
         lock_action
             .clone()
-            .perform_locking_action(&app_state, merchant_id.to_owned())
+            .perform_locking_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
-        let res = func(app_state.clone(), auth_out, payload, request_state)
+        let res = func(session_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
         lock_action
-            .free_lock_action(&app_state, merchant_id.to_owned())
+            .free_lock_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
         res
@@ -1105,7 +859,11 @@ where
     );
     state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
+    metrics::request::status_code_metrics(
+        status_code.to_string(),
+        flow.to_string(),
+        merchant_id.to_owned(),
+    );
 
     output
 }
@@ -1120,18 +878,17 @@ pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn AuthenticateAndFetch<U, AppState>,
+    api_auth: &dyn AuthenticateAndFetch<U, SessionState>,
     lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(AppState, U, T, ReqState) -> Fut,
+    F: Fn(SessionState, U, T, ReqState) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + ApiEventMetric + 'a,
     T: Debug + Serialize + ApiEventMetric,
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
-    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
 
@@ -1165,7 +922,7 @@ where
         server_wrap_util(
             &flow,
             state.clone(),
-            req_state,
+            incoming_request_header,
             request,
             payload,
             func,
@@ -1221,11 +978,37 @@ where
             .map_into_boxed_body()
         }
 
+        Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
+            let link_type = boxed_generic_link_data.data.to_string();
+            match build_generic_link_html(
+                boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
+            ) {
+                Ok(rendered_html) => {
+                    let headers = if !boxed_generic_link_data.allowed_domains.is_empty() {
+                        let domains_str = boxed_generic_link_data
+                            .allowed_domains
+                            .into_iter()
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        Some(HashSet::from([("content-security-policy", csp_header)]))
+                    } else {
+                        None
+                    };
+                    http_response_html_data(rendered_html, headers)
+                }
+                Err(_) => {
+                    http_response_err(format!("Error while rendering {} HTML page", link_type))
+                }
+            }
+        }
+
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1237,7 +1020,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1366,8 +1149,8 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         }
         let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
             Ok(header_value) => header_value,
-            Err(e) => {
-                logger::error!(?e);
+            Err(error) => {
+                logger::error!(?error);
                 return http_server_error_json_response("Something Went Wrong");
             }
         };
@@ -1394,8 +1177,22 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     HttpResponse::Ok().content_type(content_type).body(res)
 }
 
-pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
-    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
+pub fn http_response_html_data<T: body::MessageBody + 'static>(
+    res: T,
+    optional_headers: Option<HashSet<(&'static str, String)>>,
+) -> HttpResponse {
+    let mut res_builder = HttpResponse::Ok();
+    res_builder.content_type(mime::TEXT_HTML);
+
+    if let Some(headers) = optional_headers {
+        for (key, value) in headers {
+            if let Ok(header_val) = HeaderValue::try_from(value) {
+                res_builder.insert_header((HeaderName::from_static(key), header_val));
+            }
+        }
+    }
+
+    res_builder.body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1422,17 +1219,6 @@ pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpRes
         .body(response)
 }
 
-pub trait ConnectorRedirectResponse {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Avoid)
-    }
-}
-
 pub trait Authenticate {
     fn get_client_secret(&self) -> Option<&String> {
         None
@@ -1456,6 +1242,11 @@ impl Authenticate for api_models::payments::PaymentsSessionRequest {
         Some(&self.client_secret)
     }
 }
+impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
 
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
@@ -1467,7 +1258,7 @@ impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
-    payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    payment_method_data: Option<PaymentMethodData>,
     amount: String,
     currency: String,
     config: Settings,
@@ -1529,8 +1320,22 @@ pub fn build_redirection_form(
                         input type="hidden" name=(field) value=(value);
                     }
                 }
-
-                (PreEscaped(format!("<script type=\"text/javascript\"> {logging_template} var frm = document.getElementById(\"payment_form\"); window.setTimeout(function () {{ frm.submit(); }}, 300); </script>")))
+                (PreEscaped(format!(r#"
+                    <script type="text/javascript"> {logging_template}
+                    var frm = document.getElementById("payment_form"); 
+                    var formFields = frm.querySelectorAll("input");
+                
+                    if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                        window.setTimeout(function () {{
+                            window.location.href = frm.action;
+                        }}, 300);
+                    }} else {{
+                        window.setTimeout(function () {{
+                            frm.submit();
+                        }}, 300);
+                    }}
+                    </script>
+                    "#)))
 
             }
         }
@@ -1542,17 +1347,16 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details =
-                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
-                    format!(
-                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
-                        ccard.card_cvc.peek(),
-                        amount,
-                        currency
-                    )
-                } else {
-                    "".to_string()
-                };
+            let card_details = if let Some(PaymentMethodData::Card(ccard)) = payment_method_data {
+                format!(
+                    "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                    ccard.card_cvc.peek(),
+                    amount,
+                    currency
+                )
+            } else {
+                "".to_string()
+            };
             let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
@@ -1768,7 +1572,7 @@ pub fn build_redirection_form(
                         h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     }
 
-                    (PreEscaped(format!("<script>
+                (PreEscaped(format!("<script>
                                 {logging_template}
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
@@ -1968,12 +1772,38 @@ pub fn build_redirection_form(
             )))
                 }
         }
+        RedirectForm::Mifinity {
+            initialization_token,
+        } => {
+            let mifinity_base_url = config.connectors.mifinity.base_url;
+            maud::html! {
+                        (maud::DOCTYPE)
+                        head {
+                            (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
+                        }
+
+                        (PreEscaped(format!("<div id='widget-container'></div>
+	  <script>
+		  var widget = showPaymentIframe('widget-container', {{
+			  token: '{initialization_token}',
+			  complete: function() {{
+                var f = document.createElement('form');
+                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.method='GET';
+                document.body.appendChild(f);
+                f.submit();
+			  }}
+		   }});
+	   </script>")))
+
+            }
+        }
     }
 }
 
-pub fn build_payment_link_html(
+fn build_payment_link_template(
     payment_link_data: PaymentLinkFormData,
-) -> CustomResult<String, errors::ApiErrorResponse> {
+) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
     let mut tera = Tera::default();
 
     // Add modification to css template with dynamic data
@@ -2007,6 +1837,12 @@ pub fn build_payment_link_html(
         }
     };
 
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+    //Locale template
+    let locale_template = include_str!("../core/payment_link/locale.js").to_string();
+
     // Modify Html template with rendered js and rendered css files
     let html_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
@@ -2021,24 +1857,52 @@ pub fn build_payment_link_html(
     );
 
     context.insert(
-        "preload_link_tags",
-        &get_preload_link_html_template(&payment_link_data.sdk_url),
-    );
-
-    context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
+    context.insert("locale_template", &locale_template);
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
 
-    match tera.render("payment_link", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
+    context.insert("logging_template", &logging_template);
+
+    Ok((tera, context))
+}
+
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let (tera, mut context) = build_payment_link_template(payment_link_data)
+        .attach_printable("Failed to build payment link's HTML template")?;
+    let payment_link_initiator =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link_initiator.js")
+            .to_string();
+    context.insert("payment_link_initiator", &payment_link_initiator);
+
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
             crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering open payment link's HTML template")
+}
+
+pub fn build_secure_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let (tera, mut context) = build_payment_link_template(payment_link_data)
+        .attach_printable("Failed to build payment link's HTML template")?;
+    let payment_link_initiator =
+        include_str!("../core/payment_link/payment_link_initiate/secure_payment_link_initiator.js")
+            .to_string();
+    context.insert("payment_link_initiator", &payment_link_initiator);
+
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
+            crate::logger::warn!("{tera_error}");
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering secure payment link's HTML template")
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
@@ -2073,6 +1937,13 @@ pub fn get_payment_link_status(
         }
     };
 
+    //Locale template
+    let locale_template = include_str!("../core/payment_link/locale.js");
+
+    // Logging template
+    let logging_template =
+        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_status/status.js").to_string();
@@ -2093,8 +1964,10 @@ pub fn get_payment_link_status(
     let _ = tera.add_raw_template("payment_link_status", &html_template);
 
     context.insert("rendered_css", &rendered_css);
+    context.insert("locale_template", &locale_template);
 
     context.insert("rendered_js", &rendered_js);
+    context.insert("logging_template", &logging_template);
 
     match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),

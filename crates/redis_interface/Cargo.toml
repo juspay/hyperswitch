@@ -14,7 +14,7 @@ futures = "0.3"
 serde = { version = "1.0.197", features = ["derive"] }
 thiserror = "1.0.58"
 tokio = "1.37.0"
-tokio-stream = {version = "0.1.15", features = ["sync"]}
+tokio-stream = { version = "0.1.15", features = ["sync"] }
 tracing = { workspace = true }
 
 # First party crates
@@ -22,3 +22,6 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = ["async
 
 [dev-dependencies]
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

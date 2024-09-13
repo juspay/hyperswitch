@@ -71,6 +71,7 @@ Check the Table Of Contents to jump to the relevant section.
 ### Running additional services
 
 The default behaviour for docker compose only runs the following services:
+
 1. postgres
 2. redis (standalone)
 3. hyperswitch server
@@ -102,10 +103,11 @@ involved, check out the [architecture document][architecture].
 
 - To run the data services (Clickhouse, Kafka and Opensearch) you can specify the `olap` profile
 
-   ```shell
-   docker compose --profile olap up -d
-   ```
-   You can read more about using the data services [here][data-docs]
+  ```shell
+  docker compose --profile olap up -d
+  ```
+
+  You can read more about using the data services [here][data-docs]
 
 - You can also specify multiple profile names by specifying the `--profile` flag
   multiple times.
@@ -226,7 +228,7 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features postgres
    ```
 
-5. Make sure your system has the `pkg-config` package and OpenSSL installed:
+5. Make sure your system has the `pkg-config` package and OpenSSL installed
 
    ```shell
    sudo apt install pkg-config libssl-dev
@@ -376,12 +378,9 @@ You can opt to use your favorite package manager instead.
 1. Install the stable Rust toolchain using `rustup`:
 
    ```shell
-   brew install rustup-init
-   rustup-init
+   brew install rustup
+   rustup default stable
    ```
-
-   When prompted, proceed with the `default` profile, which installs the stable
-   toolchain.
 
    Optionally, verify that the Rust compiler and `cargo` are successfully
    installed:
@@ -435,6 +434,14 @@ You can opt to use your favorite package manager instead.
    echo 'PQ_LIB_DIR="$(brew --prefix libpq)/lib"' >> ~/.zshrc
    ```
 
+5. Install a command runner called `just`:
+
+   In order to make running migrations easier, you can use a command runner called just
+
+   ```shell
+   cargo install just
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -476,10 +483,26 @@ Once you're done with setting up the dependencies, proceed with
    cd hyperswitch
    ```
 
-3. Run database migrations using `diesel_cli`:
+3. Run database migrations:
+
+   Export the `DATABASE_URL` env variable
 
    ```shell
-   diesel migration --database-url postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME run
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   ```
+
+   Run the migrations
+
+   - If you have just installed
+
+   ```shell
+   just migrate
+   ```
+
+   - Using the diesel-cli command
+
+   ```shell
+   diesel migration run
    ```
 
 Once you're done with setting up the database, proceed with

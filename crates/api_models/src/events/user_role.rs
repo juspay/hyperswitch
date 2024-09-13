@@ -2,27 +2,29 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::user_role::{
     role::{
-        CreateRoleRequest, GetRoleFromTokenResponse, GetRoleRequest, ListRolesResponse,
-        RoleInfoResponse, RoleInfoWithGroupsResponse, RoleInfoWithPermissionsResponse,
+        CreateRoleRequest, GetRoleRequest, ListRolesAtEntityLevelRequest, ListRolesResponse,
+        RoleInfoResponseNew, RoleInfoWithGroupsResponse, RoleInfoWithPermissionsResponse,
         UpdateRoleRequest,
     },
     AcceptInvitationRequest, AuthorizationInfoResponse, DeleteUserRoleRequest,
-    MerchantSelectRequest, TransferOrgOwnershipRequest, UpdateUserRoleRequest,
+    MerchantSelectRequest, UpdateUserRoleRequest,
 };
 
-common_utils::impl_misc_api_event_type!(
-    RoleInfoWithPermissionsResponse,
-    GetRoleRequest,
-    AuthorizationInfoResponse,
-    UpdateUserRoleRequest,
-    MerchantSelectRequest,
-    AcceptInvitationRequest,
-    DeleteUserRoleRequest,
-    TransferOrgOwnershipRequest,
-    CreateRoleRequest,
-    UpdateRoleRequest,
-    ListRolesResponse,
-    RoleInfoResponse,
-    GetRoleFromTokenResponse,
-    RoleInfoWithGroupsResponse
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
+        RoleInfoWithPermissionsResponse,
+        GetRoleRequest,
+        AuthorizationInfoResponse,
+        UpdateUserRoleRequest,
+        MerchantSelectRequest,
+        AcceptInvitationRequest,
+        DeleteUserRoleRequest,
+        CreateRoleRequest,
+        UpdateRoleRequest,
+        ListRolesResponse,
+        ListRolesAtEntityLevelRequest,
+        RoleInfoResponseNew,
+        RoleInfoWithGroupsResponse
+    )
 );

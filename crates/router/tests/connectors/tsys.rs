@@ -15,12 +15,12 @@ impl ConnectorActions for TsysTest {}
 impl utils::Connector for TsysTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Tsys;
-        types::api::ConnectorData {
-            connector: Box::new(&Tsys),
-            connector_name: types::Connector::Tsys,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Tsys),
+            types::Connector::Tsys,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

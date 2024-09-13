@@ -1,8 +1,10 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::str::FromStr;
 
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
+    id_type,
     pii::Email,
     request::RequestContent,
 };
@@ -16,18 +18,18 @@ use crate::{
     headers,
     pii::{prelude::*, Secret},
     services::{api as services, encryption},
-    types::{api, storage},
+    types::{api, domain},
     utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum StoreLockerReq<'a> {
-    LockerCard(StoreCardReq<'a>),
-    LockerGeneric(StoreGenericReq<'a>),
+pub enum StoreLockerReq {
+    LockerCard(StoreCardReq),
+    LockerGeneric(StoreGenericReq),
 }
 
-impl StoreLockerReq<'_> {
+impl StoreLockerReq {
     pub fn update_requestor_card_reference(&mut self, card_reference: Option<String>) {
         match self {
             Self::LockerCard(c) => c.requestor_card_reference = card_reference,
@@ -37,20 +39,22 @@ impl StoreLockerReq<'_> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct StoreCardReq<'a> {
-    pub merchant_id: &'a str,
-    pub merchant_customer_id: String,
+pub struct StoreCardReq {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: id_type::CustomerId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requestor_card_reference: Option<String>,
     pub card: Card,
+    pub ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct StoreGenericReq<'a> {
-    pub merchant_id: &'a str,
-    pub merchant_customer_id: String,
+pub struct StoreGenericReq {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: id_type::CustomerId,
     #[serde(rename = "enc_card_data")]
     pub enc_data: String,
+    pub ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -75,9 +79,17 @@ pub enum DataDuplicationCheck {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CardReqBody<'a> {
-    pub merchant_id: &'a str,
-    pub merchant_customer_id: String,
+pub struct CardReqBody {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: id_type::CustomerId,
+    pub card_reference: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardReqBodyV2 {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: String, // Not changing this as it might lead to api contract failure
     pub card_reference: String,
 }
 
@@ -104,12 +116,12 @@ pub struct DeleteCardResp {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AddCardRequest<'a> {
+pub struct AddCardRequest {
     pub card_number: cards::CardNumber,
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
-    pub merchant_id: &'a str,
+    pub merchant_id: id_type::MerchantId,
     pub email_address: Option<Email>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
@@ -123,13 +135,13 @@ pub struct AddCardResponse {
     pub card_fingerprint: Secret<String>,
     pub card_global_fingerprint: Secret<String>,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
 }
 
@@ -139,9 +151,9 @@ pub struct AddPaymentMethodResponse {
     pub payment_method_id: String,
     pub external_id: String,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub nickname: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
     pub payment_method_data: Secret<String>,
 }
@@ -198,6 +210,7 @@ pub async fn get_decrypted_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
+    decryption_scheme: settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
@@ -210,7 +223,10 @@ pub async fn get_decrypted_response_payload(
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jwt = get_dotted_jwe(jwe_body);
-    let alg = jwe::RSA_OAEP;
+    let alg = match decryption_scheme {
+        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+    };
 
     let jwe_decrypted = encryption::decrypt_jwe(
         &jwt,
@@ -280,10 +296,10 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub async fn mk_add_locker_request_hs<'a>(
+pub async fn mk_add_locker_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    payload: &StoreLockerReq<'a>,
+    payload: &StoreLockerReq,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
@@ -307,12 +323,16 @@ pub async fn mk_add_locker_request_hs<'a>(
     Ok(request)
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2"),
+    feature = "payouts"
+))]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
     req: api::PaymentMethodCreate,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> api::PaymentMethodResponse {
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -332,20 +352,37 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2", feature = "payouts"))]
+pub fn mk_add_bank_response_hs(
+    _bank: api::BankPayout,
+    _bank_reference: String,
+    _req: api::PaymentMethodCreate,
+    _merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
     req: api::PaymentMethodCreate,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> api::PaymentMethodResponse {
     let card_number = card.card_number.clone();
     let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
 
     let card = api::CardDetailFromLocker {
-        scheme: None,
+        scheme: card
+            .card_network
+            .clone()
+            .map(|card_network| card_network.to_string()),
         last4_digits: Some(last4_digits),
-        issuer_country: None,
+        issuer_country: card.card_issuing_country,
         card_number: Some(card.card_number.clone()),
         expiry_month: Some(card.card_exp_month.clone()),
         expiry_year: Some(card.card_exp_year.clone()),
@@ -378,50 +415,27 @@ pub fn mk_add_card_response_hs(
     }
 }
 
-pub fn mk_add_card_request(
-    locker: &settings::Locker,
-    card: &api::CardDetail,
-    customer_id: &str,
-    _req: &api::PaymentMethodCreate,
-    locker_id: &'static str,
-    merchant_id: &str,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let customer_id = if cfg!(feature = "release") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
-    let add_card_req = AddCardRequest {
-        card_number: card.card_number.clone(),
-        customer_id,
-        card_exp_month: card.card_exp_month.clone(),
-        card_exp_year: card.card_exp_year.clone(),
-        merchant_id: locker_id,
-        email_address: match Email::from_str("dummy@gmail.com") {
-            Ok(email) => Some(email),
-            Err(_) => None,
-        }, //
-        name_on_card: Some("John Doe".to_string().into()), // [#256]
-        nickname: Some("router".to_string()),              //
-    };
-    let mut url = locker.host.to_owned();
-    url.push_str("/card/addCard");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.set_body(RequestContent::FormUrlEncoded(Box::new(add_card_req)));
-    Ok(request)
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn mk_add_card_response_hs(
+    _card: api::CardDetail,
+    _card_reference: String,
+    _req: api::PaymentMethodCreate,
+    _merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    todo!()
 }
 
 pub async fn mk_get_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    customer_id: &str,
-    merchant_id: &str,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
     card_reference: &str,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
-        merchant_id,
+        merchant_id: merchant_id.to_owned(),
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
@@ -486,13 +500,13 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 pub async fn mk_delete_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    customer_id: &str,
-    merchant_id: &str,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
-        merchant_id,
+        merchant_id: merchant_id.to_owned(),
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
@@ -517,21 +531,39 @@ pub async fn mk_delete_card_request_hs(
     Ok(request)
 }
 
-pub fn mk_delete_card_request(
+// Need to fix this once we start moving to v2 completion
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn mk_delete_card_request_hs_by_id(
+    jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    merchant_id: &'static str,
-    card_id: &'static str,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let delete_card_req = GetCard {
-        merchant_id,
-        card_id,
+    let merchant_customer_id = id.to_owned();
+    let card_req_body = CardReqBodyV2 {
+        merchant_id: merchant_id.to_owned(),
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
     };
-    let mut url = locker.host.to_owned();
-    url.push_str("/card/deleteCard");
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_default_headers();
+    let payload = card_req_body
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    request.set_body(RequestContent::FormUrlEncoded(Box::new(delete_card_req)));
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/delete");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
 
@@ -545,8 +577,12 @@ pub fn mk_delete_card_response(
     })
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -561,6 +597,33 @@ pub fn get_card_detail(
         expiry_month: Some(response.card_exp_month),
         expiry_year: Some(response.card_exp_year),
         card_token: None,
+        card_fingerprint: None,
+        card_holder_name: response.name_on_card,
+        nick_name: response.nick_name.map(Secret::new),
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
+    };
+    Ok(card_detail)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn get_card_detail(
+    _pm: &domain::PaymentMethod,
+    response: Card,
+) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
+    let card_number = response.card_number;
+    let last4_digits = card_number.clone().get_last4();
+    //fetch form card bin
+
+    let card_detail = api::CardDetailFromLocker {
+        issuer_country: None,
+        last4_digits: Some(last4_digits),
+        card_number: Some(card_number),
+        expiry_month: Some(response.card_exp_month),
+        expiry_year: Some(response.card_exp_year),
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
         nick_name: response.nick_name.map(Secret::new),
@@ -616,7 +679,7 @@ pub fn mk_card_value2(
     card_security_code: Option<String>,
     card_fingerprint: Option<String>,
     external_id: Option<String>,
-    customer_id: Option<String>,
+    customer_id: Option<id_type::CustomerId>,
     payment_method_id: Option<String>,
 ) -> CustomResult<String, errors::VaultError> {
     let value2 = api::TokenizedCardValue2 {

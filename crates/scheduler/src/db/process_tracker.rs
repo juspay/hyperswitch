@@ -52,7 +52,7 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError>;
 
     async fn find_processes_by_time_status(
@@ -166,13 +166,13 @@ impl ProcessTrackerInterface for Store {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         self.update_process(
             this,
             storage::ProcessTrackerUpdate::StatusUpdate {
                 status: storage_enums::ProcessTrackerStatus::Finish,
-                business_status: Some(business_status),
+                business_status: Some(String::from(business_status)),
             },
         )
         .await
@@ -284,7 +284,7 @@ impl ProcessTrackerInterface for MockDb {
     async fn finish_process_with_business_status(
         &self,
         _this: storage::ProcessTracker,
-        _business_status: String,
+        _business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

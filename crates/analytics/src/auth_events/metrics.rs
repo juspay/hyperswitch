@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     auth_events::{AuthEventMetrics, AuthEventMetricsBucketIdentifier},
     Granularity, TimeRange,
@@ -27,7 +29,7 @@ use frictionless_flow_count::FrictionlessFlowCount;
 use frictionless_success_count::FrictionlessSuccessCount;
 use three_ds_sdk_count::ThreeDsSdkCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
     pub count: Option<i64>,
     pub time_bucket: Option<String>,
@@ -42,12 +44,12 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -62,12 +64,12 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         match self {
             Self::ThreeDsSdkCount => {
                 ThreeDsSdkCount

@@ -131,6 +131,8 @@ impl LockerMockUpInterface for MockDb {
 mod tests {
     #[allow(clippy::unwrap_used)]
     mod mockdb_locker_mock_up_interface {
+        use common_utils::{generate_customer_id_of_default_length, id_type};
+
         use crate::{
             db::{locker_mock_up::LockerMockUpInterface, MockDb},
             types::storage,
@@ -139,8 +141,8 @@ mod tests {
         pub struct LockerMockUpIds {
             card_id: String,
             external_id: String,
-            merchant_id: String,
-            customer_id: String,
+            merchant_id: id_type::MerchantId,
+            customer_id: id_type::CustomerId,
         }
 
         fn create_locker_mock_up_new(locker_ids: LockerMockUpIds) -> storage::LockerMockUpNew {
@@ -173,8 +175,8 @@ mod tests {
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
-                    merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    merchant_id: id_type::MerchantId::default(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await
                 .unwrap();
@@ -183,8 +185,8 @@ mod tests {
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
                     card_id: "card_2".into(),
                     external_id: "external_1".into(),
-                    merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    merchant_id: id_type::MerchantId::default(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await;
 
@@ -204,8 +206,8 @@ mod tests {
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
-                    merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    merchant_id: id_type::MerchantId::default(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await
                 .unwrap();
@@ -234,8 +236,8 @@ mod tests {
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
                     card_id: "card_1".into(),
                     external_id: "external_1".into(),
-                    merchant_id: "merchant_1".into(),
-                    customer_id: "customer_1".into(),
+                    merchant_id: id_type::MerchantId::default(),
+                    customer_id: generate_customer_id_of_default_length(),
                 }))
                 .await
                 .unwrap();

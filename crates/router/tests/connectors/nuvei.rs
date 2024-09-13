@@ -15,12 +15,12 @@ impl ConnectorActions for NuveiTest {}
 impl utils::Connector for NuveiTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nuvei;
-        types::api::ConnectorData {
-            connector: Box::new(&Nuvei),
-            connector_name: types::Connector::Nuvei,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Nuvei),
+            types::Connector::Nuvei,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

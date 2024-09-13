@@ -8,8 +8,6 @@ use crate::{
     core::{errors, payments::helpers},
     types::{self, domain, PaymentAddress},
 };
-const IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW: &str =
-    "irrelevant_payment_id_in_mandate_revoke_flow";
 
 const IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW: &str =
     "irrelevant_attempt_id_in_mandate_revoke_flow";
@@ -28,13 +26,17 @@ pub async fn construct_mandate_revoke_router_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         customer_id: Some(mandate.customer_id),
         connector_customer: None,
         connector: mandate.connector,
         payment_id: mandate
             .original_payment_id
-            .unwrap_or_else(|| IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW.to_string()),
+            .unwrap_or_else(|| {
+                common_utils::id_type::PaymentId::get_irrelevant_id("mandate_revoke")
+            })
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -44,7 +46,9 @@ pub async fn construct_mandate_revoke_router_data(
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -73,6 +77,7 @@ pub async fn construct_mandate_revoke_router_data(
         refund_id: None,
         dispute_id: None,
         connector_response: None,
+        integrity_check: Ok(()),
     };
 
     Ok(router_data)

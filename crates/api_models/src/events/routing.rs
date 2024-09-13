@@ -3,10 +3,9 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
-    RoutingPayloadWrapper,
+    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery,
 };
-#[cfg(feature = "business_profile_routing")]
-use crate::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
 
 impl ApiEventMetric for RoutingKind {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -49,7 +48,6 @@ impl ApiEventMetric for ProfileDefaultRoutingConfig {
     }
 }
 
-#[cfg(feature = "business_profile_routing")]
 impl ApiEventMetric for RoutingRetrieveQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
@@ -62,8 +60,18 @@ impl ApiEventMetric for RoutingConfigRequest {
     }
 }
 
-#[cfg(feature = "business_profile_routing")]
 impl ApiEventMetric for RoutingRetrieveLinkQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingLinkWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+impl ApiEventMetric for RoutingRetrieveLinkQueryWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

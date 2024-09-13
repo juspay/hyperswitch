@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use std::str::FromStr;
 
 use api_models::payments::Address;
@@ -15,12 +17,12 @@ impl ConnectorActions for DlocalTest {}
 impl utils::Connector for DlocalTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Dlocal;
-        api::ConnectorData {
-            connector: Box::new(&Dlocal),
-            connector_name: types::Connector::Dlocal,
-            get_token: api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Dlocal),
+            types::Connector::Dlocal,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {

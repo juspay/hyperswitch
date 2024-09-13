@@ -2,11 +2,43 @@
 resolver = "2"
 members = ["crates/*"]
 package.edition = "2021"
-package.rust-version = "1.70"
+package.rust-version = "1.78.0"
 package.license = "Apache-2.0"
 
 [workspace.dependencies]
 tracing = { version = "0.1.40" }
+
+# Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
+[workspace.lints.rust]
+unsafe_code = "forbid"
+rust_2018_idioms = { level = "warn", priority = -1 } # Remove priority once https://github.com/rust-lang/rust-clippy/pull/12827 is available in stable clippy
+unused_qualifications = "warn"
+# missing_debug_implementations = "warn"
+# missing_docs = "warn"
+
+[workspace.lints.clippy]
+as_conversions = "warn"
+expect_used = "warn"
+index_refutable_slice = "warn"
+indexing_slicing = "warn"
+large_futures = "warn"
+match_on_vec_items = "warn"
+missing_panics_doc = "warn"
+out_of_bounds_indexing = "warn"
+panic = "warn"
+panic_in_result_fn = "warn"
+panicking_unwrap = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+unwrap_in_result = "warn"
+unwrap_used = "warn"
+use_self = "warn"
+
+# Lints to allow
+option_map_unit_fn = "allow"
 
 [profile.release]
 strip = true

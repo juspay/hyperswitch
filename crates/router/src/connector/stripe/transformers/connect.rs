@@ -234,9 +234,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateRes
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresFulfillment),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -268,9 +270,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillRe
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(response.status)),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -295,14 +299,14 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
     fn try_from(
         item: types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>,
     ) -> Result<Self, Self::Error> {
-        let response: StripeConnectReversalResponse = item.response;
-
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::Cancelled),
-                connector_payout_id: response.id,
+                connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -370,13 +374,14 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreate
         item: types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>,
     ) -> Result<Self, Self::Error> {
         let response: StripeConnectRecipientCreateResponse = item.response;
-
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresVendorAccountCreation),
-                connector_payout_id: response.id,
+                connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: true,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -452,14 +457,14 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccoun
     fn try_from(
         item: types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>,
     ) -> Result<Self, Self::Error> {
-        let response: StripeConnectRecipientAccountCreateResponse = item.response;
-
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresCreation),
-                connector_payout_id: response.id,
+                connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })

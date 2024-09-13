@@ -1,25 +1,7 @@
 use common_utils::errors::ErrorSwitch;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
-use super::{ConnectorError, CustomersErrorResponse, StorageError};
-
-impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
-    fn switch(&self) -> ApiErrorResponse {
-        match self {
-            Self::WebhookSourceVerificationFailed => ApiErrorResponse::WebhookAuthenticationFailed,
-            Self::WebhookSignatureNotFound
-            | Self::WebhookReferenceIdNotFound
-            | Self::WebhookResourceObjectNotFound
-            | Self::WebhookBodyDecodingFailed
-            | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
-            Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
-            Self::WebhookVerificationSecretInvalid => {
-                ApiErrorResponse::WebhookInvalidMerchantSecret
-            }
-            _ => ApiErrorResponse::InternalServerError,
-        }
-    }
-}
+use super::{CustomersErrorResponse, StorageError};
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {

@@ -1,8 +1,8 @@
 use api_models::enums;
 use base64::Engine;
-use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -27,23 +27,13 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for PaypalRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for PaypalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -76,13 +66,13 @@ pub enum PaypalPaymentIntent {
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
     pub currency_code: storage_enums::Currency,
-    pub value: String,
+    pub value: StringMajorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct OrderRequestAmount {
     pub currency_code: storage_enums::Currency,
-    pub value: String,
+    pub value: StringMajorUnit,
     pub breakdown: AmountBreakdown,
 }
 
@@ -90,11 +80,11 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReque
     fn from(item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
         Self {
             currency_code: item.router_data.request.currency,
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
             breakdown: AmountBreakdown {
                 item_total: OrderAmount {
                     currency_code: item.router_data.request.currency,
-                    value: item.amount.to_owned(),
+                    value: item.amount.clone(),
                 },
             },
         }
@@ -140,7 +130,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
             quantity: 1,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
-                value: item.amount.to_string(),
+                value: item.amount.clone(),
             },
         }
     }
@@ -160,14 +150,10 @@ pub struct ShippingAddress {
     name: Option<ShippingName>,
 }
 
-impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ShippingAddress {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            address: get_address_info(item.router_data.get_optional_shipping())?,
+impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ShippingAddress {
+    fn from(item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
+        Self {
+            address: get_address_info(item.router_data.get_optional_shipping()),
             name: Some(ShippingName {
                 full_name: item
                     .router_data
@@ -175,7 +161,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for Shippin
                     .and_then(|inner_data| inner_data.address.as_ref())
                     .and_then(|inner_data| inner_data.first_name.clone()),
             }),
-        })
+        }
     }
 }
 
@@ -262,34 +248,31 @@ pub struct PaypalPaymentsRequest {
     payment_source: Option<PaymentSourceItem>,
 }
 
-fn get_address_info(
-    payment_address: Option<&api_models::payments::Address>,
-) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
+fn get_address_info(payment_address: Option<&api_models::payments::Address>) -> Option<Address> {
     let address = payment_address.and_then(|payment_address| payment_address.address.as_ref());
-    let address = match address {
-        Some(address) => Some(Address {
-            country_code: address.get_country()?.to_owned(),
+    match address {
+        Some(address) => address.get_optional_country().map(|country| Address {
+            country_code: country.to_owned(),
             address_line_1: address.line1.clone(),
             postal_code: address.zip.clone(),
             admin_area_2: address.city.clone(),
         }),
         None => None,
-    };
-    Ok(address)
+    }
 }
 fn get_payment_source(
     item: &types::PaymentsAuthorizeRouterData,
     bank_redirection_data: &domain::BankRedirectData,
 ) -> Result<PaymentSourceItem, error_stack::Report<errors::ConnectorError>> {
     match bank_redirection_data {
-        domain::BankRedirectData::Eps { bank_name: _ } => {
+        domain::BankRedirectData::Eps { bank_name: _, .. } => {
             Ok(PaymentSourceItem::Eps(RedirectRequest {
                 name: item.get_billing_full_name()?,
                 country_code: item.get_billing_country()?,
                 experience_context: ContextStruct {
                     return_url: item.request.complete_authorize_url.clone(),
                     cancel_url: item.request.complete_authorize_url.clone(),
-                    shipping_preference: if item.get_optional_shipping().is_some() {
+                    shipping_preference: if item.get_optional_shipping_country().is_some() {
                         ShippingPreference::SetProvidedAddress
                     } else {
                         ShippingPreference::GetFromFile
@@ -305,7 +288,7 @@ fn get_payment_source(
                 experience_context: ContextStruct {
                     return_url: item.request.complete_authorize_url.clone(),
                     cancel_url: item.request.complete_authorize_url.clone(),
-                    shipping_preference: if item.get_optional_shipping().is_some() {
+                    shipping_preference: if item.get_optional_shipping_country().is_some() {
                         ShippingPreference::SetProvidedAddress
                     } else {
                         ShippingPreference::GetFromFile
@@ -321,7 +304,7 @@ fn get_payment_source(
                 experience_context: ContextStruct {
                     return_url: item.request.complete_authorize_url.clone(),
                     cancel_url: item.request.complete_authorize_url.clone(),
-                    shipping_preference: if item.get_optional_shipping().is_some() {
+                    shipping_preference: if item.get_optional_shipping_country().is_some() {
                         ShippingPreference::SetProvidedAddress
                     } else {
                         ShippingPreference::GetFromFile
@@ -332,13 +315,14 @@ fn get_payment_source(
         }
         domain::BankRedirectData::Sofort {
             preferred_language: _,
+            ..
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
             name: item.get_billing_full_name()?,
             country_code: item.get_billing_country()?,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
                 cancel_url: item.request.complete_authorize_url.clone(),
-                shipping_preference: if item.get_optional_shipping().is_some() {
+                shipping_preference: if item.get_optional_shipping_country().is_some() {
                     ShippingPreference::SetProvidedAddress
                 } else {
                     ShippingPreference::GetFromFile
@@ -363,7 +347,8 @@ fn get_payment_source(
         | domain::BankRedirectData::OpenBankingUk { .. }
         | domain::BankRedirectData::Trustly { .. }
         | domain::BankRedirectData::OnlineBankingFpx { .. }
-        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
+        | domain::BankRedirectData::OnlineBankingThailand { .. }
+        | domain::BankRedirectData::LocalBankRedirect {} => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?
@@ -401,12 +386,12 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
         let connector_request_reference_id =
             item.router_data.connector_request_reference_id.clone();
 
-        let shipping_address = ShippingAddress::try_from(item)?;
+        let shipping_address = ShippingAddress::from(item);
         let item_details = vec![ItemDetails::from(item)];
 
         let purchase_units = vec![PurchaseUnitRequest {
             reference_id: Some(connector_request_reference_id.clone()),
-            custom_id: Some(connector_request_reference_id.clone()),
+            custom_id: item.router_data.request.merchant_order_reference_id.clone(),
             invoice_id: Some(connector_request_reference_id),
             amount,
             payee,
@@ -429,7 +414,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 };
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
-                    billing_address: get_address_info(item.router_data.get_optional_billing())?,
+                    billing_address: get_address_info(item.router_data.get_optional_billing()),
                     expiry,
                     name: item
                         .router_data
@@ -455,7 +440,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                                 cancel_url: item.router_data.request.complete_authorize_url.clone(),
                                 shipping_preference: if item
                                     .router_data
-                                    .get_optional_shipping()
+                                    .get_optional_shipping_country()
                                     .is_some()
                                 {
                                     ShippingPreference::SetProvidedAddress
@@ -512,7 +497,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::WeChatPayRedirect(_)
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
@@ -556,9 +542,12 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 .into())
             }
             domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -638,7 +627,7 @@ impl TryFrom<&domain::BankTransferData> for PaypalPaymentsRequest {
             | domain::BankTransferData::CimbVaBankTransfer { .. }
             | domain::BankTransferData::DanamonVaBankTransfer { .. }
             | domain::BankTransferData::MandiriVaBankTransfer { .. }
-            | domain::BankTransferData::Pix {}
+            | domain::BankTransferData::Pix { .. }
             | domain::BankTransferData::Pse {}
             | domain::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1561,7 +1550,7 @@ pub enum PaypalPayoutDataType {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Serialize)]
 pub struct PayoutAmount {
-    value: String,
+    value: StringMajorUnit,
     currency: storage_enums::Currency,
 }
 
@@ -1590,7 +1579,7 @@ impl TryFrom<&PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>> for P
         item: &PaypalRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         let amount = PayoutAmount {
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
             currency: item.router_data.request.destination_currency,
         };
 
@@ -1699,9 +1688,11 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PaypalFulfillResponse>>
                 status: Some(storage_enums::PayoutStatus::foreign_from(
                     item.response.batch_header.batch_status,
                 )),
-                connector_payout_id: item.response.batch_header.payout_batch_id,
+                connector_payout_id: Some(item.response.batch_header.payout_batch_id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -1723,7 +1714,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsCaptureRouterData>>
     ) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.router_data.request.currency,
-            value: item.amount.to_owned(),
+            value: item.amount.clone(),
         };
         Ok(Self {
             amount,
@@ -1904,7 +1895,7 @@ impl<F> TryFrom<&PaypalRouterData<&types::RefundsRouterData<F>>> for PaypalRefun
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
-                value: item.amount.to_owned(),
+                value: item.amount.clone(),
             },
         })
     }
@@ -1987,7 +1978,7 @@ pub struct OrderErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalOrderErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<OrderErrorDetails>>,
@@ -2001,7 +1992,7 @@ pub struct ErrorDetails {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentErrorResponse {
-    pub name: String,
+    pub name: Option<String>,
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<ErrorDetails>>,
@@ -2063,21 +2054,24 @@ pub enum PaypalResource {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalDisputeWebhooks {
     pub dispute_id: String,
-    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub disputed_transactions: Vec<DisputeTransaction>,
     pub dispute_amount: OrderAmount,
-    pub dispute_outcome: DisputeOutcome,
+    pub dispute_outcome: Option<DisputeOutcome>,
     pub dispute_life_cycle_stage: DisputeLifeCycleStage,
     pub status: DisputeStatus,
     pub reason: Option<String>,
     pub external_reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub seller_response_due_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub update_time: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub create_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct DisputeTransaction {
-    pub reference_id: String,
+    pub seller_transaction_id: String,
 }
 
 #[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]

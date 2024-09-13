@@ -2,9 +2,8 @@ mod requests;
 use super::utils as connector_utils;
 mod response;
 pub mod transformers;
-use std::fmt::Debug;
-
 use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -40,8 +39,18 @@ use crate::{
     utils::{crypto, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Globalpay;
+#[derive(Clone)]
+pub struct Globalpay {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+}
+
+impl Globalpay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Globalpay
 where
@@ -60,7 +69,9 @@ where
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
             ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
             (
@@ -442,7 +453,17 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::GlobalpayCancelRequest::try_from(req)?;
+        let amount = req
+            .request
+            .minor_amount
+            .and_then(|amount| {
+                req.request.currency.map(|currency| {
+                    connector_utils::convert_amount(self.amount_converter, amount, currency)
+                })
+            })
+            .transpose()?;
+        let connector_router_data = requests::GlobalpayCancelRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -597,7 +618,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::GlobalpayCaptureRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -687,7 +715,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = GlobalpayPaymentsRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+        let connector_req = GlobalpayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -778,7 +813,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::GlobalpayRefundRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -925,7 +967,7 @@ impl api::IncomingWebhook for Globalpay {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let payload: Value = request.body.parse_struct("GlobalpayWebhookBody").switch()?;
@@ -975,11 +1017,12 @@ impl api::IncomingWebhook for Globalpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let details = std::str::from_utf8(request.body)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(Box::new(serde_json::from_str(details).change_context(
-            errors::ConnectorError::WebhookResourceObjectNotFound,
-        )?))
+        Ok(Box::new(
+            request
+                .body
+                .parse_struct::<GlobalpayPaymentsResponse>("GlobalpayPaymentsResponse")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?,
+        ))
     }
 }
 

@@ -9,7 +9,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -29,7 +29,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        domain, ErrorResponse,
+        ErrorResponse,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt},
 };
@@ -114,7 +114,7 @@ impl ConnectorCommon for Rapyd {
             Err(error_msg) => {
                 event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
                 logger::error!(deserialization_error =? error_msg);
-                utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
+                utils::handle_json_response_deserialization_failure(res, "rapyd")
             }
         }
     }
@@ -788,12 +788,15 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let host = connector_utils::get_header_key_value("host", request.headers)?;
         let connector = self.id();
-        let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
+        let url_path = format!(
+            "https://{host}/webhooks/{}/{connector}",
+            merchant_id.get_string_repr()
+        );
         let salt = connector_utils::get_header_key_value("salt", request.headers)?;
         let timestamp = connector_utils::get_header_key_value("timestamp", request.headers)?;
         let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
@@ -819,15 +822,16 @@ impl api::IncomingWebhook for Rapyd {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -837,7 +841,7 @@ impl api::IncomingWebhook for Rapyd {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_account.merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

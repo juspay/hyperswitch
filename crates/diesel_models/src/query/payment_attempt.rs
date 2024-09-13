@@ -8,6 +8,10 @@ use diesel::{
 use error_stack::{report, ResultExt};
 
 use super::generics;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::payment_attempt::dsl;
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::payment_attempt::dsl;
 use crate::{
     enums::{self, IntentStatus},
     errors::DatabaseError,
@@ -15,7 +19,6 @@ use crate::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
     query::generics::db_metrics,
-    schema::payment_attempt::dsl,
     PaymentIntent, PgPooledConn, StorageResult,
 };
 
@@ -55,8 +58,8 @@ impl PaymentAttempt {
 
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -70,8 +73,8 @@ impl PaymentAttempt {
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
         connector_transaction_id: &str,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -85,8 +88,8 @@ impl PaymentAttempt {
 
     pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
         generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
@@ -107,8 +110,8 @@ impl PaymentAttempt {
 
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
         generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
@@ -133,7 +136,7 @@ impl PaymentAttempt {
 
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -147,7 +150,7 @@ impl PaymentAttempt {
 
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -161,7 +164,7 @@ impl PaymentAttempt {
 
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         preprocessing_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -175,8 +178,8 @@ impl PaymentAttempt {
 
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -192,8 +195,8 @@ impl PaymentAttempt {
 
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -215,7 +218,7 @@ impl PaymentAttempt {
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<(
         Vec<String>,
         Vec<enums::Currency>,
@@ -313,13 +316,14 @@ impl PaymentAttempt {
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<String>>,
         payment_method: Option<Vec<enums::PaymentMethod>>,
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -342,6 +346,9 @@ impl PaymentAttempt {
         }
         if let Some(merchant_connector_id) = merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
+        }
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list))
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 

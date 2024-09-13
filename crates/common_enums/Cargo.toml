@@ -13,10 +13,11 @@ openapi = []
 payouts = []
 
 [dependencies]
-diesel = { version = "2.1.5", features = ["postgres"] }
+diesel = { version = "2.2.3", features = ["postgres"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 strum = { version = "0.26", features = ["derive"] }
+thiserror = "1.0.58"
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 
 # First party crates
@@ -24,3 +25,6 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 
 [dev-dependencies]
 serde_json = "1.0.115"
+
+[lints]
+workspace = true

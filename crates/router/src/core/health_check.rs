@@ -31,7 +31,7 @@ pub trait HealthCheckInterface {
 }
 
 #[async_trait::async_trait]
-impl HealthCheckInterface for app::AppState {
+impl HealthCheckInterface for app::SessionState {
     async fn health_check_db(&self) -> CustomResult<HealthState, errors::HealthCheckDBError> {
         let db = &*self.store;
         db.health_check_db().await?;
@@ -52,7 +52,7 @@ impl HealthCheckInterface for app::AppState {
         logger::debug!("Redis set_key was successful");
 
         redis_conn
-            .get_key("test_key")
+            .get_key::<()>("test_key")
             .await
             .change_context(errors::HealthCheckRedisError::GetFailed)?;
 

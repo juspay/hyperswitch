@@ -1,11 +1,13 @@
 use common_enums::TokenPurpose;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
+use error_stack::{report, ResultExt};
 use masking::Secret;
 
 use super::UserFromStorage;
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
-    routes::AppState,
+    core::errors::{UserErrors, UserResult},
+    db::user_role::ListUserRolesByUserIdPayload,
+    routes::SessionState,
     services::authentication as auth,
     utils,
 };
@@ -17,9 +19,14 @@ pub enum UserFlow {
 }
 
 impl UserFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        user: &UserFromStorage,
+        path: &[TokenPurpose],
+        state: &SessionState,
+    ) -> UserResult<bool> {
         match self {
-            Self::SPTFlow(flow) => flow.is_required(user, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, path, state).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
@@ -27,6 +34,8 @@ impl UserFlow {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum SPTFlow {
+    AuthSelect,
+    SSO,
     TOTP,
     VerifyEmail,
     AcceptInvitationFromEmail,
@@ -36,25 +45,46 @@ pub enum SPTFlow {
 }
 
 impl SPTFlow {
-    async fn is_required(&self, user: &UserFromStorage, state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        user: &UserFromStorage,
+        path: &[TokenPurpose],
+        state: &SessionState,
+    ) -> UserResult<bool> {
         match self {
+            // Auth
+            Self::AuthSelect => Ok(true),
+            Self::SSO => Ok(true),
             // TOTP
-            Self::TOTP => Ok(true),
+            Self::TOTP => Ok(!path.contains(&TokenPurpose::SSO)),
             // Main email APIs
             Self::AcceptInvitationFromEmail | Self::ResetPassword => Ok(true),
-            Self::VerifyEmail => Ok(!user.0.is_verified),
+            Self::VerifyEmail => Ok(true),
             // Final Checks
-            Self::ForceSetPassword => user.is_password_rotate_required(state),
-            Self::MerchantSelect => user
-                .get_roles_from_db(state)
+            Self::ForceSetPassword => user
+                .is_password_rotate_required(state)
+                .map(|rotate_required| rotate_required && !path.contains(&TokenPurpose::SSO)),
+            Self::MerchantSelect => Ok(state
+                .store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: user.get_user_id(),
+                    org_id: None,
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: Some(1),
+                })
                 .await
-                .map(|roles| !roles.iter().any(|role| role.status == UserStatus::Active)),
+                .change_context(UserErrors::InternalServerError)?
+                .is_empty()),
         }
     }
 
     pub async fn generate_spt(
         self,
-        state: &AppState,
+        state: &SessionState,
         next_flow: &NextFlow,
     ) -> UserResult<Secret<String>> {
         auth::SinglePurposeToken::new_token(
@@ -62,6 +92,7 @@ impl SPTFlow {
             self.into(),
             next_flow.origin.clone(),
             &state.conf,
+            next_flow.path.to_vec(),
         )
         .await
         .map(|token| token.into())
@@ -74,22 +105,33 @@ pub enum JWTFlow {
 }
 
 impl JWTFlow {
-    async fn is_required(&self, _user: &UserFromStorage, _state: &AppState) -> UserResult<bool> {
+    async fn is_required(
+        &self,
+        _user: &UserFromStorage,
+        _state: &SessionState,
+    ) -> UserResult<bool> {
         Ok(true)
     }
 
     pub async fn generate_jwt(
         self,
-        state: &AppState,
+        state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
+        let (merchant_id, profile_id) =
+            utils::user_role::get_single_merchant_id_and_profile_id(state, user_role).await?;
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            user_role.merchant_id.clone(),
+            merchant_id,
             user_role.role_id.clone(),
             &state.conf,
-            user_role.org_id.clone(),
+            user_role
+                .org_id
+                .clone()
+                .ok_or(report!(UserErrors::InternalServerError))
+                .attach_printable("org_id not found")?,
+            Some(profile_id),
         )
         .await
         .map(|token| token.into())
@@ -99,6 +141,8 @@ impl JWTFlow {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Origin {
+    #[serde(rename = "sign_in_with_sso")]
+    SignInWithSSO,
     SignIn,
     SignUp,
     MagicLink,
@@ -110,6 +154,7 @@ pub enum Origin {
 impl Origin {
     fn get_flows(&self) -> &'static [UserFlow] {
         match self {
+            Self::SignInWithSSO => &SIGNIN_WITH_SSO_FLOW,
             Self::SignIn => &SIGNIN_FLOW,
             Self::SignUp => &SIGNUP_FLOW,
             Self::VerifyEmail => &VERIFY_EMAIL_FLOW,
@@ -119,6 +164,11 @@ impl Origin {
         }
     }
 }
+
+const SIGNIN_WITH_SSO_FLOW: [UserFlow; 2] = [
+    UserFlow::SPTFlow(SPTFlow::MerchantSelect),
+    UserFlow::JWTFlow(JWTFlow::UserInfo),
+];
 
 const SIGNIN_FLOW: [UserFlow; 4] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
@@ -150,48 +200,57 @@ const VERIFY_EMAIL_FLOW: [UserFlow; 5] = [
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 5] = [
+const ACCEPT_INVITATION_FROM_EMAIL_FLOW: [UserFlow; 6] = [
+    UserFlow::SPTFlow(SPTFlow::AuthSelect),
+    UserFlow::SPTFlow(SPTFlow::SSO),
     UserFlow::SPTFlow(SPTFlow::TOTP),
-    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::AcceptInvitationFromEmail),
     UserFlow::SPTFlow(SPTFlow::ForceSetPassword),
     UserFlow::JWTFlow(JWTFlow::UserInfo),
 ];
 
-const RESET_PASSWORD_FLOW: [UserFlow; 3] = [
+const RESET_PASSWORD_FLOW: [UserFlow; 2] = [
     UserFlow::SPTFlow(SPTFlow::TOTP),
-    UserFlow::SPTFlow(SPTFlow::VerifyEmail),
     UserFlow::SPTFlow(SPTFlow::ResetPassword),
 ];
 
 pub struct CurrentFlow {
     origin: Origin,
     current_flow_index: usize,
+    path: Vec<TokenPurpose>,
 }
 
 impl CurrentFlow {
-    pub fn new(origin: Origin, current_flow: UserFlow) -> UserResult<Self> {
-        let flows = origin.get_flows();
+    pub fn new(
+        token: auth::UserFromSinglePurposeToken,
+        current_flow: UserFlow,
+    ) -> UserResult<Self> {
+        let flows = token.origin.get_flows();
         let index = flows
             .iter()
             .position(|flow| flow == &current_flow)
             .ok_or(UserErrors::InternalServerError)?;
+        let mut path = token.path;
+        path.push(current_flow.into());
 
         Ok(Self {
-            origin,
+            origin: token.origin,
             current_flow_index: index,
+            path,
         })
     }
 
-    pub async fn next(&self, user: UserFromStorage, state: &AppState) -> UserResult<NextFlow> {
+    pub async fn next(self, user: UserFromStorage, state: &SessionState) -> UserResult<NextFlow> {
         let flows = self.origin.get_flows();
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
+
         for flow in remaining_flows {
-            if flow.is_required(&user, state).await? {
+            if flow.is_required(&user, &self.path, state).await? {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
+                    path: self.path,
                 });
             }
         }
@@ -203,21 +262,24 @@ pub struct NextFlow {
     origin: Origin,
     next_flow: UserFlow,
     user: UserFromStorage,
+    path: Vec<TokenPurpose>,
 }
 
 impl NextFlow {
     pub async fn from_origin(
         origin: Origin,
         user: UserFromStorage,
-        state: &AppState,
+        state: &SessionState,
     ) -> UserResult<Self> {
         let flows = origin.get_flows();
+        let path = vec![];
         for flow in flows {
-            if flow.is_required(&user, state).await? {
+            if flow.is_required(&user, &path, state).await? {
                 return Ok(Self {
                     origin,
                     next_flow: *flow,
                     user,
+                    path,
                 });
             }
         }
@@ -228,7 +290,7 @@ impl NextFlow {
         self.next_flow
     }
 
-    pub async fn get_token(&self, state: &AppState) -> UserResult<Secret<String>> {
+    pub async fn get_token(&self, state: &SessionState) -> UserResult<Secret<String>> {
         match self.next_flow {
             UserFlow::SPTFlow(spt_flow) => spt_flow.generate_spt(state, self).await,
             UserFlow::JWTFlow(jwt_flow) => {
@@ -236,11 +298,22 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                let user_role = self
-                    .user
-                    .get_preferred_or_active_user_role_from_db(state)
+                let user_role = state
+                    .store
+                    .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                        user_id: self.user.get_user_id(),
+                        org_id: None,
+                        merchant_id: None,
+                        profile_id: None,
+                        entity_id: None,
+                        version: None,
+                        status: Some(UserStatus::Active),
+                        limit: Some(1),
+                    })
                     .await
-                    .to_not_found_response(UserErrors::InternalServerError)?;
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?;
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
                     .await;
 
@@ -251,7 +324,7 @@ impl NextFlow {
 
     pub async fn get_token_with_user_role(
         &self,
-        state: &AppState,
+        state: &SessionState,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
         match self.next_flow {
@@ -268,6 +341,26 @@ impl NextFlow {
             }
         }
     }
+
+    pub async fn skip(self, user: UserFromStorage, state: &SessionState) -> UserResult<Self> {
+        let flows = self.origin.get_flows();
+        let index = flows
+            .iter()
+            .position(|flow| flow == &self.get_flow())
+            .ok_or(UserErrors::InternalServerError)?;
+        let remaining_flows = flows.iter().skip(index + 1);
+        for flow in remaining_flows {
+            if flow.is_required(&user, &self.path, state).await? {
+                return Ok(Self {
+                    origin: self.origin.clone(),
+                    next_flow: *flow,
+                    user,
+                    path: self.path,
+                });
+            }
+        }
+        Err(UserErrors::InternalServerError.into())
+    }
 }
 
 impl From<UserFlow> for TokenPurpose {
@@ -282,6 +375,8 @@ impl From<UserFlow> for TokenPurpose {
 impl From<SPTFlow> for TokenPurpose {
     fn from(value: SPTFlow) -> Self {
         match value {
+            SPTFlow::AuthSelect => Self::AuthSelect,
+            SPTFlow::SSO => Self::SSO,
             SPTFlow::TOTP => Self::TOTP,
             SPTFlow::VerifyEmail => Self::VerifyEmail,
             SPTFlow::AcceptInvitationFromEmail => Self::AcceptInvitationFromEmail,

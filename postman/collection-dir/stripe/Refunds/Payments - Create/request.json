@@ -57,7 +57,7 @@
           "last_name": "Doe"
         },
         "phone": {
-          "number": "8056594427",
+          "number": "9123456789",
           "country_code": "+91"
         }
       },
@@ -74,7 +74,7 @@
           "last_name": "Doe"
         },
         "phone": {
-          "number": "8056594427",
+          "number": "9123456789",
           "country_code": "+91"
         }
       },
@@ -84,10 +84,6 @@
         "udf1": "value1",
         "new_customer": "true",
         "login_date": "2019-09-10T10:11:12Z"
-      },
-      "routing": {
-        "type": "single",
-        "data": "stripe"
       }
     }
   },

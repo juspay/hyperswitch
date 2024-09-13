@@ -1,16 +1,25 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use masking::Secret;
+use common_utils::{
+    errors::IntegrityCheckError,
+    ext_traits::{OptionExt, ValueExt},
+    id_type,
+    types::MinorUnit,
+};
+use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
 
-use crate::payment_address::PaymentAddress;
+use crate::{payment_address::PaymentAddress, payment_method_data};
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
-    pub merchant_id: String,
-    pub customer_id: Option<String>,
+    pub merchant_id: id_type::MerchantId,
+    pub customer_id: Option<id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub connector: String,
+    // TODO: This should be a PaymentId type.
+    // Make this change after all the connector dependency has been removed from connectors
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::enums::AttemptStatus,
@@ -21,6 +30,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_wallets_details: Option<common_utils::pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
@@ -55,7 +65,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_http_status_code: Option<u16>,
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
-    pub apple_pay_flow: Option<common_enums::enums::ApplePayFlow>,
+    pub apple_pay_flow: Option<payment_method_data::ApplePayFlow>,
 
     pub frm_metadata: Option<common_utils::pii::SecretSerdeValue>,
 
@@ -65,6 +75,11 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+
+    // minor amount for amount framework
+    pub minor_amount_captured: Option<MinorUnit>,
+
+    pub integrity_check: Result<(), IntegrityCheckError>,
 }
 
 // Different patterns of authentication.
@@ -99,6 +114,96 @@ pub enum ConnectorAuthType {
     },
     #[default]
     NoKey,
+}
+
+impl ConnectorAuthType {
+    pub fn from_option_secret_value(
+        value: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ParsingError> {
+        value
+            .parse_value::<Self>("ConnectorAuthType")
+            .change_context(common_utils::errors::ParsingError::StructParseFailure(
+                "ConnectorAuthType",
+            ))
+    }
+
+    pub fn from_secret_value(
+        value: common_utils::pii::SecretSerdeValue,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ParsingError> {
+        value
+            .parse_value::<Self>("ConnectorAuthType")
+            .change_context(common_utils::errors::ParsingError::StructParseFailure(
+                "ConnectorAuthType",
+            ))
+    }
+
+    // show only first and last two digits of the key and mask others with *
+    // mask the entire key if it's length is less than or equal to 4
+    fn mask_key(&self, key: String) -> Secret<String> {
+        let key_len = key.len();
+        let masked_key = if key_len <= 4 {
+            "*".repeat(key_len)
+        } else {
+            // Show the first two and last two characters, mask the rest with '*'
+            let mut masked_key = String::new();
+            let key_len = key.len();
+            // Iterate through characters by their index
+            for (index, character) in key.chars().enumerate() {
+                if index < 2 || index >= key_len - 2 {
+                    masked_key.push(character); // Keep the first two and last two characters
+                } else {
+                    masked_key.push('*'); // Mask the middle characters
+                }
+            }
+            masked_key
+        };
+        Secret::new(masked_key)
+    }
+
+    // Mask the keys in the auth_type
+    pub fn get_masked_keys(&self) -> Self {
+        match self {
+            Self::TemporaryAuth => Self::TemporaryAuth,
+            Self::NoKey => Self::NoKey,
+            Self::HeaderKey { api_key } => Self::HeaderKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+            },
+            Self::BodyKey { api_key, key1 } => Self::BodyKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+            },
+            Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+                api_secret: self.mask_key(api_secret.clone().expose()),
+            },
+            Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+                api_secret: self.mask_key(api_secret.clone().expose()),
+                key2: self.mask_key(key2.clone().expose()),
+            },
+            Self::CurrencyAuthKey { auth_key_map } => Self::CurrencyAuthKey {
+                auth_key_map: auth_key_map.clone(),
+            },
+            Self::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate: self.mask_key(certificate.clone().expose()),
+                private_key: self.mask_key(private_key.clone().expose()),
+            },
+        }
+    }
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -141,7 +246,7 @@ pub struct RecurringMandatePaymentData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodBalance {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,
 }
 
@@ -168,6 +273,14 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
     },
+    PayLater {
+        klarna_sdk: Option<KlarnaSdkResponse>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KlarnaSdkResponse {
+    pub payment_type: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

@@ -16,7 +16,6 @@ use crate::{
         },
         payments,
     },
-    db::StorageInterface,
     errors,
     routes::app::ReqState,
     types::{
@@ -32,32 +31,40 @@ use crate::{
         },
         ResponseId,
     },
-    AppState,
+    SessionState,
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct FraudCheckPre;
 
-impl<F: Clone + Send> FraudCheckOperation<F> for &FraudCheckPre {
+impl<F, D> FraudCheckOperation<F, D> for &FraudCheckPre
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
+{
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
         Ok(*self)
     }
-    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F> + Send + Sync)> {
+    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
         Ok(*self)
     }
 }
 
-impl<F: Clone + Send> FraudCheckOperation<F> for FraudCheckPre {
+impl<F, D> FraudCheckOperation<F, D> for FraudCheckPre
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
+{
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
         Ok(self)
     }
-    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F> + Send + Sync)> {
+    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
         Ok(self)
     }
 }
@@ -67,7 +74,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a AppState,
+        state: &'a SessionState,
         payment_data: PaymentToFrmData,
         frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>> {
@@ -79,8 +86,8 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
 
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.payment_id.clone(),
-                payment_data.merchant_account.merchant_id.clone(),
+                payment_data.payment_intent.get_id().to_owned(),
+                payment_data.merchant_account.get_id().clone(),
             )
             .await
             .ok();
@@ -90,8 +97,8 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             _ => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: Uuid::new_v4().simple().to_string(),
-                    payment_id: payment_data.payment_intent.payment_id.clone(),
-                    merchant_id: payment_data.merchant_account.merchant_id.clone(),
+                    payment_id: payment_data.payment_intent.get_id().to_owned(),
+                    merchant_id: payment_data.merchant_account.get_id().clone(),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
                     frm_name: frm_connector_details.connector_name,
@@ -135,19 +142,39 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
 }
 
 #[async_trait]
-impl<F: Send + Clone> Domain<F> for FraudCheckPre {
+impl<F, D> Domain<F, D> for FraudCheckPre
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
+        _state: &'a SessionState,
         _req_state: ReqState,
-        payment_data: &mut payments::PaymentData<F>,
+        _payment_data: &mut D,
+        _frm_data: &mut FrmData,
+        _merchant_account: &domain::MerchantAccount,
+        _customer: &Option<domain::Customer>,
+        _key_store: domain::MerchantKeyStore,
+    ) -> RouterResult<Option<FrmRouterData>> {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[instrument(skip_all)]
+    async fn post_payment_frm<'a>(
+        &'a self,
+        state: &'a SessionState,
+        _req_state: ReqState,
+        payment_data: &mut D,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         customer: &Option<domain::Customer>,
         key_store: domain::MerchantKeyStore,
     ) -> RouterResult<Option<FrmRouterData>> {
-        let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _>(
+        let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
@@ -160,7 +187,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         Ok(Some(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Transaction(FraudCheckTransactionData {
                 amount: router_data.request.amount,
@@ -178,14 +205,14 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
 
     async fn pre_payment_frm<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_data: &mut payments::PaymentData<F>,
+        state: &'a SessionState,
+        payment_data: &mut D,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         customer: &Option<domain::Customer>,
         key_store: domain::MerchantKeyStore,
     ) -> RouterResult<FrmRouterData> {
-        let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _>(
+        let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
@@ -198,7 +225,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         Ok(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Checkout(FraudCheckCheckoutData {
                 amount: router_data.request.amount,
@@ -215,12 +242,17 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
 }
 
 #[async_trait]
-impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
+impl<F, D> UpdateTracker<FrmData, F, D> for FraudCheckPre
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
+{
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
+        _key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
-        payment_data: &mut payments::PaymentData<F>,
+        payment_data: &mut D,
         _frm_suggestion: Option<FrmSuggestion>,
         frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
@@ -293,7 +325,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
                         };
 
                         let frm_status = payment_data
-                            .frm_message
+                            .get_frm_message()
                             .as_ref()
                             .map_or(status, |frm_data| frm_data.frm_status);
 
@@ -336,6 +368,7 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPre {
             }),
         };
 
+        let db = &*state.store;
         frm_data.fraud_check = match frm_check_update {
             Some(fraud_check_update) => db
                 .update_fraud_check_response_with_attempt_id(

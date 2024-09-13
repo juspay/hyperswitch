@@ -25,33 +25,36 @@ use crate::{
     },
     services,
     types::{self, api, domain, storage},
-    utils,
 };
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn do_gsm_actions<F, ApiRequest, FData>(
-    state: &app::AppState,
+pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
+    state: &app::SessionState,
     req_state: ReqState,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &mut D,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
-    validate_result: &operations::ValidateResult<'_>,
+    validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &storage::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-
-    payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+    D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
@@ -67,13 +70,13 @@ where
         .map(|gsm| gsm.step_up_possible)
         .unwrap_or(false);
     let is_no_three_ds_payment = matches!(
-        payment_data.payment_attempt.authentication_type,
+        payment_data.get_payment_attempt().authentication_type,
         Some(storage_enums::AuthenticationType::NoThreeDs)
     );
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -111,7 +114,7 @@ where
 
             match get_gsm_decision(gsm) {
                 api_models::gsm::GsmDecision::Retry => {
-                    retries = get_retries(state, retries, &merchant_account.merchant_id).await;
+                    retries = get_retries(state, retries, merchant_account.get_id()).await;
 
                     if retries.is_none() || retries == Some(0) {
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
@@ -165,11 +168,11 @@ where
 
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
-    state: &app::AppState,
-    merchant_id: &str,
+    state: &app::SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: types::Connector,
 ) -> bool {
-    let key = format!("step_up_enabled_{merchant_id}");
+    let key = merchant_id.get_step_up_enabled_key();
     let db = &*state.store;
     db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
         .await
@@ -189,14 +192,15 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 
 #[instrument(skip_all)]
 pub async fn get_retries(
-    state: &app::AppState,
+    state: &app::SessionState,
     retries: Option<i32>,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
         None => {
-            let key = format!("max_auto_retries_enabled_{merchant_id}");
+            let key = merchant_id.get_max_auto_retries_enabled();
+
             let db = &*state.store;
             db.find_config_by_key(key.as_str())
                 .await
@@ -219,7 +223,7 @@ pub async fn get_retries(
 
 #[instrument(skip_all)]
 pub async fn get_gsm<F, FData>(
-    state: &app::AppState,
+    state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
 ) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
@@ -268,28 +272,32 @@ fn get_flow_name<F>() -> RouterResult<String> {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData>(
-    state: &routes::AppState,
+pub async fn do_retry<F, ApiRequest, FData, D>(
+    state: &routes::SessionState,
     req_state: ReqState,
     connector: api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    validate_result: &operations::ValidateResult<'_>,
+    validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &storage::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-
-    payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+    D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
@@ -299,13 +307,14 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
+        key_store,
         merchant_account.storage_scheme,
         router_data,
         is_step_up,
     )
     .await?;
 
-    payments::call_connector_service(
+    let (router_data, _mca) = payments::call_connector_service(
         state,
         req_state,
         merchant_account,
@@ -320,15 +329,19 @@ where
         api::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
+        true,
     )
-    .await
+    .await?;
+
+    Ok(router_data)
 }
 
 #[instrument(skip_all)]
-pub async fn modify_trackers<F, FData>(
-    state: &routes::AppState,
+pub async fn modify_trackers<F, FData, D>(
+    state: &routes::SessionState,
     connector: String,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &mut D,
+    key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
@@ -336,11 +349,12 @@ pub async fn modify_trackers<F, FData>(
 where
     F: Clone + Send,
     FData: Send,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
-    let new_attempt_count = payment_data.payment_intent.attempt_count + 1;
+    let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
     let new_payment_attempt = make_new_payment_attempt(
         connector,
-        payment_data.payment_attempt.clone(),
+        payment_data.get_payment_attempt().clone(),
         new_attempt_count,
         is_step_up,
     );
@@ -348,7 +362,10 @@ where
     let db = &*state.store;
     let additional_payment_method_data =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
-            payment_data.payment_attempt.payment_method_data.clone(),
+            payment_data
+                .get_payment_attempt()
+                .payment_method_data
+                .clone(),
             router_data
                 .connector_response
                 .clone()
@@ -363,7 +380,7 @@ where
             charge_id,
             ..
         }) => {
-            let encoded_data = payment_data.payment_attempt.encoded_data.clone();
+            let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
 
             let authentication_data = redirection_data
                 .as_ref()
@@ -373,7 +390,7 @@ where
                 .attach_printable("Could not parse the connector response")?;
 
             db.update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
+                payment_data.get_payment_attempt().clone(),
                 storage::PaymentAttemptUpdate::ResponseUpdate {
                     status: router_data.status,
                     connector: None,
@@ -383,15 +400,14 @@ where
                         | types::ResponseId::EncodedData(id) => Some(id),
                     },
                     connector_response_reference_id: payment_data
-                        .payment_attempt
+                        .get_payment_attempt()
                         .connector_response_reference_id
                         .clone(),
                     authentication_type: None,
-                    payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
+                    payment_method_id: payment_data.get_payment_attempt().payment_method_id.clone(),
                     mandate_id: payment_data
-                        .mandate_id
-                        .clone()
-                        .and_then(|mandate| mandate.mandate_id),
+                        .get_mandate_id()
+                        .and_then(|mandate| mandate.mandate_id.clone()),
                     connector_metadata,
                     payment_token: None,
                     error_code: None,
@@ -421,9 +437,16 @@ where
         }
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
+            let auth_update = if Some(router_data.auth_type)
+                != payment_data.get_payment_attempt().authentication_type
+            {
+                Some(router_data.auth_type)
+            } else {
+                None
+            };
 
             db.update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
+                payment_data.get_payment_attempt().clone(),
                 storage::PaymentAttemptUpdate::ErrorUpdate {
                     connector: None,
                     error_code: Some(Some(error_response.code.clone())),
@@ -436,6 +459,7 @@ where
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
                     connector_transaction_id: error_response.connector_transaction_id.clone(),
                     payment_method_data: additional_payment_method_data,
+                    authentication_type: auth_update,
                 },
                 storage_scheme,
             )
@@ -448,24 +472,28 @@ where
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.payment_intent.payment_id.clone(),
+            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
         })?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data
-    payment_data.payment_attempt = payment_attempt;
+    payment_data.set_payment_attempt(payment_attempt);
 
-    payment_data.payment_intent = db
+    let payment_intent = db
         .update_payment_intent(
-            payment_data.payment_intent.clone(),
+            &state.into(),
+            payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+                active_attempt_id: payment_data.get_payment_attempt().attempt_id.clone(),
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },
+            key_store,
             storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    payment_data.set_payment_intent(payment_intent);
 
     Ok(())
 }
@@ -480,17 +508,15 @@ pub fn make_new_payment_attempt(
     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
     storage::PaymentAttemptNew {
         connector: Some(connector),
-        attempt_id: utils::get_payment_attempt_id(
-            &old_payment_attempt.payment_id,
-            new_attempt_count,
-        ),
+        attempt_id: old_payment_attempt
+            .payment_id
+            .get_attempt_id(new_attempt_count),
         payment_id: old_payment_attempt.payment_id,
         merchant_id: old_payment_attempt.merchant_id,
         status: old_payment_attempt.status,
         amount: old_payment_attempt.amount,
         currency: old_payment_attempt.currency,
         save_to_locker: old_payment_attempt.save_to_locker,
-
         offer_amount: old_payment_attempt.offer_amount,
         surcharge_amount: old_payment_attempt.surcharge_amount,
         tax_amount: old_payment_attempt.tax_amount,
@@ -505,30 +531,65 @@ pub fn make_new_payment_attempt(
         } else {
             old_payment_attempt.authentication_type
         },
-
         amount_to_capture: old_payment_attempt.amount_to_capture,
         mandate_id: old_payment_attempt.mandate_id,
         browser_info: old_payment_attempt.browser_info,
         payment_token: old_payment_attempt.payment_token,
-
+        client_source: old_payment_attempt.client_source,
+        client_version: old_payment_attempt.client_version,
         created_at,
         modified_at,
         last_synced,
-        ..storage::PaymentAttemptNew::default()
+        net_amount: Default::default(),
+        error_message: Default::default(),
+        cancellation_reason: Default::default(),
+        error_code: Default::default(),
+        connector_metadata: Default::default(),
+        payment_experience: Default::default(),
+        payment_method_data: Default::default(),
+        business_sub_label: Default::default(),
+        straight_through_algorithm: Default::default(),
+        preprocessing_step_id: Default::default(),
+        mandate_details: Default::default(),
+        error_reason: Default::default(),
+        connector_response_reference_id: Default::default(),
+        multiple_capture_count: Default::default(),
+        amount_capturable: Default::default(),
+        updated_by: Default::default(),
+        authentication_data: Default::default(),
+        encoded_data: Default::default(),
+        merchant_connector_id: Default::default(),
+        unified_code: Default::default(),
+        unified_message: Default::default(),
+        external_three_ds_authentication_attempted: Default::default(),
+        authentication_connector: Default::default(),
+        authentication_id: Default::default(),
+        mandate_data: Default::default(),
+        payment_method_billing_address_id: Default::default(),
+        fingerprint_id: Default::default(),
+        charge_id: Default::default(),
+        customer_acceptance: Default::default(),
+        profile_id: old_payment_attempt.profile_id,
+        organization_id: old_payment_attempt.organization_id,
+        shipping_cost: old_payment_attempt.shipping_cost,
+        order_tax_amount: None,
     }
 }
 
-pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &String) -> bool {
+pub async fn config_should_call_gsm(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
     let config = db
         .find_config_by_key_unwrap_or(
-            format!("should_call_gsm_{}", merchant_id).as_str(),
+            &merchant_id.get_should_call_gsm_key(),
             Some("false".to_string()),
         )
         .await;
     match config {
         Ok(conf) => conf.config == "true",
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             false
         }
     }

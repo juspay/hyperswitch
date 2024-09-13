@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use drainer::{
     errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
 };
@@ -17,10 +19,17 @@ async fn main() -> DrainerResult<()> {
 
     let state = settings::AppState::new(conf.clone()).await;
 
-    let store = std::sync::Arc::new(services::Store::new(&state.conf, false).await);
+    let mut stores = HashMap::new();
+    for (tenant_name, tenant) in conf.multitenancy.get_tenants() {
+        let store = std::sync::Arc::new(services::Store::new(&state.conf, false, tenant).await);
+        stores.insert(tenant_name.clone(), store);
+    }
 
+    #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
-    println!("Starting drainer (Version: {})", router_env::git_tag!());
+    {
+        println!("Starting drainer (Version: {})", router_env::git_tag!());
+    }
 
     let _guard = router_env::setup(
         &conf.log,
@@ -29,9 +38,12 @@ async fn main() -> DrainerResult<()> {
     );
 
     #[allow(clippy::expect_used)]
-    let web_server = Box::pin(start_web_server(state.conf.as_ref().clone(), store.clone()))
-        .await
-        .expect("Failed to create the server");
+    let web_server = Box::pin(start_web_server(
+        state.conf.as_ref().clone(),
+        stores.clone(),
+    ))
+    .await
+    .expect("Failed to create the server");
 
     tokio::spawn(
         async move {
@@ -44,7 +56,7 @@ async fn main() -> DrainerResult<()> {
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 
-    start_drainer(store.clone(), conf.drainer).await?;
+    start_drainer(stores.clone(), conf.drainer).await?;
 
     Ok(())
 }

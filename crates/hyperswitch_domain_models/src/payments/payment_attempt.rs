@@ -1,14 +1,25 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
-use common_utils::types::MinorUnit;
+use common_utils::{
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    id_type, pii, type_name,
+    types::{
+        keymanager::{self, KeyManagerState},
+        MinorUnit,
+    },
+};
+use error_stack::ResultExt;
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
 use crate::{
-    errors,
+    behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    ForeignIDRef,
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    ForeignIDRef, RemoteStorageObject,
 };
 
 #[async_trait::async_trait]
@@ -29,36 +40,36 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &id_type::PaymentId,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &id_type::PaymentId,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &id_type::PaymentId,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &id_type::PaymentId,
+        merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
@@ -66,50 +77,50 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &id_type::MerchantId,
+        payment_id: &id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
 
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
-    pub id: i32,
-    pub payment_id: String,
-    pub merchant_id: String,
+    pub payment_id: id_type::PaymentId,
+    pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
@@ -158,7 +169,7 @@ pub struct PaymentAttempt {
     pub updated_by: String,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub external_three_ds_authentication_attempted: Option<bool>,
@@ -170,6 +181,11 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: id_type::ProfileId,
+    pub organization_id: id_type::OrganizationId,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttempt {
@@ -195,10 +211,10 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
-    pub payment_id: String,
-    pub merchant_id: String,
+    pub payment_id: id_type::PaymentId,
+    pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
@@ -247,7 +263,7 @@ pub struct PaymentAttemptNew {
     pub updated_by: String,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub external_three_ds_authentication_attempted: Option<bool>,
@@ -259,6 +275,11 @@ pub struct PaymentAttemptNew {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: id_type::ProfileId,
+    pub organization_id: id_type::OrganizationId,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttemptNew {
@@ -267,6 +288,8 @@ impl PaymentAttemptNew {
         self.amount
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_amount.unwrap_or_default()
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
     }
 
     pub fn populate_derived_fields(self) -> Self {
@@ -305,7 +328,7 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<MinorUnit>,
         tax_amount: Option<MinorUnit>,
         updated_by: String,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -332,7 +355,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         surcharge_amount: Option<MinorUnit>,
         tax_amount: Option<MinorUnit>,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         external_three_ds_authentication_attempted: Option<bool>,
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
@@ -341,6 +364,9 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
+        customer_acceptance: Option<pii::SecretSerdeValue>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -412,6 +438,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -451,10 +478,446 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<String>,
         updated_by: String,
     },
+    ManualUpdate {
+        status: Option<storage_enums::AttemptStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
+        connector_transaction_id: Option<String>,
+    },
 }
 
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         self.attempt_id.clone()
+    }
+}
+
+use diesel_models::{
+    PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
+};
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[async_trait::async_trait]
+impl behaviour::Conversion for PaymentIntent {
+    type DstType = DieselPaymentIntent;
+    type NewDstType = DieselPaymentIntentNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(DieselPaymentIntent {
+            merchant_id: self.merchant_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            amount_captured: self.amount_captured,
+            customer_id: self.customer_id,
+            description: self.description,
+            return_url: self.return_url,
+            metadata: self.metadata,
+            statement_descriptor_name: self.statement_descriptor_name,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            setup_future_usage: self.setup_future_usage,
+            off_session: self.off_session,
+            client_secret: self.client_secret,
+            active_attempt_id: self.active_attempt.get_id(),
+            order_details: self.order_details,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            connector_metadata: self.connector_metadata,
+            feature_metadata: self.feature_metadata,
+            attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
+            frm_merchant_decision: self.frm_merchant_decision,
+            payment_link_id: self.payment_link_id,
+            payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            authorization_count: self.authorization_count,
+            session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
+            frm_metadata: self.frm_metadata,
+            customer_details: self.customer_details.map(Encryption::from),
+            billing_address: self.billing_address.map(Encryption::from),
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_address: self.shipping_address.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            capture_method: self.capture_method,
+            id: self.id,
+            authentication_type: self.authentication_type,
+            amount_to_capture: self.amount_to_capture,
+            prerouting_algorithm: self.prerouting_algorithm,
+            merchant_reference_id: self.merchant_reference_id,
+            surcharge_amount: self.surcharge_amount,
+            tax_on_surcharge: self.tax_on_surcharge,
+            organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
+            skip_external_tax_calculation: self.skip_external_tax_calculation,
+        })
+    }
+    async fn convert_back(
+        state: &KeyManagerState,
+        storage_model: Self::DstType,
+        key: &masking::Secret<Vec<u8>>,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        async {
+            let inner_decrypt = |inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                merchant_id: storage_model.merchant_id,
+                status: storage_model.status,
+                amount: storage_model.amount,
+                currency: storage_model.currency,
+                amount_captured: storage_model.amount_captured,
+                customer_id: storage_model.customer_id,
+                description: storage_model.description,
+                return_url: storage_model.return_url,
+                metadata: storage_model.metadata,
+                statement_descriptor_name: storage_model.statement_descriptor_name,
+                created_at: storage_model.created_at,
+                modified_at: storage_model.modified_at,
+                last_synced: storage_model.last_synced,
+                setup_future_usage: storage_model.setup_future_usage,
+                off_session: storage_model.off_session,
+                client_secret: storage_model.client_secret,
+                active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
+                order_details: storage_model.order_details,
+                allowed_payment_method_types: storage_model.allowed_payment_method_types,
+                connector_metadata: storage_model.connector_metadata,
+                feature_metadata: storage_model.feature_metadata,
+                attempt_count: storage_model.attempt_count,
+                profile_id: storage_model.profile_id,
+                frm_merchant_decision: storage_model.frm_merchant_decision,
+                payment_link_id: storage_model.payment_link_id,
+                payment_confirm_source: storage_model.payment_confirm_source,
+                updated_by: storage_model.updated_by,
+                surcharge_applicable: storage_model.surcharge_applicable,
+                request_incremental_authorization: storage_model.request_incremental_authorization,
+                authorization_count: storage_model.authorization_count,
+                session_expiry: storage_model.session_expiry,
+                request_external_three_ds_authentication: storage_model
+                    .request_external_three_ds_authentication,
+                charges: storage_model.charges,
+                frm_metadata: storage_model.frm_metadata,
+                customer_details: storage_model
+                    .customer_details
+                    .async_lift(inner_decrypt)
+                    .await?,
+                billing_address: storage_model
+                    .billing_address
+                    .async_lift(inner_decrypt)
+                    .await?,
+                merchant_order_reference_id: storage_model.merchant_order_reference_id,
+                shipping_address: storage_model
+                    .shipping_address
+                    .async_lift(inner_decrypt)
+                    .await?,
+                is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
+                capture_method: storage_model.capture_method,
+                id: storage_model.id,
+                merchant_reference_id: storage_model.merchant_reference_id,
+                organization_id: storage_model.organization_id,
+                authentication_type: storage_model.authentication_type,
+                amount_to_capture: storage_model.amount_to_capture,
+                prerouting_algorithm: storage_model.prerouting_algorithm,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_on_surcharge: storage_model.tax_on_surcharge,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
+                skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment intent".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(DieselPaymentIntentNew {
+            merchant_id: self.merchant_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            amount_captured: self.amount_captured,
+            customer_id: self.customer_id,
+            description: self.description,
+            return_url: self.return_url,
+            metadata: self.metadata,
+            statement_descriptor_name: self.statement_descriptor_name,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            setup_future_usage: self.setup_future_usage,
+            off_session: self.off_session,
+            client_secret: self.client_secret,
+            active_attempt_id: self.active_attempt.get_id(),
+            order_details: self.order_details,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            connector_metadata: self.connector_metadata,
+            feature_metadata: self.feature_metadata,
+            attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
+            frm_merchant_decision: self.frm_merchant_decision,
+            payment_link_id: self.payment_link_id,
+            payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            authorization_count: self.authorization_count,
+            session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
+            frm_metadata: self.frm_metadata,
+            customer_details: self.customer_details.map(Encryption::from),
+            billing_address: self.billing_address.map(Encryption::from),
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_address: self.shipping_address.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            capture_method: self.capture_method,
+            id: self.id,
+            merchant_reference_id: self.merchant_reference_id,
+            authentication_type: self.authentication_type,
+            amount_to_capture: self.amount_to_capture,
+            prerouting_algorithm: self.prerouting_algorithm,
+            surcharge_amount: self.surcharge_amount,
+            tax_on_surcharge: self.tax_on_surcharge,
+            organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
+            skip_external_tax_calculation: self.skip_external_tax_calculation,
+        })
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[async_trait::async_trait]
+impl behaviour::Conversion for PaymentIntent {
+    type DstType = DieselPaymentIntent;
+    type NewDstType = DieselPaymentIntentNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(DieselPaymentIntent {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            amount_captured: self.amount_captured,
+            customer_id: self.customer_id,
+            description: self.description,
+            return_url: self.return_url,
+            metadata: self.metadata,
+            connector_id: self.connector_id,
+            shipping_address_id: self.shipping_address_id,
+            billing_address_id: self.billing_address_id,
+            statement_descriptor_name: self.statement_descriptor_name,
+            statement_descriptor_suffix: self.statement_descriptor_suffix,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            setup_future_usage: self.setup_future_usage,
+            off_session: self.off_session,
+            client_secret: self.client_secret,
+            active_attempt_id: self.active_attempt.get_id(),
+            business_country: self.business_country,
+            business_label: self.business_label,
+            order_details: self.order_details,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            connector_metadata: self.connector_metadata,
+            feature_metadata: self.feature_metadata,
+            attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
+            merchant_decision: self.merchant_decision,
+            payment_link_id: self.payment_link_id,
+            payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
+            session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
+            frm_metadata: self.frm_metadata,
+            customer_details: self.customer_details.map(Encryption::from),
+            billing_details: self.billing_details.map(Encryption::from),
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
+            skip_external_tax_calculation: self.skip_external_tax_calculation,
+        })
+    }
+
+    async fn convert_back(
+        state: &KeyManagerState,
+        storage_model: Self::DstType,
+        key: &masking::Secret<Vec<u8>>,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        async {
+            let inner_decrypt = |inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                payment_id: storage_model.payment_id,
+                merchant_id: storage_model.merchant_id,
+                status: storage_model.status,
+                amount: storage_model.amount,
+                currency: storage_model.currency,
+                amount_captured: storage_model.amount_captured,
+                customer_id: storage_model.customer_id,
+                description: storage_model.description,
+                return_url: storage_model.return_url,
+                metadata: storage_model.metadata,
+                connector_id: storage_model.connector_id,
+                shipping_address_id: storage_model.shipping_address_id,
+                billing_address_id: storage_model.billing_address_id,
+                statement_descriptor_name: storage_model.statement_descriptor_name,
+                statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
+                created_at: storage_model.created_at,
+                modified_at: storage_model.modified_at,
+                last_synced: storage_model.last_synced,
+                setup_future_usage: storage_model.setup_future_usage,
+                off_session: storage_model.off_session,
+                client_secret: storage_model.client_secret,
+                active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
+                business_country: storage_model.business_country,
+                business_label: storage_model.business_label,
+                order_details: storage_model.order_details,
+                allowed_payment_method_types: storage_model.allowed_payment_method_types,
+                connector_metadata: storage_model.connector_metadata,
+                feature_metadata: storage_model.feature_metadata,
+                attempt_count: storage_model.attempt_count,
+                profile_id: storage_model.profile_id,
+                merchant_decision: storage_model.merchant_decision,
+                payment_link_id: storage_model.payment_link_id,
+                payment_confirm_source: storage_model.payment_confirm_source,
+                updated_by: storage_model.updated_by,
+                surcharge_applicable: storage_model.surcharge_applicable,
+                request_incremental_authorization: storage_model.request_incremental_authorization,
+                incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+                authorization_count: storage_model.authorization_count,
+                fingerprint_id: storage_model.fingerprint_id,
+                session_expiry: storage_model.session_expiry,
+                request_external_three_ds_authentication: storage_model
+                    .request_external_three_ds_authentication,
+                charges: storage_model.charges,
+                frm_metadata: storage_model.frm_metadata,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
+                customer_details: storage_model
+                    .customer_details
+                    .async_lift(inner_decrypt)
+                    .await?,
+                billing_details: storage_model
+                    .billing_details
+                    .async_lift(inner_decrypt)
+                    .await?,
+                merchant_order_reference_id: storage_model.merchant_order_reference_id,
+                shipping_details: storage_model
+                    .shipping_details
+                    .async_lift(inner_decrypt)
+                    .await?,
+                is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
+                organization_id: storage_model.organization_id,
+                skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment intent".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(DieselPaymentIntentNew {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            amount_captured: self.amount_captured,
+            customer_id: self.customer_id,
+            description: self.description,
+            return_url: self.return_url,
+            metadata: self.metadata,
+            connector_id: self.connector_id,
+            shipping_address_id: self.shipping_address_id,
+            billing_address_id: self.billing_address_id,
+            statement_descriptor_name: self.statement_descriptor_name,
+            statement_descriptor_suffix: self.statement_descriptor_suffix,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            setup_future_usage: self.setup_future_usage,
+            off_session: self.off_session,
+            client_secret: self.client_secret,
+            active_attempt_id: self.active_attempt.get_id(),
+            business_country: self.business_country,
+            business_label: self.business_label,
+            order_details: self.order_details,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            connector_metadata: self.connector_metadata,
+            feature_metadata: self.feature_metadata,
+            attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
+            merchant_decision: self.merchant_decision,
+            payment_link_id: self.payment_link_id,
+            payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
+            surcharge_applicable: self.surcharge_applicable,
+            request_incremental_authorization: self.request_incremental_authorization,
+            incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
+            session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            charges: self.charges,
+            frm_metadata: self.frm_metadata,
+            customer_details: self.customer_details.map(Encryption::from),
+            billing_details: self.billing_details.map(Encryption::from),
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
+            skip_external_tax_calculation: self.skip_external_tax_calculation,
+        })
     }
 }

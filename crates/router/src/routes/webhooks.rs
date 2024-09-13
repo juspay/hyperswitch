@@ -15,7 +15,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
@@ -26,7 +26,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            webhooks::webhooks_wrapper::<W>(
+            webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,

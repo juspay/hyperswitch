@@ -33,14 +33,14 @@ pub async fn retrieve_poll_status(
     let poll_id = PollId {
         poll_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         poll_id,
         |state, auth, req, _| poll::retrieve_poll_status(state, req, auth.merchant_account),
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
