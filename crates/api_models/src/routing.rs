@@ -63,31 +63,6 @@ pub struct RoutingRetrieveQuery {
     pub offset: Option<u8>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct ToggleDynamicRoutingQuery {
-    pub status: bool,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct DynamicRoutingUpdateConfigQuery {
-    #[schema(value_type = String)]
-    pub algorithm_id: common_utils::id_type::RoutingId,
-    #[schema(value_type = String)]
-    pub profile_id: common_utils::id_type::ProfileId,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct ToggleDynamicRoutingWrapper {
-    pub profile_id: common_utils::id_type::ProfileId,
-    pub status: bool,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ToggleDynamicRoutingPath {
-    #[schema(value_type = String)]
-    pub profile_id: common_utils::id_type::ProfileId,
-}
-
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
@@ -456,14 +431,14 @@ pub struct RoutingAlgorithmRef {
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DynamicRoutingAlgorithmRef {
-    pub algorithm_id: Option<common_utils::id_type::RoutingId>,
+pub struct SuccessBasedDynamicRoutingAlgorithmRef {
+    pub success_based_dynamic_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub timestamp: i64,
 }
 
-impl DynamicRoutingAlgorithmRef {
+impl SuccessBasedDynamicRoutingAlgorithmRef {
     pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
-        self.algorithm_id = Some(new_id);
+        self.success_based_dynamic_routing_algorithm_id = Some(new_id);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
     }
 }
@@ -534,17 +509,41 @@ pub struct RoutingLinkWrapper {
     pub algorithm_id: RoutingAlgorithmId,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub struct DynamicRoutingConfig {
-    pub params: Option<Vec<DynamicRoutingConfigParams>>,
-    pub config: Option<DynamicRoutingConfigBody>,
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ToggleSuccessBasedRoutingQuery {
+    pub status: bool,
 }
 
-impl Default for DynamicRoutingConfig {
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SuccessBasedRoutingUpdateConfigQuery {
+    #[schema(value_type = String)]
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct ToggleSuccessBasedRoutingWrapper {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub status: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ToggleSuccessBasedRoutingPath {
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct SuccessBasedRoutingConfig {
+    pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
+    pub config: Option<SuccessBasedRoutingConfigBody>,
+}
+
+impl Default for SuccessBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
-            config: Some(DynamicRoutingConfigBody {
+            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
+            config: Some(SuccessBasedRoutingConfigBody {
                 min_aggregates_size: Some(2),
                 default_success_rate: Some(100.0),
                 max_aggregates_size: Some(3),
@@ -558,7 +557,7 @@ impl Default for DynamicRoutingConfig {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub enum DynamicRoutingConfigParams {
+pub enum SuccessBasedRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
     Currency,
@@ -566,7 +565,7 @@ pub enum DynamicRoutingConfigParams {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub struct DynamicRoutingConfigBody {
+pub struct SuccessBasedRoutingConfigBody {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,
     pub max_aggregates_size: Option<u32>,
@@ -580,13 +579,13 @@ pub struct CurrentBlockThreshold {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DynamicRoutingPayloadWrapper {
-    pub updated_config: DynamicRoutingConfig,
+pub struct SuccessBasedRoutingPayloadWrapper {
+    pub updated_config: SuccessBasedRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-impl DynamicRoutingConfig {
+impl SuccessBasedRoutingConfig {
     pub fn update(&mut self, new: Self) {
         if let Some(params) = new.params {
             self.params = Some(params)
@@ -597,7 +596,7 @@ impl DynamicRoutingConfig {
     }
 }
 
-impl DynamicRoutingConfigBody {
+impl SuccessBasedRoutingConfigBody {
     pub fn update(&mut self, new: Self) {
         if let Some(min_aggregates_size) = new.min_aggregates_size {
             self.min_aggregates_size = Some(min_aggregates_size)

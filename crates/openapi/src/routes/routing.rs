@@ -257,12 +257,12 @@ pub async fn routing_retrieve_default_config_for_profiles() {}
 pub async fn routing_update_default_config_for_profile() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Toggle Dynamic Routing for Profile
+/// Routing - Toggle success based dynamic routing for profile
 ///
-/// Create a Dynamic routing algorithm
+/// Create a success based dynamic routing algorithm
 #[utoipa::path(
     post,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/toggle",
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
@@ -277,19 +277,19 @@ pub async fn routing_update_default_config_for_profile() {}
         (status = 403, description = "Forbidden"),
     ),
    tag = "Routing",
-   operation_id = "Toggle dynamic routing algprithm",
+   operation_id = "Toggle success based dynamic routing algprithm",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn toggle_dynamic_routing() {}
+pub async fn toggle_success_based_routing() {}
 
 #[cfg(feature = "v1")]
-/// Routing - Update Config For Dynamic Routing
+/// Routing - Update config for success based dynamic routing
 ///
-/// Update config for Dynamic Routing
+/// Update config for success based dynamic routing
 #[utoipa::path(
     patch,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/config/:algorithm_id",
-    request_body = DynamicRoutingConfig,
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id",
+    request_body = SuccessBasedRoutingConfig,
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "The unique identifier for a profile"),
@@ -304,7 +304,7 @@ pub async fn toggle_dynamic_routing() {}
         (status = 403, description = "Forbidden"),
     ),
    tag = "Routing",
-   operation_id = "Update configs for dynamic routing algorithm",
+   operation_id = "Update configs for success based dynamic routing algorithm",
    security(("admin_api_key" = []))
 )]
-pub async fn dynamic_routing_update_configs() {}
+pub async fn success_based_routing_update_configs() {}

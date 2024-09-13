@@ -980,14 +980,14 @@ pub async fn routing_update_default_config_for_profile(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn toggle_dynamic_routing(
+pub async fn toggle_success_based_routing(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
-    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
+    query: web::Query<api_models::routing::ToggleSuccessBasedRoutingQuery>,
+    path: web::Path<routing_types::ToggleSuccessBasedRoutingPath>,
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
-    let wrapper = routing_types::ToggleDynamicRoutingWrapper {
+    let wrapper = routing_types::ToggleSuccessBasedRoutingWrapper {
         status: query.into_inner().status,
         profile_id: path.into_inner().profile_id,
     };
@@ -998,9 +998,9 @@ pub async fn toggle_dynamic_routing(
         wrapper.clone(),
         |state,
          auth: auth::AuthenticationData,
-         wrapper: routing_types::ToggleDynamicRoutingWrapper,
+         wrapper: routing_types::ToggleSuccessBasedRoutingWrapper,
          _| {
-            routing::toggle_dynamic_routing(
+            routing::toggle_success_based_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -1031,14 +1031,14 @@ pub async fn toggle_dynamic_routing(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn dynamic_routing_update_configs(
+pub async fn success_based_routing_update_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::DynamicRoutingUpdateConfigQuery>,
-    json_payload: web::Json<routing_types::DynamicRoutingConfig>,
+    path: web::Path<routing_types::SuccessBasedRoutingUpdateConfigQuery>,
+    json_payload: web::Json<routing_types::SuccessBasedRoutingConfig>,
 ) -> impl Responder {
     let flow = Flow::UpdateDynamicRoutingConfigs;
-    let routing_payload_wrapper = routing_types::DynamicRoutingPayloadWrapper {
+    let routing_payload_wrapper = routing_types::SuccessBasedRoutingPayloadWrapper {
         updated_config: json_payload.into_inner(),
         algorithm_id: path.clone().algorithm_id,
         profile_id: path.clone().profile_id,
@@ -1048,8 +1048,8 @@ pub async fn dynamic_routing_update_configs(
         state,
         &req,
         routing_payload_wrapper,
-        |state, _, wrapper: routing_types::DynamicRoutingPayloadWrapper, _| async {
-            Box::pin(routing::dynamic_routing_update_configs(
+        |state, _, wrapper: routing_types::SuccessBasedRoutingPayloadWrapper, _| async {
+            Box::pin(routing::success_based_routing_update_configs(
                 state,
                 wrapper.updated_config,
                 wrapper.algorithm_id,

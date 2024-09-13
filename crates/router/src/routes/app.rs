@@ -1615,15 +1615,21 @@ impl BusinessProfile {
             .service(
                 web::scope("/{profile_id}")
                     .service(
-                        web::resource("/dynamic_routing/toggle")
-                            .route(web::post().to(routing::toggle_dynamic_routing)),
-                    )
-                    .service(
-                        web::resource("/dynamic_routing/config/{algorithm_id}").route(
-                            web::patch().to(|state, req, path, payload| {
-                                routing::dynamic_routing_update_configs(state, req, path, payload)
-                            }),
-                        ),
+                        web::scope("/dynamic_routing")
+                            .service(
+                                web::scope("/success_based")
+                                    .service(
+                                        web::resource("/toggle")
+                                            .route(web::post().to(routing::toggle_success_based_routing)),
+                                    )
+                                    .service(
+                                        web::resource("/config/{algorithm_id}").route(
+                                            web::patch().to(|state, req, path, payload| {
+                                                routing::success_based_routing_update_configs(state, req, path, payload)
+                                            }),
+                                        ),
+                                    )
+                            )
                     )
                     .service(
                         web::resource("")

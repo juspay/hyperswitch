@@ -242,7 +242,7 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::BusinessProfile,
-    dynamic_routing_algorithm: routing_types::DynamicRoutingAlgorithmRef,
+    dynamic_routing_algorithm: routing_types::SuccessBasedDynamicRoutingAlgorithmRef,
 ) -> RouterResult<()> {
     let ref_val = dynamic_routing_algorithm
         .encode_to_value()

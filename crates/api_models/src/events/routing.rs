@@ -1,12 +1,12 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::routing::{
-    DynamicRoutingConfig, DynamicRoutingPayloadWrapper, DynamicRoutingUpdateConfigQuery,
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
     RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
-    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, ToggleDynamicRoutingQuery,
-    ToggleDynamicRoutingWrapper,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, SuccessBasedRoutingConfig,
+    SuccessBasedRoutingPayloadWrapper, SuccessBasedRoutingUpdateConfigQuery,
+    ToggleSuccessBasedRoutingQuery, ToggleSuccessBasedRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -79,31 +79,31 @@ impl ApiEventMetric for RoutingRetrieveLinkQueryWrapper {
     }
 }
 
-impl ApiEventMetric for ToggleDynamicRoutingQuery {
+impl ApiEventMetric for ToggleSuccessBasedRoutingQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for DynamicRoutingConfig {
+impl ApiEventMetric for SuccessBasedRoutingConfig {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for DynamicRoutingPayloadWrapper {
+impl ApiEventMetric for SuccessBasedRoutingPayloadWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for ToggleDynamicRoutingWrapper {
+impl ApiEventMetric for ToggleSuccessBasedRoutingWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for DynamicRoutingUpdateConfigQuery {
+impl ApiEventMetric for SuccessBasedRoutingUpdateConfigQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
