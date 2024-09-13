@@ -793,6 +793,7 @@ pub struct HeaderPayload {
     pub x_client_platform: Option<api_enums::ClientPlatform>,
     pub x_merchant_domain: Option<String>,
     pub locale: Option<String>,
+    pub x_app_id: Option<String>,
 }
 
 impl HeaderPayload {

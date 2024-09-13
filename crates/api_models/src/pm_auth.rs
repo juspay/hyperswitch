@@ -1,3 +1,4 @@
+use crate::enums as api_enums;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
@@ -12,6 +13,9 @@ pub struct LinkTokenCreateRequest {
     pub payment_id: id_type::PaymentId, // payment_id to be passed in req body for redis pm_auth connector name fetch
     pub payment_method: PaymentMethod,  // payment_method to be used for filtering pm_auth connector
     pub payment_method_type: PaymentMethodType, // payment_method_type to be used for filtering pm_auth connector
+    pub client_platform: api_enums::ClientPlatform,
+    pub android_package_name: Option<String>,
+    pub redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

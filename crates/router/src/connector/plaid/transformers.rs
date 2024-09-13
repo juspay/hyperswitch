@@ -73,6 +73,8 @@ pub struct PlaidLinkTokenRequest {
     products: Vec<String>,
     user: User,
     payment_initiation: PlaidPaymentInitiation,
+    redirect_uri: Option<String>,
+    android_package_name: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -161,33 +163,71 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
     fn try_from(item: &types::PaymentsPostProcessingRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::OpenBanking(ref data) => match data {
-                domain::OpenBankingData::OpenBankingPIS { .. } => Ok(Self {
-                    client_name: "Hyperswitch".to_string(),
-                    country_codes: item
-                        .request
-                        .country
-                        .map(|code| vec![code.to_string()])
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.address.country",
-                        })?,
-                    language: "en".to_string(),
-                    products: vec!["payment_initiation".to_string()],
-                    user: User {
-                        client_user_id: item
+                domain::OpenBankingData::OpenBankingPIS { .. } => {
+                    let headers = item.header_payload.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "header_payload",
+                        },
+                    )?;
+
+                    let platform = headers.x_client_platform.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "x_client_platform",
+                        },
+                    )?;
+
+                    let (is_android, is_ios) = match platform {
+                        common_enums::ClientPlatform::Android => (true, false),
+                        common_enums::ClientPlatform::Ios => (false, true),
+                        _ => (false, false),
+                    };
+
+                    Ok(Self {
+                        client_name: "Hyperswitch".to_string(),
+                        country_codes: item
                             .request
-                            .customer_id
-                            .clone()
-                            .map(|id| id.get_string_repr().to_string())
-                            .unwrap_or("default cust".to_string()),
-                    },
-                    payment_initiation: PlaidPaymentInitiation {
-                        payment_id: item
-                            .request
-                            .connector_transaction_id
-                            .clone()
-                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                    },
-                }),
+                            .country
+                            .map(|code| vec![code.to_string()])
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing.address.country",
+                            })?,
+                        language: "en".to_string(),
+                        products: vec!["payment_initiation".to_string()],
+                        user: User {
+                            client_user_id: item
+                                .request
+                                .customer_id
+                                .clone()
+                                .map(|id| id.get_string_repr().to_string())
+                                .unwrap_or("default cust".to_string()),
+                        },
+                        payment_initiation: PlaidPaymentInitiation {
+                            payment_id: item
+                                .request
+                                .connector_transaction_id
+                                .clone()
+                                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                        },
+                        android_package_name: if is_android {
+                            Some(headers.x_app_id.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "x-app-id",
+                                },
+                            )?)
+                        } else {
+                            None
+                        },
+                        redirect_uri: if is_ios {
+                            Some(headers.x_merchant_domain.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "x-merchant-domain",
+                                },
+                            )?)
+                        } else {
+                            None
+                        },
+                    })
+                }
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }

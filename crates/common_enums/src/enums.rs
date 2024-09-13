@@ -2468,6 +2468,7 @@ pub enum ClientPlatform {
     #[default]
     Web,
     Ios,
+    Android,
     #[serde(other)]
     Unknown,
 }
