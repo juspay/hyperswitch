@@ -1171,18 +1171,19 @@ pub async fn schedule_refund_execution(
                             )
                             .await;
 
-                            if let Ok(ref updated_refund) = update_refund {
-                                {
-                                    add_refund_sync_task(db, updated_refund, runner)
+                            match update_refund {
+                                Ok(updated_refund_data) => {
+                                    add_refund_sync_task(db, &updated_refund_data, runner)
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable_lazy(|| format!(
                                             "Failed while pushing refund sync task in scheduler: refund_id: {}",
                                             refund.refund_id
                                         ))?;
+                                    Ok(updated_refund_data)
                                 }
+                                Err(err) => Err(err),
                             }
-                            update_refund
                         }
                     }
                 }
