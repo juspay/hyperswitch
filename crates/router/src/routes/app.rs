@@ -55,7 +55,7 @@ use super::webhooks::*;
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
-    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*, profiles,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1544,19 +1544,19 @@ impl PayoutLink {
     }
 }
 
-pub struct BusinessProfile;
+pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
-impl BusinessProfile {
+impl Profile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(business_profile_create)))
+            .service(web::resource("").route(web::post().to(profiles::profile_create)))
             .service(
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::get().to(business_profile_retrieve))
-                            .route(web::put().to(business_profile_update)),
+                        .route(web::get().to(profiles::profile_retrieve))
+                        .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
                         web::resource("/fallback_routing")
@@ -1603,47 +1603,47 @@ impl BusinessProfile {
     }
 }
 #[cfg(all(feature = "olap", feature = "v1"))]
-impl BusinessProfile {
+impl Profile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("")
-                    .route(web::post().to(business_profile_create))
-                    .route(web::get().to(business_profiles_list)),
+                    .route(web::post().to(profiles::profile_create))
+                    .route(web::get().to(profiles::profiles_list)),
             )
             .service(
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::get().to(business_profile_retrieve))
-                            .route(web::post().to(business_profile_update))
-                            .route(web::delete().to(business_profile_delete)),
+                        .route(web::get().to(profiles::profile_retrieve))
+                        .route(web::post().to(profiles::profile_update))
+                            .route(web::delete().to(profiles::profile_delete)),
                     )
                     .service(
                         web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(toggle_extended_card_info)),
+                            .route(web::post().to(profiles::toggle_extended_card_info)),
                     )
                     .service(
                         web::resource("/toggle_connector_agnostic_mit")
-                            .route(web::post().to(toggle_connector_agnostic_mit)),
+                            .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
                     ),
             )
     }
 }
 
-pub struct BusinessProfileNew;
+pub struct ProfileNew;
 
 #[cfg(feature = "olap")]
-impl BusinessProfileNew {
+impl ProfileNew {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/profile")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
+                web::resource("").route(web::get().to(profiles::profiles_list_at_profile_level)),
             )
             .service(
-                web::resource("/connectors").route(web::get().to(payment_connector_list_profile)),
+                web::resource("/connectors").route(web::get().to(profiles::payment_connector_list_profile)),
             )
     }
 }

@@ -18,7 +18,7 @@ use crate::schema_v2::business_profile;
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
-pub struct BusinessProfile {
+pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -58,7 +58,7 @@ pub struct BusinessProfile {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
-pub struct BusinessProfileNew {
+pub struct ProfileNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -98,7 +98,7 @@ pub struct BusinessProfileNew {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
-pub struct BusinessProfileUpdateInternal {
+pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -132,8 +132,8 @@ pub struct BusinessProfileUpdateInternal {
 }
 
 #[cfg(feature = "v1")]
-impl BusinessProfileUpdateInternal {
-    pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
+impl ProfileUpdateInternal {
+    pub fn apply_changeset(self, source: Profile) -> Profile {
         let Self {
             profile_name,
             modified_at,
@@ -165,7 +165,7 @@ impl BusinessProfileUpdateInternal {
             tax_connector_id,
             is_tax_connector_enabled,
         } = self;
-        BusinessProfile {
+        Profile {
             profile_id: source.profile_id,
             merchant_id: source.merchant_id,
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -229,7 +229,7 @@ impl BusinessProfileUpdateInternal {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
-pub struct BusinessProfile {
+pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -268,7 +268,7 @@ pub struct BusinessProfile {
     pub version: common_enums::ApiVersion,
 }
 
-impl BusinessProfile {
+impl Profile {
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
@@ -283,7 +283,7 @@ impl BusinessProfile {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
-pub struct BusinessProfileNew {
+pub struct ProfileNew {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -325,7 +325,7 @@ pub struct BusinessProfileNew {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
-pub struct BusinessProfileUpdateInternal {
+pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -361,8 +361,8 @@ pub struct BusinessProfileUpdateInternal {
 }
 
 #[cfg(feature = "v2")]
-impl BusinessProfileUpdateInternal {
-    pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
+impl ProfileUpdateInternal {
+    pub fn apply_changeset(self, source: Profile) -> Profile {
         let Self {
             profile_name,
             modified_at,
@@ -396,7 +396,7 @@ impl BusinessProfileUpdateInternal {
             payout_routing_algorithm_id,
             default_fallback_routing,
         } = self;
-        BusinessProfile {
+        Profile {
             id: source.id,
             merchant_id: source.merchant_id,
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -456,12 +456,12 @@ impl BusinessProfileUpdateInternal {
     }
 }
 
-// This is being used only in the `BusinessProfileInterface` implementation for `MockDb`.
-// This can be removed once the `BusinessProfileInterface` trait has been updated to use the domain
+// This is being used only in the `ProfileInterface` implementation for `MockDb`.
+// This can be removed once the `ProfileInterface` trait has been updated to use the domain
 // model instead.
 #[cfg(feature = "v2")]
-impl From<BusinessProfileNew> for BusinessProfile {
-    fn from(new: BusinessProfileNew) -> Self {
+impl From<ProfileNew> for Profile {
+    fn from(new: ProfileNew) -> Self {
         Self {
             id: new.id,
             merchant_id: new.merchant_id,

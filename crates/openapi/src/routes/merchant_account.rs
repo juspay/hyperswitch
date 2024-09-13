@@ -269,3 +269,24 @@ pub async fn delete_merchant_account() {}
     security(("admin_api_key" = []))
 )]
 pub async fn merchant_account_kv_status() {}
+
+
+/// Merchant Connector - List
+///
+/// List Merchant Connector Details for the merchant
+#[utoipa::path(
+    get,
+    path = "/accounts/{account_id}/profile/connectors",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "List all Merchant Connectors for The given Profile",
+    security(("admin_api_key" = []))
+)]
+pub async fn payment_connector_list_profile() {}

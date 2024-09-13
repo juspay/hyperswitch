@@ -123,7 +123,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         let business_profile = db
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -217,7 +217,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
@@ -326,7 +326,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
+        _business_profile: Option<&domain::Profile>,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,

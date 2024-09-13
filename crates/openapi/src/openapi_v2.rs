@@ -86,9 +86,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_update,
 
         // Routes for business profile
-        routes::business_profile::business_profile_create,
-        routes::business_profile::business_profile_retrieve,
-        routes::business_profile::business_profile_update,
+        routes::business_profile::profile_create,
+        routes::business_profile::profile_retrieve,
+        routes::business_profile::profile_update,
 
         // Routes for routing under business profile
         routes::business_profile::routing_link_config,
@@ -198,8 +198,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
-        api_models::admin::BusinessProfileCreate,
-        api_models::admin::BusinessProfileResponse,
+        api_models::admin::ProfileCreate,
+        api_models::admin::ProfileResponse,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,

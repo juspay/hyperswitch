@@ -8,7 +8,7 @@ use common_utils::{
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    BusinessProfileUpdateInternal, WebhookDetails,
+    ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -20,7 +20,7 @@ use crate::{
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
-pub struct BusinessProfile {
+pub struct Profile {
     profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -57,7 +57,7 @@ pub struct BusinessProfile {
 }
 
 #[cfg(feature = "v1")]
-pub struct BusinessProfileSetter {
+pub struct ProfileSetter {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -93,8 +93,8 @@ pub struct BusinessProfileSetter {
 }
 
 #[cfg(feature = "v1")]
-impl From<BusinessProfileSetter> for BusinessProfile {
-    fn from(value: BusinessProfileSetter) -> Self {
+impl From<ProfileSetter> for Profile {
+    fn from(value: ProfileSetter) -> Self {
         Self {
             profile_id: value.profile_id,
             merchant_id: value.merchant_id,
@@ -137,7 +137,7 @@ impl From<BusinessProfileSetter> for BusinessProfile {
     }
 }
 
-impl BusinessProfile {
+impl Profile {
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
@@ -151,7 +151,7 @@ impl BusinessProfile {
 
 #[cfg(feature = "v1")]
 #[derive(Debug)]
-pub struct BusinessProfileGeneralUpdate {
+pub struct ProfileGeneralUpdate {
     pub profile_name: Option<String>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
@@ -182,8 +182,8 @@ pub struct BusinessProfileGeneralUpdate {
 
 #[cfg(feature = "v1")]
 #[derive(Debug)]
-pub enum BusinessProfileUpdate {
-    Update(Box<BusinessProfileGeneralUpdate>),
+pub enum ProfileUpdate {
+    Update(Box<ProfileGeneralUpdate>),
     RoutingAlgorithmUpdate {
         routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
@@ -197,13 +197,13 @@ pub enum BusinessProfileUpdate {
 }
 
 #[cfg(feature = "v1")]
-impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
-    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
+impl From<ProfileUpdate> for ProfileUpdateInternal {
+    fn from(profile_update: ProfileUpdate) -> Self {
         let now = date_time::now();
 
-        match business_profile_update {
-            BusinessProfileUpdate::Update(update) => {
-                let BusinessProfileGeneralUpdate {
+        match profile_update {
+            ProfileUpdate::Update(update) => {
+                let ProfileGeneralUpdate {
                     profile_name,
                     return_url,
                     enable_payment_response_hash,
@@ -265,7 +265,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     is_tax_connector_enabled,
                 }
             }
-            BusinessProfileUpdate::RoutingAlgorithmUpdate {
+            ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm,
                 payout_routing_algorithm,
             } => Self {
@@ -299,7 +299,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
             },
-            BusinessProfileUpdate::ExtendedCardInfoUpdate {
+            ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
                 profile_name: None,
@@ -332,7 +332,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
             },
-            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+            ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name: None,
@@ -371,12 +371,12 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for BusinessProfile {
-    type DstType = diesel_models::business_profile::BusinessProfile;
-    type NewDstType = diesel_models::business_profile::BusinessProfileNew;
+impl super::behaviour::Conversion for Profile {
+    type DstType = diesel_models::business_profile::Profile;
+    type NewDstType = diesel_models::business_profile::ProfileNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfile {
+        Ok(diesel_models::business_profile::Profile {
             profile_id: self.profile_id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -489,7 +489,7 @@ impl super::behaviour::Conversion for BusinessProfile {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfileNew {
+        Ok(diesel_models::business_profile::ProfileNew {
             profile_id: self.profile_id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -535,7 +535,7 @@ impl super::behaviour::Conversion for BusinessProfile {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
-pub struct BusinessProfile {
+pub struct Profile {
     id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -574,7 +574,7 @@ pub struct BusinessProfile {
 }
 
 #[cfg(feature = "v2")]
-pub struct BusinessProfileSetter {
+pub struct ProfileSetter {
     pub id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -612,8 +612,8 @@ pub struct BusinessProfileSetter {
 }
 
 #[cfg(feature = "v2")]
-impl From<BusinessProfileSetter> for BusinessProfile {
-    fn from(value: BusinessProfileSetter) -> Self {
+impl From<ProfileSetter> for Profile {
+    fn from(value: ProfileSetter) -> Self {
         Self {
             id: value.id,
             merchant_id: value.merchant_id,
@@ -658,7 +658,7 @@ impl From<BusinessProfileSetter> for BusinessProfile {
     }
 }
 
-impl BusinessProfile {
+impl Profile {
     pub fn get_is_tax_connector_enabled(&self) -> bool {
         let is_tax_connector_enabled = self.is_tax_connector_enabled;
         match &self.tax_connector_id {
@@ -680,7 +680,7 @@ impl BusinessProfile {
 
 #[cfg(feature = "v2")]
 #[derive(Debug)]
-pub struct BusinessProfileGeneralUpdate {
+pub struct ProfileGeneralUpdate {
     pub profile_name: Option<String>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
@@ -707,8 +707,8 @@ pub struct BusinessProfileGeneralUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug)]
-pub enum BusinessProfileUpdate {
-    Update(Box<BusinessProfileGeneralUpdate>),
+pub enum ProfileUpdate {
+    Update(Box<ProfileGeneralUpdate>),
     RoutingAlgorithmUpdate {
         routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
         payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
@@ -725,13 +725,13 @@ pub enum BusinessProfileUpdate {
 }
 
 #[cfg(feature = "v2")]
-impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
-    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
+impl From<ProfileUpdate> for ProfileUpdateInternal {
+    fn from(profile_update: ProfileUpdate) -> Self {
         let now = date_time::now();
 
-        match business_profile_update {
-            BusinessProfileUpdate::Update(update) => {
-                let BusinessProfileGeneralUpdate {
+        match profile_update {
+            ProfileUpdate::Update(update) => {
+                let ProfileGeneralUpdate {
                     profile_name,
                     return_url,
                     enable_payment_response_hash,
@@ -790,7 +790,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     is_tax_connector_enabled: None,
                 }
             }
-            BusinessProfileUpdate::RoutingAlgorithmUpdate {
+            ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm_id,
                 payout_routing_algorithm_id,
             } => Self {
@@ -826,7 +826,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
             },
-            BusinessProfileUpdate::ExtendedCardInfoUpdate {
+            ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
                 profile_name: None,
@@ -861,7 +861,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
             },
-            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+            ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name: None,
@@ -896,7 +896,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
             },
-            BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
+            ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
             } => Self {
                 profile_name: None,
@@ -937,12 +937,12 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for BusinessProfile {
-    type DstType = diesel_models::business_profile::BusinessProfile;
-    type NewDstType = diesel_models::business_profile::BusinessProfileNew;
+impl super::behaviour::Conversion for Profile {
+    type DstType = diesel_models::business_profile::Profile;
+    type NewDstType = diesel_models::business_profile::ProfileNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfile {
+        Ok(diesel_models::business_profile::Profile {
             id: self.id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -1059,7 +1059,7 @@ impl super::behaviour::Conversion for BusinessProfile {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfileNew {
+        Ok(diesel_models::business_profile::ProfileNew {
             id: self.id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 pub use api_models::{
     admin::{
-        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        ProfileCreate, ProfileResponse, ProfileUpdate,
         MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
         MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
         MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
@@ -107,10 +107,10 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
-    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
         let profile_id = item.get_id().to_owned();
         let outgoing_webhook_custom_http_headers = item
             .outgoing_webhook_custom_http_headers
@@ -168,10 +168,10 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 }
 
 #[cfg(feature = "v2")]
-impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
-    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
         let id = item.get_id().to_owned();
 
         let outgoing_webhook_custom_http_headers = item
@@ -233,12 +233,12 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 }
 
 #[cfg(feature = "v1")]
-pub async fn create_business_profile_from_merchant_account(
+pub async fn create_profile_from_merchant_account(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
-    request: BusinessProfileCreate,
+    request: ProfileCreate,
     key_store: &MerchantKeyStore,
-) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     use common_utils::ext_traits::AsyncExt;
 
     use crate::core;
@@ -279,8 +279,8 @@ pub async fn create_business_profile_from_merchant_account(
         })
         .transpose()?;
 
-    Ok(domain::BusinessProfile::from(
-        domain::BusinessProfileSetter {
+    Ok(domain::Profile::from(
+        domain::ProfileSetter {
             profile_id,
             merchant_id,
             profile_name: request.profile_name.unwrap_or("default".to_string()),

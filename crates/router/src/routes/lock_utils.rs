@@ -180,11 +180,11 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::CacheInvalidate => Self::Cache,
 
-            Flow::BusinessProfileCreate
-            | Flow::BusinessProfileUpdate
-            | Flow::BusinessProfileRetrieve
-            | Flow::BusinessProfileDelete
-            | Flow::BusinessProfileList
+            Flow::ProfileCreate
+            | Flow::ProfileUpdate
+            | Flow::ProfileRetrieve
+            | Flow::ProfileDelete
+            | Flow::ProfileList
             | Flow::ToggleExtendedCardInfo
             | Flow::ToggleConnectorAgnosticMit => Self::Business,
 

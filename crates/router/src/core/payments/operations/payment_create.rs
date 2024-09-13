@@ -135,7 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await
             .to_not_found_response(
-                errors::ApiErrorResponse::BusinessProfileNotFound {
+                errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
                 },
             )?
@@ -581,7 +581,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -683,7 +683,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&domain::BusinessProfile>,
+        business_profile: Option<&domain::Profile>,
     ) -> RouterResult<(
         PaymentCreateOperation<'a, F>,
         Option<domain::PaymentMethodData>,

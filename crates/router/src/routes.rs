@@ -51,6 +51,8 @@ pub mod verify_connector;
 #[cfg(feature = "olap")]
 pub mod webhook_events;
 pub mod webhooks;
+#[cfg(feature = "olap")]
+pub mod profiles; 
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
@@ -59,7 +61,7 @@ pub use self::app::Forex;
 #[cfg(all(feature = "olap", feature = "recon"))]
 pub use self::app::Recon;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, BusinessProfileNew, Cache,
+    ApiKeys, AppState, ApplePayCertificatesMigration, Profile, ProfileNew, Cache,
     Cards, Configs, ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health,
     Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
     Poll, Refunds, SessionState, User, Webhooks,

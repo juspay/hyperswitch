@@ -181,7 +181,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         )
                         .await
                         .to_not_found_response(
-                            errors::ApiErrorResponse::BusinessProfileNotFound {
+                            errors::ApiErrorResponse::ProfileNotFound {
                                 id: profile_id.get_string_repr().to_owned(),
                             },
                         )?;
