@@ -430,18 +430,6 @@ pub struct RoutingAlgorithmRef {
     pub surcharge_config_algo_id: Option<String>,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SuccessBasedDynamicRoutingAlgorithmRef {
-    pub success_based_dynamic_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub timestamp: i64,
-}
-
-impl SuccessBasedDynamicRoutingAlgorithmRef {
-    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
-        self.success_based_dynamic_routing_algorithm_id = Some(new_id);
-        self.timestamp = common_utils::date_time::now_unix_timestamp();
-    }
-}
 impl RoutingAlgorithmRef {
     pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
         self.algorithm_id = Some(new_id);
@@ -507,6 +495,26 @@ pub struct RoutingAlgorithmId {
 pub struct RoutingLinkWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub algorithm_id: RoutingAlgorithmId,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicAlgorithmWithTimestamp<T> {
+    pub algorithm_id: Option<T>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicRoutingAlgorithmRef {
+    pub success_based_algorithm: Option<DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>>,
+}
+
+impl DynamicRoutingAlgorithmRef {
+    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
+        self.success_based_algorithm = Some(DynamicAlgorithmWithTimestamp {
+            algorithm_id: Some(new_id),
+            timestamp: common_utils::date_time::now_unix_timestamp(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

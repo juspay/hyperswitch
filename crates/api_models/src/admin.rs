@@ -1918,9 +1918,6 @@ pub struct BusinessProfileCreate {
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
-    // /// Indicates if dynamic routing is enabled or not with the specific algorithmId.
-    // #[serde(default)]
-    // pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[nutype::nutype(
