@@ -1044,7 +1044,7 @@ pub async fn dynamic_routing_update_configs(
         flow,
         state,
         &req,
-        routing_payload_wrapper.clone(),
+        routing_payload_wrapper,
         |state, _, wrapper: routing_types::DynamicRoutingPayloadWrapper, _| async {
             Box::pin(routing::dynamic_routing_update_configs(
                 state,

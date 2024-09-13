@@ -1217,7 +1217,7 @@ pub async fn toggle_dynamic_routing(
             db,
             key_manager_state,
             &key_store,
-            business_profile.clone(),
+            business_profile,
             dynamic_routing_algo_ref,
         )
         .await?;
