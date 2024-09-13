@@ -433,6 +433,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsSessionResponse
 where
     F: Clone,

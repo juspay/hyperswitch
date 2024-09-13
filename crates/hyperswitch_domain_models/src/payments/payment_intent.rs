@@ -210,7 +210,7 @@ pub struct PaymentIntentNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub client_secret: Option<String>,
+    pub client_secret: String,
     pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,

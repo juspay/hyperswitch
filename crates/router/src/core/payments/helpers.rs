@@ -2790,6 +2790,7 @@ pub fn generate_mandate(
     }
 }
 
+#[cfg(feature = "v1")]
 // A function to manually authenticate the client secret with intent fulfillment time
 pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
@@ -2815,6 +2816,34 @@ pub fn authenticate_client_secret(
         }
         // If there is no client in payment intent, then it has expired
         (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
+        _ => Ok(()),
+    }
+}
+
+#[cfg(feature = "v2")]
+// A function to manually authenticate the client secret with intent fulfillment time
+pub fn authenticate_client_secret(
+    request_client_secret: Option<&String>,
+    payment_intent: &PaymentIntent,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (request_client_secret, &payment_intent.client_secret) {
+        (Some(req_cs), pi_cs) => {
+            if req_cs != pi_cs {
+                Err(errors::ApiErrorResponse::ClientSecretInvalid)
+            } else {
+                let current_timestamp = common_utils::date_time::now();
+
+                let session_expiry = payment_intent.session_expiry.unwrap_or(
+                    payment_intent
+                        .created_at
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                );
+
+                fp_utils::when(current_timestamp > session_expiry, || {
+                    Err(errors::ApiErrorResponse::ClientSecretExpired)
+                })
+            }
+        }
         _ => Ok(()),
     }
 }

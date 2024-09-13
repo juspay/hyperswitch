@@ -847,7 +847,7 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         #[max_length = 128]
-        client_secret -> Nullable<Varchar>,
+        client_secret -> Varchar,
         #[max_length = 64]
         active_attempt_id -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,

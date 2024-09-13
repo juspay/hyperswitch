@@ -83,3 +83,6 @@ ALTER COLUMN profile_id DROP NOT NULL;
 
 ALTER TABLE payment_intent
 ALTER COLUMN currency DROP NOT NULL;
+
+ALTER TABLE payment_intent
+ALTER COLUMN client_secret DROP NOT NULL;

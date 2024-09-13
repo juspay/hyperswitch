@@ -108,7 +108,7 @@ pub struct PaymentIntent {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub client_secret: Option<String>,
+    pub client_secret: String,
     pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
