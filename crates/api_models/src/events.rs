@@ -75,7 +75,7 @@ impl_api_event_type!(
         RetrievePaymentLinkRequest,
         PaymentLinkListConstraints,
         MandateId,
-        DisputeListConstraints,
+        DisputeListGetConstraints,
         RetrieveApiKeyResponse,
         BusinessProfileResponse,
         BusinessProfileUpdate,

@@ -109,30 +109,30 @@ pub struct DisputeEvidenceBlock {
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct DisputeListConstraints {
+pub struct DisputeListGetConstraints {
     /// The identifier for dispute
     pub dispute_id: Option<String>,
     /// The payment_id against which dispute is raised
     pub payment_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<u32>,
-    /// The starting point within a list of objects
+    /// The starting point within a list of object
     pub offset: Option<u32>,
     /// The identifier for business profile
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    /// Status of the dispute
-    pub dispute_status: Option<Vec<DisputeStatus>>,
-    /// Stage of the dispute
-    pub dispute_stage: Option<Vec<DisputeStage>>,
+    /// The comma separated list of status of the disputes
+    pub dispute_status: Option<String>,
+    /// The comma separated list of stages of the disputes
+    pub dispute_stage: Option<String>,
     /// Reason for the dispute
     pub reason: Option<String>,
-    /// Connector linked to dispute
-    pub connector: Option<Vec<enums::Connector>>,
-    /// The list of merchant connector ids to filter the disputes list for selected label
-    pub merchant_connector_id: Option<Vec<String>>,
-    /// Currency of the dispute
-    pub currency: Option<Vec<enums::Currency>>,
+    /// The comma separted list of connectors linked to disputes
+    pub connector: Option<String>,
+    /// The comma separated list of merchant connector ids to filter the disputes list for selected label
+    pub merchant_connector_id: Option<String>,
+    /// The comman separated list of currencies of the disputes
+    pub currency: Option<String>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,

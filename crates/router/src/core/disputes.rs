@@ -50,12 +50,13 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-    constraints: api_models::disputes::DisputeListConstraints,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    constraints: api_models::disputes::DisputeListGetConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
+    let dispute_list_constraints = &(constraints.clone(), profile_id_list.clone()).try_into()?;
     let disputes = state
         .store
-        .find_disputes_by_merchant_id_and_constraints(merchant_account.get_id(), constraints)
+        .find_disputes_by_constraints(merchant_account.get_id(), dispute_list_constraints)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;

@@ -1,4 +1,5 @@
 use error_stack::report;
+use hyperswitch_domain_models::disputes;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -28,10 +29,10 @@ pub trait DisputeInterface {
         dispute_id: &str,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
-    async fn find_disputes_by_merchant_id_and_constraints(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -92,10 +93,10 @@ impl DisputeInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_disputes_by_merchant_id_and_constraints(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::filter_by_constraints(&conn, merchant_id, dispute_constraints)
@@ -211,10 +212,10 @@ impl DisputeInterface for MockDb {
             .into())
     }
 
-    async fn find_disputes_by_merchant_id_and_constraints(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
@@ -341,7 +342,6 @@ mod tests {
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
 
-        use api_models::disputes::DisputeListConstraints;
         use diesel_models::{
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
@@ -536,16 +536,15 @@ mod tests {
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id_and_constraints(
+                .find_disputes_by_constraints(
                     &merchant_id,
-                    DisputeListConstraints {
+                    &disputes::DisputeListConstraints {
                         dispute_id: None,
                         payment_id: None,
                         profile_id: None,
                         connector: None,
                         merchant_connector_id: None,
                         currency: None,
-                        amount_filter: None,
                         limit: None,
                         offset: None,
                         dispute_status: None,

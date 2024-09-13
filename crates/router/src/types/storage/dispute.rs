@@ -4,6 +4,7 @@ use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
 use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::disputes;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -12,7 +13,7 @@ pub trait DisputeDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_list_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
 
@@ -21,7 +22,7 @@ impl DisputeDbExt for Dispute {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_list_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -41,13 +42,13 @@ impl DisputeDbExt for Dispute {
         };
 
         if !search_by_payment_or_dispute_id {
-            if let Some(payment_id) = dispute_list_constraints.payment_id {
-                filter = filter.filter(dsl::payment_id.eq(payment_id));
+            if let Some(payment_id) = &dispute_list_constraints.payment_id {
+                filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
             };
         }
         if !search_by_payment_or_dispute_id {
-            if let Some(dispute_id) = dispute_list_constraints.dispute_id {
-                filter = filter.filter(dsl::dispute_id.eq(dispute_id));
+            if let Some(dispute_id) = &dispute_list_constraints.dispute_id {
+                filter = filter.filter(dsl::dispute_id.eq(dispute_id.clone()));
             };
         }
 
@@ -59,10 +60,10 @@ impl DisputeDbExt for Dispute {
             }
         }
 
-        if let Some(profile_id) = dispute_list_constraints.profile_id {
-            filter = filter.filter(dsl::profile_id.eq(profile_id));
+        if let Some(profile_id) = &dispute_list_constraints.profile_id {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id.clone()));
         }
-        if let Some(connector_list) = dispute_list_constraints.connector {
+        if let Some(connector_list) = &dispute_list_constraints.connector {
             let connector: Vec<String> = connector_list
                 .into_iter()
                 .map(|connector| connector.to_string())
@@ -70,23 +71,27 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(reason) = dispute_list_constraints.reason {
-            filter = filter.filter(dsl::connector_reason.eq(reason));
+        if let Some(reason) = &dispute_list_constraints.reason {
+            filter = filter.filter(dsl::connector_reason.eq(reason.clone()));
         }
-        if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
-            filter = filter.filter(dsl::dispute_stage.eq_any(dispute_stage));
+        if let Some(dispute_stage) = &dispute_list_constraints.dispute_stage {
+            filter = filter.filter(dsl::dispute_stage.eq_any(dispute_stage.clone()));
         }
-        if let Some(dispute_status) = dispute_list_constraints.dispute_status {
-            filter = filter.filter(dsl::dispute_status.eq_any(dispute_status));
+        if let Some(dispute_status) = &dispute_list_constraints.dispute_status {
+            filter = filter.filter(dsl::dispute_status.eq_any(dispute_status.clone()));
         }
 
-        if let Some(currency_list) = dispute_list_constraints.currency {
+        if let Some(currency_list) = &dispute_list_constraints.currency {
             let currency: Vec<String> = currency_list
                 .into_iter()
                 .map(|currency| currency.to_string())
                 .collect();
 
             filter = filter.filter(dsl::currency.eq_any(currency));
+        }
+        if let Some(merchant_connector_ids) = &dispute_list_constraints.merchant_connector_id {
+            filter =
+                filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_ids.clone()))
         }
         if let Some(limit) = dispute_list_constraints.limit {
             filter = filter.limit(limit.into());
