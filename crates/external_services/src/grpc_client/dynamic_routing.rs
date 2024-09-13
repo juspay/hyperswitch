@@ -35,6 +35,7 @@ pub enum DRError {
     GrpcServerResponseFailure,
 }
 
+// Struct consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
     pub success_rate_client: Option<SuccessRateCalculatorClient<Channel>>,
@@ -47,6 +48,7 @@ pub struct DynamicRoutingClientConfig {
     pub enabled: bool,
 }
 
+// establish connection with the server
 impl DynamicRoutingClientConfig {
     pub async fn get_dynamic_routing_connection(
         self,
@@ -64,7 +66,7 @@ impl DynamicRoutingClientConfig {
     }
 }
 
-// The trait Success Based Dynamic Routing would have all the functions required to support the calculation and updation window
+// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
     async fn calculate_success_rate(
