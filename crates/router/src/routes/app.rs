@@ -1189,6 +1189,10 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(organization_create)))
             .service(
+                web::resource("/{id}/merchant_accounts")
+                    .route(web::get().to(merchant_account_list)),
+            )
+            .service(
                 web::resource("/{id}")
                     .route(web::get().to(organization_retrieve))
                     .route(web::put().to(organization_update)),
@@ -1201,9 +1205,10 @@ pub struct MerchantAccount;
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/accounts")
+        web::scope("/v2/merchant_accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
+            .service(web::resource("/{id}/profiles").route(web::get().to(business_profiles_list)))
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
@@ -1278,7 +1283,7 @@ impl MerchantConnectorAccount {
                 .service(
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(connector_create))
-                        .route(web::get().to(payment_connector_list)),
+                        .route(web::get().to(connector_list)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
@@ -1559,6 +1564,9 @@ impl BusinessProfile {
                             .route(web::put().to(business_profile_update)),
                     )
                     .service(
+                        web::resource("/connector_accounts").route(web::get().to(connector_list)),
+                    )
+                    .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
                             .route(web::post().to(routing::routing_update_default_config)),
@@ -1642,9 +1650,7 @@ impl BusinessProfileNew {
             .service(
                 web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
             )
-            .service(
-                web::resource("/connectors").route(web::get().to(payment_connector_list_profile)),
-            )
+            .service(web::resource("/connectors").route(web::get().to(connector_list_profile)))
     }
 }
 

@@ -181,6 +181,14 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
+    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        get_disabled: bool,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
+
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -495,6 +503,36 @@ impl MerchantConnectorAccountInterface for Store {
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+            .async_and_then(|items| async {
+                let mut output = Vec::with_capacity(items.len());
+                for item in items.into_iter() {
+                    output.push(
+                        item.convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)?,
+                    )
+                }
+                Ok(output)
+            })
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        get_disabled: bool,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::MerchantConnectorAccount::find_by_profile_id(&conn, profile_id, get_disabled)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
@@ -1231,6 +1269,44 @@ impl MerchantConnectorAccountInterface for MockDb {
                     account.merchant_id == *merchant_id
                 } else {
                     account.merchant_id == *merchant_id && account.disabled == Some(false)
+                }
+            })
+            .cloned()
+            .collect::<Vec<storage::MerchantConnectorAccount>>();
+
+        let mut output = Vec::with_capacity(accounts.len());
+        for account in accounts.into_iter() {
+            output.push(
+                account
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?,
+            )
+        }
+        Ok(output)
+    }
+
+    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        get_disabled: bool,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        let accounts = self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .filter(|account: &&storage::MerchantConnectorAccount| {
+                if get_disabled {
+                    account.profile_id == *profile_id
+                } else {
+                    account.profile_id == *profile_id && account.disabled == Some(false)
                 }
             })
             .cloned()
