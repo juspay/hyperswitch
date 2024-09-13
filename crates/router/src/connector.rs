@@ -28,7 +28,6 @@ pub mod iatapay;
 pub mod itaubank;
 pub mod klarna;
 pub mod mifinity;
-pub mod mollie;
 pub mod multisafepay;
 pub mod netcetera;
 pub mod nexinets;
@@ -68,7 +67,8 @@ pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
     bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, fiservemea,
-    fiservemea::Fiservemea, helcim, helcim::Helcim, stax, stax::Stax, taxjar, taxjar::Taxjar, volt, volt::Volt,
+    fiservemea::Fiservemea, helcim, helcim::Helcim, mollie, mollie::Mollie, stax, stax::Stax,
+    taxjar, taxjar::Taxjar, volt, volt::Volt,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -80,7 +80,7 @@ pub use self::{
     cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
     cybersource::Cybersource, datatrans::Datatrans, dlocal::Dlocal, ebanx::Ebanx, forte::Forte,
     globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
-    iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
+    iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
     payone::Payone, paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid,
