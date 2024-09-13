@@ -26,4 +26,5 @@ ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
     DROP COLUMN tax_on_surcharge,
     DROP COLUMN frm_merchant_decision,
     DROP COLUMN statement_descriptor,
-    DROP COLUMN enable_payment_link;
+    DROP COLUMN enable_payment_link,
+    DROP COLUMN apply_mit_exemption;

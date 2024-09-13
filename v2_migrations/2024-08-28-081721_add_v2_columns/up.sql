@@ -28,4 +28,5 @@ ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
     ADD COLUMN tax_on_surcharge bigint,
     ADD COLUMN frm_merchant_decision VARCHAR(64),
     ADD COLUMN statement_descriptor VARCHAR(255),
-    ADD COLUMN enable_payment_link BOOLEAN;
+    ADD COLUMN enable_payment_link BOOLEAN,
+    ADD COLUMN apply_mit_exemption BOOLEAN;

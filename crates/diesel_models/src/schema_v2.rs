@@ -886,7 +886,6 @@ diesel::table! {
         shipping_address -> Nullable<Bytea>,
         capture_method -> Nullable<CaptureMethod>,
         authentication_type -> Nullable<AuthenticationType>,
-        amount_to_capture -> Nullable<Int8>,
         prerouting_algorithm -> Nullable<Jsonb>,
         surcharge_amount -> Nullable<Int8>,
         tax_on_surcharge -> Nullable<Int8>,
@@ -895,6 +894,7 @@ diesel::table! {
         #[max_length = 255]
         statement_descriptor -> Nullable<Varchar>,
         enable_payment_link -> Nullable<Bool>,
+        apply_mit_exemption -> Nullable<Bool>,
         #[max_length = 64]
         id -> Varchar,
     }

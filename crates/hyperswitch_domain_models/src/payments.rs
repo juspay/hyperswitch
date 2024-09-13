@@ -141,11 +141,11 @@ pub struct PaymentIntent {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub id: id_type::PaymentId,
     pub authentication_type: Option<common_enums::AuthenticationType>,
-    pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub organization_id: id_type::OrganizationId,
     pub skip_external_tax_calculation: Option<bool>,
     pub enable_payment_link: Option<bool>,
+    pub apply_mit_exemption: Option<bool>,
 }

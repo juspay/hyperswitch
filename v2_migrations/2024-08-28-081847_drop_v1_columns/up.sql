@@ -58,4 +58,5 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN incremental_authorization_allowed,
     DROP COLUMN fingerprint_id,
     DROP COLUMN merchant_decision,
-    DROP COLUMN statement_descriptor_name;
+    DROP COLUMN statement_descriptor_name,
+    DROP COLUMN amount_to_capture;

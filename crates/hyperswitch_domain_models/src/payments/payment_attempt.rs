@@ -550,7 +550,6 @@ impl behaviour::Conversion for PaymentIntent {
             capture_method: self.capture_method,
             id: self.id,
             authentication_type: self.authentication_type,
-            amount_to_capture: self.amount_to_capture,
             prerouting_algorithm: self.prerouting_algorithm,
             merchant_reference_id: self.merchant_reference_id,
             surcharge_amount: self.surcharge_amount,
@@ -560,6 +559,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             enable_payment_link: self.enable_payment_link,
+            apply_mit_exemption: self.apply_mit_exemption,
         })
     }
     async fn convert_back(
@@ -638,7 +638,6 @@ impl behaviour::Conversion for PaymentIntent {
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type,
-                amount_to_capture: storage_model.amount_to_capture,
                 prerouting_algorithm: storage_model.prerouting_algorithm,
                 surcharge_amount: storage_model.surcharge_amount,
                 tax_on_surcharge: storage_model.tax_on_surcharge,
@@ -646,6 +645,7 @@ impl behaviour::Conversion for PaymentIntent {
                 tax_details: storage_model.tax_details,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 enable_payment_link: storage_model.enable_payment_link,
+                apply_mit_exemption: storage_model.apply_mit_exemption,
             })
         }
         .await
@@ -699,7 +699,6 @@ impl behaviour::Conversion for PaymentIntent {
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
             authentication_type: self.authentication_type,
-            amount_to_capture: self.amount_to_capture,
             prerouting_algorithm: self.prerouting_algorithm,
             surcharge_amount: self.surcharge_amount,
             tax_on_surcharge: self.tax_on_surcharge,
@@ -707,6 +706,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            enable_payment_link: self.enable_payment_link,
+            apply_mit_exemption: self.apply_mit_exemption,
         })
     }
 }

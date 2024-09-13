@@ -60,4 +60,5 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN incremental_authorization_allowed BOOLEAN,
     ADD COLUMN fingerprint_id VARCHAR(64),
     ADD COLUMN merchant_decision VARCHAR(64),
-    ADD COLUMN statement_descriptor_name VARCHAR(255);
+    ADD COLUMN statement_descriptor_name VARCHAR(255),
+    ADD COLUMN amount_to_capture BIGINT;
