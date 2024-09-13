@@ -1,5 +1,7 @@
 pub mod transformers;
 
+// use std::{fmt::format, sync::Arc};
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -30,13 +32,13 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, PayoutCreateType, Response},
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
 use transformers as thunes;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{self, RouterData as UtilsRouterData}};
 
 
 
@@ -584,57 +586,175 @@ impl webhooks::IncomingWebhook for Thunes {
 
 
 
-// impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Thunes{
-//     fn get_url(
-//             &self,
-//             _req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
-//             _connectors: &Connectors,
-//         ) -> CustomResult<String, errors::ConnectorError> {
+impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Thunes{
+    fn get_url(
+            &self,
+            _req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<String, errors::ConnectorError> {
+            //let auth 
+            let base_url = self.base_url(_connectors);
+            Ok(format!(
+                "{base_url}v2/money-transfer/quotations", 
+            ))
         
-//     }
+    }
 
-//     fn get_headers(
-//             &self,
-//             _req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
-//             _connectors: &Connectors,
-//         ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-//         // todo
-//     }
+    fn get_headers(
+            &self,
+            _req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(_req, _connectors)
+    }
 
-//     fn build_request(co
-//             &self,
-//             req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
-//             _connectors: &Connectors,
-//         ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-//         // todo
-//     }
+    fn build_request(
+            &self,
+            req: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutQuoteType::get_url(self, req, _connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutQuoteType::get_headers(self, req, _connectors)?)
+            .set_body(types::PayoutQuoteType::get_request_body(self, req, _connectors)?)
+            .build();
 
-//     fn handle_response(
-//             &self,
-//             data: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
-//             event_builder: Option<&mut ConnectorEvent>,
-//             _res: Response,
-//         ) -> CustomResult<RouterData<PoQuote, PayoutsData, PayoutsResponseData>, errors::ConnectorError>
-//         where
-//             PoQuote: Clone,
-//             PayoutsData: Clone,
-//             PayoutsResponseData: Clone, {
-//         // todo
-//     }
-
-//     fn get_error_response(
-//             &self,
-//             res: Response,
-//             event_builder: Option<&mut ConnectorEvent>,
-//         ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-//         // todo
-//     }
-// }
+        Ok(Some(request))
+    }
 
 
-// impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Thunes{
+    fn handle_response(
+            &self,
+            data: &RouterData<PoQuote, PayoutsData, PayoutsResponseData>,
+            event_builder: Option<&mut ConnectorEvent>,
+            _res: Response,
+        ) -> CustomResult<RouterData<PoQuote, PayoutsData, PayoutsResponseData>, errors::ConnectorError>
+        where
+            PoQuote: Clone,
+            PayoutsData: Clone,
+            PayoutsResponseData: Clone, {
+        
+        let response: thunes::ThunesPayoutQuotationResponse = _res
+        .response
+        .parse_struct("ThunesPayoutQuotationResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-// }
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        // return type `hyperswitch_domain_models::router_data::RouterData<PoQuote, PayoutsData, PayoutsResponseData>`
+        // expected struct `hyperswitch_domain_models::router_data::RouterData<_, _, _>`
+
+        // found reference `&hyperswitch_domain_models::router_data::RouterData<_, _, 
+
+        // RouterData::try_from(ResponseRouterData {
+        //     response,
+        //     data: data.clone(),
+        //     http_code: _res.status_code,
+        // })
+
+        Ok(data.clone())
+    }
+
+    fn get_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut ConnectorEvent>,
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+
+impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Thunes{
+    fn get_url(
+            &self,
+            _req: &RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<String, errors::ConnectorError> {
+            if _req.quote_id.is_some() {
+                Ok(format!("v2/money-transfer/quotations/{}/transactions", _req.quote_id.as_ref().unwrap()))
+            }
+            else{
+                Err(report!(errors::ConnectorError::ResponseHandlingFailed))
+            }
+            
+        
+    }
+
+    fn get_headers(
+            &self,
+            _req: &RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(_req, _connectors)
+    }
+
+    fn get_request_body(
+            &self,
+            _req: &RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = thunes::ThunesPayoutQuotationRequest::try_from(_req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+            &self,
+            req: &RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+            _connectors: &Connectors,
+        ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutCreateType::get_url(self, req, _connectors)?)
+            .attach_default_headers()
+            .headers(PayoutCreateType::get_headers(self, req, _connectors)?)
+            .set_body(PayoutCreateType::get_request_body(self, req, _connectors)?)
+            .build();
+        
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+            &self,
+            data: &RouterData<PoCreate, PayoutsData, PayoutsResponseData>,
+            event_builder: Option<&mut ConnectorEvent>,
+            _res: Response,
+        ) -> CustomResult<RouterData<PoCreate, PayoutsData, PayoutsResponseData>, errors::ConnectorError>
+        where
+            PoCreate: Clone,
+            PayoutsData: Clone,
+            PayoutsResponseData: Clone, {
+        
+        let response: thunes::ThunesPayoutTransactionResponse = _res
+                .response
+                .parse_struct("ThunesPayoutTransactionResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        // RouterData::try_from(ResponseRouterData{
+        //     response,
+        //     data: data.clone(),
+        //     http_code: _res.status_code,
+        // })
+
+        Ok(data.clone())
+    }
+
+    fn get_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut ConnectorEvent>,
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 // impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Thunes{
 

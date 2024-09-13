@@ -683,7 +683,7 @@ default_imp_for_payouts_create!(
     connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
-    connectors::Thunes,
+    // connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt
@@ -873,7 +873,7 @@ default_imp_for_payouts_quote!(
     connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
-    connectors::Thunes,
+    // connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt

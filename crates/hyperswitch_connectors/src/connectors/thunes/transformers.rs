@@ -1,23 +1,22 @@
-#[cfg(feature = "payouts")]
-use api_models::payouts::PayoutMethodData;
+use std::default;
+use common_utils::pii::Email;
 
-use common_enums::enums;
+#[cfg(feature = "payouts")]
+use api_models::payouts::{PayoutMethodData, Bank};
+
+
+use common_enums::{enums, PayoutStatus};
 use common_utils::types::StringMinorUnit;
+use http::Error;
 use hyperswitch_domain_models::{
-    payment_address::PaymentAddress,
-    payment_method_data::PaymentMethodData, 
-    router_data::{ConnectorAuthType, RouterData, }, 
-    router_flow_types::refunds::{Execute, RSync}, 
-    router_request_types::ResponseId, 
-    router_response_types::{PaymentsResponseData, RefundsResponseData}, 
-    types::{PaymentsAuthorizeRouterData, PayoutsRouterData, RefundsRouterData}
+    payment_address::PaymentAddress, payment_method_data::PaymentMethodData, payouts::payouts, router_data::{ConnectorAuthType, RouterData, }, router_flow_types::refunds::{Execute, RSync}, router_request_types::ResponseId, router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData}, types::{PaymentsAuthorizeRouterData, PayoutsRouterData, RefundsRouterData}
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData, },
-    utils::{PaymentsAuthorizeRequestData, RouterData as UtilsRouterData},
+    types::{PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData, },
+    utils::{ PaymentsAuthorizeRequestData, RouterData as UtilsRouterData},
 };
 
 
@@ -28,30 +27,31 @@ use crate::{
 
 // #[serde(rename_all = "UPPERCASE")]
 // #[serde(rename_all = "snake_case")]
+#[derive(Deserialize, Serialize, Debug)]
 pub enum QuotationMode{
     SourceAmount,  //SOURCE_AMOUNT
     DestinationAmount,
 }
-
+#[derive(Deserialize, Serialize, Debug)]
 pub enum TransactionType{
     C2C, //Quotation or Transaction is from an individual end user to an individual end user
     C2B, //Quotation or Transaction is from an individual end user to a business
     B2C, //Quotation or Transaction is from a business to an individual end user
     B2B, //Quotation or Transaction is from a business to a business
 }
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct SourceInfo{
     pub country_iso_code: enums::CountryAlpha3, // CountryAlpha3
     pub currency: enums::Currency,
     pub amount: Option<i64>,
 }
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct DestinationInfo{
     pub currency: enums::Currency,
     pub amount: Option<i64>,
 }
-
-pub struct QuotationRequest{
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ThunesPayoutQuotationRequest{
     pub external_id: String,
     pub payer_id: u64,   // size is not specified in the docs
     pub mode: QuotationMode,
@@ -61,17 +61,18 @@ pub struct QuotationRequest{
 }
 
 
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ServiceType{
     pub id: i64,
     pub name: String,
 }
 
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct CreditPartyVerification{
     pub credit_party_identifiers_accepted: Vec<String>,
     pub required_beneficiary_fields: Vec<String>,
 }
+#[derive(Deserialize, Serialize, Debug)]
 pub struct PayerType{
     pub id: i64,
     pub name: String,
@@ -88,13 +89,14 @@ pub struct PayerType{
     pub credit_party_information: Vec<String>,
     pub credit_party_verification: CreditPartyVerification,
 }
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct AmountWithCountry{
     pub currency: enums::Currency,
     pub amount: f64,
 }
 
-pub struct QuotationResponse{
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ThunesPayoutQuotationResponse{
     pub id: i64,
     pub external_id: String,
     pub payer: PayerType,
@@ -111,29 +113,33 @@ pub struct QuotationResponse{
 
 //----Transaction----------
 
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct CreditPartyIdentifier{
-    pub msisdn : Option<String>,
-    pub bank_account_number: Option<String>,
-    pub iban: Option<String>,
+    pub msisdn : Option<Secret<String>>,
+    pub bank_account_number: Option<Secret<String>>,
+    pub iban: Option<Secret<String>>,
     pub clabe: Option<String>,
     pub cbu: Option<String>,
     pub cbu_alias: Option<String>,
-    pub swift_bic_code: Option<String>,
-    pub bik_code: Option<String>,
-    pub ifs_code: Option<String>,
-    pub sort_code: Option<String>,
-    pub aba_routing_number: Option<String>,
+    pub swift_bic_code: Option<Secret<String>>,
+    pub bik_code: Option<Secret<String>>,
+    pub ifs_code: Option<Secret<String>>,
+    pub sort_code: Option<Secret<String>>,
+    pub aba_routing_number: Option<Secret<String>>,
     pub bsb_number: Option<String>,
     pub branch_number: Option<String>,
-    pub routing_code: Option<String>,
+    pub routing_code: Option<Secret<String>>,
     pub entity_tt_id: Option<String>,
     pub account_type: Option<String>,
-    pub account_number: Option<String>,
-    pub email: Option<String>,
-    pub card_number: Option<String>,
+    pub account_number: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub card_number: Option<Secret<String>>,
 
 }
 
+
+
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct Sender{
     pub lastname: Option<String>,
     pub lastname2: Option<String>,
@@ -149,8 +155,8 @@ pub struct Sender{
     pub postal_code: Option<String>,
     pub city: Option<String>,
     pub country_iso_code: Option<String>,
-    pub msisdn: Option<String>,
-    pub email: Option<String>,
+    pub msisdn: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub id_type: Option<String>,
     pub id_country_iso_code: Option<String>,
     pub id_number: Option<String>,
@@ -163,13 +169,14 @@ pub struct Sender{
     pub source_of_funds: Option<String>,
 } 
 
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct Beneficiary{
     pub lastname: Option<String>,
     pub lastname2: Option<String>,
     pub middlename: Option<String>,
     pub firstname: Option<String>,
     pub nativename: Option<String>,
-    pub nationality_country_i: Option<String>,
+    pub nationality_country_iso_code: Option<String>,
     pub code: Option<String>,
     pub date_of_birth: Option<String>,
     pub country_of_birth_iso_code: Option<String>,
@@ -179,7 +186,7 @@ pub struct Beneficiary{
     pub city: Option<String>,
     pub country_iso_code: Option<String>,
     pub msisdn: Option<String>,
-    pub email: Option<String>,
+    pub email: Option<Email>,
     pub id_type: Option<String>,
     pub id_country_iso_code: Option<String>,
     pub id_number: Option<String>,
@@ -190,23 +197,26 @@ pub struct Beneficiary{
     pub province_state: Option<String>,
 }
 
-pub struct TransactionRequest{
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ThunesPayoutTransactionRequest{
     pub credit_party_identifier: CreditPartyIdentifier,
-    pub retail_rate: f64,
-    pub etail_fee: f64,
-    pub retail_fee_currency: enums::Currency,
+    pub retail_rate: Option<f64>,
+    pub retail_fee:  Option<f64>,
+    pub retail_fee_currency: Option<enums::Currency>,
     pub sender: Sender,
     pub beneficiary: Beneficiary,
-    pub external_id: String,
-    pub external_code: String,
-    pub callback_url: String,
-    pub purpose_of_remittance: String, 
-    pub additional_information_1: String, 
-    pub additional_information_2: String, 
-    pub additional_information_3: String, 
+    pub external_id: Option<String>,
+    pub external_code: Option<String>,
+    pub callback_url: Option<String>,
+    pub purpose_of_remittance: Option<String>,
+    pub document_reference_number: Option<String>,
+    pub additional_information_1: Option<String>, 
+    pub additional_information_2: Option<String>, 
+    pub additional_information_3: Option<String>, 
 }
 
-pub struct TransactionResponse{
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ThunesPayoutTransactionResponse{
     pub id: i64,
     pub status: String,
     pub status_message: String,
@@ -244,9 +254,17 @@ pub struct TransactionResponse{
 //     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 // }
 
+// fn get_payout_bank_details(
+//     payout_method_data: PayoutMethodData,
+//     address: Option<&api_models::payments::Address>,
+//     entity_type: PayoutEntityType,
+// ) -> Result<CreditPartyIdentifier, errors:CreditPartyIdentifier> {
+
+// }
+
 
 // Payouts quote request transform
-impl<F> TryFrom<&PayoutsRouterData<F>> for QuotationRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for ThunesPayoutQuotationRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item : &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
 
@@ -275,9 +293,163 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for QuotationRequest {
             }),
             _=>Err(errors::ConnectorError::NotImplemented("This payment method is not implemented for Thunes".to_string()).into()),
         }
+    }
+}
+
+
+// Payouts quote response transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, ThunesPayoutQuotationResponse>> 
+for PayoutsRouterData<F>{
+    type Error = Error;
+    fn try_from(value: PayoutsResponseRouterData<F, ThunesPayoutQuotationResponse>) -> Result<Self, Self::Error> {
+        let response: ThunesPayoutQuotationResponse = value.response;
+
+        //Ok(Self { flow: (), merchant_id: (), customer_id: (), connector_customer: (), connector: (), payment_id: (), attempt_id: (), status: (), payment_method: (), connector_auth_type: (), description: (), return_url: (), address: (), auth_type: (), connector_meta_data: (), connector_wallets_details: (), amount_captured: (), access_token: (), session_token: (), reference_id: (), payment_method_token: (), recurring_mandate_payment_data: (), preprocessing_id: (), payment_method_balance: (), connector_api_version: (), request: (), response: (), connector_request_reference_id: (), payout_method_data: (), quote_id: (), test_mode: (), connector_http_status_code: (), external_latency: (), apple_pay_flow: (), frm_metadata: (), dispute_id: (), refund_id: (), connector_response: (), payment_method_status: (), minor_amount_captured: (), integrity_check: () })
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(enums::PayoutStatus::RequiresCreation),
+                connector_payout_id: Some(response.id.to_string()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: Some(String::from("error from: Payouts quote response transform")),
+            }),
+            ..value.data
+        })
+    }
+}
+
+
+fn get_payout_bank_details(payout_method_data: PayoutMethodData)
+-> Result <CreditPartyIdentifier, errors::ConnectorError> {
+    
+    match payout_method_data {
+        PayoutMethodData::Bank(Bank::Ach(b)) => Ok(CreditPartyIdentifier{
+            aba_routing_number: Some(b.bank_routing_number),
+            bank_account_number: Some(b.bank_account_number.to_owned()),
+            ..CreditPartyIdentifier::default()
+        }),
+        PayoutMethodData::Bank(Bank::Bacs(b)) => Ok(CreditPartyIdentifier{
+            bank_account_number: Some(b.bank_account_number),
+            sort_code: Some(b.bank_sort_code),
+            ..CreditPartyIdentifier::default()
+        }),
+        PayoutMethodData::Bank(Bank::Sepa(b)) => Ok(CreditPartyIdentifier{
+            swift_bic_code: b.bic,
+            iban: Some(b.iban),
+            ..CreditPartyIdentifier::default()
+        }),
+        _=>Err(errors::ConnectorError::NotImplemented(
+            "This payment method is not implemented for Thunes".to_string()
+        ))?,
+    }
+}
+
+//Payouts transfer creation request
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&PayoutsRouterData<F>> for ThunesPayoutTransactionRequest {
+    type Error = Error;
+    fn try_from(value: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let request = value.request.to_owned();
+       
+        //let payout_type: request.get_payout_type()?
+        //not getting payout type
+        let payout_method_data = value.get_payout_method_data().unwrap_or_default();
+        let bank_acc_details = get_payout_bank_details(payout_method_data);
+        // let address: value.get
+        Ok(Self { 
+            credit_party_identifier: bank_acc_details.unwrap_or_default(), 
+            retail_rate: None, 
+            retail_fee: None, 
+            retail_fee_currency: None, 
+            sender: Sender {
+                lastname: None,
+                firstname: None,
+                nationality_country_iso_code: None,
+                date_of_birth: None,
+                country_of_birth_iso_code: None,
+                gender: None,
+                address: None,
+                postal_code: None,
+                city: None,
+                country_iso_code: None,
+                msisdn: None,
+                email: request.customer_details.map(|f| f.email).unwrap_or_default(),
+                id_type: None,
+                id_number: None,
+                id_delivery_date: None,
+                occupation: None,
+                ..Sender::default()
+            }, 
+            beneficiary: Beneficiary{
+                lastname:  None,
+                firstname:  None,
+                nationality_country_iso_code:  None,
+                date_of_birth:  None,
+                country_of_birth_iso_code:  None,
+                gender:  None,
+                address:  None,
+                postal_code:  None,
+                city:  None,
+                country_iso_code:  None,
+                msisdn:  None,
+                email:  None,
+                id_type:  None,
+                id_country_iso_code:  None,
+                id_number:  None,
+                occupation:  None,
+                ..Beneficiary::default()
+            }, 
+            external_id: None, 
+            external_code: None, 
+            callback_url: None, 
+            purpose_of_remittance: None, 
+            document_reference_number: None, 
+            additional_information_1: None, 
+            additional_information_2: None, 
+            additional_information_3: None 
+        })
+    }
+}
+
+// Payouts transfer creation response
+impl<F> TryFrom<PayoutsResponseRouterData<F, ThunesPayoutTransactionResponse>>
+    for PayoutsRouterData<F>
+{
+    type Error = Error;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, ThunesPayoutTransactionResponse>
+    ) -> Result<Self, Self::Error>{
+        let response=item.response;
+        let status = match response.status.as_str() {
+            "20000" => PayoutStatus::Success,
+            _=>PayoutStatus::Cancelled,
+        };
+
+        Ok(Self {
+            response: Ok(PayoutsResponseData{
+                status: Some(status),
+                connector_payout_id: Some(response.id.to_string()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
 
     }
 }
+
+
+//Payouts fulfill request transform (cnf transaction)
+
+
+
+//Payouts fulfill response transform (cnf transaction response)
+
+
 
 
 //--------------------------
