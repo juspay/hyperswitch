@@ -15,6 +15,7 @@ use crate::{
     SessionState,
 };
 
+#[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub async fn generate_sample_data(
     state: &SessionState,
@@ -250,6 +251,7 @@ pub async fn generate_sample_data(
             organization_id: org_id.clone(),
             shipping_cost: None,
             tax_details: None,
+            skip_external_tax_calculation: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -329,6 +331,8 @@ pub async fn generate_sample_data(
             customer_acceptance: None,
             profile_id: profile_id.clone(),
             organization_id: org_id.clone(),
+            shipping_cost: None,
+            order_tax_amount: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

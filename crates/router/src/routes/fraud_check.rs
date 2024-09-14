@@ -7,6 +7,7 @@ use crate::{
     AppState,
 };
 
+#[cfg(feature = "v1")]
 pub async fn frm_fulfillment(
     state: web::Data<AppState>,
     req: HttpRequest,

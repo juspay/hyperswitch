@@ -73,7 +73,14 @@ pub async fn payment_intents_create(
         create_payment_req,
         |state, auth, req, req_state| {
             let eligible_connectors = req.connector.clone();
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Authorize,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Authorize>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -136,7 +143,14 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::PSync,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PSync>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -207,7 +221,14 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::PSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PSync>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -276,7 +297,14 @@ pub async fn payment_intents_update(
         payload,
         |state, auth, req, req_state| {
             let eligible_connectors = req.connector.clone();
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Authorize,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Authorize>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -354,7 +382,14 @@ pub async fn payment_intents_confirm(
         payload,
         |state, auth, req, req_state| {
             let eligible_connectors = req.connector.clone();
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Authorize,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Authorize>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -418,7 +453,14 @@ pub async fn payment_intents_capture(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Capture,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Capture>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -486,7 +528,14 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Void,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Void>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,

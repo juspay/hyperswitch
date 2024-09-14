@@ -12,6 +12,11 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payment_methods::{
+    create_payment_method, list_customer_payment_method_util, payment_method_intent_confirm,
+    payment_method_intent_create,
+};
 use crate::{
     core::{
         api_locking, errors,
@@ -82,7 +87,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| async move {
-            Box::pin(cards::validate_and_vault_payment_method(
+            Box::pin(create_payment_method(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -111,7 +116,7 @@ pub async fn create_payment_method_intent_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| async move {
-            Box::pin(cards::payment_method_intent_create(
+            Box::pin(payment_method_intent_create(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -142,17 +147,26 @@ pub async fn confirm_payment_method_intent_api(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
+    let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
+        id: pm_id.clone(),
+        payment_method: payload.payment_method,
+        payment_method_type: payload.payment_method_type,
+        client_secret: payload.client_secret.clone(),
+        customer_id: payload.customer_id.to_owned(),
+        payment_method_data: payload.payment_method_data.clone(),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        inner_payload,
         |state, auth, req, _| {
             let pm_id = pm_id.clone();
             async move {
-                Box::pin(cards::payment_method_intent_confirm(
+                Box::pin(payment_method_intent_confirm(
                     &state,
-                    req,
+                    req.into(),
                     &auth.merchant_account,
                     &auth.key_store,
                     pm_id,
@@ -449,7 +463,7 @@ pub async fn list_customer_payment_method_for_payment(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_customer_payment_method_util(
+            list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -514,7 +528,7 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_customer_payment_method_util(
+            list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -769,14 +783,14 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantConnectorAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))

@@ -19,9 +19,21 @@ pub enum PaymentTokenKind {
     Permanent,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: Option<String>,
+    pub locker_id: Option<String>,
+    pub token: String,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CardTokenData {
+    pub payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub locker_id: Option<String>,
     pub token: String,
 }
@@ -57,8 +69,25 @@ pub enum PaymentTokenData {
 }
 
 impl PaymentTokenData {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     pub fn permanent_card(
         payment_method_id: Option<String>,
+        locker_id: Option<String>,
+        token: String,
+    ) -> Self {
+        Self::PermanentCard(CardTokenData {
+            payment_method_id,
+            locker_id,
+            token,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn permanent_card(
+        payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
         locker_id: Option<String>,
         token: String,
     ) -> Self {

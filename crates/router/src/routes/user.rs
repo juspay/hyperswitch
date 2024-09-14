@@ -177,7 +177,7 @@ pub async fn set_dashboard_metadata(
         user_core::dashboard_metadata::set_metadata,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -269,7 +269,7 @@ pub async fn user_merchant_account_create(
     .await
 }
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn generate_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -365,7 +365,7 @@ pub async fn list_user_roles_details(
         user_core::list_user_roles_details,
         &auth::JWTAuth {
             permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -468,7 +468,7 @@ pub async fn invite_multiple_user(
         },
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -494,7 +494,7 @@ pub async fn resend_invite(
         },
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))

@@ -58,10 +58,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
-// Qr Image data source starts with this string
-// The base64 image data will be appended to it to image data source
-pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -139,3 +135,15 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
+
+/// Vault Add request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+
+/// Vault Get Fingerprint request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+
+/// Vault Header content type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";

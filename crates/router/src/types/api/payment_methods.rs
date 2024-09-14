@@ -5,8 +5,8 @@ pub use api_models::payment_methods::{
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodList,
-    PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
+    PaymentMethodIntentConfirm, PaymentMethodIntentConfirmInternal, PaymentMethodIntentCreate,
+    PaymentMethodList, PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
     PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
     PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
     TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
@@ -28,12 +28,12 @@ pub use api_models::payment_methods::{
 };
 use error_stack::report;
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::core::payments::helpers::validate_payment_method_data_against_payment_method;
 use crate::core::{
     errors::{self, RouterResult},
     payments::helpers::validate_payment_method_type_against_payment_method,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::utils;
 
 pub(crate) trait PaymentMethodCreateExt {
     fn validate(&self) -> RouterResult<()>;
@@ -63,25 +63,31 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
-        if !validate_payment_method_type_against_payment_method(
-            self.payment_method,
-            self.payment_method_type,
-        ) {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid 'payment_method_type' provided".to_string()
-            })
-            .attach_printable("Invalid payment method type"));
-        }
+        utils::when(
+            !validate_payment_method_type_against_payment_method(
+                self.payment_method,
+                self.payment_method_type,
+            ),
+            || {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid 'payment_method_type' provided".to_string()
+                })
+                .attach_printable("Invalid payment method type"));
+            },
+        );
 
-        if !validate_payment_method_data_against_payment_method(
-            self.payment_method,
-            self.payment_method_data.clone(),
-        ) {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid 'payment_method_data' provided".to_string()
-            })
-            .attach_printable("Invalid payment method data"));
-        }
+        utils::when(
+            !PaymentMethodCreate::validate_payment_method_data_against_payment_method(
+                self.payment_method,
+                self.payment_method_data.clone(),
+            ),
+            || {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid 'payment_method_data' provided".to_string()
+                })
+                .attach_printable("Invalid payment method data"));
+            },
+        );
         Ok(())
     }
 }
@@ -89,25 +95,31 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
     fn validate(&self) -> RouterResult<()> {
-        if !validate_payment_method_type_against_payment_method(
-            self.payment_method,
-            self.payment_method_type,
-        ) {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid 'payment_method_type' provided".to_string()
-            })
-            .attach_printable("Invalid payment method type"));
-        }
+        utils::when(
+            !validate_payment_method_type_against_payment_method(
+                self.payment_method,
+                self.payment_method_type,
+            ),
+            || {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid 'payment_method_type' provided".to_string()
+                })
+                .attach_printable("Invalid payment method type"));
+            },
+        );
 
-        if !validate_payment_method_data_against_payment_method(
-            self.payment_method,
-            self.payment_method_data.clone(),
-        ) {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid 'payment_method_data' provided".to_string()
-            })
-            .attach_printable("Invalid payment method data"));
-        }
+        utils::when(
+            !PaymentMethodIntentConfirm::validate_payment_method_data_against_payment_method(
+                self.payment_method,
+                self.payment_method_data.clone(),
+            ),
+            || {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid 'payment_method_data' provided".to_string()
+                })
+                .attach_printable("Invalid payment method data"));
+            },
+        );
         Ok(())
     }
 }

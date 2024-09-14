@@ -37,7 +37,7 @@ v2 = ["customer_v2", "payment_methods_v2", "payment_v2", "common_default", "api_
 v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
 payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2", "storage_impl/payment_v2"]
-payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2", "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2"]
+payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2", "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -70,7 +70,6 @@ futures = "0.3.30"
 hex = "0.4.3"
 http = "0.2.12"
 hyper = "0.14.28"
-image = { version = "0.25.1", default-features = false, features = ["png"] }
 infer = "0.15.0"
 iso_currency = "0.4.4"
 isocountry = "0.3.2"
@@ -85,7 +84,6 @@ num-traits = "0.2.19"
 once_cell = "1.19.0"
 openidconnect = "3.5.0" # TODO: remove reqwest
 openssl = "0.10.64"
-qrcode = "0.14.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 rand_chacha = "0.3.1"

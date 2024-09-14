@@ -42,7 +42,7 @@ mod dummy_connector_default_impl {
 
     impl<const T: u8> api::PaymentsPostProcessingV2 for connector::DummyConnector<T> {}
 
-    impl<const T: u8> api::PaymentTaxCalculationV2 for connector::DummyConnector<T> {}
+    impl<const T: u8> api::TaxCalculationV2 for connector::DummyConnector<T> {}
 
     impl<const T: u8> api::PaymentSessionUpdateV2 for connector::DummyConnector<T> {}
 
@@ -579,7 +579,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::ConnectorCustomerV2 for $path::$connector{}
             impl api::PaymentsPreProcessingV2 for $path::$connector{}
             impl api::PaymentsPostProcessingV2 for $path::$connector{}
-            impl api::PaymentTaxCalculationV2 for $path::$connector{}
+            impl api::TaxCalculationV2 for $path::$connector{}
             impl api::PaymentSessionUpdateV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -1287,6 +1287,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Taxjar,
     connector::Trustpay,
     connector::Threedsecureio,
+    connector::Thunes,
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
@@ -2100,6 +2101,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Taxjar,
     connector::Trustpay,
     connector::Threedsecureio,
+    connector::Thunes,
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
@@ -2704,6 +2706,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Taxjar,
     connector::Trustpay,
     connector::Threedsecureio,
+    connector::Thunes,
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
