@@ -196,8 +196,7 @@ impl super::settings::GenericLinkEnvConfig {
 #[cfg(feature = "v2")]
 impl super::Settings::CellInformation {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-        use common_utils::id_type;
+        use common_utils::{fp_utils::when, id_type};
 
         when(self.id == id_type::CellId::default(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
