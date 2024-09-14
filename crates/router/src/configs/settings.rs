@@ -47,7 +47,7 @@ pub struct CmdLineConf {
     pub config_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
@@ -121,7 +121,7 @@ pub struct Settings<S: SecretState> {
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub recipient_emails: RecipientMails,
     #[cfg(feature = "v2")]
-    pub global_cell_id: GlobalCellId,
+    pub cell_information: CellInformation,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -826,6 +826,10 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
+
+        #[cfg(feature = "v2")]
+        self.cell_information.validate()?;
+
         Ok(())
     }
 }
@@ -909,8 +913,8 @@ pub struct ServerTls {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize)]
-pub struct GlobalCellId {
-    pub cell_id: common_utils::id_type::CellId,
+pub struct CellInformation {
+    pub id: common_utils::id_type::CellId,
 }
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct RecipientMails {

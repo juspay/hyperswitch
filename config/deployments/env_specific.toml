@@ -302,3 +302,6 @@ encryption_key = "user_auth_table_encryption_key" # Encryption key used for encr
 
 [recipient_emails]
 recon = "recon@example.com"
+
+[cell_information]
+id = "12345"

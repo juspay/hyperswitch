@@ -730,3 +730,6 @@ connector_list = ""
 
 [recipient_emails]
 recon = "test@example.com"
+
+[cell_information]
+id = "12345"

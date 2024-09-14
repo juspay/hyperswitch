@@ -32,7 +32,7 @@ impl GlobalEntity {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -76,6 +76,23 @@ impl CellId {
     /// Get the string representation of the cell id
     fn get_string_repr(&self) -> &str {
         &self.0 .0 .0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CellId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let deserialized_length_id = LengthId::deserialize(deserializer)?;
+        Ok(Self(deserialized_length_id))
+    }
+}
+
+impl Default for CellId {
+    fn default() -> Self {
+        let length_id = LengthId::default();
+        Self(length_id)
     }
 }
 

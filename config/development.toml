@@ -735,5 +735,5 @@ connector_list = ""
 [recipient_emails]
 recon = "recon@example.com"
 
-[global_cell_id]
-cell_id = "Random_id"
+[cell_information]
+id = "12345"
