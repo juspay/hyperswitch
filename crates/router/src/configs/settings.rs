@@ -48,6 +48,7 @@ pub struct CmdLineConf {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
