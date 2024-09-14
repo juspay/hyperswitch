@@ -913,7 +913,7 @@ pub struct ServerTls {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct CellInformation {
     pub id: common_utils::id_type::CellId,
 }
