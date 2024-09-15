@@ -12,7 +12,7 @@ use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use super::{payment_attempt::PaymentAttempt, PaymentIntent};
-use crate::{errors, merchant_key_store::MerchantKeyStore, RemoteStorageObject};
+use crate::{errors, merchant_key_store::MerchantKeyStore};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -130,60 +130,6 @@ pub struct CustomerData {
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-#[derive(Clone, Debug, PartialEq)]
-pub struct PaymentIntentNew {
-    pub payment_id: id_type::PaymentId,
-    pub merchant_id: id_type::MerchantId,
-    pub status: storage_enums::IntentStatus,
-    pub amount: MinorUnit,
-    pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
-    pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub connector_id: Option<String>,
-    pub shipping_address_id: Option<String>,
-    pub billing_address_id: Option<String>,
-    pub statement_descriptor_name: Option<String>,
-    pub statement_descriptor_suffix: Option<String>,
-    pub created_at: Option<PrimitiveDateTime>,
-    pub modified_at: Option<PrimitiveDateTime>,
-    pub last_synced: Option<PrimitiveDateTime>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub off_session: Option<bool>,
-    pub client_secret: String,
-    pub active_attempt: RemoteStorageObject<PaymentAttempt>,
-    pub business_country: Option<storage_enums::CountryAlpha2>,
-    pub business_label: Option<String>,
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub allowed_payment_method_types: Option<serde_json::Value>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
-    pub attempt_count: i16,
-    pub profile_id: Option<id_type::ProfileId>,
-    pub merchant_decision: Option<String>,
-    pub payment_link_id: Option<String>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-
-    pub updated_by: String,
-    pub surcharge_applicable: Option<bool>,
-    pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
-    pub incremental_authorization_allowed: Option<bool>,
-    pub authorization_count: Option<i32>,
-    pub fingerprint_id: Option<String>,
-    pub session_expiry: Option<PrimitiveDateTime>,
-    pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
-    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub is_payment_processor_token_flow: Option<bool>,
-    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
@@ -1167,70 +1113,72 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     }
 }
 
+// TODO: evaluate if we will be using the same update struct for v2 as well, uncomment this and make necessary changes if necessary
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
-        let modified_at = common_utils::date_time::now();
-        let PaymentIntentUpdateInternal {
-            amount,
-            currency,
-            status,
-            amount_captured,
-            customer_id,
-            return_url,
-            setup_future_usage,
-            off_session,
-            metadata,
-            modified_at: _,
-            active_attempt_id,
-            description,
-            statement_descriptor,
-            order_details,
-            attempt_count,
-            frm_merchant_decision,
-            payment_confirm_source,
-            updated_by,
-            surcharge_applicable,
-            authorization_count,
-            session_expiry,
-            request_external_three_ds_authentication,
-            frm_metadata,
-            customer_details,
-            billing_address,
-            merchant_order_reference_id,
-            shipping_address,
-            is_payment_processor_token_flow,
-        } = value;
-        Self {
-            amount,
-            currency,
-            status,
-            amount_captured,
-            customer_id,
-            return_url,
-            setup_future_usage,
-            off_session,
-            metadata,
-            modified_at,
-            active_attempt_id,
-            description,
-            statement_descriptor,
-            order_details,
-            attempt_count,
-            frm_merchant_decision,
-            payment_confirm_source,
-            updated_by,
-            surcharge_applicable,
-            authorization_count,
-            session_expiry,
-            request_external_three_ds_authentication,
-            frm_metadata,
-            customer_details: customer_details.map(Encryption::from),
-            billing_address: billing_address.map(Encryption::from),
-            merchant_order_reference_id,
-            shipping_address: shipping_address.map(Encryption::from),
-            is_payment_processor_token_flow,
-        }
+        todo!()
+        // let modified_at = common_utils::date_time::now();
+        // let PaymentIntentUpdateInternal {
+        //     amount,
+        //     currency,
+        //     status,
+        //     amount_captured,
+        //     customer_id,
+        //     return_url,
+        //     setup_future_usage,
+        //     off_session,
+        //     metadata,
+        //     modified_at: _,
+        //     active_attempt_id,
+        //     description,
+        //     statement_descriptor,
+        //     order_details,
+        //     attempt_count,
+        //     frm_merchant_decision,
+        //     payment_confirm_source,
+        //     updated_by,
+        //     surcharge_applicable,
+        //     authorization_count,
+        //     session_expiry,
+        //     request_external_three_ds_authentication,
+        //     frm_metadata,
+        //     customer_details,
+        //     billing_address,
+        //     merchant_order_reference_id,
+        //     shipping_address,
+        //     is_payment_processor_token_flow,
+        // } = value;
+        // Self {
+        //     amount,
+        //     currency,
+        //     status,
+        //     amount_captured,
+        //     customer_id,
+        //     return_url,
+        //     setup_future_usage,
+        //     off_session,
+        //     metadata,
+        //     modified_at,
+        //     active_attempt_id,
+        //     description,
+        //     statement_descriptor,
+        //     order_details,
+        //     attempt_count,
+        //     frm_merchant_decision,
+        //     payment_confirm_source,
+        //     updated_by,
+        //     surcharge_applicable,
+        //     authorization_count,
+        //     session_expiry,
+        //     request_external_three_ds_authentication,
+        //     frm_metadata,
+        //     customer_details: customer_details.map(Encryption::from),
+        //     billing_address: billing_address.map(Encryption::from),
+        //     merchant_order_reference_id,
+        //     shipping_address: shipping_address.map(Encryption::from),
+        //     is_payment_processor_token_flow,
+        // }
     }
 }
 

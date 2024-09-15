@@ -1599,6 +1599,7 @@ where
     )
     .await?;
 
+    #[cfg(feature = "v1")]
     let merchant_recipient_data = if let Some(true) = payment_data
         .get_payment_intent()
         .is_payment_processor_token_flow
@@ -1615,6 +1616,10 @@ where
             )
             .await?
     };
+
+    // TODO: handle how we read `is_processor_token_flow` in v2 and then call `get_merchant_recipient_data`
+    #[cfg(feature = "v2")]
+    let merchant_recipient_data = None;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -3808,6 +3813,7 @@ where
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,

@@ -107,7 +107,6 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub off_session: Option<bool>,
     pub client_secret: String,
     pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
@@ -120,7 +119,6 @@ pub struct PaymentIntent {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub frm_merchant_decision: Option<String>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
@@ -131,8 +129,6 @@ pub struct PaymentIntent {
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub merchant_order_reference_id: Option<String>,
-    pub is_payment_processor_token_flow: Option<bool>,
     pub shipping_cost: Option<MinorUnit>,
     pub tax_details: Option<TaxDetails>,
     pub merchant_reference_id: String,

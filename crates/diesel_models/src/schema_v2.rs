@@ -847,7 +847,6 @@ diesel::table! {
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
         setup_future_usage -> Nullable<FutureUsage>,
-        off_session -> Nullable<Bool>,
         #[max_length = 128]
         client_secret -> Varchar,
         #[max_length = 64]
@@ -861,7 +860,6 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 255]
         payment_link_id -> Nullable<Varchar>,
-        payment_confirm_source -> Nullable<PaymentSource>,
         #[max_length = 32]
         updated_by -> Varchar,
         surcharge_applicable -> Nullable<Bool>,
@@ -872,9 +870,6 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
-        #[max_length = 255]
-        merchant_order_reference_id -> Nullable<Varchar>,
-        is_payment_processor_token_flow -> Nullable<Bool>,
         shipping_cost -> Nullable<Int8>,
         #[max_length = 32]
         organization_id -> Varchar,

@@ -59,4 +59,8 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN fingerprint_id,
     DROP COLUMN merchant_decision,
     DROP COLUMN statement_descriptor_name,
-    DROP COLUMN amount_to_capture;
+    DROP COLUMN amount_to_capture,
+    DROP COLUMN off_session,
+    DROP COLUMN payment_confirm_source,
+    DROP COLUMN merchant_order_reference_id,
+    DROP COLUMN is_payment_processor_token_flow;
