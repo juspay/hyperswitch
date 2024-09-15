@@ -30,6 +30,7 @@ pub struct PayoutAttempt {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -66,6 +67,7 @@ pub struct PayoutAttemptNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

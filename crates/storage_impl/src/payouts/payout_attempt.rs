@@ -63,6 +63,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 let created_attempt = PayoutAttempt {
                     payout_attempt_id: new_payout_attempt.payout_attempt_id.clone(),
                     payout_id: new_payout_attempt.payout_id.clone(),
+                    additional_payout_method_data: new_payout_attempt
+                        .additional_payout_method_data
+                        .clone(),
                     customer_id: new_payout_attempt.customer_id.clone(),
                     merchant_id: new_payout_attempt.merchant_id.clone(),
                     address_id: new_payout_attempt.address_id.clone(),
@@ -517,6 +520,7 @@ impl DataModelExt for PayoutAttempt {
             profile_id: self.profile_id,
             merchant_connector_id: self.merchant_connector_id,
             routing_info: self.routing_info,
+            additional_payout_method_data: self.additional_payout_method_data,
         }
     }
 
@@ -541,6 +545,7 @@ impl DataModelExt for PayoutAttempt {
             profile_id: storage_model.profile_id,
             merchant_connector_id: storage_model.merchant_connector_id,
             routing_info: storage_model.routing_info,
+            additional_payout_method_data: storage_model.additional_payout_method_data,
         }
     }
 }
@@ -568,6 +573,7 @@ impl DataModelExt for PayoutAttemptNew {
             profile_id: self.profile_id,
             merchant_connector_id: self.merchant_connector_id,
             routing_info: self.routing_info,
+            additional_payout_method_data: self.additional_payout_method_data,
         }
     }
 
@@ -592,6 +598,7 @@ impl DataModelExt for PayoutAttemptNew {
             profile_id: storage_model.profile_id,
             merchant_connector_id: storage_model.merchant_connector_id,
             routing_info: storage_model.routing_info,
+            additional_payout_method_data: storage_model.additional_payout_method_data,
         }
     }
 }

@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 use crate::enums as api_enums;
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub enum PayoutAdditionalData {
+pub enum AdditionalPayoutMethodData {
     Card(Box<CardAdditionalData>),
     Bank(Box<BankAdditionalData>),
     Wallet(Box<WalletAdditonalData>),
@@ -17,18 +17,37 @@ pub enum PayoutAdditionalData {
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct CardAdditionalData {
-    pub last4: Option<String>,
-    pub card_type: Option<String>,
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
-    pub card_network: Option<api_enums::CardNetwork>,
+    /// Issuer of the card
     pub card_issuer: Option<String>,
+
+    /// Card network of the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Card type, can be either `credit` or `debit`
+    pub card_type: Option<String>,
+
+    /// Card issuing country
     pub card_issuing_country: Option<String>,
+
+    /// Code for Card issuing bank
+    pub bank_code: Option<String>,
+
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+
+    /// The ISIN of the card
     pub card_isin: Option<String>,
-    #[schema(value_type = Option<String>)]
+
+    /// Extended bin of card, contains the first 8 digits of card number
+    pub card_extended_bin: Option<String>,
+
+    /// Card expiry month
     pub card_exp_month: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
+
+    /// Card expiry year
     pub card_exp_year: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
+
+    /// Card holder name
     pub card_holder_name: Option<Secret<String>>,
 }
 
@@ -45,11 +64,11 @@ pub enum BankAdditionalData {
 pub struct AchBankTransferAdditionalData {
     /// Partially masked account number for ach bank debit payment
     #[schema(value_type = String, example = "0001****3456")]
-    pub account_number: MaskedBankAccount,
+    pub bank_account_number: MaskedBankAccount,
 
     /// Partially masked routing number for ach bank debit payment
     #[schema(value_type = String, example = "110***000")]
-    pub routing_number: MaskedRoutingNumber,
+    pub bank_routing_number: MaskedRoutingNumber,
 
     /// Name of the bank
     #[schema(value_type = Option<BankNames>, example = "Deutsche Bank")]
@@ -68,11 +87,11 @@ pub struct AchBankTransferAdditionalData {
 pub struct BacsBankTransferAdditionalData {
     /// Partially masked sort code for Bacs payment method
     #[schema(value_type = String, example = "108800")]
-    pub sort_code: MaskedSortCode,
+    pub bank_sort_code: MaskedSortCode,
 
     /// Bank account's owner name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<Secret<String>>,
+    #[schema(value_type = String, example = "0001****3456")]
+    pub bank_account_number: MaskedBankAccount,
 
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
@@ -113,8 +132,8 @@ pub struct SepaBankTransferAdditionalData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
-    #[schema(value_type = Option<String>, example = "a1f4102e ****** 6fa48899c1d1")]
-    pub pix_key: Option<MaskedBankAccount>,
+    #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
+    pub pix_key: MaskedBankAccount,
 
     /// Partially masked CPF - CPF is a Brazilian tax identification number
     #[schema(value_type = Option<String>, example = "**** 124689")]

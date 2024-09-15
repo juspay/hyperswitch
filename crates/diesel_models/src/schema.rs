@@ -1045,6 +1045,7 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         routing_info -> Nullable<Jsonb>,
+        additional_payout_method_data -> Nullable<Jsonb>,
     }
 }
 

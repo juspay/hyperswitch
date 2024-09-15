@@ -136,7 +136,7 @@ impl From<Secret<String>> for MaskedIban {
 pub struct MaskedBic(Secret<String>);
 impl From<String> for MaskedBic {
     fn from(src: String) -> Self {
-        let masked_value = apply_mask(src.as_ref(), 3, 3);
+        let masked_value = apply_mask(src.as_ref(), 3, 2);
         Self(Secret::from(masked_value))
     }
 }

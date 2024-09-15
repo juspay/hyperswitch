@@ -13,7 +13,7 @@ use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 use common_enums::PayoutRetryType;
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, ValueExt},
+    ext_traits::{AsyncExt, Encode, ValueExt},
     id_type::CustomerId,
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     types::MinorUnit,
@@ -2369,9 +2369,27 @@ pub async fn payout_create_db_entries(
     // Make payout_attempt entry
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id, 1);
 
+    let additional_pm_data = req
+        .payout_method_data
+        .clone()
+        .or(stored_payout_method_data.cloned())
+        .async_and_then(|payout_method_data| async move {
+            helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
+                .await
+        })
+        .await;
+
+    let additional_pm_data_value = additional_pm_data
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode additional payout method data")?;
+
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),
+        additional_payout_method_data: additional_pm_data_value,
         merchant_id: merchant_id.to_owned(),
         status,
         business_country: req.business_country.to_owned(),

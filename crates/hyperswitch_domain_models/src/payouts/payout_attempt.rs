@@ -59,6 +59,7 @@ pub struct PayoutListFilters {
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
+    pub additional_payout_method_data: Option<serde_json::Value>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub address_id: Option<String>,
@@ -84,6 +85,7 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
+    pub additional_payout_method_data: Option<serde_json::Value>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub address_id: Option<String>,

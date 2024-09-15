@@ -295,6 +295,10 @@ pub async fn modify_trackers(
         last_modified_at: common_utils::date_time::now(),
         merchant_connector_id: None,
         routing_info: None,
+        additional_payout_method_data: payout_data
+            .payout_attempt
+            .additional_payout_method_data
+            .to_owned(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

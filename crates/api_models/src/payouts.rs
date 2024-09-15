@@ -1,18 +1,17 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils,
-    pii::{self, Email},
+    pii::{self, Email, PhoneNumber},
 };
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-pub mod additonal_info;
-
+pub mod additional_info;
 use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -550,19 +549,19 @@ pub enum PayoutMethodDataResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CardPayoutResponse {
     #[serde(flatten)]
-    details: additonal_info::CardAdditionalData,
+    details: additional_info::CardAdditionalData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct BankPayoutResponse {
     #[serde(flatten)]
-    details: Option<additonal_info::BankAdditionalData>,
+    details: Option<additional_info::BankAdditionalData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct WalletPayoutResponse {
     #[serde(flatten)]
-    details: Option<additonal_info::WalletAdditonalData>,
+    details: Option<additional_info::WalletAdditonalData>,
 }
 
 #[derive(
@@ -852,4 +851,86 @@ pub struct PayoutLinkStatusDetails {
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub test_mode: bool,
+}
+
+impl From<Bank> for additional_info::BankAdditionalData {
+    fn from(bank_data: Bank) -> Self {
+        match bank_data {
+            Bank::Ach(AchBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number,
+                bank_routing_number,
+            }) => Self::Ach(Box::new(additional_info::AchBankTransferAdditionalData {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number: bank_account_number.into(),
+                bank_routing_number: bank_routing_number.into(),
+            })),
+            Bank::Bacs(BacsBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number,
+                bank_sort_code,
+            }) => Self::Bacs(Box::new(additional_info::BacsBankTransferAdditionalData {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number: bank_account_number.into(),
+                bank_sort_code: bank_sort_code.into(),
+            })),
+            Bank::Sepa(SepaBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                iban,
+                bic,
+            }) => Self::Sepa(Box::new(additional_info::SepaBankTransferAdditionalData {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                iban: iban.into(),
+                bic: bic.map(From::from),
+            })),
+            Bank::Pix(PixBankTransfer {
+                bank_name,
+                bank_branch,
+                bank_account_number,
+                pix_key,
+                tax_id,
+            }) => Self::Pix(Box::new(additional_info::PixBankTransferAdditionalData {
+                bank_name,
+                bank_branch,
+                bank_account_number: bank_account_number.into(),
+                pix_key: pix_key.into(),
+                tax_id: tax_id.map(From::from),
+            })),
+        }
+    }
+}
+
+impl From<Wallet> for additional_info::WalletAdditonalData {
+    fn from(wallet_data: Wallet) -> Self {
+        match wallet_data {
+            Wallet::Paypal(Paypal {
+                email,
+                telephone_number,
+                paypal_id,
+            }) => Self::Paypal(Box::new(additional_info::PaypalAdditionalData {
+                email,
+                telephone_number: telephone_number
+                    .and_then(|number| PhoneNumber::from_str(number.peek()).ok()),
+                paypal_id: paypal_id.map(From::from),
+            })),
+            Wallet::Venmo(Venmo { telephone_number }) => {
+                Self::Venmo(Box::new(additional_info::VenmoAdditionalData {
+                    telephone_number: telephone_number
+                        .and_then(|number| PhoneNumber::from_str(number.peek()).ok()),
+                }))
+            }
+        }
+    }
 }
