@@ -229,6 +229,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }

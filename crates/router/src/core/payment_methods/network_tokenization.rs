@@ -48,7 +48,6 @@ pub struct ApiPayload {
     order_data: OrderData,
     key_id: String,
     should_send_token: bool,
-    sub_merchant_id: String,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -185,8 +184,7 @@ pub async fn mk_tokenization_req(
         card_data: Secret::new(jwt),
         order_data,
         key_id,
-        should_send_token: true,
-        sub_merchant_id: "visa_sbx_working".to_string(), //todo!() this will be removed.
+        should_send_token: true
     };
 
     let mut request = services::Request::new(

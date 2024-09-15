@@ -931,6 +931,24 @@ pub async fn save_in_locker(
     todo!()
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn save_network_token_in_locker(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _card_data: &domain::Card,
+    _payment_method_request: api::PaymentMethodCreate,
+) -> RouterResult<(
+    Option<api_models::payment_methods::PaymentMethodResponse>,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+    Option<String>,
+)> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn save_network_token_in_locker(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,

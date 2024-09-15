@@ -4602,7 +4602,7 @@ async fn get_pm_list_context(
                         pm.locker_id.clone().unwrap_or(pm.get_id().clone()),
                         pm.network_token_requestor_reference_id
                             .clone()
-                            .or(Some(pm.payment_method_id.clone())),
+                            .or(Some(pm.get_id().clone())),
                     ),
                 ),
             })

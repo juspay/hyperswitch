@@ -3572,6 +3572,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 default_fallback_routing: None,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
     }
@@ -3908,6 +3909,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }

@@ -731,7 +731,7 @@ connector_list = ""
 recon = "test@example.com"
 
 [network_tokenization_supported_card_networks]
-card_networks = "Visa" # Supported card networks for network tokenization
+card_networks = "Visa, AmericanExpress, Mastercard" # Supported card networks for network tokenization
 
 [network_tokenization_service] # Network Tokenization Service Configuration
 generate_token_url= ""        # base url to generate token

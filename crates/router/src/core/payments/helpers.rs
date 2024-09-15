@@ -2124,7 +2124,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                         network_token_locker_id: payment_method_info
                             .network_token_requestor_reference_id
                             .clone()
-                            .or(Some(payment_method_info.payment_method_id.clone())),
+                            .or(Some(payment_method_info.get_id().clone())),
                     }));
             }
         }
