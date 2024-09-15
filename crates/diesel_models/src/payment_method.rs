@@ -835,7 +835,6 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
-
         }
     }
 }
