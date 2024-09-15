@@ -184,7 +184,7 @@ pub async fn mk_tokenization_req(
         card_data: Secret::new(jwt),
         order_data,
         key_id,
-        should_send_token: true
+        should_send_token: true,
     };
 
     let mut request = services::Request::new(

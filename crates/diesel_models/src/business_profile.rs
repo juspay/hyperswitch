@@ -462,7 +462,8 @@ impl BusinessProfileUpdateInternal {
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             version: source.version,
-            is_network_tokenization_enabled: is_network_tokenization_enabled.unwrap_or(source.is_network_tokenization_enabled),
+            is_network_tokenization_enabled: is_network_tokenization_enabled
+                .unwrap_or(source.is_network_tokenization_enabled),
         }
     }
 }
