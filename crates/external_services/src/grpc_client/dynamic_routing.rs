@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use common_utils::{
     errors::CustomResult, ext_traits::OptionExt, id_type, transformers::ForeignFrom,
 };
@@ -7,7 +9,6 @@ use hyperswitch_interfaces::api::api_models::routing::{
     SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
 };
 use serde;
-use std::fmt::Debug;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,

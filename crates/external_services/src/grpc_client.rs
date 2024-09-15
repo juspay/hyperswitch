@@ -1,10 +1,12 @@
 #[cfg(feature = "dynamic_routing")]
 pub mod dynamic_routing;
-#[cfg(feature = "dynamic_routing")]
-use crate::grpc_client::dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
+use std::fmt::Debug;
+
 use router_env::logger;
 use serde;
-use std::fmt::Debug;
+
+#[cfg(feature = "dynamic_routing")]
+use crate::grpc_client::dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 
 // Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
