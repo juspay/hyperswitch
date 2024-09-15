@@ -476,6 +476,9 @@ pub async fn retrieve_payment_method_with_token(
     _card_token_data: Option<&domain::CardToken>,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
+    _mandate_id: Option<api_models::payments::MandateIds>,
+    _payment_method_info: Option<domain::PaymentMethod>,
+    _business_profile: &domain::BusinessProfile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     todo!()
 }
