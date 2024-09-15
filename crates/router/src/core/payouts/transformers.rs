@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use common_utils::link_utils::EnabledPaymentMethod;
+use api_models::payouts;
+use common_utils::{ext_traits::ValueExt, link_utils::EnabledPaymentMethod};
+use router_env::logger;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -100,6 +102,18 @@ impl
             priority: payout.priority,
             attempts: Some(vec![attempt]),
             billing: address,
+            payout_method_data: payout_attempt
+                .additional_payout_method_data
+                .and_then(|data| {
+                    data.parse_value::<payouts::additional_info::AdditionalPayoutMethodData>(
+                        "additional_payout_method_data",
+                    )
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to parse additional_payout_method_data");
+                    })
+                    .ok()
+                })
+                .map(From::from),
             client_secret: None,
             payout_link: None,
             email: customer

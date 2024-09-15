@@ -2176,6 +2176,19 @@ pub async fn response_handler(
     let customer_id = payouts.customer_id;
     let billing = billing_address.as_ref().map(From::from);
 
+    let additional_payout_method_data: Option<payouts::AdditionalInfo::AdditionalPayoutMethodData> =
+        payout_attempt
+            .additional_payout_method_data
+            .clone()
+            .map(|data| data.parse_value("additional_payout_method_data"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "additional_payout_method_data",
+            })?;
+
+    let payout_method_data =
+        additional_payout_method_data.map(payouts::PayoutMethodDataResponse::from);
+
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.get_id().to_owned(),
@@ -2183,6 +2196,7 @@ pub async fn response_handler(
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector.to_owned(),
         payout_type: payouts.payout_type.to_owned(),
+        payout_method_data,
         billing,
         auto_fulfill: payouts.auto_fulfill,
         customer_id,

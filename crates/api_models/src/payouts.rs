@@ -417,6 +417,25 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<PayoutType>, example = "bank")]
     pub payout_type: Option<api_enums::PayoutType>,
 
+    /// The payout method details for the payout
+    #[schema(value_type = Option<PayoutMethodDataResponse>, example = json!(r#"{
+        "card": {
+            "last4": "2503",
+            "card_type": null,
+            "card_network": null,
+            "card_issuer": null,
+            "card_issuing_country": null,
+            "card_isin": "400000",
+            "card_extended_bin": null,
+            "card_exp_month": "08",
+            "card_exp_year": "25",
+            "card_holder_name": null,
+            "payment_checks": null,
+            "authentication_data": null
+        }
+    }"#))]
+    pub payout_method_data: Option<PayoutMethodDataResponse>,
+
     /// The billing address for the payout
     #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
@@ -929,6 +948,28 @@ impl From<Wallet> for additional_info::WalletAdditionalData {
                 Self::Venmo(Box::new(additional_info::VenmoAdditionalData {
                     telephone_number: telephone_number
                         .and_then(|number| PhoneNumber::from_str(number.peek()).ok()),
+                }))
+            }
+        }
+    }
+}
+
+impl From<additional_info::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
+    fn from(additional_data: additional_info::AdditionalPayoutMethodData) -> Self {
+        match additional_data {
+            additional_info::AdditionalPayoutMethodData::Card(card_data) => {
+                Self::Card(Box::new(CardPayoutResponse {
+                    details: *card_data,
+                }))
+            }
+            additional_info::AdditionalPayoutMethodData::Bank(bank_data) => {
+                Self::Bank(Box::new(BankPayoutResponse {
+                    details: Some(*bank_data),
+                }))
+            }
+            additional_info::AdditionalPayoutMethodData::Wallet(wallet_data) => {
+                Self::Wallet(Box::new(WalletPayoutResponse {
+                    details: Some(*wallet_data),
                 }))
             }
         }
