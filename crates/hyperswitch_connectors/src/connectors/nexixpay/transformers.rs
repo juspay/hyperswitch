@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, PaymentsPreProcessingRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsCancelRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{Mask, Secret};
 use serde::{Deserialize, Serialize};
 use cards::CardNumber;
 use url::Url;
@@ -230,16 +230,20 @@ impl TryFrom<&PaymentsPreProcessingRouterData>for NexixpayPreProcessingRequest{
                         field_name: "request.redirect_response.payload",
                     })?
                     .expose();
-        let customer_details_encrypted =
-                serde_json::from_value::<RedirectPayload>(redirect_payload).change_context(
+                println!("*******redirect_payload{:?}",redirect_payload.clone());
+        let customer_details_encrypted: RedirectPayload =
+                serde_json::from_value::<RedirectPayload>(redirect_payload.clone()).change_context(
                     errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "redirection_payload",
                     },
                 )?;
-        // let operation_id = item.connector_request_reference_id.clone();
+        //TODO: error handling ->enum
+        let operation_id = customer_details_encrypted.payment_id;
+        let pares = customer_details_encrypted.pa_res;
+        println!("*******CheckformValues123{:?} {:?}",operation_id.clone(),pares.clone());
         Ok(Self {
-            operation_id: "159022578930442599".to_string(),
-            three_d_s_auth_response: "notneeded".to_string(),
+            operation_id: operation_id.clone(),
+            three_d_s_auth_response: pares.clone(),
         })
     }
 }
@@ -278,10 +282,10 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPreProcessingResponse, PaymentsPre
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!({
                         "threeDSAuthResult": three_ds_data,
-                        "threeDSAuthResponse": "notneeded".to_string(),
+                        "threeDSAuthResponse": customer_details_encrypted.pa_res,
                     })),
                     network_txn_id: None,
-                    connector_response_reference_id: Some("159022578930442599".to_string()),
+                    connector_response_reference_id: Some(item.response.operation.operation_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
@@ -452,29 +456,25 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthoriz
             item: ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
         ) -> Result<Self, Self::Error> {
             let complete_authorise_url = item.data.request.complete_authorize_url.clone().ok_or_else(missing_field_err("complete_authorise_url"))?;
+            let operation_id: String = item.response.operation.operation_id;
             let abc = nexixpay_threeds_link((
                 item.response.three_d_s_auth_url.clone(),
                 item.response.three_d_s_auth_request.clone(),
                 complete_authorise_url.clone(),
-                "159022578930442599".to_string(),
+                operation_id.clone(),
             ))?;
-            println!("*******CheckformValues{:?}",abc);
-            println!("*******CheckResponse{:?}",item.response.clone());
-            let abc = item.response.operation.operation_id;
+            println!("*******CheckformValues{:?}",abc.clone());
+            // println!("*******CheckResponse{:?}",item.response.clone());
+            println!("*******operation_id{:?}",operation_id.clone(),);
             Ok(Self {
                 status: common_enums::AttemptStatus::from(item.response.operation.operation_result),
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId("159022578930442599".to_string()),
-                    redirection_data: Some(nexixpay_threeds_link((
-                        item.response.three_d_s_auth_url,
-                        item.response.three_d_s_auth_request,
-                        complete_authorise_url,
-                        "159022578930442599".to_string(),
-                    ))?),
+                    resource_id: ResponseId::ConnectorTransactionId(operation_id.clone()),
+                    redirection_data: Some(abc.clone()),
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some("159022578930442599".to_string()),
+                    connector_response_reference_id: Some(operation_id.clone()),
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
@@ -587,7 +587,7 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayCompleteAuthorizeResponse, Complet
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.operation.operation_result),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId("159022578930442599".to_string()),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.operation.operation_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -621,13 +621,27 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
 
         let order_id = item.router_data.connector_request_reference_id.clone();
         let amount = item.amount.clone();
+        let billing_address=Address{
+            name: item.router_data.get_optional_billing_full_name().clone(),
+            street: item.router_data.get_optional_billing_line1(),
+            additional_info: None,
+            city: item.router_data.get_optional_billing_city(),
+            post_code: item.router_data.get_optional_billing_zip(),
+            province: None,
+            country: item.router_data.get_optional_billing_country(),
+        };
+        let customer_info = CustomerInfo{
+            card_holder_name: None,
+            billing_address:billing_address.clone(),
+            shipping_address: billing_address
+        };
         let order_data = Order{
             order_id,
             amount,
             currency: item.router_data.request.currency,
             description: None,
             custom_field: None,
-            customer_info: None,
+            customer_info: Some(customer_info),
         };
         let connector_metadata = item.router_data.request.connector_meta.clone().ok_or(errors::ConnectorError::MissingRequiredField {
             field_name: "connector_meta",
@@ -644,17 +658,23 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
             authenticationValue: three_d_s_auth.threeDSAuthResult.authenticationValue,            
         };
         let card: Result<NexixpayCard, error_stack::Report<errors::ConnectorError>> = match payment_method_data {
-            PaymentMethodData::Card(ref req_card) => Ok(NexixpayCard {
-                pan: req_card.card_number.clone(),
-                expiry_date: req_card.get_expiry_date_as_mmyy()?,
-                cvv: req_card.card_cvc.clone(),
-            }),
+            PaymentMethodData::Card(ref req_card) =>
+             {
+                println!("****req_card{:?}",req_card.clone().card_cvc.expose());
+                Ok(NexixpayCard {
+                pan: req_card.clone().card_number,
+                expiry_date: req_card.clone().get_expiry_date_as_mmyy()?,
+                cvv: Secret::new("396".to_string()),
+            })
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         };
+        let crd = card?;
+        println!("****carddetails{:?} {:?} {:?}",crd.clone().pan,crd.clone().expiry_date.expose(),crd.clone().cvv.expose());
         Ok(Self {
             order: order_data,
-            card: card?,
-            operation_id: "159022578930442599".to_string(),
+            card: crd.clone(),
+            operation_id: operation_id,
             capture_type,
             three_d_s_auth_data
         })

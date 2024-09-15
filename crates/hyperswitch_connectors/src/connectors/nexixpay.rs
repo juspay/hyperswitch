@@ -134,7 +134,10 @@ impl ConnectorCommon for Nexixpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: nexixpay::NexixpayErrorResponse = res
+        ////TODO: error handling -> struct
+        let resp = res.clone();
+        println!("*******redirect_payload{:?}",resp);
+        let response: nexixpay::NexixpayErrorResponse = resp
             .response
             .parse_struct("NexixpayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
