@@ -3471,7 +3471,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
-                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+                dynamic_routing_algorithm: None,
             },
         ))
     }

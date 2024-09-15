@@ -3,8 +3,8 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::api_models::routing::{
-    CurrentBlockThreshold, DynamicRoutingConfig, DynamicRoutingConfigBody, RoutableConnectorChoice,
-    RoutableConnectorChoiceWithStatus,
+    CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
+    SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
 };
 use serde;
 use std::fmt::Debug;
@@ -72,14 +72,14 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
     async fn calculate_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: DynamicRoutingConfig,
+        dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DRResult<CalSuccessRateResponse>;
 
     async fn update_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: DynamicRoutingConfig,
+        dynamic_routing_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DRResult<UpdateSuccessRateWindowResponse>;
 }
@@ -89,7 +89,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
     async fn calculate_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: DynamicRoutingConfig,
+        dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DRResult<CalSuccessRateResponse> {
         let params = dynamic_routing_config
@@ -135,7 +135,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
     async fn update_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: DynamicRoutingConfig,
+        dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DRResult<UpdateSuccessRateWindowResponse> {
         let config = dynamic_routing_config.config.map(ForeignFrom::foreign_from);
@@ -191,8 +191,8 @@ impl ForeignFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
     }
 }
 
-impl ForeignFrom<DynamicRoutingConfigBody> for UpdateSuccessRateWindowConfig {
-    fn foreign_from(config: DynamicRoutingConfigBody) -> Self {
+impl ForeignFrom<SuccessBasedRoutingConfigBody> for UpdateSuccessRateWindowConfig {
+    fn foreign_from(config: SuccessBasedRoutingConfigBody) -> Self {
         Self {
             max_aggregates_size: config.max_aggregates_size.unwrap_or_default(),
             current_block_threshold: config
@@ -202,8 +202,8 @@ impl ForeignFrom<DynamicRoutingConfigBody> for UpdateSuccessRateWindowConfig {
     }
 }
 
-impl ForeignFrom<DynamicRoutingConfigBody> for CalSuccessRateConfig {
-    fn foreign_from(config: DynamicRoutingConfigBody) -> Self {
+impl ForeignFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
+    fn foreign_from(config: SuccessBasedRoutingConfigBody) -> Self {
         Self {
             min_aggregates_size: config.min_aggregates_size.unwrap_or_default(),
             default_success_rate: config.default_success_rate.unwrap_or_default(),

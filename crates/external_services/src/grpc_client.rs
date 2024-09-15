@@ -23,6 +23,7 @@ impl GrpcClientSettings {
     /// # Panics
     ///
     /// This function will panic if it fails to establish a connection with the gRPC server.
+    /// This function will be called at service startup.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> GrpcClients {
         #[cfg(feature = "dynamic_routing")]

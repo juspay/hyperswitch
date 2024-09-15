@@ -33,7 +33,6 @@ use common_utils::{
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
-// use external_services::grpc_client::SuccessBasedDynamicRouting;
 use futures::future::join_all;
 use helpers::ApplePayData;
 pub use hyperswitch_domain_models::{

@@ -4,7 +4,9 @@ use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
     RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
-    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, ToggleDynamicRoutingQuery,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, SuccessBasedRoutingConfig,
+    SuccessBasedRoutingPayloadWrapper, SuccessBasedRoutingUpdateConfigQuery,
+    ToggleSuccessBasedRoutingQuery, ToggleSuccessBasedRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -77,31 +79,31 @@ impl ApiEventMetric for RoutingRetrieveLinkQueryWrapper {
     }
 }
 
-impl ApiEventMetric for ToggleDynamicRoutingQuery {
+impl ApiEventMetric for ToggleSuccessBasedRoutingQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for crate::routing::DynamicRoutingConfig {
+impl ApiEventMetric for SuccessBasedRoutingConfig {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for crate::routing::DynamicRoutingPayloadWrapper {
+impl ApiEventMetric for SuccessBasedRoutingPayloadWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for crate::routing::ToggleDynamicRoutingWrapper {
+impl ApiEventMetric for ToggleSuccessBasedRoutingWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
 }
 
-impl ApiEventMetric for crate::routing::DynamicRoutingUpdateConfigQuery {
+impl ApiEventMetric for SuccessBasedRoutingUpdateConfigQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
