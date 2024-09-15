@@ -2317,7 +2317,7 @@ where
             }
             else if (connector.connector_name == router_types::Connector::Nexixpay)
                 && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && !is_operation_complete_authorize(&operation)
+                && is_operation_complete_authorize(&operation)
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)

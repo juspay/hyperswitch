@@ -967,7 +967,7 @@ where
         }
         Ok(ApplicationResponse::Form(redirection_data)) => {
             let config = state.conf();
-            build_redirection_form(
+            let abc = build_redirection_form(
                 &redirection_data.redirect_form,
                 redirection_data.payment_method_data,
                 redirection_data.amount,
@@ -975,7 +975,9 @@ where
                 config,
             )
             .respond_to(request)
-            .map_into_boxed_body()
+            .map_into_boxed_body();
+            println!("*****Form{:?}",abc);
+            return abc;
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
