@@ -561,7 +561,7 @@ pub struct BankPayoutResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct WalletPayoutResponse {
     #[serde(flatten)]
-    details: Option<additional_info::WalletAdditonalData>,
+    details: Option<additional_info::WalletAdditionalData>,
 }
 
 #[derive(
@@ -912,7 +912,7 @@ impl From<Bank> for additional_info::BankAdditionalData {
     }
 }
 
-impl From<Wallet> for additional_info::WalletAdditonalData {
+impl From<Wallet> for additional_info::WalletAdditionalData {
     fn from(wallet_data: Wallet) -> Self {
         match wallet_data {
             Wallet::Paypal(Paypal {

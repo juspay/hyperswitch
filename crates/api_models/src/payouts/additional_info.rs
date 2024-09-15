@@ -12,7 +12,7 @@ use crate::enums as api_enums;
 pub enum AdditionalPayoutMethodData {
     Card(Box<CardAdditionalData>),
     Bank(Box<BankAdditionalData>),
-    Wallet(Box<WalletAdditonalData>),
+    Wallet(Box<WalletAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -154,7 +154,7 @@ pub struct PixBankTransferAdditionalData {
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum WalletAdditonalData {
+pub enum WalletAdditionalData {
     Paypal(Box<PaypalAdditionalData>),
     Venmo(Box<VenmoAdditionalData>),
 }
