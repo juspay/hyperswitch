@@ -487,19 +487,29 @@ where
     ) -> RouterResponse<Self> {
         let mut amount = payment_data.get_payment_intent().amount;
         let shipping_cost = payment_data.get_payment_intent().shipping_cost;
+        if let Some(shipping_cost) = shipping_cost {
+            amount = amount + shipping_cost;
+        }
         let order_tax_amount = payment_data
             .get_payment_intent()
             .tax_details
             .clone()
-            .and_then(|tax| tax.payment_method_type.map(|a| a.order_tax_amount));
-        if let Some(shipping_cost) = shipping_cost {
-            amount = amount + shipping_cost;
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|a| a.order_tax_amount)
+                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
+            });
+        if let Some(tax_amount) = order_tax_amount {
+            amount = amount + tax_amount;
         }
-        if let Some(order_tax_amount) = order_tax_amount {
-            amount = amount + order_tax_amount;
-        }
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self { net_amount: amount },
+            Self {
+                net_amount: amount,
+                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                order_tax_amount,
+                shipping_cost,
+            },
             vec![],
         )))
     }
@@ -1052,6 +1062,21 @@ where
             update_mandate_id: d.update_mandate_id.clone(),
         });
 
+        let order_tax_amount = payment_data
+            .get_payment_attempt()
+            .order_tax_amount
+            .or_else(|| {
+                payment_data
+                    .get_payment_intent()
+                    .tax_details
+                    .clone()
+                    .and_then(|tax| {
+                        tax.payment_method_type
+                            .map(|a| a.order_tax_amount)
+                            .or_else(|| tax.default.map(|a| a.order_tax_amount))
+                    })
+            });
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -1149,6 +1174,7 @@ where
             charges: charges_response,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
+            order_tax_amount,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -1279,6 +1305,7 @@ pub fn wait_screen_next_steps_check(
     Ok(display_info_with_timer_instructions)
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         Self {
@@ -1400,6 +1427,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             updated: None,
             charges: None,
             frm_metadata: None,
+            order_tax_amount: None,
         }
     }
 }
@@ -1989,6 +2017,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -2054,6 +2083,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -2096,6 +2134,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -2151,6 +2190,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             metadata: payment_data.payment_intent.metadata,
             customer_acceptance: payment_data.customer_acceptance,
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 

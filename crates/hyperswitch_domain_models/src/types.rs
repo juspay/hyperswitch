@@ -1,13 +1,14 @@
 use crate::{
-    router_data::RouterData,
+    router_data::{AccessToken, RouterData},
     router_flow_types::{
-        Authorize, CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, PSync,
-        PaymentMethodToken, RSync, SetupMandate, Void,
+        AccessTokenAuth, Authorize, CalculateTax, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, SetupMandate, Void,
     },
     router_request_types::{
-        CompleteAuthorizeData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
@@ -31,3 +32,4 @@ pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;

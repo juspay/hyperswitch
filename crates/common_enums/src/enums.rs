@@ -208,7 +208,7 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Datatrans,
-    // Deutschebank,
+    Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -228,7 +228,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
-    // Novalnet,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,

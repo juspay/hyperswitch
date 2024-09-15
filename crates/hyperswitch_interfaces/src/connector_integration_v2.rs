@@ -1,7 +1,7 @@
 //! definition of the new connector integration trait
 use common_utils::{
     errors::CustomResult,
-    request::{Method, Request, RequestContent},
+    request::{Method, Request, RequestBuilder, RequestContent},
 };
 use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
 use masking::Maskable;
@@ -65,6 +65,11 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, errors::ConnectorError> {
+        metrics::UNIMPLEMENTED_FLOW.add(
+            &metrics::CONTEXT,
+            1,
+            &add_attributes([("connector", self.id())]),
+        );
         Ok(String::new())
     }
 
@@ -72,8 +77,8 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
+    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
+        Ok(None)
     }
 
     /// returns form data
@@ -87,14 +92,19 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     /// builds the request and returns it
     fn build_request_v2(
         &self,
-        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+        req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &add_attributes([("connector", self.id())]),
-        );
-        Ok(None)
+        Ok(Some(
+            RequestBuilder::new()
+                .method(self.get_http_method())
+                .url(self.get_url(req)?.as_str())
+                .attach_default_headers()
+                .headers(self.get_headers(req)?)
+                .set_optional_body(self.get_request_body(req)?)
+                .add_certificate(self.get_certificate(req)?)
+                .add_certificate_key(self.get_certificate_key(req)?)
+                .build(),
+        ))
     }
 
     /// accepts the raw api response and decodes it
@@ -167,7 +177,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -175,7 +185,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate_key(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
         Ok(None)
     }
 }
