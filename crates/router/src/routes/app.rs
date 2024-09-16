@@ -1562,7 +1562,7 @@ impl Profile {
                     .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
-                            .route(web::post().to(routing::routing_update_default_config)),
+                            .route(web::patch().to(routing::routing_update_default_config)),
                     )
                     .service(
                         web::resource("/activate_routing_algorithm").route(web::patch().to(
