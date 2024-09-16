@@ -94,12 +94,12 @@ use crate::{
         transformers::ForeignTryFrom,
     },
     utils,
-    utils::{ConnectorResponseExt, OptionExt},
+    utils::OptionExt,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     consts as router_consts, core::payment_methods as pm_core, headers,
-    types::payment_methods as pm_types,
+    types::payment_methods as pm_types, utils::ConnectorResponseExt,
 };
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
