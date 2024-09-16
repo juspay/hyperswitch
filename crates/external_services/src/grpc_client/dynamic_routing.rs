@@ -26,16 +26,16 @@ pub mod success_rate {
     tonic::include_proto!("success_rate");
 }
 /// Result type for Dynamic Routing
-pub type DRResult<T> = CustomResult<T, DRError>;
+pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 
 /// Dynamic Routing Errors
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum DRError {
-    /// Error buling the gRPC Client for communication
-    #[error("Error buling the gRPC Client for communication")]
-    ClientBuildingFailed,
+pub enum DynamicRoutingError {
+    /// Error buliding the Dynamic Routing Client Request as params was missing
+    #[error("Error buliding the Dynamic Routing Client Request as params was missing")]
+    MissingRequiredParamToBuildRequest,
     /// Error getting a response from the gRPC Server
-    #[error("Error getting a response from the gRPC Server")]
+    #[error("Error getting a response from the Dynamic Routing Server")]
     GrpcServerResponseFailure,
 }
 
@@ -53,7 +53,7 @@ pub struct DynamicRoutingClientConfig {
     pub host: String,
     /// The port of the client
     pub port: u16,
-    /// If client connection needs to be established with the server or not
+    /// Booolean value for establishment of connection with the server
     pub enabled: bool,
 }
 
@@ -78,20 +78,20 @@ impl DynamicRoutingClientConfig {
 /// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
-    /// To calculate the succes rate for the list of chosen connectors
+    /// To calculate the success rate for the list of chosen connectors
     async fn calculate_success_rate(
         &self,
         id: id_type::ProfileId,
         dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
-    ) -> DRResult<CalSuccessRateResponse>;
+    ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
     async fn update_success_rate(
         &self,
         id: id_type::ProfileId,
         dynamic_routing_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
-    ) -> DRResult<UpdateSuccessRateWindowResponse>;
+    ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
 }
 
 #[async_trait::async_trait]
@@ -101,7 +101,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         id: id_type::ProfileId,
         dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
-    ) -> DRResult<CalSuccessRateResponse> {
+    ) -> DynamicRoutingResult<CalSuccessRateResponse> {
         let params = dynamic_routing_config
             .params
             .map(|vec| {
@@ -114,7 +114,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                 })
             })
             .get_required_value("Vector of params")
-            .change_context(DRError::ClientBuildingFailed)?;
+            .change_context(DynamicRoutingError::MissingRequiredParamToBuildRequest)?;
 
         let labels = label_input
             .into_iter()
@@ -135,7 +135,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let response = client
             .fetch_success_rate(request)
             .await
-            .change_context(DRError::GrpcServerResponseFailure)?
+            .change_context(DynamicRoutingError::GrpcServerResponseFailure)?
             .into_inner();
 
         Ok(response)
@@ -146,7 +146,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         id: id_type::ProfileId,
         dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
-    ) -> DRResult<UpdateSuccessRateWindowResponse> {
+    ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
         let config = dynamic_routing_config.config.map(ForeignFrom::foreign_from);
 
         let labels_with_status = label_input
@@ -169,7 +169,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                 })
             })
             .get_required_value("Vector of params")
-            .change_context(DRError::ClientBuildingFailed)?;
+            .change_context(DynamicRoutingError::MissingRequiredParamToBuildRequest)?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id: id.get_string_repr().to_owned(),
@@ -183,7 +183,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let response = client
             .update_success_rate_window(request)
             .await
-            .change_context(DRError::GrpcServerResponseFailure)?
+            .change_context(DynamicRoutingError::GrpcServerResponseFailure)?
             .into_inner();
 
         Ok(response)

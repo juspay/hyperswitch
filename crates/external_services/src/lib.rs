@@ -14,7 +14,7 @@ pub mod hashicorp_vault;
 
 pub mod no_encryption;
 
-/// Building grpc cients to communicate with the server
+/// Building grpc clients to communicate with the server
 pub mod grpc_client;
 
 pub mod managers;

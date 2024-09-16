@@ -37,7 +37,7 @@ prost = { version = "0.13", optional = true }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 tonic = { version = "0.12.2", optional = true }
 tonic-reflection = { version = "0.12.2", optional = true }
-tonic-types ={ version = "0.12.2", optional = true }
+tonic-types = { version = "0.12.2", optional = true }
 
 
 # First party crates

@@ -105,7 +105,7 @@ pub struct SessionState {
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
-    pub grpc_client: GrpcClients,
+    pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -203,7 +203,7 @@ pub struct AppState {
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
-    pub grpc_client: GrpcClients,
+    pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -452,7 +452,7 @@ impl AppState {
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
-            grpc_client: self.grpc_client.clone(),
+            grpc_client: Arc::clone(&self.grpc_client.clone()),
         })
     }
 }
