@@ -421,6 +421,36 @@ pub async fn get_refunds_filters_profile(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<api_models::payments::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::RefundsAggregate;
+    let query_params = query_params.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_refunds(state, auth.merchant_account, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::RefundsManualUpdate))]
 #[cfg(feature = "olap")]
 pub async fn refunds_manual_update(

@@ -100,7 +100,7 @@ pub async fn get_user_details(
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -539,7 +539,7 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -1154,7 +1154,7 @@ pub async fn switch_merchant_id(
 
     let user = user_from_token.get_user_from_db(&state).await?;
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -1328,10 +1328,15 @@ pub async fn list_merchants_for_user(
             return Err(report!(UserErrors::InternalServerError)
                 .attach_printable("org_id not found in user_role"));
         };
-        roles::RoleInfo::from_role_id(&state, &user_role.role_id, merchant_id, org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Unable to find role info for user role")
+        roles::RoleInfo::from_role_id_in_merchant_scope(
+            &state,
+            &user_role.role_id,
+            merchant_id,
+            org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Unable to find role info for user role")
     }))
     .await?
     .into_iter()
@@ -1394,7 +1399,7 @@ pub async fn get_user_details_in_merchant_account(
         .to_not_found_response(UserErrors::InvalidRoleOperation)
         .attach_printable("User not found in the merchant account")?;
 
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &required_user_role.role_id,
         &user_from_token.merchant_id,
@@ -1428,7 +1433,7 @@ pub async fn list_user_roles_details(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let requestor_role_info = roles::RoleInfo::from_role_id(
+    let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -1438,7 +1443,7 @@ pub async fn list_user_roles_details(
     .to_not_found_response(UserErrors::InternalServerError)
     .attach_printable("Failed to fetch role info")?;
 
-    let user_roles_set: HashSet<_> = state
+    let user_roles_set = state
         .store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: required_user.get_user_id(),
@@ -1459,7 +1464,7 @@ pub async fn list_user_roles_details(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to fetch user roles")?
         .into_iter()
-        .collect();
+        .collect::<HashSet<_>>();
 
     let org_name = state
         .store
@@ -1477,11 +1482,11 @@ pub async fn list_user_roles_details(
     let (merchant_ids, merchant_profile_ids) = user_roles_set.iter().try_fold(
         (Vec::new(), Vec::new()),
         |(mut merchant, mut merchant_profile), user_role| {
-            let entity_type = user_role
+            let (_, entity_type) = user_role
                 .get_entity_id_and_type()
                 .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Failed to fetch entity id and type")?
-                .1;
+                .attach_printable("Failed to compute entity id and type")?;
+
             match entity_type {
                 EntityType::Merchant => {
                     let merchant_id = user_role
@@ -1525,7 +1530,7 @@ pub async fn list_user_roles_details(
         },
     )?;
 
-    let merchant_map: HashMap<_, _> = state
+    let merchant_map = state
         .store
         .list_multiple_merchant_accounts(&(&state).into(), merchant_ids)
         .await
@@ -1538,50 +1543,71 @@ pub async fn list_user_roles_details(
                 merchant_account.merchant_name.clone(),
             )
         })
-        .collect();
+        .collect::<HashMap<_, _>>();
 
     let key_manager_state = &(&state).into();
 
-    let profile_map: HashMap<_, _> =
-        futures::future::try_join_all(merchant_profile_ids.iter().map(
-            |merchant_profile_id| async {
-                let merchant_key_store = state
-                    .store
-                    .get_merchant_key_store_by_merchant_id(
-                        key_manager_state,
-                        &merchant_profile_id.0,
-                        &state.store.get_master_key().to_vec().into(),
-                    )
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+    let profile_map = futures::future::try_join_all(merchant_profile_ids.iter().map(
+        |merchant_profile_id| async {
+            let merchant_key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    key_manager_state,
+                    &merchant_profile_id.0,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
-                state
-                    .store
-                    .find_business_profile_by_profile_id(
-                        key_manager_state,
-                        &merchant_key_store,
-                        &merchant_profile_id.1,
-                    )
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-                    .attach_printable("Failed to retrieve business profile")
-            },
-        ))
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to construct proifle map")?
-        .into_iter()
-        .map(|profile| (profile.get_id().to_owned(), profile.profile_name))
-        .collect();
+            state
+                .store
+                .find_business_profile_by_profile_id(
+                    key_manager_state,
+                    &merchant_key_store,
+                    &merchant_profile_id.1,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve business profile")
+        },
+    ))
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to construct proifle map")?
+    .into_iter()
+    .map(|profile| (profile.get_id().to_owned(), profile.profile_name))
+    .collect::<HashMap<_, _>>();
+
+    let role_name_map = futures::future::try_join_all(
+        user_roles_set
+            .iter()
+            .map(|user_role| user_role.role_id.clone())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .map(|role_id| async {
+                let role_info = roles::RoleInfo::from_role_id_in_org_scope(
+                    &state,
+                    &role_id,
+                    &user_from_token.org_id,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+                Ok::<_, error_stack::Report<_>>((role_id, role_info.get_role_name().to_string()))
+            }),
+    )
+    .await?
+    .into_iter()
+    .collect::<HashMap<_, _>>();
 
     let role_details_list: Vec<_> = user_roles_set
         .iter()
         .map(|user_role| {
-            let entity_type = user_role
+            let (_, entity_type) = user_role
                 .get_entity_id_and_type()
-                .ok_or(UserErrors::InternalServerError)?
-                .1;
+                .ok_or(UserErrors::InternalServerError)?;
+
             let (merchant, profile) = match entity_type {
                 EntityType::Internal => {
                     return Err(UserErrors::InvalidRoleOperationWithMessage(
@@ -1642,6 +1668,10 @@ pub async fn list_user_roles_details(
                 profile,
                 status: user_role.status.foreign_into(),
                 entity_type,
+                role_name: role_name_map
+                    .get(&user_role.role_id)
+                    .ok_or(UserErrors::InternalServerError)
+                    .cloned()?,
             })
         })
         .collect::<Result<Vec<_>, UserErrors>>()?;
@@ -1684,7 +1714,7 @@ pub async fn list_users_for_merchant_account(
     let users_user_roles_and_roles =
         futures::future::try_join_all(users_and_user_roles.into_iter().map(
             |(user, user_role)| async {
-                roles::RoleInfo::from_role_id(
+                roles::RoleInfo::from_role_id_in_merchant_scope(
                     &state,
                     &user_role.role_id.clone(),
                     user_role
@@ -2586,7 +2616,7 @@ pub async fn list_orgs_for_user(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -2640,7 +2670,7 @@ pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -2707,7 +2737,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListProfilesForUserInOrgAndMerchantAccountResponse>> {
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -2796,7 +2826,7 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -2875,7 +2905,7 @@ pub async fn switch_merchant_for_user_in_org(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -3084,7 +3114,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,

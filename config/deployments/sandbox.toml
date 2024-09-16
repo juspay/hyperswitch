@@ -48,7 +48,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
-deutschebank.base_url = "https://sandbox.directpos.de/rest-api/services/v2.1"
+deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -363,6 +363,7 @@ bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
 payme.payment_method = "card"
+deutschebank = { payment_method = "bank_debit" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

@@ -44,8 +44,12 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         payouts: &Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPayoutAttempt>(self, storage_scheme, Op::Insert).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
@@ -146,11 +150,11 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             payout_attempt_id: &this.payout_id,
         };
         let field = format!("poa_{}", this.payout_attempt_id);
-        let storage_scheme = decide_storage_scheme::<_, DieselPayoutAttempt>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
             self,
             storage_scheme,
             Op::Update(key.clone(), &field, None),
-        )
+        ))
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
@@ -242,8 +246,12 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         payout_attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPayoutAttempt>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
