@@ -1140,6 +1140,7 @@ pub fn validate_customer_id_mandatory_cases(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn create_startpay_url(
     base_url: &str,
     payment_attempt: &PaymentAttempt,
@@ -2901,6 +2902,18 @@ pub(crate) fn validate_pm_or_token_given(
     )
 }
 
+#[cfg(feature = "v2")]
+// A function to perform database lookup and then verify the client secret
+pub async fn verify_payment_intent_time_and_client_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    client_secret: Option<String>,
+) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
@@ -3757,9 +3770,8 @@ impl AttemptType {
                         storage_scheme,
                     )
                     .await
-                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: fetched_payment_intent.get_id().to_owned(),
-                    })?;
+                    .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to insert payment attempt")?;
 
                 let updated_payment_intent = db
                     .update_payment_intent(

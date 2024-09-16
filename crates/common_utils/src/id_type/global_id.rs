@@ -1,4 +1,5 @@
 #![allow(unused)]
+pub mod payment;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -32,8 +33,9 @@ impl GlobalEntity {
     }
 }
 
+/// Cell identifier for an instance / deployment of application
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub(crate) struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
+pub struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CellIdError {

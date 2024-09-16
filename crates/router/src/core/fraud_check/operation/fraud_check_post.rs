@@ -85,6 +85,17 @@ where
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPost {
+    #[cfg(feature = "v2")]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: PaymentToFrmData,
+        frm_connector_details: ConnectorDetailsCore,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,

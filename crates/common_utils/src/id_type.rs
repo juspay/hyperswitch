@@ -11,9 +11,9 @@ mod payment;
 mod profile;
 mod routing;
 
+#[cfg(feature = "v2")]
 mod global_id;
 
-pub use customer::CustomerId;
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -21,12 +21,16 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
-pub use merchant::MerchantId;
-pub use merchant_connector_account::MerchantConnectorAccountId;
-pub use organization::OrganizationId;
-pub use payment::PaymentId;
-pub use profile::ProfileId;
-pub use routing::RoutingId;
+
+pub use {
+    customer::CustomerId, merchant::MerchantId,
+    merchant_connector_account::MerchantConnectorAccountId, organization::OrganizationId,
+    payment::PaymentId, profile::ProfileId, routing::RoutingId,
+};
+
+#[cfg(feature = "v2")]
+pub use global_id::{payment::PaymentGlobalId, CellId};
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -151,6 +155,7 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
         Self(alphanumeric_id)
     }
 
+    #[cfg(feature = "v2")]
     /// Create a new LengthId from aplhanumeric id
     pub(crate) fn from_alphanumeric_id(
         alphanumeric_id: AlphaNumericId,

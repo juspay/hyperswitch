@@ -610,6 +610,7 @@ where
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
 
+    #[cfg(feature = "v1")]
     operation
         .to_domain()?
         .store_extended_card_info_temporarily(

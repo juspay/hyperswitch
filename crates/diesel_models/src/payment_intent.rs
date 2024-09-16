@@ -58,7 +58,6 @@ pub struct PaymentIntent {
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_type: Option<common_enums::AuthenticationType>,
-    // TODO: change this to id
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
@@ -68,8 +67,7 @@ pub struct PaymentIntent {
     pub statement_descriptor: Option<String>,
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
-    // TODO: change this to global id
-    pub id: common_utils::id_type::PaymentId,
+    pub id: common_utils::id_type::PaymentGlobalId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -218,7 +216,7 @@ pub struct PaymentIntentNew {
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
     // TODO: change this to global id
-    pub id: common_utils::id_type::PaymentId,
+    pub id: common_utils::id_type::PaymentGlobalId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

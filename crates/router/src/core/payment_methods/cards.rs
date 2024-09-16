@@ -4644,6 +4644,19 @@ async fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
+#[cfg(feature = "v2")]
+async fn perform_surcharge_ops(
+    payment_intent: Option<storage::PaymentIntent>,
+    state: &routes::SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    business_profile: Option<BusinessProfile>,
+    response: &mut api::CustomerPaymentMethodsListResponse,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 async fn perform_surcharge_ops(
     payment_intent: Option<storage::PaymentIntent>,
     state: &routes::SessionState,
