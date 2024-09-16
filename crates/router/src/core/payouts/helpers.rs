@@ -307,7 +307,7 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(
+    let stored_resp = cards::add_card_to_hs_locker(
         state,
         &locker_req,
         customer_id,
@@ -559,6 +559,7 @@ pub async fn save_payout_data_to_locker(
             card_reference,
         )
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to delete PMD from locker as a part of metadata update operation",
         )?;
@@ -566,7 +567,7 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::call_to_locker_hs(
+        let stored_resp = cards::add_card_to_hs_locker(
             state,
             &locker_req,
             customer_id,

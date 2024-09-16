@@ -4490,7 +4490,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::call_to_locker_hs(
+    let store_resp = cards::add_card_to_hs_locker(
         state,
         &payload,
         &cust_id,
