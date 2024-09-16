@@ -4619,6 +4619,18 @@ pub struct PaymentsDynamicTaxCalculationResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// shipping cost for the order
     pub shipping_cost: Option<MinorUnit>,
+    /// amount in StringMajorUnit display format
+    pub display_amount: DisplayAmountOnSdk,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct DisplayAmountOnSdk {
+    /// net amount = amount + order_tax_amount + shipping_cost
+    pub net_amount: StringMajorUnit,
+    /// order tax amount calculated by tax connectors
+    pub order_tax_amount: Option<StringMajorUnit>,
+    /// shipping cost for the order
+    pub shipping_cost: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
