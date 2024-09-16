@@ -66,8 +66,8 @@ use hyperswitch_interfaces::{
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
             PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
-            PaymentTaxCalculation, PaymentsCompleteAuthorize, PaymentsPostProcessing,
-            PaymentsPreProcessing,
+            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
+            TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -109,7 +109,7 @@ default_imp_for_authorize_session_token!(
 
 macro_rules! default_imp_for_calculate_tax {
     ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentTaxCalculation for $path::$connector {}
+        $( impl TaxCalculation for $path::$connector {}
             impl
             ConnectorIntegration<
                 CalculateTax,
@@ -190,7 +190,6 @@ macro_rules! default_imp_for_complete_authorize {
 
 default_imp_for_complete_authorize!(
     connectors::Bitpay,
-    connectors::Deutschebank,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,

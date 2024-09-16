@@ -155,6 +155,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList
             | Flow::RefundsFilters
+            | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment

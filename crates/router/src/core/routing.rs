@@ -447,7 +447,7 @@ pub async fn link_routing_config(
                 key_manager_state,
                 &key_store,
                 business_profile,
-                Some(algorithm_id),
+                dynamic_routing_ref,
             )
             .await?;
         }

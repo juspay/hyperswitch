@@ -287,6 +287,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,
+        api_models::admin::PaymentLinkTransactionDetails,
+        api_models::admin::TransactionDetailsUiConfiguration,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::gsm::GsmCreateRequest,
@@ -463,6 +465,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
+        api_models::refunds::RefundAggregateResponse,
         api_models::payments::TimeRange,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
@@ -611,6 +614,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
+        api_models::payments::PaymentsDynamicTaxCalculationResponse,
     )),
     modifiers(&SecurityAddon)
 )]

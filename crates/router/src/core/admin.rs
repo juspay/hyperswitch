@@ -1300,6 +1300,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Deutschebank => {
+                deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1457,7 +1461,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 stax::transformers::StaxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Taxjar => Ok(()),
+            api_enums::Connector::Taxjar => {
+                taxjar::transformers::TaxjarAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Stripe => {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -4485,7 +4492,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::call_to_locker_hs(
+    let store_resp = cards::add_card_to_hs_locker(
         state,
         &payload,
         &cust_id,

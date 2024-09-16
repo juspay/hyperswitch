@@ -269,7 +269,7 @@ pub async fn user_merchant_account_create(
     .await
 }
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn generate_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,

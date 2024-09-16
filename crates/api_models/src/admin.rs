@@ -9,7 +9,6 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-use indexmap::IndexMap;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -2357,9 +2356,9 @@ pub struct BusinessProfileUpdate {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
 
-    /// Indicates if dynamic routing is enabled or not with the specific algorithmId.
-    #[schema(value_type = String)]
-    pub dynamic_routing_algorithm: Option<id_type::RoutingId>,
+    /// Indicates if dynamic routing is enabled or not.
+    #[serde(default)]
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -2588,8 +2587,32 @@ pub struct PaymentLinkConfigRequest {
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
-    #[schema(value_type = Option<Object>, example = r#"{ "value1": "some-value", "value2": "some-value" }"#)]
-    pub transaction_details: Option<IndexMap<String, String>>,
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkTransactionDetails {
+    /// Key for the transaction details
+    #[schema(value_type = String, max_length = 255, example = "Policy-Number")]
+    pub key: String,
+    /// Value for the transaction details
+    #[schema(value_type = String, max_length = 255, example = "297472368473924")]
+    pub value: String,
+    /// UI configuration for the transaction details
+    pub ui_configuration: Option<TransactionDetailsUiConfiguration>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct TransactionDetailsUiConfiguration {
+    /// Position of the key-value pair in the UI
+    #[schema(value_type = Option<i8>, example = 5)]
+    pub position: Option<i8>,
+    /// Whether the key should be bold
+    #[schema(default = false, example = true)]
+    pub is_key_bold: Option<bool>,
+    /// Whether the value should be bold
+    #[schema(default = false, example = true)]
+    pub is_value_bold: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -2609,7 +2632,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
-    pub transaction_details: Option<String>,
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

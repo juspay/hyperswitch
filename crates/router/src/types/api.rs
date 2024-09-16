@@ -112,7 +112,7 @@ pub trait Connector:
     + ConnectorMandateRevokeV2
     + ExternalAuthentication
     + ExternalAuthenticationV2
-    + PaymentTaxCalculation
+    + TaxCalculation
 {
 }
 
@@ -141,7 +141,7 @@ impl<
             + ConnectorMandateRevokeV2
             + ExternalAuthentication
             + ExternalAuthenticationV2
-            + PaymentTaxCalculation,
+            + TaxCalculation,
     > Connector for T
 {
 }
@@ -359,9 +359,9 @@ impl ConnectorData {
                 enums::Connector::Datatrans => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
                 }
-                // enums::Connector::Deutschebank => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
-                // }
+                enums::Connector::Deutschebank => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
+                }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(

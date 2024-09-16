@@ -237,15 +237,19 @@ pub async fn update_business_profile_active_algorithm_ref(
 }
 
 #[cfg(feature = "v1")]
-pub async fn update_business_profile_active_dynamic_algorithm_id(
+pub async fn update_business_profile_active_dynamic_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::BusinessProfile,
-    dynamic_routing_algorithm: Option<common_utils::id_type::RoutingId>,
+    dynamic_routing_algorithm: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<()> {
+    let ref_val = dynamic_routing_algorithm
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert dynamic routing ref to value")?;
     let business_profile_update = domain::BusinessProfileUpdate::DynamicRoutingAlgorithmUpdate {
-        dynamic_routing_algorithm,
+        dynamic_routing_algorithm: Some(ref_val),
     };
     db.update_business_profile_by_profile_id(
         key_manager_state,

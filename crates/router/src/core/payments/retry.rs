@@ -472,7 +472,7 @@ where
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.get_payment_intent().payment_id.clone(),
+            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
         })?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data
@@ -571,6 +571,8 @@ pub fn make_new_payment_attempt(
         customer_acceptance: Default::default(),
         profile_id: old_payment_attempt.profile_id,
         organization_id: old_payment_attempt.organization_id,
+        shipping_cost: old_payment_attempt.shipping_cost,
+        order_tax_amount: None,
     }
 }
 
