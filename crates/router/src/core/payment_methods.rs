@@ -1,5 +1,6 @@
 pub mod cards;
 pub mod migration;
+pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
@@ -79,9 +80,22 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
+            let payment_token = helpers::store_payment_method_data_in_vault(
+                state,
+                payment_attempt,
+                payment_intent,
+                enums::PaymentMethod::BankDebit,
+                pm,
+                merchant_key_store,
+                business_profile,
+            )
+            .await?;
+
+            Ok((pm_opt.to_owned(), payment_token))
+        }
         pm @ Some(domain::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(domain::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
@@ -462,12 +476,16 @@ pub async fn retrieve_payment_method_with_token(
     _card_token_data: Option<&domain::CardToken>,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
+    _mandate_id: Option<api_models::payments::MandateIds>,
+    _payment_method_info: Option<domain::PaymentMethod>,
+    _business_profile: &domain::BusinessProfile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -476,6 +494,9 @@ pub async fn retrieve_payment_method_with_token(
     card_token_data: Option<&domain::CardToken>,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
+    mandate_id: Option<api_models::payments::MandateIds>,
+    payment_method_info: Option<domain::PaymentMethod>,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -528,6 +549,9 @@ pub async fn retrieve_payment_method_with_token(
                 card_token_data,
                 merchant_key_store,
                 storage_scheme,
+                mandate_id,
+                payment_method_info,
+                business_profile,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -559,6 +583,9 @@ pub async fn retrieve_payment_method_with_token(
                 card_token_data,
                 merchant_key_store,
                 storage_scheme,
+                mandate_id,
+                payment_method_info,
+                business_profile,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?

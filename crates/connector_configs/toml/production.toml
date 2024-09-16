@@ -1125,6 +1125,14 @@ placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
 
+[deutschebank]
+[[deutschebank.bank_debit]]
+  payment_method_type = "sepa"
+[deutschebank.connector_auth.SignatureKey]
+api_key="Client ID"
+key1="Merchant ID"
+api_secret="Client Key"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
@@ -2850,6 +2858,10 @@ label="ThreeDS request id"
 placeholder="Enter ThreeDS request id"
 required=true
 type="Text"
+
+[taxjar]
+[taxjar.connector_auth.HeaderKey]
+api_key="Live Token"
 
 [billwerk]
 [[billwerk.credit]]

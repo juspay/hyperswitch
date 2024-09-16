@@ -1627,6 +1627,23 @@ impl BusinessProfile {
             .service(
                 web::scope("/{profile_id}")
                     .service(
+                        web::scope("/dynamic_routing").service(
+                            web::scope("/success_based")
+                                .service(
+                                    web::resource("/toggle").route(
+                                        web::post().to(routing::toggle_success_based_routing),
+                                    ),
+                                )
+                                .service(web::resource("/config/{algorithm_id}").route(
+                                    web::patch().to(|state, req, path, payload| {
+                                        routing::success_based_routing_update_configs(
+                                            state, req, path, payload,
+                                        )
+                                    }),
+                                )),
+                        ),
+                    )
+                    .service(
                         web::resource("")
                             .route(web::get().to(admin::business_profile_retrieve))
                             .route(web::post().to(admin::business_profile_update))
