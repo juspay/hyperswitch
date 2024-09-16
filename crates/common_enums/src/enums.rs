@@ -1781,16 +1781,27 @@ pub enum MandateStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
+    #[serde(alias = "VISA")]
     Visa,
+    #[serde(alias = "MASTERCARD")]
     Mastercard,
+    #[serde(alias = "AMERICANEXPRESS")]
+    #[serde(alias = "AMEX")]
     AmericanExpress,
     JCB,
+    #[serde(alias = "DINERSCLUB")]
     DinersClub,
+    #[serde(alias = "DISCOVER")]
     Discover,
+    #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
+    #[serde(alias = "UNIONPAY")]
     UnionPay,
+    #[serde(alias = "INTERAC")]
     Interac,
+    #[serde(alias = "RUPAY")]
     RuPay,
+    #[serde(alias = "MAESTRO")]
     Maestro,
 }
 

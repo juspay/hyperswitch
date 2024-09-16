@@ -137,8 +137,8 @@ ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
-fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
-fiuu.third_base_url="https://api.merchant.razer.com/"
+fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
+fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -380,7 +380,7 @@ open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,M
 upi_collect = { country = "IN", currency = "INR" }
 
 [pm_filters.plaid]
-open_banking_pis = {currency = "EUR,GBP"}
+open_banking_pis = { currency = "EUR,GBP" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -551,7 +551,7 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
@@ -596,3 +596,19 @@ recon = "recon@example.com"
 
 [cell_information]
 id = "12345"
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_service]
+generate_token_url = ""
+fetch_token_url = ""
+token_service_api_key = ""
+public_key = ""
+private_key = ""
+key_id = ""
+delete_token_url = ""
+check_token_status_url = ""
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"
