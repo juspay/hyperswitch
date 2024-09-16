@@ -1,6 +1,5 @@
 use common_enums::Currency;
 use common_utils::types::FloatMajorUnit;
-use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -107,21 +106,21 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_id",
                     })?;
-                    let recipient_val = item
+                    let recipient_type = item
                         .router_data
-                        .connector_meta_data
+                        .additional_merchant_data
                         .as_ref()
+                        .map(|merchant_data| match merchant_data {
+                            api_models::admin::AdditionalMerchantData::OpenBankingRecipientData(
+                                data,
+                            ) => data.clone(),
+                        })
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_customer",
-                        })?
-                        .peek()
-                        .clone();
+                            field_name: "additional_merchant_data",
+                        })?;
 
-                    let recipient_type =
-                        serde_json::from_value::<types::MerchantRecipientData>(recipient_val)
-                            .change_context(errors::ConnectorError::ParsingFailed)?;
                     let recipient_id = match recipient_type {
-                        types::MerchantRecipientData::ConnectorRecipientId(id) => {
+                        api_models::admin::MerchantRecipientData::ConnectorRecipientId(id) => {
                             Ok(id.peek().to_string())
                         }
                         _ => Err(errors::ConnectorError::MissingRequiredField {
@@ -218,9 +217,9 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
                             None
                         },
                         redirect_uri: if is_ios {
-                            Some(headers.x_merchant_domain.ok_or(
+                            Some(headers.x_redirect_uri.ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "x-merchant-domain",
+                                    field_name: "x_redirect_uri",
                                 },
                             )?)
                         } else {

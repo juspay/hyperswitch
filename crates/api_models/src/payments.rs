@@ -794,6 +794,7 @@ pub struct HeaderPayload {
     pub x_merchant_domain: Option<String>,
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
+    pub x_redirect_uri: Option<String>,
 }
 
 impl HeaderPayload {
