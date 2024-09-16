@@ -3478,6 +3478,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                dynamic_routing_algorithm: None,
             },
         ))
     }
@@ -3825,6 +3826,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
             },
         )))
     }
