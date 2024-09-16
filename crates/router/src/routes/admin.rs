@@ -147,7 +147,14 @@ pub async fn merchant_account_list(
         &req,
         organization_id,
         |state, _, request, _| list_merchant_account(state, request),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -168,7 +175,14 @@ pub async fn merchant_account_list(
         &req,
         query_params.into_inner(),
         |state, _, request, _| list_merchant_account(state, request),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
