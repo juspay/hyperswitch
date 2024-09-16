@@ -181,7 +181,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "olap", feature = "v2"))]
     async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
         &self,
         state: &KeyManagerState,
@@ -525,7 +525,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "olap", feature = "v2"))]
     async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
         &self,
         state: &KeyManagerState,
@@ -1292,7 +1292,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "olap", feature = "v2"))]
     async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
         &self,
         state: &KeyManagerState,

@@ -413,7 +413,7 @@ pub async fn connector_retrieve(
     .await
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn connector_list(
     state: web::Data<AppState>,
@@ -429,11 +429,7 @@ pub async fn connector_list(
         &req,
         profile_id.to_owned(),
         |state, auth, _, _| {
-            list_connectors_for_a_profile(
-                state,
-                auth.merchant_account.get_id().clone(),
-                profile_id.clone(),
-            )
+            list_connectors_for_a_profile(state, auth.merchant_account.clone(), profile_id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

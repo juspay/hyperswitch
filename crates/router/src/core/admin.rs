@@ -2944,10 +2944,10 @@ pub async fn retrieve_connector(
     ))
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn list_connectors_for_a_profile(
     state: SessionState,
-    merchant_id: id_type::MerchantId,
+    merchant_account: domain::MerchantAccount,
     profile_id: id_type::ProfileId,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
@@ -2955,15 +2955,9 @@ pub async fn list_connectors_for_a_profile(
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            &merchant_id,
+            merchant_account.get_id(),
             &store.get_master_key().to_vec().into(),
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    // Validate merchant account
-    store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
