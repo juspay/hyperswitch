@@ -128,11 +128,11 @@ pub struct DisputeListGetConstraints {
     pub dispute_stage: Option<String>,
     /// Reason for the dispute
     pub reason: Option<String>,
-    /// The comma separted list of connectors linked to disputes
+    /// The comma separated list of connectors linked to disputes
     pub connector: Option<String>,
     /// The comma separated list of merchant connector ids to filter the disputes list for selected label
     pub merchant_connector_id: Option<String>,
-    /// The comman separated list of currencies of the disputes
+    /// The comma separated list of currencies of the disputes
     pub currency: Option<String>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]

@@ -215,7 +215,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::DisputesFilters))]
-pub async fn get_disputes_filters_proflie(
+pub async fn get_disputes_filters_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {

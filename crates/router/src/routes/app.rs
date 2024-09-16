@@ -1459,9 +1459,9 @@ impl Disputes {
                 web::resource("/profile/list")
                     .route(web::get().to(disputes::retrieve_disputes_list_profile)),
             )
-            .service(web::resource("/filter").route(web::get().to(get_disputes_filters)))
+            .service(web::resource("/filter").route(web::get().to(disputes::get_disputes_filters)))
             .service(
-                web::resource("/profile/filter").route(web::get().to(get_disputes_filters_proflie)),
+                web::resource("/profile/filter").route(web::get().to(disputes::get_disputes_filters_profile)),
             )
             .service(
                 web::resource("/accept/{dispute_id}")
