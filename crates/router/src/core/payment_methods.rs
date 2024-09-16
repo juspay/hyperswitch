@@ -1152,6 +1152,9 @@ pub async fn create_payment_method_in_db(
                 updated_by: None,
                 version: domain::consts::API_VERSION,
                 locker_fingerprint_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                network_token_requestor_reference_id: None,
             },
             storage_scheme,
         )
@@ -1204,6 +1207,9 @@ pub async fn create_payment_method_for_intent(
                 updated_by: None,
                 version: domain::consts::API_VERSION,
                 locker_fingerprint_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                network_token_requestor_reference_id: None,
             },
             storage_scheme,
         )
@@ -1239,6 +1245,9 @@ pub async fn create_pm_additional_data_update(
         payment_method,
         payment_method_type,
         payment_method_data: Some(pmd).map(Into::into),
+        network_token_requestor_reference_id: None,
+        network_token_locker_id: None,
+        network_token_payment_method_data: None,
     };
 
     Ok(pm_update)
