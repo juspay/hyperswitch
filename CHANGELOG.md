@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.13.0-hotfix1
+
+### Revert
+
+- Feat(router): mask keys in connector_account_details for merchant_connector_response in mca retrieve flow ([#5890](https://github.com/juspay/hyperswitch/pull/5890)) ([`3e463bc`](https://github.com/juspay/hyperswitch/commit/3e463bcccfd5974efc82dde119c46016b2685691))
+
+- - -
+
 ## 2024.09.13.0
 
 ### Features
