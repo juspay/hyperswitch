@@ -544,19 +544,19 @@ impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
             Currency,
         ),
     ) -> Result<Self, Self::Error> {
-        let convertor = StringMajorUnitForConnector;
+        let major_unit_convertor = StringMajorUnitForConnector;
 
-        let sdk_net_amount = convertor.convert(net_amount, currency).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Failed to convert net_amount to string major unit".to_string(),
-            },
-        )?;
+        let sdk_net_amount = major_unit_convertor
+            .convert(net_amount, currency)
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert net_amount to base unit".to_string(),
+            })?;
 
         let sdk_shipping_cost = shipping_cost
             .map(|cost| {
-                convertor.convert(cost, currency).change_context(
+                major_unit_convertor.convert(cost, currency).change_context(
                     errors::ApiErrorResponse::PreconditionFailed {
-                        message: "Failed to convert shipping_cost to string major unit".to_string(),
+                        message: "Failed to convert shipping_cost to base unit".to_string(),
                     },
                 )
             })
@@ -564,10 +564,9 @@ impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
 
         let sdk_order_tax_amount = order_tax_amount
             .map(|cost| {
-                convertor.convert(cost, currency).change_context(
+                major_unit_convertor.convert(cost, currency).change_context(
                     errors::ApiErrorResponse::PreconditionFailed {
-                        message: "Failed to convert order_tax_amount to string major unit"
-                            .to_string(),
+                        message: "Failed to convert order_tax_amount to base unit".to_string(),
                     },
                 )
             })

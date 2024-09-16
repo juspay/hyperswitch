@@ -4619,7 +4619,7 @@ pub struct PaymentsDynamicTaxCalculationResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// shipping cost for the order
     pub shipping_cost: Option<MinorUnit>,
-    /// amount in StringMajorUnit display format
+    /// amount in Base Unit display format
     pub display_amount: DisplayAmountOnSdk,
 }
 
