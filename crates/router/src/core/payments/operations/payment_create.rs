@@ -694,7 +694,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        helpers::make_pm_data(
+        Box::pin(helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -702,7 +702,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             customer,
             storage_scheme,
             business_profile,
-        )
+        ))
         .await
     }
 

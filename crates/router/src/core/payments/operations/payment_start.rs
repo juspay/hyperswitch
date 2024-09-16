@@ -315,7 +315,7 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(
+            Box::pin(helpers::make_pm_data(
                 Box::new(self),
                 state,
                 payment_data,
@@ -323,7 +323,7 @@ where
                 customer,
                 storage_scheme,
                 business_profile,
-            )
+            ))
             .await
         } else {
             Ok((Box::new(self), None, None))

@@ -3478,6 +3478,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                dynamic_routing_algorithm: None,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
@@ -3827,6 +3828,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
@@ -4494,7 +4496,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::call_to_locker_hs(
+    let store_resp = cards::add_card_to_hs_locker(
         state,
         &payload,
         &cust_id,

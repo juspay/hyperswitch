@@ -124,6 +124,8 @@ pub enum VaultError {
     SaveCardFailed,
     #[error("Failed to fetch card details from card vault")]
     FetchCardFailed,
+    #[error("Failed to delete card in card vault")]
+    DeleteCardFailed,
     #[error("Failed to encode card vault request")]
     RequestEncodingFailed,
     #[error("Failed to deserialize card vault response")]
@@ -146,6 +148,8 @@ pub enum VaultError {
     SavePaymentMethodFailed,
     #[error("Failed to generate fingerprint")]
     GenerateFingerprintFailed,
+    #[error("Failed while calling locker API")]
+    ApiError,
 }
 
 #[derive(Debug, thiserror::Error)]

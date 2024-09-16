@@ -406,7 +406,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = Box::pin(helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -414,7 +414,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
             customer,
             storage_scheme,
             business_profile,
-        )
+        ))
         .await?;
         Ok((op, payment_method_data, pm_id))
     }

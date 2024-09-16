@@ -782,7 +782,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = Box::pin(helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -790,7 +790,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             customer,
             storage_scheme,
             business_profile,
-        )
+        ))
         .await?;
 
         utils::when(payment_method_data.is_none(), || {
@@ -923,12 +923,12 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             Some(helpers::PaymentExternalAuthenticationFlow::PostAuthenticationFlow {
                 authentication_id,
             }) => {
-                let authentication = authentication::perform_post_authentication(
+                let authentication = Box::pin(authentication::perform_post_authentication(
                     state,
                     key_store,
                     business_profile.clone(),
                     authentication_id.clone(),
-                )
+                ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
                 if authentication.authentication_status

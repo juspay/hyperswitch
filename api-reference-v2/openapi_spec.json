@@ -17379,7 +17379,8 @@
           "single",
           "priority",
           "volume_split",
-          "advanced"
+          "advanced",
+          "dynamic"
         ]
       },
       "RoutingConfigRequest": {

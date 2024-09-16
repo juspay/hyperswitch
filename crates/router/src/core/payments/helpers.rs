@@ -2140,7 +2140,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     // TODO: Handle case where payment method and token both are present in request properly.
     let (payment_method, pm_id) = match (&request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
-            let pm_data = payment_methods::retrieve_payment_method_with_token(
+            let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
                 hyperswitch_token,
@@ -2151,7 +2151,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 mandate_id,
                 payment_data.payment_method_info.clone(),
                 business_profile,
-            )
+            ))
             .await;
 
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
