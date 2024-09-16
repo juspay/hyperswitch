@@ -11234,6 +11234,15 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
+                                                "billing.email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.email".to_string(),
+                                                    display_name: "email".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
                                                 "payment_method_data.bank_debit.sepa.iban".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
