@@ -15,9 +15,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
-    router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
-    },
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData,MandateReference},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -91,15 +89,9 @@ pub struct NovalnetCard {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct NovalnetMandate {
-    token: Secret<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalNetPaymentData {
-    PaymentCard(NovalnetCard),
-    MandatePayment(NovalnetMandate),
+    PaymentCard(NovalNetCard),
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -120,6 +112,7 @@ pub struct NovalnetPaymentsRequestTransaction {
     error_return_url: Option<String>,
     enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
     create_token: Option<i8>,
+    create_token: Option<i8>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -136,12 +129,25 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         item: &NovalnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
         let merchant = NovalnetPaymentsRequestMerchant {
             signature: auth.product_activation_key,
             tariff: auth.tariff_id,
         };
+        let merchant = NovalnetPaymentsRequestMerchant {
+            signature: auth.product_activation_key,
+            tariff: auth.tariff_id,
+        };
 
+        let enforce_3d = match item.router_data.auth_type {
+            enums::AuthenticationType::ThreeDs => Some(1),
+            enums::AuthenticationType::NoThreeDs => None,
+        };
+        let test_mode = match item.router_data.test_mode {
+            Some(true) => 1,
+            Some(false) | None => 0,
+        };
         let enforce_3d = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => Some(1),
             enums::AuthenticationType::NoThreeDs => None,
@@ -416,7 +422,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data,
+                        redirection_data: if transaction_status == NovalnetTransactionStatus::Confirmed {
+                            None //NOTE: for mandate succesful flow, Novalnet always sends transaction.status of CONFIRMED
+                        } else {
+                            redirection_data
+                        }, 
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
@@ -482,7 +492,7 @@ pub struct NovalnetResponseTransactionData {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalnetResponsePaymentData {
-    PaymentCard(NovalnetResponseCard),
+    PaymentCard(NovalnetResponseCard)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -739,6 +749,20 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
 }
 
 impl NovalnetResponseTransactionData {
+    pub fn get_token(transaction_data: Option<&NovalnetResponseTransactionData>) -> Option<String> {
+        if let Some(data) = transaction_data {
+            match &data.payment_data {
+                NovalnetResponsePaymentData::PaymentCard(card_data) => {
+                    card_data.token.as_ref().map(|t| t.clone().expose().clone())
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl NovalnetResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
         if let Some(data) = transaction_data {
             match &data.payment_data {
@@ -770,10 +794,14 @@ impl<F>
                     .response
                     .transaction
                     .clone()
+                    .clone()
                     .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
-                let mandate_reference_id =
-                    NovalnetResponseTransactionData::get_token(item.response.transaction.as_ref());
+                let  mandate_reference_id = NovalnetResponseTransactionData::get_token(item
+                .response
+                .transaction.as_ref());
+                
+        
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -788,6 +816,12 @@ impl<F>
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                            }
+                        }),
+                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                            MandateReference {
+                                connector_mandate_id: Some(id.clone()),
+                                payment_method_id: None,
                             }
                         }),
                         connector_metadata: None,
