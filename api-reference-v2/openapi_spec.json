@@ -7538,28 +7538,6 @@
       "GooglePayThirdPartySdkData": {
         "type": "object"
       },
-      "GooglePayWalletAdditionalData": {
-        "type": "object",
-        "required": [
-          "display_name",
-          "network",
-          "type"
-        ],
-        "properties": {
-          "display_name": {
-            "type": "string",
-            "description": "User-facing message to describe the payment method that funds this transaction."
-          },
-          "network": {
-            "type": "string",
-            "description": "The information of the payment method"
-          },
-          "type": {
-            "type": "string",
-            "description": "The type of payment method"
-          }
-        }
-      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -18747,6 +18725,28 @@
           }
         ]
       },
+      "WalletAdditionalDataForCard": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network",
+          "type"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          }
+        }
+      },
       "WalletData": {
         "oneOf": [
           {
@@ -19075,7 +19075,7 @@
             ],
             "properties": {
               "apple_pay": {
-                "$ref": "#/components/schemas/ApplepayPaymentMethod"
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }
           },
@@ -19086,7 +19086,7 @@
             ],
             "properties": {
               "google_pay": {
-                "$ref": "#/components/schemas/GooglePayWalletAdditionalData"
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }
           }
