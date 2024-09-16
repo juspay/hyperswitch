@@ -53,7 +53,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     tags(
         (name = "Merchant Account", description = "Create and manage merchant accounts"),
-        (name = "Business Profile", description = "Create and manage business profiles"),
+        (name = "Profile", description = "Create and manage profiles"),
         (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
         (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
         (name = "Refunds", description = "Create and manage refunds for successful payments"),
@@ -136,12 +136,12 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_delete_api,
 
-        // Routes for Business Profile
-        routes::business_profile::profile_create,
-        routes::business_profile::profile_list,
-        routes::business_profile::profile_retrieve,
-        routes::business_profile::profile_update,
-        routes::business_profile::profile_delete,
+        // Routes for Profile
+        routes::profile::profile_create,
+        routes::profile::profile_list,
+        routes::profile::profile_retrieve,
+        routes::profile::profile_update,
+        routes::profile::profile_delete,
 
         // Routes for disputes
         routes::disputes::retrieve_dispute,

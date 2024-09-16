@@ -22,7 +22,7 @@
                 )
             ),
             (
-                "Create a merchant connector account under a specific business profile" = (
+                "Create a merchant connector account under a specific profile" = (
                     value = json!({
                         "connector_type": "payment_processor",
                         "connector_name": "adyen",
@@ -85,7 +85,7 @@ pub async fn connector_create() {}
                 )
             ),
             (
-                "Create a merchant connector account under a specific business profile" = (
+                "Create a merchant connector account under a specific profile" = (
                     value = json!({
                         "connector_type": "payment_processor",
                         "connector_name": "adyen",

@@ -2,7 +2,7 @@
 
 pub mod api_keys;
 pub mod blocklist;
-pub mod business_profile;
+pub mod profile;
 pub mod customers;
 pub mod disputes;
 pub mod gsm;

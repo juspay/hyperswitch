@@ -1,7 +1,7 @@
 #[cfg(feature = "v1")]
-/// Business Profile - Create
+/// Profile - Create
 ///
-/// Creates a new *business profile* for a merchant
+/// Creates a new *profile* for a merchant
 #[utoipa::path(
     post,
     path = "/account/{account_id}/business_profile",
@@ -12,12 +12,12 @@
         content = ProfileCreate,
         examples(
             (
-                "Create a business profile with minimal fields" = (
+                "Create a profile with minimal fields" = (
                     value = json!({})
                 )
             ),
             (
-                "Create a business profile with profile name" = (
+                "Create a profile with profile name" = (
                     value = json!({
                         "profile_name": "shoe_business"
                     })
@@ -26,19 +26,19 @@
         )
     ),
     responses(
-        (status = 200, description = "Business Account Created", body = ProfileResponse),
+        (status = 200, description = "Profile Created", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Create A Business Profile",
+    tag = "Profile",
+    operation_id = "Create A Profile",
     security(("admin_api_key" = []))
 )]
 pub async fn profile_create() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Create
+/// Profile - Create
 ///
-/// Creates a new *business profile* for a merchant
+/// Creates a new *profile* for a merchant
 #[utoipa::path(
     post,
     path = "/v2/profiles",
@@ -46,7 +46,7 @@ pub async fn profile_create() {}
         content = ProfileCreate,
         examples(
             (
-                "Create a business profile with profile name" = (
+                "Create a profile with profile name" = (
                     value = json!({
                         "profile_name": "shoe_business"
                     })
@@ -55,18 +55,18 @@ pub async fn profile_create() {}
         )
     ),
     responses(
-        (status = 200, description = "Business Account Created", body = ProfileResponse),
+        (status = 200, description = "Account Created", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Create A Business Profile",
+    tag = "Profile",
+    operation_id = "Create A Profile",
     security(("admin_api_key" = []))
 )]
 pub async fn profile_create() {}
 
-/// Business Profile - List
+/// Profile - List
 ///
-/// Lists all the *business profiles* under a merchant
+/// Lists all the *profiles* under a merchant
 #[utoipa::path(
     get,
     path = "/account/{account_id}/business_profile",
@@ -74,30 +74,30 @@ pub async fn profile_create() {}
         ("account_id" = String, Path, description = "Merchant Identifier"),
     ),
     responses(
-        (status = 200, description = "Business profiles Retrieved", body = Vec<ProfileResponse>)
+        (status = 200, description = "Profiles Retrieved", body = Vec<ProfileResponse>)
     ),
-    tag = "Business Profile",
-    operation_id = "List Business Profiles",
+    tag = "Profile",
+    operation_id = "List Profiles",
     security(("api_key" = []))
 )]
 pub async fn profile_list() {}
 
 #[cfg(feature = "v1")]
-/// Business Profile - Update
+/// Profile - Update
 ///
-/// Update the *business profile*
+/// Update the *profile*
 #[utoipa::path(
     post,
     path = "/account/{account_id}/business_profile/{profile_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     request_body(
         content = ProfileCreate,
         examples(
             (
-                "Update business profile with profile name fields" = (
+                "Update profile with profile name fields" = (
                     value = json!({
                         "profile_name" : "shoe_business"
                     })
@@ -105,30 +105,30 @@ pub async fn profile_list() {}
             )
     )),
     responses(
-        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Update a Business Profile",
+    tag = "Profile",
+    operation_id = "Update a Profile",
     security(("admin_api_key" = []))
 )]
 pub async fn profile_update() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Update
+/// Profile - Update
 ///
-/// Update the *business profile*
+/// Update the *profile*
 #[utoipa::path(
     put,
     path = "/v2/profiles/{profile_id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     request_body(
         content = ProfileCreate,
         examples(
             (
-                "Update business profile with profile name fields" = (
+                "Update profile with profile name fields" = (
                     value = json!({
                         "profile_name" : "shoe_business"
                     })
@@ -136,85 +136,85 @@ pub async fn profile_update() {}
             )
     )),
     responses(
-        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Update a Business Profile",
+    tag = "Profile",
+    operation_id = "Update a Profile",
     security(("admin_api_key" = []))
 )]
 pub async fn profile_update() {}
 
-/// Business Profile - Delete
+/// Profile - Delete
 ///
-/// Delete the *business profile*
+/// Delete the *profile*
 #[utoipa::path(
     delete,
     path = "/account/{account_id}/business_profile/{profile_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     responses(
-        (status = 200, description = "Business profiles Deleted", body = bool),
+        (status = 200, description = "Profiles Deleted", body = bool),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Delete the Business Profile",
+    tag = "Profile",
+    operation_id = "Delete the Profile",
     security(("api_key" = []))
 )]
 pub async fn profile_delete() {}
 
 #[cfg(feature = "v1")]
-/// Business Profile - Retrieve
+/// Profile - Retrieve
 ///
-/// Retrieve existing *business profile*
+/// Retrieve existing *profile*
 #[utoipa::path(
     get,
     path = "/account/{account_id}/business_profile/{profile_id}",
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     responses(
-        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Retrieve a Business Profile",
+    tag = "Profile",
+    operation_id = "Retrieve a Profile",
     security(("admin_api_key" = []))
 )]
 pub async fn profile_retrieve() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Retrieve
+/// Profile - Retrieve
 ///
-/// Retrieve existing *business profile*
+/// Retrieve existing *profile*
 #[utoipa::path(
     get,
     path = "/v2/profiles/{profile_id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     responses(
-        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
-    tag = "Business Profile",
-    operation_id = "Retrieve a Business Profile",
+    tag = "Profile",
+    operation_id = "Retrieve a Profile",
     security(("admin_api_key" = []))
 )]
 pub async fn profile_retrieve() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Retrieve Active Routing Algorithm
+/// Profile - Retrieve Active Routing Algorithm
 ///
-/// Retrieve active routing algorithm under the business profile
+/// Retrieve active routing algorithm under the profile
 #[utoipa::path(
     get,
     path = "/v2/profiles/{profile_id}/routing_algorithm",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
         ("limit" = Option<u16>, Query, description = "The number of records of the algorithms to be returned"),
         ("offset" = Option<u8>, Query, description = "The record offset of the algorithm from which to start gathering the results")),
     responses(
@@ -223,15 +223,15 @@ pub async fn profile_retrieve() {}
         (status = 404, description = "Resource missing"),
         (status = 403, description = "Forbidden")
     ),
-   tag = "Business Profile",
-   operation_id = "Retrieve the active routing algorithm under the business profile",
+   tag = "Profile",
+   operation_id = "Retrieve the active routing algorithm under the profile",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_retrieve_linked_config() {}
 #[cfg(feature = "v2")]
-/// Business Profile - Activate routing algorithm
+/// Profile - Activate routing algorithm
 ///
-/// Activates a routing algorithm under a business profile
+/// Activates a routing algorithm under a profile
 #[utoipa::path(
     patch,
     path = "/v2/profiles/{profile_id}/activate_routing_algorithm",
@@ -244,7 +244,7 @@ pub async fn routing_retrieve_linked_config() {}
             )
             ))),
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm is activated", body = RoutingDictionaryRecord),
@@ -252,21 +252,21 @@ pub async fn routing_retrieve_linked_config() {}
         (status = 404, description = "Resource missing"),
         (status = 400, description = "Bad request")
     ),
-   tag = "Business Profile",
-   operation_id = "Activates a routing algorithm under a business profile",
+   tag = "Profile",
+   operation_id = "Activates a routing algorithm under a profile",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_link_config() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Deactivate routing algorithm
+/// Profile - Deactivate routing algorithm
 ///
-/// Deactivates a routing algorithm under a business profile
+/// Deactivates a routing algorithm under a profile
 #[utoipa::path(
     patch,
     path = "/v2/profiles/{profile_id}/deactivate_routing_algorithm",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully deactivated routing config", body = RoutingDictionaryRecord),
@@ -275,22 +275,22 @@ pub async fn routing_link_config() {}
         (status = 403, description = "Malformed request"),
         (status = 422, description = "Unprocessable request")
     ),
-   tag = "Business Profile",
-   operation_id = " Deactivates a routing algorithm under a business profile",
+   tag = "Profile",
+   operation_id = " Deactivates a routing algorithm under a profile",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_unlink_config() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Update Default Fallback Routing Algorithm
+/// Profile - Update Default Fallback Routing Algorithm
 ///
-/// Update the default fallback routing algorithm for the business profile
+/// Update the default fallback routing algorithm for the profile
 #[utoipa::path(
     post,
     path = "/v2/profiles/{profile_id}/fallback_routing",
     request_body = Vec<RoutableConnectorChoice>,
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully updated the default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
@@ -298,28 +298,28 @@ pub async fn routing_unlink_config() {}
         (status = 400, description = "Malformed request"),
         (status = 422, description = "Unprocessable request")
     ),
-   tag = "Business Profile",
-   operation_id = "Update the default fallback routing algorithm for the business profile",
+   tag = "Profile",
+   operation_id = "Update the default fallback routing algorithm for the profile",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_update_default_config() {}
 
 #[cfg(feature = "v2")]
-/// Business Profile - Retrieve Default Fallback Routing Algorithm
+/// Profile - Retrieve Default Fallback Routing Algorithm
 ///
-/// Retrieve the default fallback routing algorithm for the business profile
+/// Retrieve the default fallback routing algorithm for the profile
 #[utoipa::path(
     get,
     path = "/v2/profiles/{profile_id}/fallback_routing",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully retrieved default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
         (status = 500, description = "Internal server error")
     ),
-   tag = "Business Profile",
-   operation_id = "Retrieve the default fallback routing algorithm for the business profile",
+   tag = "Profile",
+   operation_id = "Retrieve the default fallback routing algorithm for the profile",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_retrieve_default_config() {}
