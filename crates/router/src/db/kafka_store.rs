@@ -629,6 +629,17 @@ impl DisputeInterface for KafkaStore {
             .find_disputes_by_merchant_id_payment_id(merchant_id, payment_id)
             .await
     }
+
+    async fn get_dispute_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_dispute_status_with_count(merchant_id, profile_id_list, time_range)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
