@@ -186,7 +186,6 @@ where
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
@@ -530,11 +529,10 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::list_by_profile_id(&conn, profile_id, get_disabled)
+        storage::MerchantConnectorAccount::list_by_profile_id(&conn, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
@@ -1297,7 +1295,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
-        get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
         let accounts = self
@@ -1306,11 +1303,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .filter(|account: &&storage::MerchantConnectorAccount| {
-                if get_disabled {
-                    account.profile_id == *profile_id
-                } else {
-                    account.profile_id == *profile_id && account.disabled == Some(false)
-                }
+                account.profile_id == *profile_id
             })
             .cloned()
             .collect::<Vec<storage::MerchantConnectorAccount>>();

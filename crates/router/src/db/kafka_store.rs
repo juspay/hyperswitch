@@ -1230,11 +1230,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
-        get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
         self.diesel_store
-            .list_connector_account_by_profile_id(state, profile_id, get_disabled, key_store)
+            .list_connector_account_by_profile_id(state, profile_id, key_store)
             .await
     }
 
