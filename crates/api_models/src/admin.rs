@@ -1815,7 +1815,7 @@ pub struct MerchantConnectorDetails {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BusinessProfileCreate {
+pub struct ProfileCreate {
     /// The name of business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
@@ -2025,7 +2025,7 @@ pub struct ProfileCreate {
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
-pub struct BusinessProfileResponse {
+pub struct ProfileResponse {
     /// The identifier for Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
@@ -2251,7 +2251,7 @@ pub struct ProfileResponse {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BusinessProfileUpdate {
+pub struct ProfileUpdate {
     /// The name of business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,

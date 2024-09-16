@@ -138,7 +138,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for Business Profile
         routes::business_profile::profile_create,
-        routes::business_profile::business_profile_list,
+        routes::business_profile::profile_list,
         routes::business_profile::profile_retrieve,
         routes::business_profile::profile_update,
         routes::business_profile::profile_delete,
@@ -280,8 +280,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
-        api_models::admin::BusinessProfileCreate,
-        api_models::admin::BusinessProfileResponse,
+        api_models::admin::ProfileCreate,
+        api_models::admin::ProfileResponse,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,

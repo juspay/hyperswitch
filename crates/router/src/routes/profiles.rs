@@ -14,7 +14,7 @@ use crate::{
 pub async fn profile_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<admin::BusinessProfileCreate>,
+    json_payload: web::Json<admin::ProfileCreate>,
     path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::ProfileCreate;
@@ -145,7 +145,7 @@ pub async fn profile_update(
         common_utils::id_type::MerchantId,
         common_utils::id_type::ProfileId,
     )>,
-    json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
+    json_payload: web::Json<api_models::admin::ProfileUpdate>,
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();

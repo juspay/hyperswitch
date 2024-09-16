@@ -542,7 +542,7 @@ impl CreateProfile {
     ) -> RouterResult<domain::Profile> {
         let business_profile = create_and_insert_business_profile(
             state,
-            api_models::admin::BusinessProfileCreate::default(),
+            api_models::admin::ProfileCreate::default(),
             merchant_account.clone(),
             key_store,
         )
@@ -569,7 +569,7 @@ impl CreateProfile {
             let profile_name =
                 format!("{}_{}", business_profile.country, business_profile.business);
 
-            let profile_create_request = api_models::admin::BusinessProfileCreate {
+            let profile_create_request = api_models::admin::ProfileCreate {
                 profile_name: Some(profile_name),
                 ..Default::default()
             };
@@ -759,7 +759,7 @@ pub async fn create_profile_from_business_labels(
     for business_profile in business_profiles_to_create {
         let profile_name = format!("{}_{}", business_profile.country, business_profile.business);
 
-        let profile_create_request = admin_types::BusinessProfileCreate {
+        let profile_create_request = admin_types::ProfileCreate {
             profile_name: Some(profile_name),
             ..Default::default()
         };
@@ -3292,7 +3292,7 @@ pub fn get_frm_config_as_secret(
 #[cfg(feature = "v1")]
 pub async fn create_and_insert_business_profile(
     state: &SessionState,
-    request: api::BusinessProfileCreate,
+    request: api::ProfileCreate,
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Profile> {
@@ -3336,7 +3336,7 @@ trait ProfileCreateBridge {
 
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
-impl ProfileCreateBridge for api::BusinessProfileCreate {
+impl ProfileCreateBridge for api::ProfileCreate {
     #[cfg(feature = "v1")]
     async fn create_domain_model_from_request(
         self,
@@ -3572,10 +3572,10 @@ impl ProfileCreateBridge for api::BusinessProfileCreate {
 #[cfg(feature = "olap")]
 pub async fn create_profile(
     state: SessionState,
-    request: api::BusinessProfileCreate,
+    request: api::ProfileCreate,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -3616,7 +3616,7 @@ pub async fn create_profile(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?,
     ))
@@ -3627,7 +3627,7 @@ pub async fn list_profile(
     state: SessionState,
     merchant_id: id_type::MerchantId,
     profile_id_list: Option<Vec<id_type::ProfileId>>,
-) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
+) -> RouterResponse<Vec<api_models::admin::ProfileResponse>> {
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
@@ -3646,7 +3646,7 @@ pub async fn list_profile(
     let mut business_profiles = Vec::new();
     for profile in profiles {
         let business_profile =
-            api_models::admin::BusinessProfileResponse::foreign_try_from(profile)
+            api_models::admin::ProfileResponse::foreign_try_from(profile)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse business profile details")?;
         business_profiles.push(business_profile);
@@ -3691,7 +3691,7 @@ pub async fn retrieve_profile(
     state: SessionState,
     profile_id: id_type::ProfileId,
     key_store: domain::MerchantKeyStore,
-) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
 
     let business_profile = db
@@ -3702,7 +3702,7 @@ pub async fn retrieve_profile(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?,
     ))
@@ -3736,7 +3736,7 @@ trait ProfileUpdateBridge {
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[async_trait::async_trait]
-impl ProfileUpdateBridge for api::BusinessProfileUpdate {
+impl ProfileUpdateBridge for api::ProfileUpdate {
     async fn get_update_profile_object(
         self,
         state: &SessionState,
@@ -3942,8 +3942,8 @@ pub async fn update_profile(
     state: SessionState,
     profile_id: &id_type::ProfileId,
     key_store: domain::MerchantKeyStore,
-    request: api::BusinessProfileUpdate,
-) -> RouterResponse<api::BusinessProfileResponse> {
+    request: api::ProfileUpdate,
+) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -3971,7 +3971,7 @@ pub async fn update_profile(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
+        api_models::admin::ProfileResponse::foreign_try_from(updated_business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?,
     ))
@@ -3983,7 +3983,7 @@ pub async fn update_profile(
     state: SessionState,
     profile_id: &id_type::ProfileId,
     key_store: domain::MerchantKeyStore,
-    request: api::BusinessProfileUpdate,
+    request: api::ProfileUpdate,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();

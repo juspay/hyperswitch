@@ -9,7 +9,7 @@
         ("account_id" = String, Path, description = "The unique identifier for the merchant account")
     ),
     request_body(
-        content = BusinessProfileCreate,
+        content = ProfileCreate,
         examples(
             (
                 "Create a business profile with minimal fields" = (
@@ -26,14 +26,14 @@
         )
     ),
     responses(
-        (status = 200, description = "Business Account Created", body = BusinessProfileResponse),
+        (status = 200, description = "Business Account Created", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Business Profile",
     operation_id = "Create A Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_create() {}
+pub async fn profile_create() {}
 
 #[cfg(feature = "v2")]
 /// Business Profile - Create
@@ -43,7 +43,7 @@ pub async fn business_profile_create() {}
     post,
     path = "/v2/profiles",
     request_body(
-        content = BusinessProfileCreate,
+        content = ProfileCreate,
         examples(
             (
                 "Create a business profile with profile name" = (
@@ -55,14 +55,14 @@ pub async fn business_profile_create() {}
         )
     ),
     responses(
-        (status = 200, description = "Business Account Created", body = BusinessProfileResponse),
+        (status = 200, description = "Business Account Created", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Business Profile",
     operation_id = "Create A Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_create() {}
+pub async fn profile_create() {}
 
 /// Business Profile - List
 ///
@@ -74,13 +74,13 @@ pub async fn business_profile_create() {}
         ("account_id" = String, Path, description = "Merchant Identifier"),
     ),
     responses(
-        (status = 200, description = "Business profiles Retrieved", body = Vec<BusinessProfileResponse>)
+        (status = 200, description = "Business profiles Retrieved", body = Vec<ProfileResponse>)
     ),
     tag = "Business Profile",
     operation_id = "List Business Profiles",
     security(("api_key" = []))
 )]
-pub async fn business_profile_list() {}
+pub async fn profile_list() {}
 
 #[cfg(feature = "v1")]
 /// Business Profile - Update
@@ -94,7 +94,7 @@ pub async fn business_profile_list() {}
         ("profile_id" = String, Path, description = "The unique identifier for the business profile")
     ),
     request_body(
-        content = BusinessProfileCreate,
+        content = ProfileCreate,
         examples(
             (
                 "Update business profile with profile name fields" = (
@@ -105,14 +105,14 @@ pub async fn business_profile_list() {}
             )
     )),
     responses(
-        (status = 200, description = "Business Profile Updated", body = BusinessProfileResponse),
+        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Business Profile",
     operation_id = "Update a Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_update() {}
+pub async fn profile_update() {}
 
 #[cfg(feature = "v2")]
 /// Business Profile - Update
@@ -125,7 +125,7 @@ pub async fn business_profile_update() {}
         ("profile_id" = String, Path, description = "The unique identifier for the business profile")
     ),
     request_body(
-        content = BusinessProfileCreate,
+        content = ProfileCreate,
         examples(
             (
                 "Update business profile with profile name fields" = (
@@ -136,14 +136,14 @@ pub async fn business_profile_update() {}
             )
     )),
     responses(
-        (status = 200, description = "Business Profile Updated", body = BusinessProfileResponse),
+        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Business Profile",
     operation_id = "Update a Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_update() {}
+pub async fn profile_update() {}
 
 /// Business Profile - Delete
 ///
@@ -163,7 +163,7 @@ pub async fn business_profile_update() {}
     operation_id = "Delete the Business Profile",
     security(("api_key" = []))
 )]
-pub async fn business_profile_delete() {}
+pub async fn profile_delete() {}
 
 #[cfg(feature = "v1")]
 /// Business Profile - Retrieve
@@ -177,14 +177,14 @@ pub async fn business_profile_delete() {}
         ("profile_id" = String, Path, description = "The unique identifier for the business profile")
     ),
     responses(
-        (status = 200, description = "Business Profile Updated", body = BusinessProfileResponse),
+        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Business Profile",
     operation_id = "Retrieve a Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_retrieve() {}
+pub async fn profile_retrieve() {}
 
 #[cfg(feature = "v2")]
 /// Business Profile - Retrieve
@@ -197,14 +197,14 @@ pub async fn business_profile_retrieve() {}
         ("profile_id" = String, Path, description = "The unique identifier for the business profile")
     ),
     responses(
-        (status = 200, description = "Business Profile Updated", body = BusinessProfileResponse),
+        (status = 200, description = "Business Profile Updated", body = ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Business Profile",
     operation_id = "Retrieve a Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_retrieve() {}
+pub async fn profile_retrieve() {}
 
 #[cfg(feature = "v2")]
 /// Business Profile - Retrieve Active Routing Algorithm

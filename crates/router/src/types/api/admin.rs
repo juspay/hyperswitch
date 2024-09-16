@@ -4,7 +4,7 @@ use std::collections::HashMap;
 pub use api_models::admin;
 pub use api_models::{
     admin::{
-        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        ProfileCreate, ProfileResponse, ProfileUpdate,
         MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
         MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
         MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
@@ -109,7 +109,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<domain::Profile> for BusinessProfileResponse {
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
@@ -238,7 +238,7 @@ impl ForeignTryFrom<domain::Profile> for admin::ProfileResponse {
 pub async fn create_profile_from_merchant_account(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
-    request: BusinessProfileCreate,
+    request: ProfileCreate,
     key_store: &MerchantKeyStore,
 ) -> Result<domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     use common_utils::ext_traits::AsyncExt;
