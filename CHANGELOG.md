@@ -4,6 +4,15 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.06.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [ZSL] compare consr_paid_amt with the total amount for identifying partial payments ([#5881](https://github.com/juspay/hyperswitch/pull/5881)) ([`c126ca3`](https://github.com/juspay/hyperswitch/commit/c126ca3094747412c81878355cf2590415759c98))
+- **router:** Return `collect_billing_details_from_wallet_connector` if `always_collect_billing_details_from_wallet_connector ` is false in merchant payment method list ([#5857](https://github.com/juspay/hyperswitch/pull/5857)) ([`32fd4ee`](https://github.com/juspay/hyperswitch/commit/32fd4ee788d7e50008efc909c893e20748bba5bb))
+
+- - -
+
 ## 2024.09.06.0-hotfix1
 
 ### Features
