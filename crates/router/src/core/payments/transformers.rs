@@ -550,25 +550,28 @@ impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
             .convert(net_amount, currency)
             .change_context(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Failed to convert net_amount to base unit".to_string(),
-            })?;
+            })
+            .attach_printable("Failed to convert net_amount to string major unit")?;
 
         let sdk_shipping_cost = shipping_cost
             .map(|cost| {
-                major_unit_convertor.convert(cost, currency).change_context(
-                    errors::ApiErrorResponse::PreconditionFailed {
+                major_unit_convertor
+                    .convert(cost, currency)
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
                         message: "Failed to convert shipping_cost to base unit".to_string(),
-                    },
-                )
+                    })
+                    .attach_printable("Failed to convert shipping_cost to string major unit")
             })
             .transpose()?;
 
         let sdk_order_tax_amount = order_tax_amount
             .map(|cost| {
-                major_unit_convertor.convert(cost, currency).change_context(
-                    errors::ApiErrorResponse::PreconditionFailed {
+                major_unit_convertor
+                    .convert(cost, currency)
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
                         message: "Failed to convert order_tax_amount to base unit".to_string(),
-                    },
-                )
+                    })
+                    .attach_printable("Failed to convert order_tax_amount to string major unit")
             })
             .transpose()?;
         Ok(Self {
