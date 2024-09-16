@@ -212,12 +212,12 @@ pub struct UpiCollectAdditionalData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GooglePayWalletAdditionalData {
-    /// User-facing message to describe the payment method that funds this transaction.
-    pub display_name: String,
+pub struct WalletAdditionalDataForCard {
+    /// Last 4 digits of the card number
+    pub last4: String,
     /// The information of the payment method
-    pub network: String,
+    pub card_network: String,
     /// The type of payment method
     #[serde(rename = "type")]
-    pub pm_type: String,
+    pub card_type: String,
 }

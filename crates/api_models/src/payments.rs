@@ -2037,8 +2037,8 @@ pub enum AdditionalPaymentData {
         details: Option<additional_info::BankRedirectDetails>,
     },
     Wallet {
-        apple_pay: Option<ApplepayPaymentMethod>,
-        google_pay: Option<additional_info::GooglePayWalletAdditionalData>,
+        apple_pay: Option<additional_info::WalletAdditionalDataForCard>,
+        google_pay: Option<additional_info::WalletAdditionalDataForCard>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -3189,9 +3189,10 @@ pub struct WalletResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletResponseData {
-    ApplePay(Box<ApplepayPaymentMethod>),
-    #[schema(value_type = GooglePayWalletAdditionalData)]
-    GooglePay(Box<additional_info::GooglePayWalletAdditionalData>),
+    #[schema(value_type = WalletAdditionalDataForCard)]
+    ApplePay(Box<additional_info::WalletAdditionalDataForCard>),
+    #[schema(value_type = WalletAdditionalDataForCard)]
+    GooglePay(Box<additional_info::WalletAdditionalDataForCard>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
