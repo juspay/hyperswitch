@@ -410,20 +410,19 @@ pub async fn delete_dispute_evidence(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
-#[cfg(feature = "olap")]
 pub async fn get_disputes_aggregate(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<TimeRange>,
+    query_param: web::Query<TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::DisputesAggregate;
-    let payload = payload.into_inner();
+    let query_param = query_param.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        query_param,
         |state, auth, req, _| {
             disputes::get_aggregates_for_disputes(state, auth.merchant_account, None, req)
         },
@@ -441,20 +440,19 @@ pub async fn get_disputes_aggregate(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
-#[cfg(feature = "olap")]
 pub async fn get_disputes_aggregate_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<TimeRange>,
+    query_param: web::Query<TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::DisputesAggregate;
-    let payload = payload.into_inner();
+    let query_param = query_param.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        query_param,
         |state, auth, req, _| {
             disputes::get_aggregates_for_disputes(
                 state,

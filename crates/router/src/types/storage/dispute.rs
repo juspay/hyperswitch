@@ -15,7 +15,6 @@ pub trait DisputeDbExt: Sized {
         dispute_list_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
-    #[cfg(feature = "olap")]
     async fn get_dispute_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

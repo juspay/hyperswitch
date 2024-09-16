@@ -48,7 +48,6 @@ pub trait DisputeInterface {
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
-    #[cfg(feature = "olap")]
     async fn get_dispute_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,

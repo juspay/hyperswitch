@@ -511,7 +511,7 @@ pub async fn delete_evidence(
     Ok(services::ApplicationResponse::StatusOk)
 }
 
-#[cfg(feature = "olap")]
+#[instrument(skip(state))]
 pub async fn get_aggregates_for_disputes(
     state: SessionState,
     merchant: domain::MerchantAccount,
