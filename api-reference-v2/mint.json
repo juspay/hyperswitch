@@ -51,16 +51,16 @@
       ]
     },
     {
-      "group": "Business Profile",
+      "group": "Profile",
       "pages": [
-        "api-reference/business-profile/business-profile--create",
-        "api-reference/business-profile/business-profile--update",
-        "api-reference/business-profile/business-profile--retrieve",
-        "api-reference/business-profile/business-profile--activate-routing-algorithm",
-        "api-reference/business-profile/business-profile--retrieve-active-routing-algorithm",
-        "api-reference/business-profile/business-profile--deactivate-routing-algorithm",
-        "api-reference/business-profile/business-profile--update-default-fallback-routing-algorithm",
-        "api-reference/business-profile/business-profile--retrieve-default-fallback-routing-algorithm"
+        "api-reference/profile/profile--create",
+        "api-reference/profile/profile--update",
+        "api-reference/profile/profile--activate-routing-algorithm",
+        "api-reference/profile/profile--update-default-fallback-routing-algorithm",
+        "api-reference/profile/profile--deactivate-routing-algorithm",
+        "api-reference/profile/profile--retrieve-active-routing-algorithm",
+        "api-reference/profile/profile--retrieve",
+        "api-reference/profile/profile--retrieve-default-fallback-routing-algorithm"
       ]
     },
     {
