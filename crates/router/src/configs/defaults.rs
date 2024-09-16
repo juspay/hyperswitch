@@ -8773,15 +8773,6 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
-                                            (
-                                                "billing.phone.country_code".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
-                                                    display_name: "dialing_code".to_string(),
-                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
-                                                    value: None,
-                                                }
-                                            ),
                                             ]
                                         ),
                                     }
