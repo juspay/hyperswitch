@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use josekit::jwe;
+use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -384,6 +385,8 @@ pub async fn mk_add_locker_request_hs(
     locker: &settings::Locker,
     payload: &StoreLockerReq,
     locker_choice: api_enums::LockerChoice,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
         .encode_to_vec()
@@ -402,6 +405,13 @@ pub async fn mk_add_locker_request_hs(
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -544,6 +554,7 @@ pub fn generate_payment_method_response(
     Ok(resp)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn mk_get_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -551,6 +562,8 @@ pub async fn mk_get_card_request_hs(
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
     locker_choice: Option<api_enums::LockerChoice>,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
@@ -577,6 +590,14 @@ pub async fn mk_get_card_request_hs(
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -622,6 +643,8 @@ pub async fn mk_delete_card_request_hs(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
@@ -646,6 +669,14 @@ pub async fn mk_delete_card_request_hs(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -658,6 +689,8 @@ pub async fn mk_delete_card_request_hs_by_id(
     id: &String,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = id.to_owned();
     let card_req_body = CardReqBodyV2 {
@@ -682,6 +715,14 @@ pub async fn mk_delete_card_request_hs_by_id(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -760,12 +801,22 @@ pub fn mk_crud_locker_request(
     locker: &settings::Locker,
     path: &str,
     req: api::TokenizePayloadEncrypted,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(req)));
     Ok(request)
 }

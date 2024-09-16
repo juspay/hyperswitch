@@ -28,8 +28,10 @@ use common_utils::{
     consts,
     crypto::{self, Encryptable},
     encryption::Encryption,
-    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
-    generate_id, id_type, type_name,
+    ext_traits::{AsyncExt, BytesExt, Encode, StringExt, ValueExt},
+    generate_id, id_type,
+    request::Request,
+    type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
         MinorUnit,
@@ -1890,7 +1892,7 @@ pub async fn add_bank_to_locker(
             enc_data,
             ttl: state.conf.locker.ttl_for_storage_in_secs,
         });
-    let store_resp = call_to_locker_hs(
+    let store_resp = add_card_to_hs_locker(
         state,
         &payload,
         customer_id,
@@ -1934,7 +1936,7 @@ pub async fn add_card_to_locker(
                 card_reference,
             )
             .await
-            .inspect_err(|error| {
+            .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
@@ -1943,7 +1945,6 @@ pub async fn add_card_to_locker(
                         router_env::opentelemetry::KeyValue::new("operation", "add"),
                     ],
                 );
-                logger::error!(?error, "Failed to add card in locker");
             })
         },
         &metrics::CARD_ADD_TIME,
@@ -1976,7 +1977,7 @@ pub async fn get_card_from_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while getting card from hyperswitch card vault")
-            .inspect_err(|error| {
+            .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
@@ -1985,7 +1986,6 @@ pub async fn get_card_from_locker(
                         router_env::opentelemetry::KeyValue::new("operation", "get"),
                     ],
                 );
-                logger::error!(?error, "Failed to retrieve card from locker");
             })
         },
         &metrics::CARD_GET_TIME,
@@ -2010,9 +2010,15 @@ pub async fn delete_card_from_locker(
         async move {
             delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
-                .inspect_err(|error| {
-                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    logger::error!(?error, "Failed to delete card from locker");
+                .inspect_err(|_| {
+                    metrics::CARD_LOCKER_FAILURES.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            router_env::opentelemetry::KeyValue::new("locker", "rust"),
+                            router_env::opentelemetry::KeyValue::new("operation", "delete"),
+                        ],
+                    );
                 })
         },
         &metrics::CARD_DELETE_TIME,
@@ -2020,6 +2026,8 @@ pub async fn delete_card_from_locker(
         &[],
     )
     .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while deleting card from locker")
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -2063,7 +2071,8 @@ pub async fn add_card_hs(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_card_payload = call_to_locker_hs(state, &payload, customer_id, locker_choice).await?;
+    let store_card_payload =
+        add_card_to_hs_locker(state, &payload, customer_id, locker_choice).await?;
 
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         card.clone(),
@@ -2125,30 +2134,22 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             merchant_id,
             payment_method_reference,
             locker_choice,
+            state.tenant.name.clone(),
+            state.request_id,
         )
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)
         .attach_printable("Making get payment method request failed")?;
-        let response = services::call_connector_api(state, request, "add_card_to_locker")
-            .await
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)
-            .attach_printable("Failed while executing call_connector_api for get_card");
-        let jwe_body: services::JweBody = response
-            .get_response_inner("JweBody")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(
-            jwekey,
-            jwe_body,
+
+        let get_card_resp = call_locker_api::<payment_methods::RetrieveCardResp>(
+            state,
+            request,
+            "get_pm_from_locker",
             locker_choice,
-            locker.decryption_scheme.clone(),
         )
         .await
-        .change_context(errors::VaultError::FetchPaymentMethodFailed)
-        .attach_printable("Error getting decrypted response payload for get card")?;
-        let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
-            .parse_struct("RetrieveCardResp")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)
-            .attach_printable("Failed to parse struct to RetrieveCardResp")?;
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+
         let retrieve_card_resp = get_card_resp
             .payload
             .get_required_value("RetrieveCardRespPayload")
@@ -2172,7 +2173,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn call_to_locker_hs(
+pub async fn add_card_to_hs_locker(
     state: &routes::SessionState,
     payload: &payment_methods::StoreLockerReq,
     customer_id: &id_type::CustomerId,
@@ -2182,30 +2183,23 @@ pub async fn call_to_locker_hs(
     let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        let request =
-            payment_methods::mk_add_locker_request_hs(jwekey, locker, payload, locker_choice)
-                .await?;
-        let response = services::call_connector_api(state, request, "add_card_to_hs_locker")
-            .await
-            .change_context(errors::VaultError::SaveCardFailed);
-
-        let jwe_body: services::JweBody = response
-            .get_response_inner("JweBody")
-            .change_context(errors::VaultError::FetchCardFailed)?;
-
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+        let request = payment_methods::mk_add_locker_request_hs(
             jwekey,
-            jwe_body,
+            locker,
+            payload,
+            locker_choice,
+            state.tenant.name.clone(),
+            state.request_id,
+        )
+        .await?;
+        call_locker_api::<payment_methods::StoreCardResp>(
+            state,
+            request,
+            "add_card_to_hs_locker",
             Some(locker_choice),
-            locker.decryption_scheme.clone(),
         )
         .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Error getting decrypted response payload")?;
-        let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
-            .parse_struct("StoreCardResp")
-            .change_context(errors::VaultError::ResponseDeserializationFailed)?;
-        stored_card_resp
+        .change_context(errors::VaultError::SaveCardFailed)?
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
         mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
@@ -2247,6 +2241,61 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .attach_printable("Error getting decrypted vault response payload")?;
 
     Ok(decrypted_payload)
+}
+
+#[instrument(skip_all)]
+pub async fn call_locker_api<T>(
+    state: &routes::SessionState,
+    request: Request,
+    flow_name: &str,
+    locker_choice: Option<api_enums::LockerChoice>,
+) -> errors::CustomResult<T, errors::VaultError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let locker = &state.conf.locker;
+    let jwekey = state.conf.jwekey.get_inner();
+    let response_type_name = type_name!(T);
+
+    let response = services::call_connector_api(state, request, flow_name)
+        .await
+        .change_context(errors::VaultError::ApiError)?;
+
+    let is_locker_call_succeeded = response.is_ok();
+
+    let jwe_body = response
+        .unwrap_or_else(|err| err)
+        .response
+        .parse_struct::<services::JweBody>("JweBody")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed while parsing locker response into JweBody")?;
+
+    let decrypted_payload = payment_methods::get_decrypted_response_payload(
+        jwekey,
+        jwe_body,
+        locker_choice,
+        locker.decryption_scheme.clone(),
+    )
+    .await
+    .change_context(errors::VaultError::ResponseDeserializationFailed)
+    .attach_printable("Failed while decrypting locker payload response")?;
+
+    // Irrespective of locker's response status, payload is JWE + JWS decrypted. But based on locker's status,
+    // if Ok, deserialize the decrypted payload into given type T
+    // if Err, raise an error including locker error message too
+    if is_locker_call_succeeded {
+        let stored_card_resp: Result<T, error_stack::Report<errors::VaultError>> =
+            decrypted_payload
+                .parse_struct(response_type_name)
+                .change_context(errors::VaultError::ResponseDeserializationFailed)
+                .attach_printable_lazy(|| {
+                    format!("Failed while parsing locker response into {response_type_name}")
+                });
+        stored_card_resp
+    } else {
+        Err::<T, error_stack::Report<errors::VaultError>>((errors::VaultError::ApiError).into())
+            .attach_printable_lazy(|| format!("Locker error response: {decrypted_payload:?}"))
+    }
 }
 
 #[cfg(all(
@@ -2367,29 +2416,21 @@ pub async fn get_card_from_hs_locker<'a>(
             merchant_id,
             card_reference,
             Some(locker_choice),
+            state.tenant.name.clone(),
+            state.request_id,
         )
         .await
         .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Making get card request failed")?;
-        let response = services::call_connector_api(state, request, "get_card_from_locker")
-            .await
-            .change_context(errors::VaultError::FetchCardFailed)
-            .attach_printable("Failed while executing call_connector_api for get_card");
-        let jwe_body: services::JweBody = response
-            .get_response_inner("JweBody")
-            .change_context(errors::VaultError::FetchCardFailed)?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(
-            jwekey,
-            jwe_body,
+        let get_card_resp = call_locker_api::<payment_methods::RetrieveCardResp>(
+            state,
+            request,
+            "get_card_from_locker",
             Some(locker_choice),
-            locker.decryption_scheme.clone(),
         )
         .await
-        .change_context(errors::VaultError::FetchCardFailed)
-        .attach_printable("Error getting decrypted response payload for get card")?;
-        let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
-            .parse_struct("RetrieveCardResp")
-            .change_context(errors::VaultError::FetchCardFailed)?;
+        .change_context(errors::VaultError::FetchCardFailed)?;
+
         let retrieve_card_resp = get_card_resp
             .payload
             .get_required_value("RetrieveCardRespPayload")
@@ -2411,7 +2452,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &'a str,
-) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+) -> errors::CustomResult<payment_methods::DeleteCardResp, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
 
@@ -2421,35 +2462,26 @@ pub async fn delete_card_from_hs_locker<'a>(
         customer_id,
         merchant_id,
         card_reference,
+        state.tenant.name.clone(),
+        state.request_id,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::VaultError::DeleteCardFailed)
     .attach_printable("Making delete card request failed")?;
 
     if !locker.mock_locker {
-        let response = services::call_connector_api(state, request, "delete_card_from_locker")
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while executing call_connector_api for delete card");
-        let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(
-            jwekey,
-            jwe_body,
+        call_locker_api::<payment_methods::DeleteCardResp>(
+            state,
+            request,
+            "delete_card_from_locker",
             Some(api_enums::LockerChoice::HyperswitchCardVault),
-            locker.decryption_scheme.clone(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting decrypted response payload for delete card")?;
-        let delete_card_resp: payment_methods::DeleteCardResp = decrypted_payload
-            .parse_struct("DeleteCardResp")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        Ok(delete_card_resp)
+        .change_context(errors::VaultError::DeleteCardFailed)
     } else {
         Ok(mock_delete_card_hs(&*state.store, card_reference)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("card_delete_failure_message")?)
+            .change_context(errors::VaultError::DeleteCardFailed)?)
     }
 }
 

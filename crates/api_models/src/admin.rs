@@ -2355,6 +2355,10 @@ pub struct BusinessProfileUpdate {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
+
+    /// Indicates if dynamic routing is enabled or not.
+    #[serde(default)]
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]

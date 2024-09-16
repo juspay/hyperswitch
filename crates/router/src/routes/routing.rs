@@ -978,3 +978,88 @@ pub async fn routing_update_default_config_for_profile(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn toggle_success_based_routing(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_models::routing::ToggleSuccessBasedRoutingQuery>,
+    path: web::Path<routing_types::ToggleSuccessBasedRoutingPath>,
+) -> impl Responder {
+    let flow = Flow::ToggleDynamicRouting;
+    let wrapper = routing_types::ToggleSuccessBasedRoutingWrapper {
+        status: query.into_inner().status,
+        profile_id: path.into_inner().profile_id,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        wrapper.clone(),
+        |state,
+         auth: auth::AuthenticationData,
+         wrapper: routing_types::ToggleSuccessBasedRoutingWrapper,
+         _| {
+            routing::toggle_success_based_routing(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                wrapper.status,
+                wrapper.profile_id,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: wrapper.profile_id,
+                required_permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: wrapper.profile_id,
+            required_permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn success_based_routing_update_configs(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<routing_types::SuccessBasedRoutingUpdateConfigQuery>,
+    json_payload: web::Json<routing_types::SuccessBasedRoutingConfig>,
+) -> impl Responder {
+    let flow = Flow::UpdateDynamicRoutingConfigs;
+    let routing_payload_wrapper = routing_types::SuccessBasedRoutingPayloadWrapper {
+        updated_config: json_payload.into_inner(),
+        algorithm_id: path.clone().algorithm_id,
+        profile_id: path.clone().profile_id,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        routing_payload_wrapper,
+        |state, _, wrapper: routing_types::SuccessBasedRoutingPayloadWrapper, _| async {
+            Box::pin(routing::success_based_routing_update_configs(
+                state,
+                wrapper.updated_config,
+                wrapper.algorithm_id,
+                wrapper.profile_id,
+            ))
+            .await
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -4979,6 +4979,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -17213,6 +17214,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -17366,7 +17368,8 @@
           "single",
           "priority",
           "volume_split",
-          "advanced"
+          "advanced",
+          "dynamic"
         ]
       },
       "RoutingConfigRequest": {
