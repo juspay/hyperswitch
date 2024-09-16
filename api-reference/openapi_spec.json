@@ -7329,7 +7329,6 @@
       },
       "BusinessProfileCreate": {
         "type": "object",
-        "required": ["dynamic_routing_algorithm"],
         "properties": {
           "profile_name": {
             "type": "string",
