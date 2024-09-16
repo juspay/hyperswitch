@@ -568,18 +568,21 @@ pub enum PayoutMethodDataResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CardPayoutResponse {
     #[serde(flatten)]
+    #[schema(value_type = CardAdditionalData)]
     details: additional_info::CardAdditionalData,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct BankPayoutResponse {
     #[serde(flatten)]
+    #[schema(value_type = BankAdditionalData)]
     details: Option<additional_info::BankAdditionalData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct WalletPayoutResponse {
     #[serde(flatten)]
+    #[schema(value_type = WalletAdditionalData)]
     details: Option<additional_info::WalletAdditionalData>,
 }
 

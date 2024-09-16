@@ -21,6 +21,7 @@ pub struct CardAdditionalData {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
+    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
@@ -42,12 +43,15 @@ pub struct CardAdditionalData {
     pub card_extended_bin: Option<String>,
 
     /// Card expiry month
+    #[schema(value_type = String, example = "01")]
     pub card_exp_month: Option<Secret<String>>,
 
     /// Card expiry year
+    #[schema(value_type = String, example = "2026")]
     pub card_exp_year: Option<Secret<String>>,
 
     /// Card holder name
+    #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 }
 
