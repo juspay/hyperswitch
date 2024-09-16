@@ -58,6 +58,8 @@ pub mod date_time {
         YYYYMMDD,
         /// Format the date in 201911050811 format
         YYYYMMDDHHmm,
+        /// Format the date in 05112019081132 format
+        DDMMYYYYHHmmss,
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
@@ -111,6 +113,7 @@ pub mod date_time {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
                 DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
                 DateFormat::YYYYMMDDHHmm => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero]"),
+                DateFormat::DDMMYYYYHHmmss => time::macros::format_description!("[day padding:zero][month padding:zero repr:numerical][year repr:full][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
             }
         }
     }
