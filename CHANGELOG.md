@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.13.0-hotfix2
+
+### Refactors
+
+- **core:** Update response for PaymentsDynamicTaxCalculationResponse ([#5910](https://github.com/juspay/hyperswitch/pull/5910)) ([`f462c73`](https://github.com/juspay/hyperswitch/commit/f462c7329982e6f8c1c266a6e19f33560fba6615))
+
+- - -
+
 ## 2024.09.13.0-hotfix1
 
 ### Revert
