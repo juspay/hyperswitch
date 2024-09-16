@@ -25,32 +25,40 @@ use tonic::transport::Channel;
 pub mod success_rate {
     tonic::include_proto!("success_rate");
 }
-
+/// Result type for Dynamic Routing
 pub type DRResult<T> = CustomResult<T, DRError>;
 
+/// Dynamic Routing Errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum DRError {
+    /// Error buling the gRPC Client for communication
     #[error("Error buling the gRPC Client for communication")]
     ClientBuildingFailed,
+    /// Error getting a response from the gRPC Server
     #[error("Error getting a response from the gRPC Server")]
     GrpcServerResponseFailure,
 }
 
-// Struct consists of all the services provided by the client
+/// Struct consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
+    /// success rate service for Dynamic Routing
     pub success_rate_client: Option<SuccessRateCalculatorClient<Channel>>,
 }
 
+/// Contains the Dynamic Routing Client Config
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct DynamicRoutingClientConfig {
+    /// The host for the client
     pub host: String,
+    /// The port of the client
     pub port: u16,
+    /// If client connection needs to be established with the server or not
     pub enabled: bool,
 }
 
-// establish connection with the server
 impl DynamicRoutingClientConfig {
+    /// establish connection with the server
     pub async fn get_dynamic_routing_connection(
         self,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
@@ -67,16 +75,17 @@ impl DynamicRoutingClientConfig {
     }
 }
 
-// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
+/// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
+    /// To calculate the succes rate for the list of chosen connectors
     async fn calculate_success_rate(
         &self,
         id: id_type::ProfileId,
         dynamic_routing_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DRResult<CalSuccessRateResponse>;
-
+    /// To update the success rate with the given label
     async fn update_success_rate(
         &self,
         id: id_type::ProfileId,
@@ -96,14 +105,13 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let params = dynamic_routing_config
             .params
             .map(|vec| {
-                if !vec.is_empty() {
-                    vec.into_iter()
-                        .map(|param| param.to_string())
-                        .collect::<Vec<_>>()
-                        .join(":")
-                } else {
-                    String::default()
-                }
+                vec.into_iter().fold(String::new(), |mut acc_vec, params| {
+                    if !acc_vec.is_empty() {
+                        acc_vec.push(':')
+                    }
+                    acc_vec.push_str(params.to_string().as_str());
+                    acc_vec
+                })
             })
             .get_required_value("Vector of params")
             .change_context(DRError::ClientBuildingFailed)?;
@@ -152,14 +160,13 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let params = dynamic_routing_config
             .params
             .map(|vec| {
-                if !vec.is_empty() {
-                    vec.into_iter()
-                        .map(|param| param.to_string())
-                        .collect::<Vec<_>>()
-                        .join(":")
-                } else {
-                    String::default()
-                }
+                vec.into_iter().fold(String::new(), |mut acc_vec, params| {
+                    if !acc_vec.is_empty() {
+                        acc_vec.push(':')
+                    }
+                    acc_vec.push_str(params.to_string().as_str());
+                    acc_vec
+                })
             })
             .get_required_value("Vector of params")
             .change_context(DRError::ClientBuildingFailed)?;

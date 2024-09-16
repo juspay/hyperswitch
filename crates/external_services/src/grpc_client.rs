@@ -1,3 +1,4 @@
+/// Dyanimc Routing Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod dynamic_routing;
 use std::fmt::Debug;
@@ -8,16 +9,18 @@ use serde;
 #[cfg(feature = "dynamic_routing")]
 use crate::grpc_client::dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 
-// Struct contains all the gRPC Clients
+/// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
 pub struct GrpcClients {
+    /// The routing client
     #[cfg(feature = "dynamic_routing")]
     pub dynamic_routing: RoutingStrategy,
 }
-/// Struct that contains the settings required to construct an Grpc client.
+/// Struct that contains the configs required to construct an Grpc client.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
+    /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: DynamicRoutingClientConfig,
 }
 
