@@ -1,6 +1,8 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::payment_attempt::PaymentAttemptUpdateInternal;
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
@@ -118,7 +120,7 @@ impl DBOperation {
                     a.orig
                         .update_with_attempt_id(
                             conn,
-                            crate::PaymentAttemptUpdateInternal::from(a.update_data),
+                            PaymentAttemptUpdateInternal::from(a.update_data),
                         )
                         .await?,
                 )),
