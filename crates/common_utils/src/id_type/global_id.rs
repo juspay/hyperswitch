@@ -84,8 +84,8 @@ impl<'de> serde::Deserialize<'de> for CellId {
     where
         D: serde::Deserializer<'de>,
     {
-        let deserialized_length_id = LengthId::deserialize(deserializer)?;
-        Ok(Self(deserialized_length_id))
+        let deserialized_string = String::deserialize(deserializer)?;
+        Self::from_str(deserialized_string.as_str()).map_err(serde::de::Error::custom)
     }
 }
 
