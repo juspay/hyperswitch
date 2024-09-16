@@ -30,65 +30,7 @@ use crate::{
     },
 };
 
-/// Payments - Create
-///
-/// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
-#[utoipa::path(
-    post,
-    path = "/payments",
-    request_body(
-        content = PaymentsCreateRequest,
-        // examples(
-        //     (
-        //         "Create a payment with minimul fields" = (
-        //             value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a manual capture payment" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with address" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with customer details" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
-        //         )
-        //     ),
-        //     (
-        //         "Create a 3DS payment" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment" = (
-        //             value = json!(PAYMENTS_CREATE)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with order details" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
-        //         )
-        //     ),
-        //     (
-        //         "Create a payment with order category for noon" = (
-        //             value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
-        //         )
-        //     ),
-        // )
-    ),
-    responses(
-        (status = 200, description = "Payment created", body = PaymentsResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Create a Payment",
-    security(("api_key" = [])),
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payments_create(
     state: web::Data<app::AppState>,
@@ -161,24 +103,8 @@ pub async fn payments_create(
     ))
     .await
 }
-// /// Payments - Redirect
-// ///
-// /// For a payment which involves the redirection flow. This redirects the user to the authentication page
-// #[utoipa::path(
-//     get,
-//     path = "/payments/redirect/{payment_id}/{merchant_id}/{attempt_id}",
-//     params(
-//         ("payment_id" = String, Path, description = "The identifier for payment"),
-//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
-//         ("attempt_id" = String, Path, description = "The identifier for transaction")
-//     ),
-//     responses(
-//         (status = 200, description = "Redirects to the authentication page"),
-//         (status = 404, description = "No redirection found")
-//     ),
-//     tag = "Payments",
-//     operation_id = "Start a Redirection Payment"
-// )]
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
@@ -232,26 +158,9 @@ pub async fn payments_start(
     ))
     .await
 }
-/// Payments - Retrieve
-///
-/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
-#[utoipa::path(
-    get,
-    path = "/payments/{payment_id}",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    request_body=PaymentRetrieveBody,
-    responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
-        (status = 404, description = "No payment found")
-    ),
-    tag = "Payments",
-    operation_id = "Retrieve a Payment",
-    security(("api_key" = []), ("publishable_key" = []))
-)]
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
-// #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -330,23 +239,9 @@ pub async fn payments_retrieve(
     ))
     .await
 }
-/// Payments - Retrieve with gateway credentials
-///
-/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
-#[utoipa::path(
-    post,
-    path = "/sync",
-    request_body=PaymentRetrieveBodyWithCredentials,
-    responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
-        (status = 404, description = "No payment found")
-    ),
-    tag = "Payments",
-    operation_id = "Retrieve a Payment",
-    security(("api_key" = []))
-)]
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
-// #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -408,26 +303,9 @@ pub async fn payments_retrieve_with_gateway_creds(
     ))
     .await
 }
-/// Payments - Update
-///
-/// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    request_body=PaymentsRequest,
-    responses(
-        (status = 200, description = "Payment updated", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Update a Payment",
-    security(("api_key" = []), ("publishable_key" = []))
-)]
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate, payment_id))]
-// #[post("/{payment_id}")]
 pub async fn payments_update(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -477,26 +355,9 @@ pub async fn payments_update(
     ))
     .await
 }
-/// Payments - Confirm
-///
-/// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/confirm",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    request_body=PaymentsRequest,
-    responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Confirm a Payment",
-    security(("api_key" = []), ("publishable_key" = []))
-)]
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
-// #[post("/{payment_id}/confirm")]
 pub async fn payments_confirm(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -556,26 +417,9 @@ pub async fn payments_confirm(
     ))
     .await
 }
-/// Payments - Capture
-///
-/// To capture the funds for an uncaptured payment
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/capture",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    request_body=PaymentsCaptureRequest,
-    responses(
-        (status = 200, description = "Payment captured", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Capture a Payment",
-    security(("api_key" = []))
-)]
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
-// #[post("/{payment_id}/capture")]
 pub async fn payments_capture(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -626,8 +470,7 @@ pub async fn payments_capture(
     .await
 }
 
-/// Dynamic Tax Calculation
-
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::SessionUpdateTaxCalculation, payment_id))]
 pub async fn payments_dynamic_tax_calculation(
     state: web::Data<app::AppState>,
@@ -686,21 +529,7 @@ pub async fn payments_dynamic_tax_calculation(
     .await
 }
 
-/// Payments - Session token
-///
-/// To create the session object or to get session token for wallets
-#[utoipa::path(
-    post,
-    path = "/payments/session_tokens",
-    request_body=PaymentsSessionRequest,
-    responses(
-        (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Create Session tokens for a Payment",
-    security(("publishable_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
 pub async fn payments_connector_session(
     state: web::Data<app::AppState>,
@@ -757,24 +586,8 @@ pub async fn payments_connector_session(
     ))
     .await
 }
-// /// Payments - Redirect response
-// ///
-// /// To get the payment response for redirect flows
-// #[utoipa::path(
-//     post,
-//     path = "/payments/{payment_id}/{merchant_id}/response/{connector}",
-//     params(
-//         ("payment_id" = String, Path, description = "The identifier for payment"),
-//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
-//         ("connector" = String, Path, description = "The name of the connector")
-//     ),
-//     responses(
-//         (status = 302, description = "Received payment redirect response"),
-//         (status = 400, description = "Missing mandatory fields")
-//     ),
-//     tag = "Payments",
-//     operation_id = "Get Redirect Response for a Payment"
-// )]
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
@@ -824,24 +637,7 @@ pub async fn payments_redirect_response(
     .await
 }
 
-// /// Payments - Redirect response with creds_identifier
-// ///
-// /// To get the payment response for redirect flows
-// #[utoipa::path(
-//     post,
-//     path = "/payments/{payment_id}/{merchant_id}/response/{connector}/{cred_identifier}",
-//     params(
-//         ("payment_id" = String, Path, description = "The identifier for payment"),
-//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
-//         ("connector" = String, Path, description = "The name of the connector")
-//     ),
-//     responses(
-//         (status = 302, description = "Received payment redirect response"),
-//         (status = 400, description = "Missing mandatory fields")
-//     ),
-//     tag = "Payments",
-//     operation_id = "Get Redirect Response for a Payment"
-// )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response_with_creds_identifier(
     state: web::Data<app::AppState>,
@@ -890,6 +686,8 @@ pub async fn payments_redirect_response_with_creds_identifier(
     )
     .await
 }
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_complete_authorize_redirect(
     state: web::Data<app::AppState>,
@@ -940,7 +738,7 @@ pub async fn payments_complete_authorize_redirect(
     .await
 }
 
-/// Payments - Complete Authorize
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
@@ -1005,24 +803,7 @@ pub async fn payments_complete_authorize(
     .await
 }
 
-/// Payments - Cancel
-///
-/// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/cancel",
-    request_body=PaymentsCancelRequest,
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    responses(
-        (status = 200, description = "Payment canceled"),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Cancel a Payment",
-    security(("api_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payments_cancel(
     state: web::Data<app::AppState>,
@@ -1070,33 +851,9 @@ pub async fn payments_cancel(
     ))
     .await
 }
-/// Payments - List
-///
-/// To list the payments
-#[utoipa::path(
-    get,
-    path = "/payments/list",
-    params(
-        ("customer_id" = String, Query, description = "The identifier for the customer"),
-        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
-        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
-        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
-        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
-        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
-        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
-        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
-        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
-    ),
-    responses(
-        (status = 200, description = "Received payment list"),
-        (status = 404, description = "No payments found")
-    ),
-    tag = "Payments",
-    operation_id = "List all Payments",
-    security(("api_key" = []))
-)]
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1124,33 +881,9 @@ pub async fn payments_list(
     ))
     .await
 }
-/// Business Profile level Payments - List
-///
-/// To list the payments
-#[utoipa::path(
-    get,
-    path = "/payments/list",
-    params(
-        ("customer_id" = String, Query, description = "The identifier for the customer"),
-        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
-        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
-        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
-        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
-        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
-        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
-        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
-        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
-    ),
-    responses(
-        (status = 200, description = "Received payment list"),
-        (status = 404, description = "No payments found")
-    ),
-    tag = "Payments",
-    operation_id = "List all Payments for the Profile",
-    security(("api_key" = []))
-)]
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn profile_payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1184,8 +917,9 @@ pub async fn profile_payments_list(
     ))
     .await
 }
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_list_by_filter(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1217,7 +951,7 @@ pub async fn payments_list_by_filter(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn profile_payments_list_by_filter(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1249,7 +983,7 @@ pub async fn profile_payments_list_by_filter(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_filters_for_payments(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1275,7 +1009,7 @@ pub async fn get_filters_for_payments(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payment_filters(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1299,7 +1033,7 @@ pub async fn get_payment_filters(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payment_filters_profile(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1327,7 +1061,7 @@ pub async fn get_payment_filters_profile(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payments_aggregates(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1352,7 +1086,7 @@ pub async fn get_payments_aggregates(
     .await
 }
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsApprove, payment_id))]
 pub async fn payments_approve(
     state: web::Data<app::AppState>,
@@ -1416,9 +1150,8 @@ pub async fn payments_approve(
     .await
 }
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsReject, payment_id))]
-// #[post("/{payment_id}/reject")]
 pub async fn payments_reject(
     state: web::Data<app::AppState>,
     http_req: actix_web::HttpRequest,
@@ -1482,6 +1215,7 @@ pub async fn payments_reject(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn authorize_verify_select<Op>(
     operation: Op,
@@ -1567,24 +1301,7 @@ where
     }
 }
 
-/// Payments - Incremental Authorization
-///
-/// Authorized amount for a payment can be incremented if it is in status: requires_capture
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/incremental_authorization",
-    request_body=PaymentsIncrementalAuthorizationRequest,
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    responses(
-        (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Increment authorized amount for a Payment",
-    security(("api_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
 pub async fn payments_incremental_authorization(
     state: web::Data<app::AppState>,
@@ -1633,24 +1350,7 @@ pub async fn payments_incremental_authorization(
     .await
 }
 
-/// Payments - External 3DS Authentication
-///
-/// External 3DS Authentication is performed and returns the AuthenticationResponse
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/3ds/authentication",
-    request_body=PaymentsExternalAuthenticationRequest,
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    responses(
-        (status = 200, description = "Authentication created"),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Initiate external authentication for a Payment",
-    security(("api_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsExternalAuthentication, payment_id))]
 pub async fn payments_external_authentication(
     state: web::Data<app::AppState>,
@@ -1685,21 +1385,7 @@ pub async fn payments_external_authentication(
     .await
 }
 
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/{merchant_id}/authorize/{connector}",
-    params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
-    ),
-    request_body=PaymentsRequest,
-    responses(
-        (status = 200, description = "Payment Authorized", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Authorize a Payment",
-    security(("api_key" = []), ("publishable_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAuthorize, payment_id))]
 pub async fn post_3ds_payments_authorize(
     state: web::Data<app::AppState>,
@@ -1749,7 +1435,7 @@ pub async fn post_3ds_payments_authorize(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_manual_update(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1778,6 +1464,7 @@ pub async fn payments_manual_update(
     .await
 }
 
+#[cfg(feature = "v1")]
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
 pub async fn retrieve_extended_card_info(
@@ -1806,6 +1493,7 @@ pub async fn retrieve_extended_card_info(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
@@ -1828,6 +1516,7 @@ pub fn get_or_generate_payment_id(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1849,6 +1538,7 @@ impl GetLockingInput for payment_types::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsStartRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1865,6 +1555,7 @@ impl GetLockingInput for payment_types::PaymentsStartRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1886,6 +1577,7 @@ impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsSessionRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1902,6 +1594,7 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1918,6 +1611,7 @@ impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payments::PaymentsRedirectResponseData {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1939,6 +1633,7 @@ impl GetLockingInput for payments::PaymentsRedirectResponseData {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsCompleteAuthorizeRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1955,6 +1650,7 @@ impl GetLockingInput for payment_types::PaymentsCompleteAuthorizeRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsCancelRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -1971,6 +1667,7 @@ impl GetLockingInput for payment_types::PaymentsCancelRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsCaptureRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -2027,6 +1724,7 @@ impl<'a> GetLockingInput for FPaymentsRejectRequest<'a> {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsIncrementalAuthorizationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -2043,6 +1741,7 @@ impl GetLockingInput for payment_types::PaymentsIncrementalAuthorizationRequest 
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsExternalAuthenticationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -2059,6 +1758,7 @@ impl GetLockingInput for payment_types::PaymentsExternalAuthenticationRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsManualUpdateRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
@@ -2076,7 +1776,7 @@ impl GetLockingInput for payment_types::PaymentsManualUpdateRequest {
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payments_aggregates_profile(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

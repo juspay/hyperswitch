@@ -3884,6 +3884,161 @@
         ]
       }
     },
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle success based dynamic routing for profile",
+        "description": "Create a success based dynamic routing algorithm",
+        "operationId": "Toggle success based dynamic routing algprithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Boolean value for mentioning the expected state of dynamic routing",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update config for success based dynamic routing",
+        "description": "Update config for success based dynamic routing",
+        "operationId": "Update configs for success based dynamic routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for a profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "The unique identifier for routing algorithm",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/blocklist": {
       "delete": {
         "tags": [
@@ -8626,6 +8781,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -8647,6 +8803,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -9311,6 +9468,23 @@
           "ZAR",
           "ZMW"
         ]
+      },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -10723,6 +10897,18 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_language"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_ip"
             ]
           }
         ],
@@ -14812,7 +14998,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "string",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -14864,7 +15053,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "object",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -14914,6 +15106,35 @@
           "active",
           "expired"
         ]
+      },
+      "PaymentLinkTransactionDetails": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Key for the transaction details",
+            "example": "Policy-Number",
+            "maxLength": 255
+          },
+          "value": {
+            "type": "string",
+            "description": "Value for the transaction details",
+            "example": "297472368473924",
+            "maxLength": 255
+          },
+          "ui_configuration": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionDetailsUiConfiguration"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentListConstraints": {
         "type": "object",
@@ -17002,7 +17223,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -17474,6 +17695,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17494,6 +17723,38 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "net_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18087,7 +18348,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -18584,6 +18845,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20901,6 +21170,22 @@
           }
         }
       },
+      "RefundAggregateResponse": {
+        "type": "object",
+        "required": [
+          "status_with_count"
+        ],
+        "properties": {
+          "status_with_count": {
+            "type": "object",
+            "description": "The list of refund status with their count",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -21561,6 +21846,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -21580,6 +21866,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -21702,7 +21989,8 @@
           "single",
           "priority",
           "volume_split",
-          "advanced"
+          "advanced",
+          "dynamic"
         ]
       },
       "RoutingConfigRequest": {
@@ -22294,6 +22582,80 @@
           "destination"
         ]
       },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuccessBasedRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SuccessBasedRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "Currency",
+          "AuthenticationType"
+        ]
+      },
+      "SuccessBasedRoutingUpdateConfigQuery": {
+        "type": "object",
+        "required": [
+          "algorithm_id",
+          "profile_id"
+        ],
+        "properties": {
+          "algorithm_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          }
+        }
+      },
       "SurchargeDetailsResponse": {
         "type": "object",
         "required": [
@@ -22548,8 +22910,56 @@
           }
         }
       },
+      "ToggleSuccessBasedRoutingPath": {
+        "type": "object",
+        "required": [
+          "profile_id"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToggleSuccessBasedRoutingQuery": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "boolean"
+          }
+        }
+      },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionDetailsUiConfiguration": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Position of the key-value pair in the UI",
+            "example": 5,
+            "nullable": true
+          },
+          "is_key_bold": {
+            "type": "boolean",
+            "description": "Whether the key should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "is_value_bold": {
+            "type": "boolean",
+            "description": "Whether the value should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          }
+        }
       },
       "TransactionStatus": {
         "type": "string",

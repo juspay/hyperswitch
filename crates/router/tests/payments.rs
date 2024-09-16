@@ -277,6 +277,7 @@ fn connector_list() {
     assert_eq!(true, true);
 }
 
+#[cfg(feature = "v1")]
 #[actix_rt::test]
 #[ignore] // AWS
 async fn payments_create_core() {
@@ -443,6 +444,7 @@ async fn payments_create_core() {
         charges: None,
         frm_metadata: None,
         merchant_order_reference_id: None,
+        order_tax_amount: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -533,6 +535,7 @@ async fn payments_create_core() {
 //     assert_eq!(expected_response, actual_response);
 // }
 
+#[cfg(feature = "v1")]
 #[actix_rt::test]
 #[ignore]
 async fn payments_create_core_adyen_no_redirect() {
@@ -698,6 +701,7 @@ async fn payments_create_core_adyen_no_redirect() {
             charges: None,
             frm_metadata: None,
             merchant_order_reference_id: None,
+            order_tax_amount: None,
         },
         vec![],
     ));

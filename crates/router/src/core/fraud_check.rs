@@ -724,6 +724,7 @@ impl From<PaymentToFrmData> for PaymentDetails {
     }
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn frm_fulfillment_core(
     state: SessionState,

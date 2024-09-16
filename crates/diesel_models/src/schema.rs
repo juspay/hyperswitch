@@ -209,6 +209,7 @@ diesel::table! {
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
         version -> ApiVersion,
+        dynamic_routing_algorithm -> Nullable<Json>,
     }
 }
 
@@ -840,6 +841,8 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 32]
         card_network -> Nullable<Varchar>,
+        shipping_cost -> Nullable<Int8>,
+        order_tax_amount -> Nullable<Int8>,
     }
 }
 
