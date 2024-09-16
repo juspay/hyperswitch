@@ -46,7 +46,6 @@ pub struct PaymentIntent {
     pub authorization_count: Option<i32>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryption>,
     pub shipping_cost: Option<MinorUnit>,
@@ -121,7 +120,6 @@ pub struct PaymentIntent {
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
     pub request_external_three_ds_authentication: Option<bool>,
-    // TODO: remove this, move to feature metadata
     pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryption>,
@@ -194,7 +192,6 @@ pub struct PaymentIntentNew {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub customer_details: Option<Encryption>,
     pub shipping_cost: Option<MinorUnit>,

@@ -707,6 +707,19 @@ where
     todo!()
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn populate_surcharge_details<F>(
+    state: &SessionState,
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 async fn populate_surcharge_details<F>(
     state: &SessionState,

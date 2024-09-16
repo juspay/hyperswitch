@@ -893,6 +893,18 @@ pub async fn construct_upload_file_router_data<'a>(
     Ok(router_data)
 }
 
+#[cfg(feature = "v2")]
+pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
+    state: &'a SessionState,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    merchant_connector_account: &MerchantConnectorAccount,
+) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,

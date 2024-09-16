@@ -890,22 +890,7 @@ pub async fn perform_session_flow_routing(
     };
 
     #[cfg(feature = "v2")]
-    let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
-        currency: session_input.payment_intent.currency,
-        authentication_type: session_input.payment_attempt.authentication_type,
-        card_bin: None,
-        capture_method: session_input
-            .payment_attempt
-            .capture_method
-            .and_then(|cm| cm.foreign_into()),
-        business_country: None,
-        business_label: None,
-        billing_country: session_input
-            .country
-            .map(storage_enums::Country::from_alpha2),
-        setup_future_usage: session_input.payment_intent.setup_future_usage,
-    };
+    let payment_input = todo!();
 
     let metadata = session_input
         .payment_intent

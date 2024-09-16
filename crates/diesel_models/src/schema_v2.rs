@@ -867,7 +867,6 @@ diesel::table! {
         authorization_count -> Nullable<Int4>,
         session_expiry -> Nullable<Timestamp>,
         request_external_three_ds_authentication -> Nullable<Bool>,
-        charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
         shipping_cost -> Nullable<Int8>,

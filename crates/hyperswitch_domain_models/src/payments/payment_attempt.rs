@@ -509,9 +509,8 @@ impl behaviour::Conversion for PaymentIntent {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let PaymentIntent {
             merchant_id,
+            amount_details,
             status,
-            amount,
-            currency,
             amount_captured,
             customer_id,
             description,
@@ -533,16 +532,12 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_id,
             frm_merchant_decision,
             updated_by,
-            surcharge_applicable,
             request_incremental_authorization,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
-            charges,
             frm_metadata,
             customer_details,
-            shipping_cost,
-            tax_details,
             merchant_reference_id,
             billing_address,
             shipping_address,
@@ -550,18 +545,17 @@ impl behaviour::Conversion for PaymentIntent {
             id,
             authentication_type,
             prerouting_algorithm,
-            surcharge_amount,
-            tax_on_surcharge,
             organization_id,
-            skip_external_tax_calculation,
             enable_payment_link,
             apply_mit_exemption,
         } = self;
         Ok(DieselPaymentIntent {
+            skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
+            surcharge_applicable: Some(amount_details.get_surcharge_action_as_bool()),
             merchant_id,
             status,
-            amount,
-            currency,
+            amount: amount_details.order_amount,
+            currency: amount_details.currency,
             amount_captured,
             customer_id,
             description,
@@ -583,12 +577,11 @@ impl behaviour::Conversion for PaymentIntent {
             frm_merchant_decision,
             payment_link_id,
             updated_by,
-            surcharge_applicable,
+
             request_incremental_authorization,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
-            charges,
             frm_metadata,
             customer_details: customer_details.map(Encryption::from),
             billing_address: billing_address.map(Encryption::from),
@@ -598,12 +591,11 @@ impl behaviour::Conversion for PaymentIntent {
             authentication_type,
             prerouting_algorithm,
             merchant_reference_id,
-            surcharge_amount,
-            tax_on_surcharge,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
             organization_id,
-            shipping_cost,
-            tax_details,
-            skip_external_tax_calculation,
+            shipping_cost: amount_details.shipping_cost,
+            tax_details: amount_details.tax_details,
             enable_payment_link,
             apply_mit_exemption,
         })
@@ -630,11 +622,25 @@ impl behaviour::Conversion for PaymentIntent {
                 .and_then(|val| val.try_into_optionaloperation())
             };
 
+            let amount_details = super::AmountDetails {
+                order_amount: storage_model.amount,
+                currency: storage_model.currency,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_on_surcharge: storage_model.tax_on_surcharge,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
+                skip_external_tax_calculation: super::TaxCalculationOverride::from(
+                    storage_model.skip_external_tax_calculation,
+                ),
+                skip_surcharge_calculation: super::SurchargeCalculationOverride::from(
+                    storage_model.surcharge_applicable,
+                ),
+            };
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: storage_model.merchant_id,
                 status: storage_model.status,
-                amount: storage_model.amount,
-                currency: storage_model.currency,
+                amount_details,
                 amount_captured: storage_model.amount_captured,
                 customer_id: storage_model.customer_id,
                 description: storage_model.description,
@@ -656,13 +662,11 @@ impl behaviour::Conversion for PaymentIntent {
                 frm_merchant_decision: storage_model.frm_merchant_decision,
                 payment_link_id: storage_model.payment_link_id,
                 updated_by: storage_model.updated_by,
-                surcharge_applicable: storage_model.surcharge_applicable,
                 request_incremental_authorization: storage_model.request_incremental_authorization,
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
                     .request_external_three_ds_authentication,
-                charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
                 customer_details: storage_model
                     .customer_details
@@ -682,11 +686,6 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type,
                 prerouting_algorithm: storage_model.prerouting_algorithm,
-                surcharge_amount: storage_model.surcharge_amount,
-                tax_on_surcharge: storage_model.tax_on_surcharge,
-                shipping_cost: storage_model.shipping_cost,
-                tax_details: storage_model.tax_details,
-                skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 enable_payment_link: storage_model.enable_payment_link,
                 apply_mit_exemption: storage_model.apply_mit_exemption,
             })
@@ -698,11 +697,15 @@ impl behaviour::Conversion for PaymentIntent {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let amount_details = self.amount_details;
+
         Ok(DieselPaymentIntentNew {
+            surcharge_applicable: Some(amount_details.get_surcharge_action_as_bool()),
+            skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
             merchant_id: self.merchant_id,
             status: self.status,
-            amount: self.amount,
-            currency: self.currency,
+            amount: amount_details.order_amount,
+            currency: amount_details.currency,
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
@@ -724,12 +727,11 @@ impl behaviour::Conversion for PaymentIntent {
             frm_merchant_decision: self.frm_merchant_decision,
             payment_link_id: self.payment_link_id,
             updated_by: self.updated_by,
-            surcharge_applicable: self.surcharge_applicable,
+
             request_incremental_authorization: self.request_incremental_authorization,
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
             billing_address: self.billing_address.map(Encryption::from),
@@ -739,12 +741,12 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_reference_id: self.merchant_reference_id,
             authentication_type: self.authentication_type,
             prerouting_algorithm: self.prerouting_algorithm,
-            surcharge_amount: self.surcharge_amount,
-            tax_on_surcharge: self.tax_on_surcharge,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
             organization_id: self.organization_id,
-            shipping_cost: self.shipping_cost,
-            tax_details: self.tax_details,
-            skip_external_tax_calculation: self.skip_external_tax_calculation,
+            shipping_cost: amount_details.shipping_cost,
+            tax_details: amount_details.tax_details,
+
             enable_payment_link: self.enable_payment_link,
             apply_mit_exemption: self.apply_mit_exemption,
         })

@@ -65,4 +65,5 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN off_session BOOLEAN,
     ADD COLUMN payment_confirm_source "PaymentSource",
     ADD COLUMN merchant_order_reference_id VARCHAR(255),
-    ADD COLUMN is_payment_processor_token_flow BOOLEAN;
+    ADD COLUMN is_payment_processor_token_flow BOOLEAN,
+    ADD COLUMN charges jsonb;

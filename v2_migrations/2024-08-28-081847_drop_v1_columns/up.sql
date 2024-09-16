@@ -63,4 +63,5 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN off_session,
     DROP COLUMN payment_confirm_source,
     DROP COLUMN merchant_order_reference_id,
-    DROP COLUMN is_payment_processor_token_flow;
+    DROP COLUMN is_payment_processor_token_flow,
+    DROP COLUMN charges;
