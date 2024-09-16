@@ -734,3 +734,9 @@ connector_list = ""
 
 [recipient_emails]
 recon = "recon@example.com"
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

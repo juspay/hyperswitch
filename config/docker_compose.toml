@@ -593,3 +593,19 @@ connector_list = ""
 
 [recipient_emails]
 recon = "recon@example.com"
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_service]
+generate_token_url= ""
+fetch_token_url= ""
+token_service_api_key= ""
+public_key= ""
+private_key= ""
+key_id= ""
+delete_token_url= ""
+check_token_status_url= ""
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

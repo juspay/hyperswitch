@@ -210,6 +210,7 @@ diesel::table! {
         is_tax_connector_enabled -> Nullable<Bool>,
         version -> ApiVersion,
         dynamic_routing_algorithm -> Nullable<Json>,
+        is_network_tokenization_enabled -> Bool,
     }
 }
 
@@ -1009,6 +1010,11 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
+        #[max_length = 128]
+        network_token_requestor_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        network_token_locker_id -> Nullable<Varchar>,
+        network_token_payment_method_data -> Nullable<Bytea>,
     }
 }
 

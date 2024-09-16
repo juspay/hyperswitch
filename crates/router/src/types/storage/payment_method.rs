@@ -28,6 +28,7 @@ pub struct CardTokenData {
     pub payment_method_id: Option<String>,
     pub locker_id: Option<String>,
     pub token: String,
+    pub network_token_locker_id: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -77,11 +78,13 @@ impl PaymentTokenData {
         payment_method_id: Option<String>,
         locker_id: Option<String>,
         token: String,
+        network_token_locker_id: Option<String>,
     ) -> Self {
         Self::PermanentCard(CardTokenData {
             payment_method_id,
             locker_id,
             token,
+            network_token_locker_id,
         })
     }
 

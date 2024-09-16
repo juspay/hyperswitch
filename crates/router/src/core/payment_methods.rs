@@ -1,5 +1,6 @@
 pub mod cards;
 pub mod migration;
+pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
@@ -504,6 +505,9 @@ pub async fn retrieve_payment_method_with_token(
     _card_token_data: Option<&domain::CardToken>,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
+    _mandate_id: Option<api_models::payments::MandateIds>,
+    _payment_method_info: Option<domain::PaymentMethod>,
+    _business_profile: &domain::BusinessProfile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     todo!()
 }
@@ -513,6 +517,7 @@ pub async fn retrieve_payment_method_with_token(
     not(feature = "payment_methods_v2")
 ))]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -521,6 +526,9 @@ pub async fn retrieve_payment_method_with_token(
     card_token_data: Option<&domain::CardToken>,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
+    mandate_id: Option<api_models::payments::MandateIds>,
+    payment_method_info: Option<domain::PaymentMethod>,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -573,6 +581,9 @@ pub async fn retrieve_payment_method_with_token(
                 card_token_data,
                 merchant_key_store,
                 storage_scheme,
+                mandate_id,
+                payment_method_info,
+                business_profile,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -604,6 +615,9 @@ pub async fn retrieve_payment_method_with_token(
                 card_token_data,
                 merchant_key_store,
                 storage_scheme,
+                mandate_id,
+                payment_method_info,
+                business_profile,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?

@@ -54,6 +54,7 @@ pub struct BusinessProfile {
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -94,6 +95,7 @@ pub struct BusinessProfileNew {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -131,6 +133,7 @@ pub struct BusinessProfileUpdateInternal {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -167,6 +170,7 @@ impl BusinessProfileUpdateInternal {
             tax_connector_id,
             is_tax_connector_enabled,
             dynamic_routing_algorithm,
+            is_network_tokenization_enabled,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -222,6 +226,8 @@ impl BusinessProfileUpdateInternal {
             version: source.version,
             dynamic_routing_algorithm: dynamic_routing_algorithm
                 .or(source.dynamic_routing_algorithm),
+            is_network_tokenization_enabled: is_network_tokenization_enabled
+                .unwrap_or(source.is_network_tokenization_enabled),
         }
     }
 }
@@ -272,6 +278,7 @@ pub struct BusinessProfile {
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 impl BusinessProfile {
@@ -326,6 +333,7 @@ pub struct BusinessProfileNew {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -364,6 +372,7 @@ pub struct BusinessProfileUpdateInternal {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -401,6 +410,7 @@ impl BusinessProfileUpdateInternal {
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
+            is_network_tokenization_enabled,
         } = self;
         BusinessProfile {
             id: source.id,
@@ -459,6 +469,8 @@ impl BusinessProfileUpdateInternal {
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             version: source.version,
             dynamic_routing_algorithm: None,
+            is_network_tokenization_enabled: is_network_tokenization_enabled
+                .unwrap_or(source.is_network_tokenization_enabled),
         }
     }
 }
@@ -510,6 +522,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             default_fallback_routing: new.default_fallback_routing,
             version: new.version,
             dynamic_routing_algorithm: None,
+            is_network_tokenization_enabled: new.is_network_tokenization_enabled,
         }
     }
 }

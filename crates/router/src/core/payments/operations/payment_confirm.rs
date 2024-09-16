@@ -776,13 +776,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&domain::BusinessProfile>,
+        business_profile: &domain::BusinessProfile,
     ) -> RouterResult<(
         PaymentConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = Box::pin(helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -790,7 +790,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             customer,
             storage_scheme,
             business_profile,
-        )
+        ))
         .await?;
 
         utils::when(payment_method_data.is_none(), || {
@@ -987,7 +987,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             };
 
             let encrypted_payload =
-                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek())
+                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek(), services::EncryptionAlgorithm::A256GCM, None)
                         .await
                         .map_err(|err| {
                             logger::error!(jwe_encryption_err=?err,"Error while JWE encrypting extended card info")
