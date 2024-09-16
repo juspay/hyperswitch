@@ -53,6 +53,7 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -129,6 +130,7 @@ pub struct BusinessProfileUpdateInternal {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -164,6 +166,7 @@ impl BusinessProfileUpdateInternal {
             always_collect_shipping_details_from_wallet_connector,
             tax_connector_id,
             is_tax_connector_enabled,
+            dynamic_routing_algorithm,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -217,6 +220,8 @@ impl BusinessProfileUpdateInternal {
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
             version: source.version,
+            dynamic_routing_algorithm: dynamic_routing_algorithm
+                .or(source.dynamic_routing_algorithm),
         }
     }
 }
@@ -266,6 +271,7 @@ pub struct BusinessProfile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
 }
 
 impl BusinessProfile {
@@ -452,6 +458,7 @@ impl BusinessProfileUpdateInternal {
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             version: source.version,
+            dynamic_routing_algorithm: None,
         }
     }
 }
@@ -502,6 +509,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
             default_fallback_routing: new.default_fallback_routing,
             version: new.version,
+            dynamic_routing_algorithm: None,
         }
     }
 }
