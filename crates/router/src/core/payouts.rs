@@ -717,13 +717,13 @@ pub async fn payouts_fulfill_core(
         .await?
         .get_required_value("payout_method_data")?,
     );
-    fulfill_payout(
+    Box::pin(fulfill_payout(
         &state,
         &merchant_account,
         &key_store,
         &connector_data,
         &mut payout_data,
-    )
+    ))
     .await
     .attach_printable("Payout fulfillment failed for given Payout request")?;
 
@@ -1121,13 +1121,13 @@ pub async fn call_connector_payout(
     // Auto fulfillment flow
     let status = payout_data.payout_attempt.status;
     if payouts.auto_fulfill && status == storage_enums::PayoutStatus::RequiresFulfillment {
-        fulfill_payout(
+        Box::pin(fulfill_payout(
             state,
             merchant_account,
             key_store,
             connector_data,
             payout_data,
-        )
+        ))
         .await
         .attach_printable("Payout fulfillment failed for given Payout request")?;
     }

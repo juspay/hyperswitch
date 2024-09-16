@@ -61,8 +61,12 @@ pub async fn perform_authentication(
         webhook_url,
         three_ds_requestor_url,
     )?;
-    let response =
-        utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
+    let response = Box::pin(utils::do_auth_connector_call(
+        state,
+        authentication_connector.clone(),
+        router_data,
+    ))
+    .await?;
     let authentication =
         utils::update_trackers(state, response.clone(), authentication_data, None).await?;
     response

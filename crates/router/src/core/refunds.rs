@@ -1126,7 +1126,7 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            trigger_refund_to_gateway(
+                            Box::pin(trigger_refund_to_gateway(
                                 state,
                                 &refund,
                                 merchant_account,
@@ -1135,7 +1135,7 @@ pub async fn schedule_refund_execution(
                                 payment_intent,
                                 creds_identifier,
                                 charges,
-                            )
+                            ))
                             .await
                         }
                     }
@@ -1368,7 +1368,7 @@ pub async fn trigger_refund_execute_workflow(
             };
 
             //trigger refund request to gateway
-            let updated_refund = trigger_refund_to_gateway(
+            let updated_refund = Box::pin(trigger_refund_to_gateway(
                 state,
                 &refund,
                 &merchant_account,
@@ -1377,7 +1377,7 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_intent,
                 None,
                 charges,
-            )
+            ))
             .await?;
             add_refund_sync_task(
                 db,
