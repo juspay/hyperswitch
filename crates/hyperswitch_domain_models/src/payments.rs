@@ -165,6 +165,84 @@ impl AmountDetails {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum External3dsAuthenticationRequest {
+    /// Request for 3ds authentication
+    Enable,
+    /// Skip 3ds authentication
+    Disable,
+}
+
+impl From<Option<bool>> for External3dsAuthenticationRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => External3dsAuthenticationRequest::Enable,
+            _ => External3dsAuthenticationRequest::Disable,
+        }
+    }
+}
+
+impl External3dsAuthenticationRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            External3dsAuthenticationRequest::Enable => true,
+            External3dsAuthenticationRequest::Disable => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum EnablePaymentLinkRequest {
+    /// Request for enabling payment link
+    Enable,
+    /// Skip enabling payment link
+    Disable,
+}
+
+impl EnablePaymentLinkRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            EnablePaymentLinkRequest::Enable => true,
+            EnablePaymentLinkRequest::Disable => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for EnablePaymentLinkRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => EnablePaymentLinkRequest::Enable,
+            _ => EnablePaymentLinkRequest::Disable,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum MitExemptionRequest {
+    /// Request for applying MIT exemption
+    Apply,
+    /// Skip applying MIT exemption
+    DoNotApply,
+}
+
+impl From<Option<bool>> for MitExemptionRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => MitExemptionRequest::Apply,
+            _ => MitExemptionRequest::DoNotApply,
+        }
+    }
+}
+
+impl MitExemptionRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            MitExemptionRequest::Apply => true,
+            MitExemptionRequest::DoNotApply => false,
+        }
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
@@ -228,7 +306,7 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     /// Denotes whether merchant requested for 3ds authentication to be enabled for this payment.
-    pub request_external_three_ds_authentication: Option<bool>,
+    pub request_external_three_ds_authentication: External3dsAuthenticationRequest,
     /// Metadata related to fraud and risk management
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     /// The details of the customer in a denormalized form. Only a subset of fields are stored.
@@ -248,7 +326,7 @@ pub struct PaymentIntent {
     /// The organization id for the payment. This is derived from the merchant account
     pub organization_id: id_type::OrganizationId,
     /// Denotes the request by the merchat whether to enable a payment link for this payment.
-    pub enable_payment_link: Option<bool>,
+    pub enable_payment_link: EnablePaymentLinkRequest,
     /// Denotes the request by the merchant whether to apply MIT exemption for this payment
-    pub apply_mit_exemption: Option<bool>,
+    pub apply_mit_exemption: MitExemptionRequest,
 }

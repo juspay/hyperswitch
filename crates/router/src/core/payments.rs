@@ -2759,6 +2759,24 @@ where
     Ok(payment_data_and_tokenization_action)
 }
 
+#[cfg(feature = "v2")]
+pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, D>(
+    state: &SessionState,
+    operation: &BoxedOperation<'_, F, Req, D>,
+    payment_data: &mut D,
+    validate_result: &operations::ValidateResult,
+    merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
+    business_profile: Option<&domain::BusinessProfile>,
+) -> RouterResult<D>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, D>(
     state: &SessionState,
     operation: &BoxedOperation<'_, F, Req, D>,

@@ -581,7 +581,9 @@ impl behaviour::Conversion for PaymentIntent {
             request_incremental_authorization,
             authorization_count,
             session_expiry,
-            request_external_three_ds_authentication,
+            request_external_three_ds_authentication: Some(
+                request_external_three_ds_authentication.as_bool(),
+            ),
             frm_metadata,
             customer_details: customer_details.map(Encryption::from),
             billing_address: billing_address.map(Encryption::from),
@@ -596,8 +598,8 @@ impl behaviour::Conversion for PaymentIntent {
             organization_id,
             shipping_cost: amount_details.shipping_cost,
             tax_details: amount_details.tax_details,
-            enable_payment_link,
-            apply_mit_exemption,
+            enable_payment_link: Some(enable_payment_link.as_bool()),
+            apply_mit_exemption: Some(apply_mit_exemption.as_bool()),
         })
     }
     async fn convert_back(
@@ -665,8 +667,10 @@ impl behaviour::Conversion for PaymentIntent {
                 request_incremental_authorization: storage_model.request_incremental_authorization,
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
-                request_external_three_ds_authentication: storage_model
-                    .request_external_three_ds_authentication,
+                request_external_three_ds_authentication:
+                    super::External3dsAuthenticationRequest::from(
+                        storage_model.request_external_three_ds_authentication,
+                    ),
                 frm_metadata: storage_model.frm_metadata,
                 customer_details: storage_model
                     .customer_details
@@ -686,8 +690,12 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type,
                 prerouting_algorithm: storage_model.prerouting_algorithm,
-                enable_payment_link: storage_model.enable_payment_link,
-                apply_mit_exemption: storage_model.apply_mit_exemption,
+                enable_payment_link: super::EnablePaymentLinkRequest::from(
+                    storage_model.enable_payment_link,
+                ),
+                apply_mit_exemption: super::MitExemptionRequest::from(
+                    storage_model.apply_mit_exemption,
+                ),
             })
         }
         .await
@@ -731,7 +739,9 @@ impl behaviour::Conversion for PaymentIntent {
             request_incremental_authorization: self.request_incremental_authorization,
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
-            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
+            request_external_three_ds_authentication: Some(
+                self.request_external_three_ds_authentication.as_bool(),
+            ),
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
             billing_address: self.billing_address.map(Encryption::from),
@@ -746,9 +756,8 @@ impl behaviour::Conversion for PaymentIntent {
             organization_id: self.organization_id,
             shipping_cost: amount_details.shipping_cost,
             tax_details: amount_details.tax_details,
-
-            enable_payment_link: self.enable_payment_link,
-            apply_mit_exemption: self.apply_mit_exemption,
+            enable_payment_link: Some(self.enable_payment_link.as_bool()),
+            apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
         })
     }
 }

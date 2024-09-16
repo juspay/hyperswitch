@@ -2081,6 +2081,20 @@ pub async fn store_in_vault_and_generate_ppmt(
     Ok(parent_payment_method_token)
 }
 
+#[cfg(feature = "v2")]
+pub async fn store_payment_method_data_in_vault(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_method: enums::PaymentMethod,
+    payment_method_data: &domain::PaymentMethodData,
+    merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&domain::BusinessProfile>,
+) -> RouterResult<Option<String>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn store_payment_method_data_in_vault(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
@@ -5109,6 +5123,7 @@ pub enum PaymentExternalAuthenticationFlow {
     },
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,

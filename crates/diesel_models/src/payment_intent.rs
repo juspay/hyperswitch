@@ -136,7 +136,12 @@ pub struct PaymentIntent {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct TaxDetails {
+    /// This is the tax related information that is calculated irrespective of any payment method.
+    /// This is calculated when the order is created with shipping details
     pub default: Option<DefaultTax>,
+
+    /// This is the tax related information that is calculated based on the payment method
+    /// This is calculated when calling the /calculate_tax API
     pub payment_method_type: Option<PaymentMethodTypeTax>,
 }
 
