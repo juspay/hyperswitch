@@ -1461,7 +1461,8 @@ impl Disputes {
             )
             .service(web::resource("/filter").route(web::get().to(disputes::get_disputes_filters)))
             .service(
-                web::resource("/profile/filter").route(web::get().to(disputes::get_disputes_filters_profile)),
+                web::resource("/profile/filter")
+                    .route(web::get().to(disputes::get_disputes_filters_profile)),
             )
             .service(
                 web::resource("/accept/{dispute_id}")
