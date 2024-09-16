@@ -182,7 +182,7 @@ where
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
     #[cfg(all(feature = "olap", feature = "v2"))]
-    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+    async fn list_connector_account_by_profile_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
@@ -526,7 +526,7 @@ impl MerchantConnectorAccountInterface for Store {
 
     #[instrument(skip_all)]
     #[cfg(all(feature = "olap", feature = "v2"))]
-    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+    async fn list_connector_account_by_profile_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
@@ -534,7 +534,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_profile_id(&conn, profile_id, get_disabled)
+        storage::MerchantConnectorAccount::list_by_profile_id(&conn, profile_id, get_disabled)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
@@ -1293,7 +1293,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
-    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+    async fn list_connector_account_by_profile_id(
         &self,
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,

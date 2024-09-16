@@ -2962,12 +2962,7 @@ pub async fn list_connectors_for_a_profile(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_profile_id_and_disabled_list(
-            key_manager_state,
-            &profile_id,
-            true,
-            &key_store,
-        )
+        .list_connector_account_by_profile_id(key_manager_state, &profile_id, true, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];

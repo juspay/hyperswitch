@@ -1226,7 +1226,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
-    async fn find_merchant_connector_account_by_profile_id_and_disabled_list(
+    async fn list_connector_account_by_profile_id(
         &self,
         state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
@@ -1234,12 +1234,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
         self.diesel_store
-            .find_merchant_connector_account_by_profile_id_and_disabled_list(
-                state,
-                profile_id,
-                get_disabled,
-                key_store,
-            )
+            .list_connector_account_by_profile_id(state, profile_id, get_disabled, key_store)
             .await
     }
 

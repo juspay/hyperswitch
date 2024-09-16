@@ -228,7 +228,7 @@ impl MerchantConnectorAccount {
         }
     }
 
-    pub async fn find_by_profile_id(
+    pub async fn list_by_profile_id(
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         get_disabled: bool,
