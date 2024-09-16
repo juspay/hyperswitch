@@ -36,6 +36,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as nexixpay;
 use uuid::Uuid;
+use common_enums::enums;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -157,7 +158,19 @@ impl ConnectorCommon for Nexixpay {
 }
 
 impl ConnectorValidation for Nexixpay {
-    //TODO: implement functions when support enabled
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nexixpay {
@@ -511,10 +524,17 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::IDEMPOTENCY_KEY.to_string(),
+            Uuid::new_v4().to_string().into_masked(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
+    
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
@@ -576,9 +596,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: nexixpay::NexixpayPaymentsCaptureResponse = res
+        let response: nexixpay::NexixpayOperationResponse = res
             .response
-            .parse_struct("NexixpayPaymentsCaptureResponse")
+            .parse_struct("NexixpayOperationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -599,95 +619,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nexixpay {
-    // fn get_headers(
-    //     &self,
-    //     req: &PaymentsCancelRouterData,
-    //     connectors: &Connectors,
-    // ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-    //     self.build_headers(req, connectors)
-    // }
-
-    // fn get_content_type(&self) -> &'static str {
-    //     self.common_get_content_type()
-    // }
-
-    // fn get_url(
-    //     &self,
-    //     req: &PaymentsCancelRouterData,
-    //     connectors: &Connectors,
-    // ) -> CustomResult<String, errors::ConnectorError> {
-    //     let connector_payment_id = req.request
-    //         .connector_transaction_id.clone();
-    //     Ok(format!(
-    //         "{}/operations/{}/cancels",
-    //         self.base_url(connectors),
-    //         connector_payment_id
-    //     ))
-    // }
-
-    // fn get_request_body(
-    //     &self,
-    //     req: &PaymentsCancelRouterData,
-    //     _connectors: &Connectors,
-    // ) -> CustomResult<RequestContent, errors::ConnectorError> {
-    //     let description = req.request.cancellation_reason;
-    //     let connector_req =
-    //         nexixpay::NexixpayPaymentsCancleRequest::try_from(&description)?;
-    //     Ok(RequestContent::Json(Box::new(connector_req)))
-    // }
-
-    // fn build_request(
-    //     &self,
-    //     req: &PaymentsCancelRouterData,
-    //     connectors: &Connectors,
-    // ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-    //     Ok(Some(
-    //         RequestBuilder::new()
-    //             .method(Method::Post)
-    //             .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-    //             .attach_default_headers()
-    //             .headers(types::PaymentsCaptureType::get_headers(
-    //                 self, req, connectors,
-    //             )?)
-    //             .set_body(types::PaymentsCaptureType::get_request_body(
-    //                 self, req, connectors,
-    //             )?)
-    //             .build(),
-    //     ))
-    // }
-
-    // fn handle_response(
-    //     &self,
-    //     data: &PaymentsCancelRouterData,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    //     res: Response,
-    // ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-    //     let response: nexixpay::NexixpayPaymentsCaptureResponse = res
-    //         .response
-    //         .parse_struct("NexixpayPaymentsCaptureResponse")
-    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-    //     event_builder.map(|i| i.set_response_body(&response));
-    //     router_env::logger::info!(connector_response=?response);
-    //     RouterData::try_from(ResponseRouterData {
-    //         response,
-    //         data: data.clone(),
-    //         http_code: res.status_code,
-    //     })
-    // }
-
-    // fn get_error_response(
-    //     &self,
-    //     res: Response,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    // ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    //     self.build_error_response(res, event_builder)
-    // }
-}
-
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpay {
     fn get_headers(
         &self,
-        req: &RefundsRouterData<Execute>,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -699,10 +633,106 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpa
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request
+            .connector_transaction_id.clone();
+        Ok(format!(
+            "{}/operations/{}/cancels",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nexixpay::NexixpayPaymentsCancleRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: nexixpay::NexixpayOperationResponse = res
+            .response
+            .parse_struct("NexixpayOperationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpay {
+    fn get_headers(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::IDEMPOTENCY_KEY.to_string(),
+            Uuid::new_v4().to_string().into_masked(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req.request
+            .connector_transaction_id.clone();
+        Ok(format!(
+            "{}/operations/{}/refunds",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
@@ -783,10 +813,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexixpay 
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/operations/{}",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -813,9 +848,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexixpay 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: nexixpay::RefundResponse = res
+        let response: nexixpay::NexixpayTransactionResponse = res
             .response
-            .parse_struct("nexixpay RefundSyncResponse")
+            .parse_struct("NexixpayTransactionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

@@ -4,12 +4,12 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData,ResponseId,PaymentsPreProcessingData, CompleteAuthorizeData, PaymentsSyncData, PaymentsCaptureData},
+    router_request_types::{PaymentsAuthorizeData,ResponseId,PaymentsPreProcessingData, CompleteAuthorizeData, PaymentsSyncData},
     router_response_types::{PaymentsResponseData, RefundsResponseData, RedirectForm},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, PaymentsPreProcessingRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsCancelRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{Mask, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use cards::CardNumber;
 use url::Url;
@@ -75,7 +75,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
 #[serde(rename_all = "camelCase")]
 pub struct OperationData {
     operation_id: String,
-    operation_currency: String,
+    operation_currency: Currency,
     operation_result: NexixpayPaymentStatus
 }
 
@@ -178,7 +178,7 @@ pub struct Operation {
     additional_data: AdditionalData,
     customer_info: CustomerInfo,
     operation_amount: String,
-    operation_currency: String,
+    operation_currency: Currency,
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
     operation_time: String,
@@ -201,8 +201,8 @@ pub struct AdditionalData {
 }
 
 pub struct NexixpayLinks {
-    href: Option<Url>,
-    rel: String,
+    _href: Option<Url>,
+    _rel: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -394,12 +394,12 @@ pub struct NexixpayPaymentsCaptureRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPaymentsCancleRequest {
-    description: Option<String>,
+    pub(crate) description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
-pub struct NexixpayPaymentsCaptureResponse  {
+pub struct NexixpayOperationResponse  {
     operation_id: String,
 }
 
@@ -422,30 +422,16 @@ impl From<NexixpayPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-
-    fn get_nexixpay_capture_type(item: Option<CaptureMethod>) -> CustomResult<Option<NexixpayCaptureType>, errors::ConnectorError> {
-        match item {
-            Some(CaptureMethod::Manual) => Ok(Some(NexixpayCaptureType::Explicit)),
-            Some(CaptureMethod::Automatic) => Ok(Some(NexixpayCaptureType::Implicit)),
-            Some(item) => Err(errors::ConnectorError::FlowNotSupported {
-                flow: item.to_string(),
-                connector: "Nexixpay".to_string(),
-            }.into()),
-            None => Ok(None),
-        }
+fn get_nexixpay_capture_type(item: Option<CaptureMethod>) -> CustomResult<Option<NexixpayCaptureType>, errors::ConnectorError> {
+    match item {
+        Some(CaptureMethod::Manual) => Ok(Some(NexixpayCaptureType::Explicit)),
+        Some(CaptureMethod::Automatic) => Ok(Some(NexixpayCaptureType::Implicit)),
+        Some(item) => Err(errors::ConnectorError::FlowNotSupported {
+            flow: item.to_string(),
+            connector: "Nexixpay".to_string(),
+        }.into()),
+        None => Ok(None),
     }
-
-
-fn get_redirect_url(
-    link_vec: Vec<NexixpayLinks>,
-) -> CustomResult<Option<Url>, errors::ConnectorError> {
-    let mut link: Option<Url> = None;
-    for item2 in link_vec.iter() {
-        if item2.rel == "payer-action" {
-            link.clone_from(&item2.href)
-        }
-    }
-    Ok(link)
 }
 
 impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>>
@@ -506,6 +492,7 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthoriz
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
 pub struct NexixpayRefundRequest {
     pub amount: StringMinorUnit,
+    pub currency: Currency
 }
 
 impl<F> TryFrom<&NexixpayRouterData<&RefundsRouterData<F>>> for NexixpayRefundRequest {
@@ -513,6 +500,7 @@ impl<F> TryFrom<&NexixpayRouterData<&RefundsRouterData<F>>> for NexixpayRefundRe
     fn try_from(item: &NexixpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency,
         })
     }
 }
@@ -539,11 +527,30 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
+impl From<NexixpayPaymentStatus> for enums::RefundStatus {
+    fn from(item: NexixpayPaymentStatus) -> Self {
+        match item {
+            NexixpayPaymentStatus::Declined
+            | NexixpayPaymentStatus::DeniedByRisk
+            | NexixpayPaymentStatus::ThreedsFailed
+            | NexixpayPaymentStatus::Failed => Self::Failure,
+            NexixpayPaymentStatus::Authorized 
+            | NexixpayPaymentStatus::ThreedsValidated
+            | NexixpayPaymentStatus::Executed
+            | NexixpayPaymentStatus::Pending 
+            | NexixpayPaymentStatus::StatusNotReceived => Self::Pending,
+            NexixpayPaymentStatus::Canceled
+            | NexixpayPaymentStatus::Voided
+            | NexixpayPaymentStatus::Refunded => Self::Success,
+        }
+    }
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    operation_id: String,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -553,23 +560,23 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.operation_id,
+                refund_status: enums::RefundStatus::from(RefundStatus::Processing),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, NexixpayTransactionResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, NexixpayTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.operation_id,
+                refund_status: enums::RefundStatus::from(item.response.operation_result),
             }),
             ..item.data
         })
@@ -701,7 +708,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: item.data.status,
+            status: common_enums::AttemptStatus::from(item.response.operation_result),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.operation_id.clone(),
@@ -733,22 +740,22 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCaptureRouterData>>
     }
 }
 
-impl<F>
+impl<F,T>
     TryFrom<
         ResponseRouterData<
             F,
-            NexixpayPaymentsCaptureResponse,
-            PaymentsCaptureData,
+            NexixpayOperationResponse,
+            T,
             PaymentsResponseData,
         >,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+    > for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
             F,
-            NexixpayPaymentsCaptureResponse,
-            PaymentsCaptureData,
+            NexixpayOperationResponse,
+            T,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -771,18 +778,17 @@ impl<F>
     }
 }
 
-// impl TryFrom<&NexixpayRouterData<&PaymentsCancelRouterData>>
-//     for NexixpayPaymentsCancleRequest
-// {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(
-//         item: &Option<String>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             description: item.clone(),
-//         })
-//     }
-// }
+impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaymentsCancelRouterData,
+    ) -> Result<Self, Self::Error> {
+        let description = item.request.cancellation_reason.clone();
+        Ok(Self {
+            description
+        })
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
