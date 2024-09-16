@@ -6,7 +6,6 @@ use std::{
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
-    consts,
     ext_traits::{AsyncExt, Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},
@@ -280,8 +279,6 @@ pub async fn initiate_payout_link(
                     &state,
                     payout_attempt.unified_code,
                     payout_attempt.unified_message,
-                    payout_attempt.connector,
-                    consts::PAYOUT_FLOW_STR,
                     &locale,
                 )
                 .await;

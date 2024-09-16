@@ -1269,17 +1269,10 @@ pub(super) fn get_customer_details_from_request(
 
 pub async fn get_translated_unified_code_and_message(
     state: &SessionState,
-    error_code: Option<String>,
-    error_message: Option<String>,
-    connector_name: Option<String>,
-    flow: &str,
+    unified_code: Option<String>,
+    unified_message: Option<String>,
     locale: &str,
 ) -> (Option<String>, Option<String>) {
-    let (unified_code, unified_message) =
-        get_gsm_record(state, error_code, error_message, connector_name, flow)
-            .await
-            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
-
     match (unified_code.clone(), unified_message.clone()) {
         (Some(code), Some(message)) => {
             let translated_message =

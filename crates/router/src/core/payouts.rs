@@ -2289,8 +2289,6 @@ pub async fn response_handler(
         state,
         payout_attempt.unified_code,
         payout_attempt.unified_message,
-        payout_attempt.connector.clone(),
-        consts::PAYOUT_FLOW_STR,
         &payout_data.current_locale,
     )
     .await;
