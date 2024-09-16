@@ -387,3 +387,9 @@ sdk_eligible_payment_methods = "card"
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

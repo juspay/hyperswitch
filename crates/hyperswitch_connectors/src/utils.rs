@@ -1077,7 +1077,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {

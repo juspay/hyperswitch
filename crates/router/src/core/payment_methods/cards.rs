@@ -78,7 +78,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{transformers as payment_methods, vault},
+        payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -133,6 +133,9 @@ pub async fn create_payment_method(
     storage_scheme: MerchantStorageScheme,
     payment_method_billing_address: crypto::OptionalEncryptableValue,
     card_scheme: Option<String>,
+    network_token_requestor_reference_id: Option<String>,
+    network_token_locker_id: Option<String>,
+    network_token_payment_method_data: crypto::OptionalEncryptableValue,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let customer = db
@@ -189,6 +192,9 @@ pub async fn create_payment_method(
                 payment_method_billing_address,
                 updated_by: None,
                 version: domain::consts::API_VERSION,
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
             },
             storage_scheme,
         )
@@ -354,6 +360,9 @@ pub async fn get_or_insert_payment_method(
                     None,
                     req.network_transaction_id.clone(),
                     merchant_account.storage_scheme,
+                    None,
+                    None,
+                    None,
                     None,
                 )
                 .await
@@ -752,6 +761,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 payment_method_billing_address: payment_method_billing_address.map(Into::into),
                 updated_by: None,
                 version: domain::consts::API_VERSION,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
             },
             merchant_account.storage_scheme,
         )
@@ -871,6 +883,9 @@ pub async fn get_client_secret_or_add_payment_method(
             None,
             merchant_account.storage_scheme,
             payment_method_billing_address.map(Into::into),
+            None,
+            None,
+            None,
             None,
         )
         .await?;
@@ -1080,9 +1095,12 @@ pub async fn add_payment_method_data(
                             payment_method_data: Some(pm_data_encrypted.into()),
                             status: Some(enums::PaymentMethodStatus::Active),
                             locker_id: Some(locker_id),
+                            network_token_requestor_reference_id: None,
                             payment_method: req.payment_method,
                             payment_method_issuer: req.payment_method_issuer,
                             payment_method_type: req.payment_method_type,
+                            network_token_locker_id: None,
+                            network_token_payment_method_data: None,
                         };
 
                         db.update_payment_method(
@@ -1384,6 +1402,9 @@ pub async fn add_payment_method(
                 req.network_transaction_id.clone(),
                 merchant_account.storage_scheme,
                 payment_method_billing_address.map(Into::into),
+                None,
+                None,
+                None,
             )
             .await?;
 
@@ -1424,6 +1445,9 @@ pub async fn insert_payment_method(
     network_transaction_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
     payment_method_billing_address: crypto::OptionalEncryptableValue,
+    network_token_requestor_reference_id: Option<String>,
+    network_token_locker_id: Option<String>,
+    network_token_payment_method_data: crypto::OptionalEncryptableValue,
 ) -> errors::RouterResult<domain::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -1458,6 +1482,9 @@ pub async fn insert_payment_method(
             card.card_network
                 .map(|card_network| card_network.to_string())
         }),
+        network_token_requestor_reference_id,
+        network_token_locker_id,
+        network_token_payment_method_data,
     )
     .await
 }
@@ -4611,6 +4638,9 @@ async fn get_pm_list_context(
                         Some(pm.get_id().clone()),
                         pm.locker_id.clone().or(Some(pm.get_id().clone())),
                         pm.locker_id.clone().unwrap_or(pm.get_id().clone()),
+                        pm.network_token_requestor_reference_id
+                            .clone()
+                            .or(Some(pm.get_id().clone())),
                     ),
                 ),
             })
@@ -5823,6 +5853,24 @@ pub async fn delete_payment_method(
         )
         .await?;
 
+        if let Some(network_token_ref_id) = key.network_token_requestor_reference_id {
+            let resp = network_tokenization::delete_network_token_from_locker_and_token_service(
+                &state,
+                &key.customer_id,
+                &key.merchant_id,
+                key.payment_method_id.clone(),
+                key.network_token_locker_id,
+                network_token_ref_id,
+            )
+            .await?;
+
+            if resp.status == "Ok" {
+                logger::info!("Token From locker deleted Successfully!");
+            } else {
+                logger::error!("Error: Deleting Token From Locker!\n{:#?}", resp);
+            }
+        }
+
         if response.status == "Ok" {
             logger::info!("Card From locker deleted Successfully!");
         } else {
@@ -5860,7 +5908,7 @@ pub async fn delete_payment_method(
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodDeleteResponse {
-            payment_method_id: key.payment_method_id,
+            payment_method_id: key.payment_method_id.clone(),
             deleted: true,
         },
     ))

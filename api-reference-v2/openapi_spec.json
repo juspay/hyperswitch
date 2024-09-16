@@ -4166,6 +4166,10 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
           }
         },
         "additionalProperties": false
@@ -4178,7 +4182,8 @@
           "profile_name",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "is_tax_connector_enabled"
+          "is_tax_connector_enabled",
+          "is_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -4348,6 +4353,12 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "default": false,
+            "example": false
           }
         }
       },

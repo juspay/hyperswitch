@@ -152,7 +152,7 @@ pub struct MerchantAccount {
     reverse_token_enabled: Option<bool>,
     webhook_configs: Option<String>,
     last_modified: Option<String>,
-    token_locker_id: Option<String>,
+    network_token_locker_id: Option<String>,
     enable_sending_last_four_digits: Option<bool>,
     website: Option<String>,
     mobile: Option<String>,

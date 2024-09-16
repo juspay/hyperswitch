@@ -20,7 +20,7 @@ use crate::utils::CustomerAddress;
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::cards,
+        payment_methods::{cards, network_tokenization},
     },
     db::StorageInterface,
     pii::PeekInterface,
@@ -789,7 +789,22 @@ impl CustomerDeleteBridge for customers::CustomerId {
                         )
                         .await
                         .switch()?;
+
+                        if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id
+                        {
+                            network_tokenization::delete_network_token_from_locker_and_token_service(
+                            state,
+                            &self.customer_id,
+                            merchant_account.get_id(),
+                            pm.payment_method_id.clone(),
+                            pm.network_token_locker_id,
+                            network_token_ref_id,
+                        )
+                        .await
+                        .switch()?;
+                        }
                     }
+
                     db.delete_payment_method_by_merchant_id_payment_method_id(
                         key_manager_state,
                         key_store,
