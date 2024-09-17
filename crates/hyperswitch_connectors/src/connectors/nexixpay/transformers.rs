@@ -1,5 +1,5 @@
 use common_enums::{enums,Currency,CaptureMethod};
-use common_utils::{errors::CustomResult, types::StringMinorUnit, request::Method,};
+use common_utils::{errors::CustomResult, types::{StringMinorUnit,MinorUnit}, request::Method,};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -19,7 +19,7 @@ use error_stack::ResultExt;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{RouterData as _,missing_field_err,CardData},
+    utils::{RouterData as _,missing_field_err,CardData,convert_amount},
 };
 
 //TODO: Fill the struct with respective fields
@@ -394,7 +394,9 @@ pub struct NexixpayPaymentsCaptureRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPaymentsCancleRequest {
-    pub(crate) description: Option<String>,
+    description: Option<String>,
+    amount: i64,
+    currency: Currency
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, )]
@@ -671,7 +673,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
                 Ok(NexixpayCard {
                 pan: req_card.clone().card_number,
                 expiry_date: req_card.clone().get_expiry_date_as_mmyy()?,
-                cvv: Secret::new("".to_string()),
+                cvv: Secret::new("396".to_string()),
             })
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -784,8 +786,20 @@ impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
         item: &PaymentsCancelRouterData,
     ) -> Result<Self, Self::Error> {
         let description = item.request.cancellation_reason.clone();
+        let amount = item.request.amount.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?;
+        let currency = item.request.currency.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            },
+        )?;
         Ok(Self {
-            description
+            amount,
+            currency,
+            description,
         })
     }
 }

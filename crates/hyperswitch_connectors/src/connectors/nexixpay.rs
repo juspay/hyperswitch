@@ -634,9 +634,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::IDEMPOTENCY_KEY.to_string(),
+            Uuid::new_v4().to_string().into_masked(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -651,7 +657,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
         let connector_payment_id = req.request
             .connector_transaction_id.clone();
         Ok(format!(
-            "{}/operations/{}/cancels",
+            "{}/operations/{}/refunds",
             self.base_url(connectors),
             connector_payment_id
         ))
