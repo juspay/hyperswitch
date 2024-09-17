@@ -302,7 +302,7 @@ where
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&domain::BusinessProfile>,
+        business_profile: &domain::BusinessProfile,
     ) -> RouterResult<(
         PaymentSessionOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -315,7 +315,7 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(
+            Box::pin(helpers::make_pm_data(
                 Box::new(self),
                 state,
                 payment_data,
@@ -323,7 +323,7 @@ where
                 customer,
                 storage_scheme,
                 business_profile,
-            )
+            ))
             .await
         } else {
             Ok((Box::new(self), None, None))

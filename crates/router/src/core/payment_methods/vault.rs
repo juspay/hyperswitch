@@ -279,6 +279,58 @@ impl Vaultable for domain::BankRedirectData {
     }
 }
 
+impl Vaultable for domain::BankDebitData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankDebitValue1 {
+            data: self.to_owned(),
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit data")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankDebitValue2 { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit supplementary data")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedBankDebitValue1 = value1
+            .parse_struct("TokenizedBankDebitValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank debit data")?;
+
+        let value2: domain::TokenizedBankDebitValue2 = value2
+            .parse_struct("TokenizedBankDebitValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank debit data")?;
+
+        let bank_transfer_data = value1.data;
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_transfer_data, supp_data))
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum VaultPaymentMethod {
@@ -286,6 +338,7 @@ pub enum VaultPaymentMethod {
     Wallet(String),
     BankTransfer(String),
     BankRedirect(String),
+    BankDebit(String),
 }
 
 impl Vaultable for domain::PaymentMethodData {
@@ -301,6 +354,9 @@ impl Vaultable for domain::PaymentMethodData {
             }
             Self::BankRedirect(bank_redirect) => {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
+            }
+            Self::BankDebit(bank_debit) => {
+                VaultPaymentMethod::BankDebit(bank_debit.get_value1(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .attach_printable("Payment method not supported")?,
@@ -324,6 +380,9 @@ impl Vaultable for domain::PaymentMethodData {
             }
             Self::BankRedirect(bank_redirect) => {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
+            }
+            Self::BankDebit(bank_debit) => {
+                VaultPaymentMethod::BankDebit(bank_debit.get_value2(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .attach_printable("Payment method not supported")?,
@@ -373,6 +432,10 @@ impl Vaultable for domain::PaymentMethodData {
                 let (bank_redirect, supp_data) =
                     domain::BankRedirectData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+            (VaultPaymentMethod::BankDebit(mvalue1), VaultPaymentMethod::BankDebit(mvalue2)) => {
+                let (bank_debit, supp_data) = domain::BankDebitData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankDebit(bank_debit), supp_data))
             }
 
             _ => Err(errors::VaultError::PaymentMethodNotSupported)

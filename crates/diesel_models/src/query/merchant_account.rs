@@ -91,7 +91,7 @@ impl MerchantAccount {
 
     pub async fn list_by_organization_id(
         conn: &PgPooledConn,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
