@@ -333,6 +333,49 @@ impl
     }
 }
 
+impl
+    TryFrom<
+        ResponseRouterData<
+            Authorize,
+            DeutschebankPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Authorize,
+            DeutschebankPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: if item.response.rc == "0" {
+                match item.data.request.is_auto_capture()? {
+                    true => common_enums::AttemptStatus::Charged,
+                    false => common_enums::AttemptStatus::Authorized,
+                }
+            } else {
+                common_enums::AttemptStatus::Failure
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct DeutschebankAmount {
     amount: MinorUnit,
