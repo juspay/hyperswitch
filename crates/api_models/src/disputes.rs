@@ -124,18 +124,18 @@ pub struct DisputeListGetConstraints {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The comma separated list of status of the disputes
-    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    #[serde(default, deserialize_with = "parse_comma_separated")]
     pub dispute_status: Option<Vec<DisputeStatus>>,
     /// The comma separated list of stages of the disputes
-    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    #[serde(default, deserialize_with = "parse_comma_separated")]
     pub dispute_stage: Option<Vec<DisputeStage>>,
     /// Reason for the dispute
     pub reason: Option<String>,
     /// The comma separated list of connectors linked to disputes
-    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    #[serde(default, deserialize_with = "parse_comma_separated")]
     pub connector: Option<Vec<String>>,
     /// The comma separated list of currencies of the disputes
-    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    #[serde(default, deserialize_with = "parse_comma_separated")]
     pub currency: Option<Vec<common_enums::Currency>>,
     /// The merchant connector id to filter the disputes list
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -143,7 +143,8 @@ pub struct DisputeListGetConstraints {
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
 }
-fn parse_comma_seperated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+
+fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
     D: serde::Deserializer<'de>,
     T: std::str::FromStr,
@@ -153,7 +154,7 @@ where
     output
         .map(|s| {
             s.split(",")
-                .map(|x| x.parse::<T>().map_err(|e| D::Error::custom(e)))
+                .map(|x| x.parse::<T>().map_err(D::Error::custom))
                 .collect::<Result<_, _>>()
         })
         .transpose()

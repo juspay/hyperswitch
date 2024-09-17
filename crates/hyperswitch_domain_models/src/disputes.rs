@@ -28,7 +28,21 @@ impl
             Option<Vec<common_utils::id_type::ProfileId>>,
         ),
     ) -> Result<Self, Self::Error> {
-        let profile_id_from_request_body = value.profile_id;
+        let api_models::disputes::DisputeListGetConstraints {
+            dispute_id,
+            payment_id,
+            limit,
+            offset,
+            profile_id,
+            dispute_status,
+            dispute_stage,
+            reason,
+            connector,
+            merchant_connector_id,
+            currency,
+            time_range,
+        } = value;
+        let profile_id_from_request_body = profile_id;
         let profile_id_list = match (profile_id_from_request_body, auth_profile_id_list) {
             (None, None) => None,
             (None, Some(auth_profile_id_list)) => Some(auth_profile_id_list),
@@ -53,18 +67,18 @@ impl
         };
 
         Ok(Self {
-            dispute_id: value.dispute_id,
-            payment_id: value.payment_id,
-            limit: value.limit,
-            offset: value.offset,
+            dispute_id,
+            payment_id,
+            limit,
+            offset,
             profile_id: profile_id_list,
-            dispute_status: value.dispute_status,
-            dispute_stage: value.dispute_stage,
-            reason: value.reason,
-            connector: value.connector,
-            merchant_connector_id: value.merchant_connector_id,
-            currency: value.currency,
-            time_range: value.time_range,
+            dispute_status,
+            dispute_stage,
+            reason,
+            connector,
+            merchant_connector_id,
+            currency,
+            time_range,
         })
     }
 }
