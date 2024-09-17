@@ -103,13 +103,14 @@ pub async fn customers_delete() {}
     operation_id = "List all Customers for a Merchant",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn customers_list() {}
 
 /// Creates a customer object and stores the customer details to be reused for future payments.
 /// Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
     post,
-    path = "/customers",
+    path = "/v2/customers",
     request_body  (
         content = CustomerRequest,
         examples  (( "Create a customer with name and email" =(
@@ -136,7 +137,7 @@ pub async fn customers_create() {}
 /// Retrieves a customer's details.
 #[utoipa::path(
     get,
-    path = "/customers/{id}",
+    path = "/v2/customers/{id}",
     params (("id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
         (status = 200, description = "Customer Retrieved", body = CustomerResponse),
@@ -154,7 +155,7 @@ pub async fn customers_retrieve() {}
 /// Updates the customer's details in a customer object.
 #[utoipa::path(
     post,
-    path = "/customers/{id}",
+    path = "/v2/customers/{id}",
     request_body (
         content = CustomerRequest,
         examples  (( "Update name and email of a customer" =(
@@ -181,7 +182,7 @@ pub async fn customers_update() {}
 /// Delete a customer record.
 #[utoipa::path(
     delete,
-    path = "/customers/{id}",
+    path = "/v2/customers/{id}",
     params (("id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
         (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
@@ -193,3 +194,20 @@ pub async fn customers_update() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn customers_delete() {}
+
+/// Customers - List
+///
+/// Lists all the customers for a particular merchant id.
+#[utoipa::path(
+    post,
+    path = "/v2/customers/list",
+    responses(
+        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Customers",
+    operation_id = "List all Customers for a Merchant",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_list() {}
