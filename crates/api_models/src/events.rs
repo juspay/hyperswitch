@@ -32,7 +32,9 @@ use crate::{
     disputes::*,
     files::*,
     mandates::*,
-    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
+    organization::{
+        OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
+    },
     payment_methods::*,
     payments::*,
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
@@ -131,7 +133,8 @@ impl_api_event_type!(
         DisputeFiltersResponse,
         GetDisputeMetricRequest,
         OrganizationResponse,
-        OrganizationRequest,
+        OrganizationCreateRequest,
+        OrganizationUpdateRequest,
         OrganizationId,
         CustomerListRequest
     )

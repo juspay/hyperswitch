@@ -9,7 +9,9 @@ pub use api_models::{
         MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
         ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
     },
-    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
+    organization::{
+        OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
+    },
 };
 use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::OrganizationBridge;

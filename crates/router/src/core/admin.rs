@@ -114,7 +114,7 @@ fn add_publishable_key_to_decision_service(
 #[cfg(feature = "olap")]
 pub async fn create_organization(
     state: SessionState,
-    req: api::OrganizationRequest,
+    req: api::OrganizationCreateRequest,
 ) -> RouterResponse<api::OrganizationResponse> {
     let db_organization = ForeignFrom::foreign_from(req);
     state
@@ -133,7 +133,7 @@ pub async fn create_organization(
 pub async fn update_organization(
     state: SessionState,
     org_id: api::OrganizationId,
-    req: api::OrganizationRequest,
+    req: api::OrganizationUpdateRequest,
 ) -> RouterResponse<api::OrganizationResponse> {
     let organization_update = diesel_models::organization::OrganizationUpdate::Update {
         organization_name: req.organization_name,
