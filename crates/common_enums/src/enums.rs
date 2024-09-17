@@ -3219,7 +3219,7 @@ pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
     Enable,
     /// Skip 3ds authentication
-    Disable,
+    Skip,
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction
@@ -3228,7 +3228,7 @@ pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
     Enable,
     /// Skip enabling payment link
-    Disable,
+    Skip,
 }
 
 /// Whether mit exemption is requested or not
