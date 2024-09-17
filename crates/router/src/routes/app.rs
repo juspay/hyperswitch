@@ -1190,9 +1190,16 @@ impl Organization {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::organization_create)))
             .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::organization_retrieve))
-                    .route(web::put().to(admin::organization_update)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::organization_retrieve))
+                            .route(web::put().to(admin::organization_update)),
+                    )
+                    .service(
+                        web::resource("/merchant_accounts")
+                            .route(web::get().to(admin::merchant_account_list)),
+                    ),
             )
     }
 }
@@ -1202,13 +1209,20 @@ pub struct MerchantAccount;
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/accounts")
+        web::scope("/v2/merchant_accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(
-                web::resource("/{id}")
-                    .route(web::get().to(admin::retrieve_merchant_account))
-                    .route(web::put().to(admin::update_merchant_account)),
+                web::scope("/{id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(admin::retrieve_merchant_account))
+                            .route(web::put().to(admin::update_merchant_account)),
+                    )
+                    .service(
+                        web::resource("/profiles")
+                            .route(web::get().to(admin::business_profiles_list)),
+                    ),
             )
     }
 }
@@ -1282,7 +1296,7 @@ impl MerchantConnectorAccount {
                 .service(
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(connector_create))
-                        .route(web::get().to(payment_connector_list)),
+                        .route(web::get().to(connector_list)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
@@ -1571,6 +1585,10 @@ impl BusinessProfile {
                             .route(web::put().to(super::admin::business_profile_update)),
                     )
                     .service(
+                        web::resource("/connector_accounts")
+                            .route(web::get().to(admin::connector_list)),
+                    )
+                    .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
                             .route(web::post().to(routing::routing_update_default_config)),
@@ -1673,8 +1691,7 @@ impl BusinessProfileNew {
                     .route(web::get().to(admin::business_profiles_list_at_profile_level)),
             )
             .service(
-                web::resource("/connectors")
-                    .route(web::get().to(admin::payment_connector_list_profile)),
+                web::resource("/connectors").route(web::get().to(admin::connector_list_profile)),
             )
     }
 }
