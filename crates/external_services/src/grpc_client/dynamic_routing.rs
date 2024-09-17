@@ -136,7 +136,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             .transpose()?;
 
         let request = tonic::Request::new(CalSuccessRateRequest {
-            id: id,
+            id,
             params,
             labels,
             config,
