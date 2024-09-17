@@ -3237,5 +3237,5 @@ pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
     Apply,
     /// Skip applying MIT exemption
-    DoNotApply,
+    Skip,
 }

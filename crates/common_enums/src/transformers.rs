@@ -2032,7 +2032,7 @@ impl From<Option<bool>> for super::MitExemptionRequest {
     fn from(value: Option<bool>) -> Self {
         match value {
             Some(true) => Self::Apply,
-            _ => Self::DoNotApply,
+            _ => Self::Skip,
         }
     }
 }
@@ -2041,7 +2041,7 @@ impl super::MitExemptionRequest {
     pub fn as_bool(&self) -> bool {
         match self {
             Self::Apply => true,
-            Self::DoNotApply => false,
+            Self::Skip => false,
         }
     }
 }
