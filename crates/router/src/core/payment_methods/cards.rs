@@ -4755,6 +4755,7 @@ async fn perform_surcharge_ops(
 #[cfg(all(feature = "v2", feature = "payment_v2", feature = "payment_methods_v2"))]
 pub async fn perform_surcharge_ops(
     _payment_intent: Option<storage::PaymentIntent>,
+    _state: &routes::SessionState,
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _business_profile: Option<BusinessProfile>,
@@ -4765,6 +4766,8 @@ pub async fn perform_surcharge_ops(
 
 pub async fn get_mca_status(
     state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<storage::PaymentsMandateReference>,
