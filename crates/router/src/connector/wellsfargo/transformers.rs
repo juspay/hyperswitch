@@ -690,7 +690,9 @@ impl
                         }),
                     )
                 }
-                None => (None, None, None),
+                Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
+                    (None, None, None)
+                }
             }
         } else {
             (None, None, None)

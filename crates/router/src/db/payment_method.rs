@@ -53,7 +53,7 @@ pub trait PaymentMethodInterface {
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        id: &String,
+        id: &str,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
@@ -715,7 +715,7 @@ mod storage {
             &self,
             _state: &KeyManagerState,
             _key_store: &domain::MerchantKeyStore,
-            _id: &String,
+            _id: &str,
             _limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             todo!()
@@ -1129,7 +1129,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             key_store: &domain::MerchantKeyStore,
-            id: &String,
+            id: &str,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -1409,7 +1409,7 @@ impl PaymentMethodInterface for MockDb {
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        _id: &String,
+        _id: &str,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         todo!()

@@ -323,3 +323,24 @@ pub async fn routing_update_default_config() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_retrieve_default_config() {}
+
+/// Merchant Connector - List
+///
+/// List Merchant Connector Details for the business profile
+#[utoipa::path(
+    get,
+    path = "/v2/profiles/{profile_id}/connector_accounts",
+    params(
+        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Business Profile",
+    operation_id = "List all Merchant Connectors",
+    security(("admin_api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn connector_list() {}

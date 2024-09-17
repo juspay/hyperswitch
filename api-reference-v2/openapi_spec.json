@@ -164,6 +164,50 @@
         ]
       }
     },
+    "/v2/organization/{organization_id}/merchant_accounts": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Merchant Account - List",
+        "description": "List merchant accounts for an Organization",
+        "operationId": "List Merchant Accounts",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantAccountResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/connector_accounts": {
       "post": {
         "tags": [
@@ -401,7 +445,7 @@
         ]
       }
     },
-    "/v2/accounts": {
+    "/v2/merchant_accounts": {
       "post": {
         "tags": [
           "Merchant Account"
@@ -469,7 +513,7 @@
         ]
       }
     },
-    "/v2/accounts/{id}": {
+    "/v2/merchant_accounts/{id}": {
       "get": {
         "tags": [
           "Merchant Account"
@@ -566,6 +610,50 @@
           },
           "404": {
             "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/merchant_accounts/{account_id}/profiles": {
+      "get": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Business Profile - List",
+        "description": "List business profiles for an Merchant",
+        "operationId": "List Business Profiles",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profile list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessProfileResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
           }
         },
         "security": [
@@ -710,6 +798,53 @@
           },
           "400": {
             "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/connector_accounts": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Merchant Connector - List",
+        "description": "List Merchant Connector Details for the business profile",
+        "operationId": "List all Merchant Connectors",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantConnectorResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "security": [
@@ -4166,6 +4301,10 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
           }
         },
         "additionalProperties": false
@@ -4178,7 +4317,8 @@
           "profile_name",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "is_tax_connector_enabled"
+          "is_tax_connector_enabled",
+          "is_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -4348,6 +4488,12 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -6212,6 +6358,28 @@
           "APP",
           "BRW"
         ]
+      },
+      "DisplayAmountOnSdk": {
+        "type": "object",
+        "required": [
+          "net_amount",
+          "order_tax_amount",
+          "shipping_cost"
+        ],
+        "properties": {
+          "net_amount": {
+            "type": "string",
+            "description": "net amount = amount + order_tax_amount + shipping_cost"
+          },
+          "order_tax_amount": {
+            "type": "string",
+            "description": "order tax amount calculated by tax connectors"
+          },
+          "shipping_cost": {
+            "type": "string",
+            "description": "shipping cost for the order"
+          }
+        }
       },
       "DisputeResponse": {
         "type": "object",
@@ -13538,7 +13706,8 @@
         "type": "object",
         "required": [
           "payment_id",
-          "net_amount"
+          "net_amount",
+          "display_amount"
         ],
         "properties": {
           "payment_id": {
@@ -13563,6 +13732,9 @@
               }
             ],
             "nullable": true
+          },
+          "display_amount": {
+            "$ref": "#/components/schemas/DisplayAmountOnSdk"
           }
         }
       },
