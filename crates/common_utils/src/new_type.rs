@@ -216,7 +216,13 @@ impl ForeignFrom<Email> for MaskedEmail {
 pub struct MaskedPhoneNumber(Secret<String>);
 impl From<String> for MaskedPhoneNumber {
     fn from(src: String) -> Self {
-        let masked_value = apply_mask(src.as_ref(), 4, 4);
+        let unmasked_char_count = 2;
+        let len = src.len();
+        // mask every character except the last 2
+        let masked_value = "*".repeat(len - unmasked_char_count).to_string()
+            + src
+                .get(len.saturating_sub(unmasked_char_count)..)
+                .unwrap_or("");
         Self(Secret::from(masked_value))
     }
 }
