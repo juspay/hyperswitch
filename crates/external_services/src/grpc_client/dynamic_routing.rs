@@ -4,9 +4,7 @@ use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
     SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
 };
-use common_utils::{
-    errors::CustomResult, ext_traits::OptionExt, id_type, transformers::ForeignTryFrom,
-};
+use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
 use serde;
 use success_rate::{
@@ -32,7 +30,7 @@ pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum DynamicRoutingError {
     /// The required input is missing
-    #[error("Missing Required Field : {field} for builidng the Dynamic Routing ")]
+    #[error("Missing Required Field : {field} for building the Dynamic Routing Request")]
     MissingRequiredField {
         /// The required field name
         field: String,
@@ -90,14 +88,14 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
     /// To calculate the success rate for the list of chosen connectors
     async fn calculate_success_rate(
         &self,
-        id: id_type::ProfileId,
+        id: &str,
         success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
     async fn update_success_rate(
         &self,
-        id: id_type::ProfileId,
+        id: &str,
         success_rate_based_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
@@ -107,7 +105,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
 impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
     async fn calculate_success_rate(
         &self,
-        id: id_type::ProfileId,
+        id: &str,
         success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
@@ -138,7 +136,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             .transpose()?;
 
         let request = tonic::Request::new(CalSuccessRateRequest {
-            id: id.get_string_repr().to_owned(),
+            id: id.to_owned(),
             params,
             labels,
             config,
@@ -159,7 +157,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
 
     async fn update_success_rate(
         &self,
-        id: id_type::ProfileId,
+        id: &str,
         success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
@@ -193,7 +191,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             })?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
-            id: id.get_string_repr().to_owned(),
+            id: id.to_owned(),
             params,
             labels_with_status,
             config,
