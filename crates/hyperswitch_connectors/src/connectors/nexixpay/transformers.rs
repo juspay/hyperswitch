@@ -141,22 +141,23 @@ pub struct NexixpayPaymentsResponse  {
     three_d_s_enrollment_status: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[derive(Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
 pub struct ThreeDSAuthResult {
-    authenticationValue: String, 
-    xid: String            
+    authentication_value: String,            
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[derive(Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
 pub struct ThreeDSCompleteAuthRequestData {
-    threeDSAuthResult: ThreeDSAuthResult,
-    threeDSAuthResponse: String,            
+    three_d_s_auth_result: ThreeDSAuthResult,
+    three_d_s_auth_response: String,            
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
 pub struct ThreeDSAuthData {
-    threeDSAuthResponse: String,
-    authenticationValue: String,            
+    three_d_s_auth_response: String,
+    authentication_value: String,            
 }
 
 #[derive( Debug, Clone, Serialize, Deserialize, )]
@@ -410,6 +411,34 @@ pub struct NexixpayOperationResponse  {
     operation_id: String,
 }
 
+//TODO: Fill the struct with respective fields
+// REFUND :
+// Type definition for RefundRequest
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+pub struct NexixpayRefundRequest {
+    pub amount: StringMinorUnit,
+    pub currency: Currency
+}
+
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct RefundResponse {
+    operation_id: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayErrorBody {
+    pub code: Option<String>,
+    pub description: Option<String>,
+}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayErrorResponse {
+    pub errors: Vec<NexixpayErrorBody>
+}
+
 impl From<NexixpayPaymentStatus> for AttemptStatus {
     fn from(item: NexixpayPaymentStatus) -> Self {
         match item {
@@ -489,15 +518,6 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthoriz
         })
     }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-pub struct NexixpayRefundRequest {
-    pub amount: StringMinorUnit,
-    pub currency: Currency
-}
-
 impl<F> TryFrom<&NexixpayRouterData<&RefundsRouterData<F>>> for NexixpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &NexixpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
@@ -509,20 +529,12 @@ impl<F> TryFrom<&NexixpayRouterData<&RefundsRouterData<F>>> for NexixpayRefundRe
 }
 
 fn get_hs_refund_status((operation_type, operation_result):(NexixpayOperationType, NexixpayPaymentStatus)) -> CustomResult<RefundStatus, errors::ConnectorError> {
-    println!("*****operation_type{:?} ****operation_result{:?}",operation_type,operation_result);
     match (operation_type, operation_result) {
         (NexixpayOperationType::Refund, NexixpayPaymentStatus::Voided) 
         | (NexixpayOperationType::Refund, NexixpayPaymentStatus::Refunded)=> Ok(RefundStatus::Success),
         (NexixpayOperationType::Refund, NexixpayPaymentStatus::Pending) => Ok(RefundStatus::Pending),
         (_, _) => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-#[serde(rename_all = "camelCase")]
-pub struct RefundResponse {
-    operation_id: String,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -627,13 +639,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
         let three_d_s_auth =
             serde_json::from_value::<ThreeDSCompleteAuthRequestData>(connector_metadata).change_context(errors::ConnectorError::ParsingFailed)?;
         let three_d_s_auth_data= ThreeDSAuthData {
-            threeDSAuthResponse: "notneeded".to_string(),
-            authenticationValue: three_d_s_auth.threeDSAuthResult.authenticationValue,            
+            three_d_s_auth_response: three_d_s_auth.three_d_s_auth_response,
+            authentication_value: three_d_s_auth.three_d_s_auth_result.authentication_value,            
         };
         let card: Result<NexixpayCard, error_stack::Report<errors::ConnectorError>> = match payment_method_data {
             PaymentMethodData::Card(req_card) =>
              {
-                println!("****req_card{:?}",req_card.clone().card_cvc.expose());
                 Ok(NexixpayCard {
                 pan: req_card.clone().card_number,
                 expiry_date: req_card.clone().get_expiry_date_as_mmyy()?,
@@ -764,16 +775,4 @@ impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
             description,
         })
     }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-#[serde(rename_all = "camelCase")]
-pub struct NexixpayErrorBody {
-    pub code: Option<String>,
-    pub description: Option<String>,
-}
-#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-#[serde(rename_all = "camelCase")]
-pub struct NexixpayErrorResponse {
-    pub errors: Vec<NexixpayErrorBody>
 }
