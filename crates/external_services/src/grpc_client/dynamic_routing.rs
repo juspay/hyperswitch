@@ -212,7 +212,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             .update_success_rate_window(request)
             .await
             .change_context(DynamicRoutingError::SuccessBasedResponseFailure(
-                "Failed to update the successs rate window".to_string(),
+                "Failed to update the success rate window".to_string(),
             ))?
             .into_inner();
 
@@ -255,7 +255,7 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
         Ok(Self {
             min_aggregates_size: config
                 .min_aggregates_size
-                .get_required_value("Min Agggregate Size")
+                .get_required_value("Min Aggregate Size")
                 .change_context(DynamicRoutingError::MissingRequiredMinAggregate)?,
             default_success_rate: config
                 .default_success_rate
