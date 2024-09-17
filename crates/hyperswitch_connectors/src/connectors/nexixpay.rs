@@ -140,19 +140,34 @@ impl ConnectorCommon for Nexixpay {
         let response: nexixpay::NexixpayErrorResponse = match res.status_code {
             401 => nexixpay::NexixpayErrorResponse {
                 errors: vec![nexixpay::NexixpayErrorBody {
-                    code: "401".to_string(),
-                    description: "unauthorised".to_string(),
+                    code: Some("401".to_string()),
+                    description: Some("unauthorised".to_string()),
                 }],
             },
             404 => nexixpay::NexixpayErrorResponse {
                 errors: vec![nexixpay::NexixpayErrorBody {
-                    code: "404".to_string(),
-                    description: "not found".to_string(),
+                    code: Some("404".to_string()),
+                    description: Some("not found".to_string()),
                 }],
             },
             _ => resp.response
                 .parse_struct("NexixpayErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            };
+        
+            let concatenated_descriptions: Option<String> = {
+                let descriptions: Vec<String> = response
+                    .errors
+                    .iter()
+                    .filter_map(|error| error.description.as_ref())
+                    .cloned()
+                    .collect();
+        
+                if descriptions.is_empty() {
+                    None
+                } else {
+                    Some(descriptions.join(", "))
+                }
             };
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -160,9 +175,9 @@ impl ConnectorCommon for Nexixpay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.errors.first().map_or("no error code".to_string(), |error| error.code.clone()),
-            message: response.errors.first().map_or("message not found".to_string(), |error| error.description.clone()),
-            reason: None,
+            code: response.errors.first().and_then( |error| error.code.clone()).unwrap_or("no error code".to_string()),
+            message: response.errors.first().and_then(|error| error.description.clone()).unwrap_or("no description".to_string()),
+            reason: concatenated_descriptions,
             attempt_status: None,
             connector_transaction_id: None,
         })

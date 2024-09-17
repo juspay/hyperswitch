@@ -807,8 +807,8 @@ impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayErrorBody {
-    pub code: String,
-    pub description: String,
+    pub code: Option<String>,
+    pub description: Option<String>,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
