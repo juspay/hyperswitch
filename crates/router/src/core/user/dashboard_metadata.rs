@@ -485,6 +485,8 @@ async fn insert_metadata(
                         )
                         .await;
                     logger::info!(?send_email_result);
+                } else {
+                    logger::info!("Prod email not required")
                 }
             }
 

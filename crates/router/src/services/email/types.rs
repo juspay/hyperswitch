@@ -413,9 +413,9 @@ pub struct BizEmailProd {
 impl BizEmailProd {
     pub fn new(state: &SessionState, data: ProdIntent) -> UserResult<Self> {
         Ok(Self {
-            recipient_email: (domain::UserEmail::new(
-                consts::user::BUSINESS_EMAIL.to_string().into(),
-            ))?,
+            recipient_email: domain::UserEmail::from_pii_email(
+                state.conf.recipient_emails.recon.clone(),
+            )?,
             settings: state.conf.clone(),
             subject: "New Prod Intent",
             user_name: data.poc_name.unwrap_or_default().into(),
