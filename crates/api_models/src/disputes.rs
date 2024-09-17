@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use masking::{Deserialize, Serialize};
+use serde::de::Error;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -108,13 +109,13 @@ pub struct DisputeEvidenceBlock {
     pub file_metadata_response: files::FileMetadataResponse,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListGetConstraints {
     /// The identifier for dispute
     pub dispute_id: Option<String>,
     /// The payment_id against which dispute is raised
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// Limit on the number of objects to return
     pub limit: Option<u32>,
     /// The starting point within a list of object
@@ -123,20 +124,39 @@ pub struct DisputeListGetConstraints {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The comma separated list of status of the disputes
-    pub dispute_status: Option<String>,
+    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    pub dispute_status: Option<Vec<DisputeStatus>>,
     /// The comma separated list of stages of the disputes
-    pub dispute_stage: Option<String>,
+    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    pub dispute_stage: Option<Vec<DisputeStage>>,
     /// Reason for the dispute
     pub reason: Option<String>,
     /// The comma separated list of connectors linked to disputes
-    pub connector: Option<String>,
-    /// The comma separated list of merchant connector ids to filter the disputes list for selected label
-    pub merchant_connector_id: Option<String>,
+    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    pub connector: Option<Vec<String>>,
     /// The comma separated list of currencies of the disputes
-    pub currency: Option<String>,
+    #[serde(default, deserialize_with = "parse_comma_seperated")]
+    pub currency: Option<Vec<common_enums::Currency>>,
+    /// The merchant connector id to filter the disputes list
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
+}
+fn parse_comma_seperated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    let output = Option::<&str>::deserialize(v)?;
+    output
+        .map(|s| {
+            s.split(",")
+                .map(|x| x.parse::<T>().map_err(|e| D::Error::custom(e)))
+                .collect::<Result<_, _>>()
+        })
+        .transpose()
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]

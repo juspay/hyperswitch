@@ -219,43 +219,82 @@ impl DisputeInterface for MockDb {
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
-        Ok(locked_disputes
+        let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
-            .filter(|d| {
-                d.merchant_id == *merchant_id
-                    // && dispute_constraints
-                    //     .dispute_status
-                    //     .as_ref()
-                    //     .map(|status| status == &d.dispute_status)
-                    //     .unwrap_or(true)
-                    // && dispute_constraints
-                    //     .dispute_stage
-                    //     .as_ref()
-                    //     .map(|stage| stage == &d.dispute_stage)
-                    //     .unwrap_or(true)
+            .filter(|dispute| {
+                dispute.merchant_id == *merchant_id
                     && dispute_constraints
-                        .reason
+                        .dispute_id
                         .as_ref()
-                        .and_then(|reason| {
-                            d.connector_reason
+                        .map_or(true, |id| &dispute.dispute_id == id)
+                    && dispute_constraints
+                        .payment_id
+                        .as_ref()
+                        .map_or(true, |id| &dispute.payment_id == id)
+                    && dispute_constraints
+                        .profile_id
+                        .as_ref()
+                        .map_or(true, |profile_ids| {
+                            dispute
+                                .profile_id
                                 .as_ref()
-                                .map(|connector_reason| connector_reason == reason)
+                                .map_or(true, |id| profile_ids.contains(id))
                         })
-                        .unwrap_or(true)
-                // && dispute_constraints
-                //     .connector
-                //     .as_ref()
-                //     .map(|connector| connector == &d.connector)
-                //     .unwrap_or(true)
+                    && dispute_constraints
+                        .dispute_status
+                        .as_ref()
+                        .map_or(true, |statuses| statuses.contains(&dispute.dispute_status))
+                    && dispute_constraints
+                        .dispute_stage
+                        .as_ref()
+                        .map_or(true, |stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().map_or(true, |reason| {
+                        dispute
+                            .connector_reason
+                            .as_ref()
+                            .map_or(true, |d_reason| d_reason == reason)
+                    })
+                    && dispute_constraints
+                        .connector
+                        .as_ref()
+                        .map_or(true, |connectors| {
+                            connectors.iter().any(|connector| {
+                                dispute.connector.as_str() == connector.to_string()
+                            })
+                        })
+                    // && dispute_constraints
+                    //     .merchant_connector_id
+                    //     .as_ref()
+                    //     .map_or(true, |id| &dispute.merchant_connector_id == Some(id))
+                    && dispute_constraints
+                        .currency
+                        .as_ref()
+                        .map_or(true, |currencies| {
+                            currencies
+                                .iter()
+                                .any(|currency| dispute.currency.as_str() == currency.to_string())
+                        })
+                    && dispute_constraints
+                        .time_range
+                        .as_ref()
+                        .map_or(true, |range| {
+                            let dispute_time = dispute.created_at;
+                            dispute_time >= range.start_time
+                                && range
+                                    .end_time
+                                    .map_or(true, |end_time| dispute_time <= end_time)
+                        })
             })
+            .skip(dispute_constraints.offset.unwrap_or(0) as usize)
             .take(
                 dispute_constraints
                     .limit
-                    .and_then(|limit| usize::try_from(limit).ok())
-                    .unwrap_or(usize::MAX),
+                    .unwrap_or(usize::MAX.try_into().unwrap()) as usize,
             )
             .cloned()
-            .collect())
+            .collect();
+
+        Ok(filtered_disputes)
     }
 
     async fn find_disputes_by_merchant_id_payment_id(

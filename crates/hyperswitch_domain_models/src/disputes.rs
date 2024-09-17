@@ -2,7 +2,7 @@ use crate::errors;
 
 pub struct DisputeListConstraints {
     pub dispute_id: Option<String>,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
     pub profile_id: Option<Vec<common_utils::id_type::ProfileId>>,
@@ -10,7 +10,7 @@ pub struct DisputeListConstraints {
     pub dispute_stage: Option<Vec<common_enums::DisputeStage>>,
     pub reason: Option<String>,
     pub connector: Option<Vec<String>>,
-    pub merchant_connector_id: Option<Vec<String>>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub currency: Option<Vec<common_enums::Currency>>,
     pub time_range: Option<api_models::payments::TimeRange>,
 }
@@ -58,36 +58,13 @@ impl
             limit: value.limit,
             offset: value.offset,
             profile_id: profile_id_list,
-            dispute_status: parse_comma_separated_values::<common_enums::DisputeStatus>(
-                value.dispute_status,
-            ),
-            dispute_stage: parse_comma_separated_values::<common_enums::DisputeStage>(
-                value.dispute_stage,
-            ),
+            dispute_status: value.dispute_status,
+            dispute_stage: value.dispute_stage,
             reason: value.reason,
-            connector: parse_comma_separated_values::<String>(value.connector),
-            merchant_connector_id: parse_comma_separated_values(value.merchant_connector_id),
-            currency: parse_comma_separated_values::<common_enums::Currency>(value.currency),
+            connector: value.connector,
+            merchant_connector_id: value.merchant_connector_id,
+            currency: value.currency,
             time_range: value.time_range,
         })
     }
-}
-
-pub fn parse_comma_separated_values<T>(input: Option<String>) -> Option<Vec<T>>
-where
-    T: std::str::FromStr,
-{
-    input.and_then(|s| {
-        let parsed: Vec<T> = s
-            .split(',')
-            .map(str::trim)
-            .filter_map(|item| item.parse::<T>().ok())
-            .collect();
-
-        if parsed.is_empty() {
-            None
-        } else {
-            Some(parsed)
-        }
-    })
 }

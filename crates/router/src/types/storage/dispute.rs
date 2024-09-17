@@ -89,9 +89,8 @@ impl DisputeDbExt for Dispute {
 
             filter = filter.filter(dsl::currency.eq_any(currency));
         }
-        if let Some(merchant_connector_ids) = &dispute_list_constraints.merchant_connector_id {
-            filter =
-                filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_ids.clone()))
+        if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()))
         }
         if let Some(limit) = dispute_list_constraints.limit {
             filter = filter.limit(limit.into());
