@@ -10015,6 +10015,28 @@
           "BRW"
         ]
       },
+      "DisplayAmountOnSdk": {
+        "type": "object",
+        "required": [
+          "net_amount",
+          "order_tax_amount",
+          "shipping_cost"
+        ],
+        "properties": {
+          "net_amount": {
+            "type": "string",
+            "description": "net amount = amount + order_tax_amount + shipping_cost"
+          },
+          "order_tax_amount": {
+            "type": "string",
+            "description": "order tax amount calculated by tax connectors"
+          },
+          "shipping_cost": {
+            "type": "string",
+            "description": "shipping cost for the order"
+          }
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -17719,7 +17741,8 @@
         "type": "object",
         "required": [
           "payment_id",
-          "net_amount"
+          "net_amount",
+          "display_amount"
         ],
         "properties": {
           "payment_id": {
@@ -17744,6 +17767,9 @@
               }
             ],
             "nullable": true
+          },
+          "display_amount": {
+            "$ref": "#/components/schemas/DisplayAmountOnSdk"
           }
         }
       },
