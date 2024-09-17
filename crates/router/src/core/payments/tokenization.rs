@@ -148,7 +148,7 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize customer acceptance to value")?;
 
-            let (connector_mandate_id, mandate_metdata) = match responses {
+            let (connector_mandate_id, mandate_metadata) = match responses {
                 types::PaymentsResponseData::TransactionResponse {
                     ref mandate_reference,
                     ..
@@ -181,7 +181,7 @@ where
                     currency,
                     merchant_connector_id.clone(),
                     connector_mandate_id.clone(),
-                    mandate_metdata.clone(),
+                    mandate_metadata.clone(),
                 )
             } else {
                 None
@@ -377,7 +377,7 @@ where
                                                 currency,
                                                 merchant_connector_id.clone(),
                                                 connector_mandate_id.clone(),
-                                                mandate_metdata.clone(),
+                                                mandate_metadata.clone(),
                                             )?;
 
                                         payment_methods::cards::update_payment_method_connector_mandate_details(state,
@@ -484,7 +484,7 @@ where
                                                     currency,
                                                     merchant_connector_id.clone(),
                                                     connector_mandate_id.clone(),
-                                                    mandate_metdata.clone(),
+                                                    mandate_metadata.clone(),
                                                 )?;
 
                                             payment_methods::cards::update_payment_method_connector_mandate_details(  state,
