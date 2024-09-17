@@ -88,14 +88,14 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
     /// To calculate the success rate for the list of chosen connectors
     async fn calculate_success_rate(
         &self,
-        id: &str,
+        id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
     async fn update_success_rate(
         &self,
-        id: &str,
+        id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
@@ -105,7 +105,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
 impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
     async fn calculate_success_rate(
         &self,
-        id: &str,
+        id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
@@ -136,7 +136,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             .transpose()?;
 
         let request = tonic::Request::new(CalSuccessRateRequest {
-            id: id.to_owned(),
+            id: id,
             params,
             labels,
             config,
@@ -157,7 +157,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
 
     async fn update_success_rate(
         &self,
-        id: &str,
+        id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
@@ -191,7 +191,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             })?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
-            id: id.to_owned(),
+            id,
             params,
             labels_with_status,
             config,
