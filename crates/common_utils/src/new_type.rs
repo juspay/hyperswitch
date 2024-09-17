@@ -217,12 +217,16 @@ pub struct MaskedPhoneNumber(Secret<String>);
 impl From<String> for MaskedPhoneNumber {
     fn from(src: String) -> Self {
         let unmasked_char_count = 2;
-        let len = src.len();
-        // mask every character except the last 2
-        let masked_value = "*".repeat(len - unmasked_char_count).to_string()
-            + src
-                .get(len.saturating_sub(unmasked_char_count)..)
-                .unwrap_or("");
+        let masked_value = if unmasked_char_count <= src.len() {
+            let len = src.len();
+            // mask every character except the last 2
+            "*".repeat(len - unmasked_char_count).to_string()
+                + src
+                    .get(len.saturating_sub(unmasked_char_count)..)
+                    .unwrap_or("")
+        } else {
+            src
+        };
         Self(Secret::from(masked_value))
     }
 }
