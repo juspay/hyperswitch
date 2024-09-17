@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
-    enums::{AuthenticationConnectors, Connector, PmAuthConnectors},
+    enums::{AuthenticationConnectors, Connector, PmAuthConnectors, TaxConnectors},
     payments,
 };
 use serde::Deserialize;
@@ -171,6 +171,7 @@ pub struct ConnectorConfig {
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
+    pub deutschebank: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
@@ -286,6 +287,15 @@ impl ConnectorConfig {
         }
     }
 
+    pub fn get_tax_processor_config(
+        connector: TaxConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            TaxConnectors::Taxjar => Ok(connector_data.taxjar),
+        }
+    }
+
     pub fn get_pm_authentication_processor_config(
         connector: PmAuthConnectors,
     ) -> Result<Option<ConnectorTomlConfig>, String> {
@@ -322,6 +332,7 @@ impl ConnectorConfig {
             Connector::Opennode => Ok(connector_data.opennode),
             Connector::Bambora => Ok(connector_data.bambora),
             Connector::Datatrans => Ok(connector_data.datatrans),
+            Connector::Deutschebank => Ok(connector_data.deutschebank),
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Fiserv => Ok(connector_data.fiserv),

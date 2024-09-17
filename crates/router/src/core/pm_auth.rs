@@ -527,6 +527,9 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_billing_address: None,
                 updated_by: None,
                 version: domain::consts::API_VERSION,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
             };
 
             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -551,6 +554,9 @@ async fn store_bank_details_in_payment_methods(
                 updated_by: None,
                 locker_fingerprint_id: None,
                 version: domain::consts::API_VERSION,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
             };
 
             new_entries.push(pm_new);
