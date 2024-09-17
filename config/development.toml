@@ -732,10 +732,5 @@ encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC69
 [locker_based_open_banking_connectors]
 connector_list = ""
 
-
-[grpc_client.dynamic_routing_client]
-disabled = {}
-
-
 [recipient_emails]
 recon = "recon@example.com"

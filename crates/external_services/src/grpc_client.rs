@@ -15,7 +15,7 @@ pub struct GrpcClients {
     #[cfg(feature = "dynamic_routing")]
     pub dynamic_routing: RoutingStrategy,
 }
-/// Struct that contains the configs required to construct an Grpc client.
+/// Type that contains the configs required to construct a  gRPC client with its respective services.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]

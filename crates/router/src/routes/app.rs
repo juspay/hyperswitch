@@ -452,7 +452,7 @@ impl AppState {
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
-            grpc_client: Arc::clone(&self.grpc_client.clone()),
+            grpc_client: Arc::clone(&self.grpc_client),
         })
     }
 }

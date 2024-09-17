@@ -31,29 +31,18 @@ pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 /// Dynamic Routing Errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum DynamicRoutingError {
-    /// Error building the Dynamic Routing Client Request as params was missing
-    #[error("Error building the Dynamic Routing Client Request as params was missing")]
-    MissingRequiredParam,
-    /// Error getting a response from the gRPC Server
-    #[error("Error getting a response from the Dynamic Routing Server")]
-    SuccessBasedResponseFailure(String),
-    /// Error building the Dynamic Routing Client Request as max count was missing
-    #[error("Error building the Dynamic Routing Client Request as max count was missing")]
-    MissingRequiredMaxTotalCount,
-    /// Error building the Dynamic Routing Client Request as min aggregate size was missing
-    #[error("Error building the Dynamic Routing Client Request as min aggregate size was missing")]
-    MissingRequiredMinAggregate,
-    /// Error building the Dynamic Routing Client Request as max aggregate size was missing
-    #[error("Error building the Dynamic Routing Client Request as max aggregate size was missing")]
-    MissingRequiredMaxAggregateSize,
-    /// Error building the Dynamic Routing Client Request as default success rate was missing
-    #[error(
-        "Error building the Dynamic Routing Client Request as default success rate was missing"
-    )]
-    MissingRequiredDefaultSuccessRate,
+    /// The required input is missing
+    #[error("Missing Required Field : {field} for builidng the Dynamic Routing ")]
+    MissingRequiredField {
+        /// The required field name
+        field: String,
+    },
+    /// Error from Dynamic Routing Server
+    #[error("Error from Dynamic Routing Server : {0}")]
+    SuccessRateBasedRoutingFailure(String),
 }
 
-/// Struct consists of all the services provided by the client
+/// Type that consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
@@ -133,8 +122,10 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                     acc_vec
                 })
             })
-            .get_required_value("Vector of params")
-            .change_context(DynamicRoutingError::MissingRequiredParam)?;
+            .get_required_value("params")
+            .change_context(DynamicRoutingError::MissingRequiredField {
+                field: "params".to_string(),
+            })?;
 
         let labels = label_input
             .into_iter()
@@ -158,7 +149,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let response = client
             .fetch_success_rate(request)
             .await
-            .change_context(DynamicRoutingError::SuccessBasedResponseFailure(
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
                 "Failed to fetch the success rate".to_string(),
             ))?
             .into_inner();
@@ -196,8 +187,10 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                     acc_vec
                 })
             })
-            .get_required_value("Vector of params")
-            .change_context(DynamicRoutingError::MissingRequiredParam)?;
+            .get_required_value("params")
+            .change_context(DynamicRoutingError::MissingRequiredField {
+                field: "params".to_string(),
+            })?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id: id.get_string_repr().to_owned(),
@@ -211,7 +204,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let response = client
             .update_success_rate_window(request)
             .await
-            .change_context(DynamicRoutingError::SuccessBasedResponseFailure(
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
                 "Failed to update the success rate window".to_string(),
             ))?
             .into_inner();
@@ -227,8 +220,10 @@ impl ForeignTryFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
             duration_in_mins: current_threshold.duration_in_mins,
             max_total_count: current_threshold
                 .max_total_count
-                .get_required_value("Max Total Count")
-                .change_context(DynamicRoutingError::MissingRequiredMaxTotalCount)?,
+                .get_required_value("max_total_count")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "max_total_count".to_string(),
+                })?,
         })
     }
 }
@@ -239,8 +234,10 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for UpdateSuccessRateWindowCo
         Ok(Self {
             max_aggregates_size: config
                 .max_aggregates_size
-                .get_required_value("Max Aggregate Size")
-                .change_context(DynamicRoutingError::MissingRequiredMaxAggregateSize)?,
+                .get_required_value("max_aggregate_size")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "max_aggregates_size".to_string(),
+                })?,
             current_block_threshold: config
                 .current_block_threshold
                 .map(ForeignTryFrom::foreign_try_from)
@@ -255,12 +252,16 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
         Ok(Self {
             min_aggregates_size: config
                 .min_aggregates_size
-                .get_required_value("Min Aggregate Size")
-                .change_context(DynamicRoutingError::MissingRequiredMinAggregate)?,
+                .get_required_value("min_aggregate_size")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "min_aggregates_size".to_string(),
+                })?,
             default_success_rate: config
                 .default_success_rate
-                .get_required_value("Default Success Rate")
-                .change_context(DynamicRoutingError::MissingRequiredDefaultSuccessRate)?,
+                .get_required_value("default_success_rate")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "default_success_rate".to_string(),
+                })?,
         })
     }
 }
