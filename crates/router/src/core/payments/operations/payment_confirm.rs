@@ -681,6 +681,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                     ),
                                     payment_method_id: None,
                                     update_history: None,
+                                    mandate_metadata: None,
                                 },
                             ),
                         ),
