@@ -6,7 +6,7 @@
     post,
     path = "/organization",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationCreateRequest,
         examples(
             (
                 "Create an organization with organization_name" = (
@@ -51,7 +51,7 @@ pub async fn organization_retrieve() {}
     put,
     path = "/organization/{organization_id}",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationUpdateRequest,
         examples(
             (
                 "Update organization_name of the organization" = (
@@ -79,7 +79,7 @@ pub async fn organization_update() {}
     post,
     path = "/v2/organization",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationCreateRequest,
         examples(
             (
                 "Create an organization with organization_name" = (
@@ -124,7 +124,7 @@ pub async fn organization_retrieve() {}
     put,
     path = "/v2/organization/{organization_id}",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationUpdateRequest,
         examples(
             (
                 "Update organization_name of the organization" = (
