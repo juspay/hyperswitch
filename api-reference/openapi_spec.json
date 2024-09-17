@@ -14292,7 +14292,8 @@
             "type": "object",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "OrganizationResponse": {
         "type": "object",
