@@ -93,6 +93,9 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
+    AdditionalPayoutMethodDataUpdate {
+        additional_payout_method_data: Option<serde_json::Value>,
+    },
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -112,6 +115,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub additional_payout_method_data: Option<serde_json::Value>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -131,6 +135,7 @@ impl Default for PayoutAttemptUpdateInternal {
             last_modified_at: common_utils::date_time::now(),
             address_id: None,
             customer_id: None,
+            additional_payout_method_data: None,
         }
     }
 }
@@ -178,6 +183,12 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 merchant_connector_id,
                 ..Default::default()
             },
+            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => Self {
+                additional_payout_method_data,
+                ..Default::default()
+            },
         }
     }
 }
@@ -199,6 +210,7 @@ impl PayoutAttemptUpdate {
             address_id,
             customer_id,
             merchant_connector_id,
+            additional_payout_method_data,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -215,6 +227,8 @@ impl PayoutAttemptUpdate {
             address_id: address_id.or(source.address_id),
             customer_id: customer_id.or(source.customer_id),
             merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
+            additional_payout_method_data: additional_payout_method_data
+                .or(source.additional_payout_method_data),
             ..source
         }
     }

@@ -128,6 +128,9 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     },
+    AdditionalPayoutMethodDataUpdate {
+        additional_payout_method_data: Option<serde_json::Value>,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -145,6 +148,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub additional_payout_method_data: Option<serde_json::Value>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -188,6 +192,12 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 connector: Some(connector),
                 routing_info,
                 merchant_connector_id,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => Self {
+                additional_payout_method_data,
                 ..Default::default()
             },
         }

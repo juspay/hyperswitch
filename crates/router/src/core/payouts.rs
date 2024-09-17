@@ -2492,7 +2492,7 @@ pub async fn make_payout_data(
 
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id, payouts.attempt_count);
 
-    let payout_attempt = db
+    let mut payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
             &payout_attempt_id,
@@ -2580,6 +2580,44 @@ pub async fn make_payout_data(
         }
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
+
+    if payout_method_data.is_some() {
+        let async_move_profile_id = profile_id.clone();
+        let additional_pm_data = payout_method_data
+            .clone()
+            .async_and_then(|payout_method_data| async move {
+                helpers::get_additional_payout_data(
+                    &payout_method_data,
+                    &*state.store,
+                    &async_move_profile_id,
+                )
+                .await
+            })
+            .await;
+
+        let additional_payout_method_data = additional_pm_data
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional payout method data")?;
+
+        let update_additional_payout_method_data =
+            storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            };
+
+        payout_attempt = db
+            .update_payout_attempt(
+                &payout_attempt,
+                update_additional_payout_method_data,
+                &payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating routing info in payout_attempt")?;
+    }
 
     let merchant_connector_account =
         if payout_attempt.connector.is_some() && payout_attempt.merchant_connector_id.is_some() {

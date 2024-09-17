@@ -642,6 +642,11 @@ impl DataModelExt for PayoutAttemptUpdate {
                 routing_info,
                 merchant_connector_id,
             },
+            Self::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => DieselPayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            },
         }
     }
 
