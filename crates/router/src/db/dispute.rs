@@ -218,7 +218,16 @@ impl DisputeInterface for MockDb {
         dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-
+        let limit_usize = dispute_constraints
+            .limit
+            .unwrap_or(u32::MAX)
+            .try_into()
+            .unwrap_or(usize::MAX);
+        let offset_usize = dispute_constraints
+            .offset
+            .unwrap_or(0)
+            .try_into()
+            .unwrap_or(usize::MIN);
         let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
             .filter(|dispute| {
@@ -258,14 +267,16 @@ impl DisputeInterface for MockDb {
                         .connector
                         .as_ref()
                         .map_or(true, |connectors| {
-                            connectors.iter().any(|connector| {
-                                dispute.connector.as_str() == connector.to_string()
-                            })
+                            connectors
+                                .iter()
+                                .any(|connector| dispute.connector.as_str() == *connector)
                         })
-                    // && dispute_constraints
-                    //     .merchant_connector_id
-                    //     .as_ref()
-                    //     .map_or(true, |id| &dispute.merchant_connector_id == Some(id))
+                    && dispute_constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(true, |id| {
+                            dispute.merchant_connector_id.as_ref() == Some(id)
+                        })
                     && dispute_constraints
                         .currency
                         .as_ref()
@@ -285,12 +296,8 @@ impl DisputeInterface for MockDb {
                                     .map_or(true, |end_time| dispute_time <= end_time)
                         })
             })
-            .skip(dispute_constraints.offset.unwrap_or(0) as usize)
-            .take(
-                dispute_constraints
-                    .limit
-                    .unwrap_or(usize::MAX.try_into().unwrap()) as usize,
-            )
+            .skip(offset_usize)
+            .take(limit_usize)
             .cloned()
             .collect();
 
@@ -385,6 +392,7 @@ mod tests {
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
         };
+        use hyperswitch_domain_models::disputes::DisputeListConstraints;
         use masking::Secret;
         use redis_interface::RedisSettings;
         use serde_json::Value;
@@ -593,7 +601,7 @@ mod tests {
             let found_disputes = mockdb
                 .find_disputes_by_constraints(
                     &merchant_id,
-                    &disputes::DisputeListConstraints {
+                    &DisputeListConstraints {
                         dispute_id: None,
                         payment_id: None,
                         profile_id: None,

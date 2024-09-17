@@ -64,11 +64,7 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::profile_id.eq_any(profile_id.clone()));
         }
         if let Some(connector_list) = &dispute_list_constraints.connector {
-            let connector: Vec<String> = connector_list
-                .into_iter()
-                .map(|connector| connector.to_string())
-                .collect();
-            filter = filter.filter(dsl::connector.eq_any(connector));
+            filter = filter.filter(dsl::connector.eq_any(connector_list.clone()));
         }
 
         if let Some(reason) = &dispute_list_constraints.reason {
@@ -83,7 +79,7 @@ impl DisputeDbExt for Dispute {
 
         if let Some(currency_list) = &dispute_list_constraints.currency {
             let currency: Vec<String> = currency_list
-                .into_iter()
+                .iter()
                 .map(|currency| currency.to_string())
                 .collect();
 
