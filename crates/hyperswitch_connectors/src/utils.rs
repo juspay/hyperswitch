@@ -1628,7 +1628,6 @@ mod tests {
     }
 }
 
-
 pub fn is_mandate_supported(
     selected_pmd: PaymentMethodData,
     payment_method_type: Option<enums::PaymentMethodType>,
