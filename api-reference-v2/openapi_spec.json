@@ -1298,7 +1298,7 @@
         ]
       }
     },
-    "/customers": {
+    "/v2/customers": {
       "post": {
         "tags": [
           "Customers"
@@ -1346,7 +1346,7 @@
         ]
       }
     },
-    "/customers/{id}": {
+    "/v2/customers/{id}": {
       "get": {
         "tags": [
           "Customers"
@@ -1486,7 +1486,7 @@
         ]
       }
     },
-    "/customers/list": {
+    "/v2/customers/list": {
       "post": {
         "tags": [
           "Customers"
