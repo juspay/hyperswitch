@@ -163,6 +163,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             outgoing_webhook_custom_http_headers,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }
@@ -228,6 +229,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }
@@ -348,6 +350,7 @@ pub async fn create_business_profile_from_merchant_account(
             tax_connector_id: request.tax_connector_id,
             is_tax_connector_enabled: request.is_tax_connector_enabled,
             dynamic_routing_algorithm: None,
+            is_network_tokenization_enabled: request.is_network_tokenization_enabled,
         },
     ))
 }

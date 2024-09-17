@@ -51,6 +51,9 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
     pub version: common_enums::ApiVersion,
+    pub network_token_requestor_reference_id: Option<String>,
+    pub network_token_locker_id: Option<String>,
+    pub network_token_payment_method_data: OptionalEncryptableValue,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -76,6 +79,9 @@ pub struct PaymentMethod {
     pub locker_fingerprint_id: Option<String>,
     pub id: String,
     pub version: common_enums::ApiVersion,
+    pub network_token_requestor_reference_id: Option<String>,
+    pub network_token_locker_id: Option<String>,
+    pub network_token_payment_method_data: OptionalEncryptableValue,
 }
 
 impl PaymentMethod {
@@ -136,6 +142,11 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             updated_by: self.updated_by,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 
@@ -207,6 +218,22 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .await?,
                 updated_by: item.updated_by,
                 version: item.version,
+                network_token_requestor_reference_id: item.network_token_requestor_reference_id,
+                network_token_locker_id: item.network_token_locker_id,
+                network_token_payment_method_data: item
+                    .network_token_payment_method_data
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
             })
         }
         .await
@@ -250,6 +277,11 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             updated_by: self.updated_by,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 }
@@ -283,6 +315,11 @@ impl super::behaviour::Conversion for PaymentMethod {
             updated_by: self.updated_by,
             locker_fingerprint_id: self.locker_fingerprint_id,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 
@@ -343,6 +380,22 @@ impl super::behaviour::Conversion for PaymentMethod {
                 updated_by: item.updated_by,
                 locker_fingerprint_id: item.locker_fingerprint_id,
                 version: item.version,
+                network_token_requestor_reference_id: item.network_token_requestor_reference_id,
+                network_token_locker_id: item.network_token_locker_id,
+                network_token_payment_method_data: item
+                    .network_token_payment_method_data
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
             })
         }
         .await
@@ -375,6 +428,11 @@ impl super::behaviour::Conversion for PaymentMethod {
             updated_by: self.updated_by,
             locker_fingerprint_id: self.locker_fingerprint_id,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 }

@@ -7959,6 +7959,10 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
           }
         },
         "additionalProperties": false
@@ -7971,7 +7975,8 @@
           "profile_name",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "is_tax_connector_enabled"
+          "is_tax_connector_enabled",
+          "is_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -8150,6 +8155,12 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -10003,6 +10014,28 @@
           "APP",
           "BRW"
         ]
+      },
+      "DisplayAmountOnSdk": {
+        "type": "object",
+        "required": [
+          "net_amount",
+          "order_tax_amount",
+          "shipping_cost"
+        ],
+        "properties": {
+          "net_amount": {
+            "type": "string",
+            "description": "net amount = amount + order_tax_amount + shipping_cost"
+          },
+          "order_tax_amount": {
+            "type": "string",
+            "description": "order tax amount calculated by tax connectors"
+          },
+          "shipping_cost": {
+            "type": "string",
+            "description": "shipping cost for the order"
+          }
+        }
       },
       "DisputeResponse": {
         "type": "object",
@@ -17708,7 +17741,8 @@
         "type": "object",
         "required": [
           "payment_id",
-          "net_amount"
+          "net_amount",
+          "display_amount"
         ],
         "properties": {
           "payment_id": {
@@ -17733,6 +17767,9 @@
               }
             ],
             "nullable": true
+          },
+          "display_amount": {
+            "$ref": "#/components/schemas/DisplayAmountOnSdk"
           }
         }
       },
