@@ -14,6 +14,24 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
+const multiUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 100,
+      currency: "EUR",
+    },
+  },
+};
+
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -211,6 +229,93 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    //TODO: Add No3DSManualCapture, No3DSAutoCapture
+    // MandateMultiUseNo3DSManualCapture: {
+    //   Request: {
+    //     payment_method: "card",
+    //     payment_method_data: {
+    //       card: successfulNo3DSCardDetails,
+    //     },
+    //     currency: "USD",
+    //     mandate_data: multiUseMandateData,
+    //   },
+    //   Response: {
+    //     status: 200,
+    //     body: {
+    //       status: "requires_capture",
+    //     },
+    //   },
+    // },
+    MandateMultiUse3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        billing: {
+          address: {
+              line1: "1467",
+              line2: "CA",
+              line3: "CA",
+              city: "Musterhausen",
+              state: "California",
+              zip: "12345",
+              country: "DE",
+              first_name: "Max",
+              last_name: "Mustermann"
+          },
+          email: "test@novalnet.de",
+          phone: {
+              number: "9123456789",
+              country_code: "+91"
+          }
+        },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUse3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        billing: {
+          address: {
+              line1: "1467",
+              line2: "CA",
+              line3: "CA",
+              city: "Musterhausen",
+              state: "California",
+              zip: "12345",
+              country: "DE",
+              first_name: "Max",
+              last_name: "Mustermann"
+          },
+          email: "test@novalnet.de",
+          phone: {
+              number: "9123456789",
+              country_code: "+91"
+          }
+        },
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
