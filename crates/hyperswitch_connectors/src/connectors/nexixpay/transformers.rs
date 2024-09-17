@@ -137,14 +137,13 @@ struct Recurrence {
 pub struct NexixpayPaymentsResponse  {
     operation: Operation,
     three_d_s_auth_request: String,
-    three_d_s_auth_url: String,
-    three_d_s_enrollment_status: String,
+    three_d_s_auth_url: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSAuthResult {
-    authentication_value: String,            
+    authentication_value: Secret<String>,            
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, )]
@@ -157,7 +156,7 @@ pub struct ThreeDSCompleteAuthRequestData {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
 pub struct ThreeDSAuthData {
     three_d_s_auth_response: String,
-    authentication_value: String,            
+    authentication_value: Secret<String>,            
 }
 
 #[derive( Debug, Clone, Serialize, Deserialize, )]
@@ -190,9 +189,9 @@ pub struct Operation {
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
     masked_pan: String,
-    card_id: String,
-    card_id4: Option<String>,
-    card_expiry_date: Option<String>,
+    card_id: Secret<String>,
+    card_id4: Option<Secret<String>>,
+    card_expiry_date: Option<Secret<String>>,
 }
 
 pub struct NexixpayLinks {
@@ -478,8 +477,8 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthoriz
         ) -> Result<Self, Self::Error> {
             let complete_authorise_url = item.data.request.complete_authorize_url.clone().ok_or_else(missing_field_err("complete_authorise_url"))?;
             let operation_id: String = item.response.operation.operation_id;
-            let abc = nexixpay_threeds_link((
-                item.response.three_d_s_auth_url.clone(),
+            let redirection_form = nexixpay_threeds_link((
+                item.response.three_d_s_auth_url.expose().clone(),
                 item.response.three_d_s_auth_request.clone(),
                 complete_authorise_url.clone(),
                 operation_id.clone(),
@@ -488,7 +487,7 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthoriz
                 status: AttemptStatus::from(item.response.operation.operation_result),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(operation_id.clone()),
-                    redirection_data: Some(abc.clone()),
+                    redirection_data: Some(redirection_form.clone()),
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
@@ -505,8 +504,6 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPaymentsResponse, PaymentsAuthoriz
         (three_d_s_auth_url, three_ds_request, return_url,transaction_id ): (String, String, String, String),
     ) -> CustomResult<RedirectForm, errors::ConnectorError> {
         let mut form_fields = HashMap::<String, String>::new();
-        // paypal requires return url to be passed as a field along with payer_action_url
-        // form_fields.insert(String::from("threeDSAuthUrl"), three_d_s_auth_url.clone());
         form_fields.insert(String::from("ThreeDsRequest"), three_ds_request);
         form_fields.insert(String::from("ReturnUrl"), return_url);
         form_fields.insert(String::from("transactionId"), transaction_id);
@@ -607,7 +604,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
                 field_name: "connector_transaction_id",
             },
         )?;
-        let capture_type = get_nexixpay_capture_type(item.router_data.request.capture_method.clone())?;
+        let capture_type = get_nexixpay_capture_type(item.router_data.request.capture_method)?;
 
         let order_id = item.router_data.connector_request_reference_id.clone();
         let amount = item.amount.clone();
@@ -656,7 +653,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
         Ok(Self {
             order: order_data,
             card: card?.clone(),
-            operation_id: operation_id,
+            operation_id,
             capture_type,
             three_d_s_auth_data
         })
@@ -759,12 +756,12 @@ impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
         item: &PaymentsCancelRouterData,
     ) -> Result<Self, Self::Error> {
         let description = item.request.cancellation_reason.clone();
-        let amount = item.request.amount.clone().ok_or(
+        let amount = item.request.amount.ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "amount",
             },
         )?;
-        let currency = item.request.currency.clone().ok_or(
+        let currency = item.request.currency.ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "currency",
             },

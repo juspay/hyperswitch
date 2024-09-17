@@ -2372,10 +2372,7 @@ fn get_payment_response(
         }
     }
 }
-////Pyamen
-/// jwnkjwdc
-/// wkjkwje
-/// wljdneljdn
+
 impl
     TryFrom<
         types::ResponseRouterData<
