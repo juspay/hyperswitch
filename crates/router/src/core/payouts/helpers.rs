@@ -19,6 +19,8 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
@@ -30,7 +32,7 @@ use crate::{
         },
         payments::{
             customers::get_connector_customer_details_if_present, helpers as payment_helpers,
-            route_connector_v1, routing, CustomerDetails,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
         utils as core_utils,
@@ -305,7 +307,7 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(
+    let stored_resp = cards::add_card_to_hs_locker(
         state,
         &locker_req,
         customer_id,
@@ -535,6 +537,9 @@ pub async fn save_payout_data_to_locker(
             merchant_account.storage_scheme,
             None,
             None,
+            None,
+            None,
+            None,
         )
         .await?;
     }
@@ -557,6 +562,7 @@ pub async fn save_payout_data_to_locker(
             card_reference,
         )
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to delete PMD from locker as a part of metadata update operation",
         )?;
@@ -564,7 +570,7 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::call_to_locker_hs(
+        let stored_resp = cards::add_card_to_hs_locker(
             state,
             &locker_req,
             customer_id,
@@ -800,7 +806,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -848,7 +854,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -886,15 +892,14 @@ pub async fn decide_payout_connector(
     }
 
     // 4. Route connector
-    route_connector_v1(
+    route_connector_v1_for_payouts(
         state,
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        TransactionData::<()>::Payout(payout_data),
+        payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }

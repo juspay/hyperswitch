@@ -1,7 +1,7 @@
 use crate::{
     errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
-    id_type::{AlphaNumericId, LengthId},
+    id_type::{global_id, AlphaNumericId, LengthId},
 };
 
 crate::id_type!(
@@ -17,6 +17,20 @@ crate::impl_try_from_cow_str_id_type!(PaymentId, "payment_id");
 
 crate::impl_queryable_id_type!(PaymentId);
 crate::impl_to_sql_from_sql_id_type!(PaymentId);
+
+/// A global id that can be used to identify a payment
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    diesel::expression::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+pub struct PaymentGlobalId(global_id::GlobalId);
 
 impl PaymentId {
     /// Get the hash key to be stored in redis
@@ -75,12 +89,3 @@ impl From<PaymentId> for router_env::opentelemetry::Value {
         Self::String(router_env::opentelemetry::StringValue::from(string_value))
     }
 }
-
-// #[cfg(feature = "metrics")]
-// /// This is implemented so that we can use payment id directly as attribute in metrics
-// impl router_env::tracing::Value for PaymentId {
-//     fn record(&self, key: &router_env::types::Field, visitor: &mut dyn router_env::types::Visit) {
-//         let string_value = self.get_string_repr();
-//         visitor.record_str(key, &string_value);
-//     }
-// }

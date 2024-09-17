@@ -570,7 +570,7 @@ where
             }
             ConnectorIntegrationEnum::New(new_integration) => {
                 let new_router_data = ResourceCommonData::from_old_router_data(req)?;
-                new_integration.build_request_v2(&new_router_data, connectors)
+                new_integration.build_request_v2(&new_router_data)
             }
         }
     }

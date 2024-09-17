@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -81,6 +81,8 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -155,12 +157,27 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttempt {
     pub fn get_or_calculate_net_amount(&self) -> i64 {
+        let shipping_cost = self
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0))
+            .get_amount_as_i64();
+        let order_tax_amount = self
+            .order_tax_amount
+            .unwrap_or(MinorUnit::new(0))
+            .get_amount_as_i64();
+
         self.net_amount.unwrap_or(
-            self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0),
+            self.amount
+                + self.surcharge_amount.unwrap_or(0)
+                + self.tax_amount.unwrap_or(0)
+                + shipping_cost
+                + order_tax_amount,
         )
     }
 }
@@ -240,12 +257,22 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
+    /// returns amount + surcharge_amount + tax_amount (surcharge) + shipping_cost + order_tax_amount
     pub fn calculate_net_amount(&self) -> i64 {
-        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+        let shipping_cost = self
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0))
+            .get_amount_as_i64();
+
+        self.amount
+            + self.surcharge_amount.unwrap_or(0)
+            + self.tax_amount.unwrap_or(0)
+            + shipping_cost
     }
 
     pub fn get_or_calculate_net_amount(&self) -> i64 {
@@ -326,6 +353,8 @@ pub enum PaymentAttemptUpdate {
         client_source: Option<String>,
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -499,11 +528,23 @@ pub struct PaymentAttemptUpdateInternal {
     client_version: Option<String>,
     customer_acceptance: Option<pii::SecretSerdeValue>,
     card_network: Option<String>,
+    shipping_cost: Option<MinorUnit>,
+    order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentAttemptUpdateInternal {
     pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
         let mut update_internal = self;
+        let shipping_cost = update_internal
+            .shipping_cost
+            .or(source.shipping_cost)
+            .unwrap_or(MinorUnit::new(0))
+            .get_amount_as_i64();
+        let order_tax_amount = update_internal
+            .order_tax_amount
+            .or(source.order_tax_amount)
+            .unwrap_or(MinorUnit::new(0))
+            .get_amount_as_i64();
         update_internal.net_amount = Some(
             update_internal.amount.unwrap_or(source.amount)
                 + update_internal
@@ -513,7 +554,9 @@ impl PaymentAttemptUpdateInternal {
                 + update_internal
                     .tax_amount
                     .or(source.tax_amount)
-                    .unwrap_or(0),
+                    .unwrap_or(0)
+                + shipping_cost
+                + order_tax_amount,
         );
         update_internal.card_network = update_internal
             .payment_method_data
@@ -578,6 +621,8 @@ impl PaymentAttemptUpdate {
             client_version,
             customer_acceptance,
             card_network,
+            shipping_cost,
+            order_tax_amount,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -631,6 +676,8 @@ impl PaymentAttemptUpdate {
             client_version: client_version.or(source.client_version),
             customer_acceptance: customer_acceptance.or(source.customer_acceptance),
             card_network: card_network.or(source.card_network),
+            shipping_cost: shipping_cost.or(source.shipping_cost),
+            order_tax_amount: order_tax_amount.or(source.order_tax_amount),
             ..source
         }
     }
@@ -707,6 +754,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -759,6 +808,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -791,6 +842,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_source,
                 client_version,
                 customer_acceptance,
+                shipping_cost,
+                order_tax_amount,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -839,6 +892,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message: None,
                 charge_id: None,
                 card_network: None,
+                shipping_cost,
+                order_tax_amount,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -892,6 +947,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -946,6 +1003,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -1000,6 +1059,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -1052,6 +1113,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -1122,6 +1185,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 connector,
@@ -1184,6 +1249,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1233,6 +1300,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -1291,6 +1360,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -1350,6 +1421,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::PreprocessingUpdate {
                 status,
@@ -1407,6 +1480,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
@@ -1460,6 +1535,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -1513,6 +1590,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -1569,6 +1648,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
@@ -1621,6 +1702,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -1676,6 +1759,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -1734,6 +1819,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_version: None,
                 customer_acceptance: None,
                 card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
             },
         }
     }

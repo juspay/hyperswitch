@@ -208,7 +208,7 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Datatrans,
-    // Deutschebank,
+    Deutschebank,
     Dlocal,
     Ebanx,
     Esnekpos,
@@ -229,7 +229,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
-    // Novalnet,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
@@ -252,6 +252,7 @@ pub enum RoutableConnectors {
     Stripe,
     // Taxjar,
     Trustpay,
+    // Thunes
     // Tsys,
     Tsys,
     Volt,
@@ -1781,16 +1782,27 @@ pub enum MandateStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
+    #[serde(alias = "VISA")]
     Visa,
+    #[serde(alias = "MASTERCARD")]
     Mastercard,
+    #[serde(alias = "AMERICANEXPRESS")]
+    #[serde(alias = "AMEX")]
     AmericanExpress,
     JCB,
+    #[serde(alias = "DINERSCLUB")]
     DinersClub,
+    #[serde(alias = "DISCOVER")]
     Discover,
+    #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
+    #[serde(alias = "UNIONPAY")]
     UnionPay,
+    #[serde(alias = "INTERAC")]
     Interac,
+    #[serde(alias = "RUPAY")]
     RuPay,
+    #[serde(alias = "MAESTRO")]
     Maestro,
 }
 
@@ -2822,6 +2834,7 @@ pub enum BankNames {
     AllianceBank,
     AmBank,
     BankOfAmerica,
+    BankOfChina,
     BankIslam,
     BankMuamalat,
     BankRakyat,
@@ -3158,6 +3171,27 @@ pub enum PayoutRetryType {
 pub enum OrderFulfillmentTimeOrigin {
     Create,
     Confirm,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UIWidgetFormLayout {
+    Tabs,
+    Journey,
 }
 
 #[derive(

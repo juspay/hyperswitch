@@ -107,7 +107,7 @@ pub async fn refunds_retrieve(
                 auth.profile_id,
                 auth.key_store,
                 refund_request,
-                refund_retrieve_core,
+                refund_retrieve_core_with_refund_id,
             )
         },
         auth::auth_type(
@@ -162,7 +162,7 @@ pub async fn refunds_retrieve_with_body(
                 auth.profile_id,
                 auth.key_store,
                 req,
-                refund_retrieve_core,
+                refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -413,6 +413,36 @@ pub async fn get_refunds_filters_profile(
             &auth::JWTAuth {
                 permission: Permission::RefundRead,
                 minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<api_models::payments::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::RefundsAggregate;
+    let query_params = query_params.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_refunds(state, auth.merchant_account, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),

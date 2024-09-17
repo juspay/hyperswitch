@@ -674,7 +674,35 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn list_merchant_account(
+    state: SessionState,
+    organization_id: api_models::organization::OrganizationId,
+) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    let merchant_accounts = state
+        .store
+        .list_merchant_accounts_by_organization_id(
+            &(&state).into(),
+            &organization_id.organization_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_accounts = merchant_accounts
+        .into_iter()
+        .map(|merchant_account| {
+            api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_account",
+                },
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(services::ApplicationResponse::Json(merchant_accounts))
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn list_merchant_account(
     state: SessionState,
     req: api_models::admin::MerchantAccountListRequest,
@@ -1300,6 +1328,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Deutschebank => {
+                deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1397,6 +1429,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Novalnet => {
+                novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Nuvei => {
                 nuvei::transformers::NuveiAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1457,7 +1493,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 stax::transformers::StaxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Taxjar => Ok(()),
+            api_enums::Connector::Taxjar => {
+                taxjar::transformers::TaxjarAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Stripe => {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -2656,6 +2695,7 @@ pub async fn create_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
     merchant_account: domain::MerchantAccount,
+    auth_profile_id: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2686,6 +2726,8 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
         .await?;
+
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
@@ -2908,6 +2950,36 @@ pub async fn retrieve_connector(
     Ok(service_api::ApplicationResponse::Json(
         mca.foreign_try_into()?,
     ))
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn list_connectors_for_a_profile(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: id_type::ProfileId,
+) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
+    let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_account.get_id(),
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_connector_accounts = store
+        .list_connector_account_by_profile_id(key_manager_state, &profile_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+    let mut response = vec![];
+
+    for mca in merchant_connector_accounts.into_iter() {
+        response.push(mca.foreign_try_into()?);
+    }
+
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 pub async fn list_payment_connectors(
@@ -3468,6 +3540,8 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
     }
@@ -3572,6 +3646,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 default_fallback_routing: None,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
     }
@@ -3815,6 +3890,8 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }
@@ -3907,6 +3984,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }
@@ -4021,13 +4099,10 @@ impl BusinessProfileWrapper {
         Ok(())
     }
 
-    pub fn get_routing_algorithm_id<'a, F>(
+    pub fn get_routing_algorithm_id<'a>(
         &'a self,
-        transaction_data: &'a routing::TransactionData<'_, F>,
-    ) -> Option<id_type::RoutingId>
-    where
-        F: Send + Clone,
-    {
+        transaction_data: &'a routing::TransactionData<'_>,
+    ) -> Option<id_type::RoutingId> {
         match transaction_data {
             routing::TransactionData::Payment(_) => self.profile.routing_algorithm_id.clone(),
             #[cfg(feature = "payouts")]
@@ -4483,7 +4558,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::call_to_locker_hs(
+    let store_resp = cards::add_card_to_hs_locker(
         state,
         &payload,
         &cust_id,

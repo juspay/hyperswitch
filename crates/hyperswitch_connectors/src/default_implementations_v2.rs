@@ -75,8 +75,8 @@ use hyperswitch_interfaces::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
             PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2,
-            PaymentTaxCalculationV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
-            PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+            PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+            PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
@@ -105,7 +105,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl ConnectorCustomerV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
-            impl PaymentTaxCalculationV2 for $path::$connector{}
+            impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
@@ -209,6 +209,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -243,6 +244,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -272,6 +274,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -307,6 +310,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -341,6 +345,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -375,6 +380,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -419,6 +425,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -455,6 +462,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -491,6 +499,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -527,6 +536,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -563,6 +573,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -599,6 +610,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -635,6 +647,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -671,6 +684,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -707,6 +721,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -741,6 +756,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -777,6 +793,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -813,6 +830,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -849,6 +867,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -885,6 +904,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -921,6 +941,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );
@@ -954,6 +975,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
 );

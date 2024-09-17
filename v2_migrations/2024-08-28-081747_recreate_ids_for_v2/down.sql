@@ -15,8 +15,12 @@ ALTER TABLE customers DROP COLUMN IF EXISTS id;
 ALTER TABLE customers
 ADD COLUMN IF NOT EXISTS id SERIAL;
 
+ALTER TABLE payment_intent DROP COLUMN IF EXISTS id;
+
 ALTER TABLE payment_intent
 ADD id SERIAL;
+
+ALTER TABLE payment_attempt DROP COLUMN IF EXISTS id;
 
 ALTER TABLE payment_attempt
 ADD id SERIAL;

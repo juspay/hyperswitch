@@ -31,6 +31,9 @@ use crate::{
 #[operation(operations = "all", flow = "sdk_session_update")]
 pub struct PaymentSessionUpdate;
 
+type PaymentSessionUpdateOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
@@ -46,7 +49,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, api::PaymentsDynamicTaxCalculationRequest>,
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            api::PaymentsDynamicTaxCalculationRequest,
+            PaymentData<F>,
+        >,
     > {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -182,7 +190,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -195,7 +203,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsDynamicTaxCalculationRequest>,
+            PaymentSessionUpdateOperation<'a, F>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -207,14 +215,17 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-        if business_profile.is_tax_connector_enabled {
-            *should_continue_confirm_transaction = false;
+        let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+        let skip_external_tax_calculation = payment_data
+            .payment_intent
+            .skip_external_tax_calculation
+            .unwrap_or(false);
+        if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
             let key_manager_state: &KeyManagerState = &state.into();
 
@@ -318,9 +329,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
+        _business_profile: &domain::BusinessProfile,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsDynamicTaxCalculationRequest>,
+        PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -366,10 +377,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -424,7 +432,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -433,7 +441,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationReque
         request: &api::PaymentsDynamicTaxCalculationRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest>,
+        PaymentSessionUpdateOperation<'b, F>,
         operations::ValidateResult,
     )> {
         //paymentid is already generated and should be sent in the request

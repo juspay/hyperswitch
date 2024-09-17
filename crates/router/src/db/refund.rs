@@ -1,5 +1,5 @@
 #[cfg(feature = "olap")]
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "olap")]
 use common_utils::types::MinorUnit;
@@ -83,6 +83,14 @@ pub trait RefundInterface {
         refund_details: &api_models::payments::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn get_total_count_of_refunds(
@@ -251,6 +259,21 @@ mod storage {
             .await
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
+
+        #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
+        async fn get_refund_status_with_count(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            time_range: &api_models::payments::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, time_range)
+            .await
+            .map_err(|error|report!(errors::StorageError::from(error)))
+        }
+
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
@@ -310,9 +333,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -352,9 +378,12 @@ mod storage {
             new: storage_types::RefundNew,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Insert)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
@@ -502,9 +531,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -555,11 +587,11 @@ mod storage {
                 payment_id: &payment_id,
             };
             let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
-            let storage_scheme = decide_storage_scheme::<_, storage_types::Refund>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
                 self,
                 storage_scheme,
                 Op::Update(key.clone(), &field, Some(&this.updated_by)),
-            )
+            ))
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
@@ -616,9 +648,12 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -669,9 +704,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -722,9 +760,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Refund>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
@@ -783,6 +824,20 @@ mod storage {
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
                         .await
                         .map_err(|error|report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
+        async fn get_refund_status_with_count(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            constraints: &api_models::payments::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, constraints)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]
@@ -1121,6 +1176,41 @@ impl RefundInterface for MockDb {
         refund_meta_data.refund_status = unique_statuses.into_iter().collect();
 
         Ok(refund_meta_data)
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(api_models::enums::RefundStatus, i64)>, errors::StorageError> {
+        let refunds = self.refunds.lock().await;
+
+        let start_time = time_range.start_time;
+        let end_time = time_range
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now);
+
+        let filtered_refunds = refunds
+            .iter()
+            .filter(|refund| refund.created_at >= start_time && refund.created_at <= end_time)
+            .cloned()
+            .collect::<Vec<diesel_models::refund::Refund>>();
+
+        let mut refund_status_counts: HashMap<api_models::enums::RefundStatus, i64> =
+            HashMap::new();
+
+        for refund in filtered_refunds {
+            *refund_status_counts
+                .entry(refund.refund_status)
+                .or_insert(0) += 1;
+        }
+
+        let result: Vec<(api_models::enums::RefundStatus, i64)> =
+            refund_status_counts.into_iter().collect();
+
+        Ok(result)
     }
 
     #[cfg(feature = "olap")]

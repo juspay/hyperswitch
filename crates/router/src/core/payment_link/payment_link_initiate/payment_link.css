@@ -96,6 +96,10 @@ body {
 
 #hyper-checkout-payment-merchant-dynamic-details {
   margin: 20px 20px 10px 20px;
+  overflow-y: scroll;
+  max-width: 35vw;
+  max-height: 10vh;
+  min-height: 80px;
 }
 
 .hyper-checkout-payment-horizontal-line {
@@ -714,6 +718,10 @@ body {
     flex-flow: column;
     flex-direction: column-reverse;
     margin: 0;
+    max-width: 100%;
+    overflow-y: scroll;
+    max-height: 10vh;
+    min-height: 80px;
   }
   
   .hyper-checkout-payment-horizontal-line {
