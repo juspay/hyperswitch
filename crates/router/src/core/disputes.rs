@@ -522,7 +522,8 @@ pub async fn get_aggregates_for_disputes(
     let dispute_status_with_count = db
         .get_dispute_status_with_count(merchant.get_id(), profile_id_list, &time_range)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve disputes aggregate")?;
 
     let mut status_map: HashMap<storage_enums::DisputeStatus, i64> =
         dispute_status_with_count.into_iter().collect();
