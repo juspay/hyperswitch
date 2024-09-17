@@ -1,6 +1,6 @@
 -- This file contains queries to update the primary key constraints suitable to the v2 application.
 -- This also has queries to update other constraints and indexes on tables where applicable.
--- Backfill for organization table
+------------------------ Organization -----------------------
 UPDATE ORGANIZATION
 SET id = org_id
 WHERE id IS NULL;
@@ -16,6 +16,7 @@ ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey;
 ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_pkey_id PRIMARY KEY (id);
 
+------------------------ Merchant Account -----------------------
 -- The new primary key for v2 merchant account will be `id`
 ALTER TABLE merchant_account DROP CONSTRAINT merchant_account_pkey;
 
@@ -34,6 +35,7 @@ WHERE id IS NULL;
 ALTER TABLE merchant_account
 ADD PRIMARY KEY (id);
 
+------------------------ Business Profile -----------------------
 -- This migration is to modify the id column in business_profile table to be a VARCHAR(64) and to set the id column as primary key
 ALTER TABLE business_profile
 ADD COLUMN id VARCHAR(64);
@@ -48,6 +50,7 @@ ALTER TABLE business_profile DROP CONSTRAINT business_profile_pkey;
 ALTER TABLE business_profile
 ADD PRIMARY KEY (id);
 
+------------------------ Merchant Connector Account -----------------------
 -- Backfill the id column with the merchant_connector_id to prevent null values
 UPDATE merchant_connector_account
 SET id = merchant_connector_id
@@ -63,6 +66,7 @@ ALTER TABLE merchant_connector_account
 ALTER COLUMN profile_id
 SET NOT NULL;
 
+------------------------ Customers -----------------------
 -- Run this query only when V1 is deprecated
 ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_pkey;
 
@@ -74,4 +78,10 @@ SET id = customer_id
 WHERE id IS NULL;
 
 ALTER TABLE customers
+ADD PRIMARY KEY (id);
+
+------------------------ Payment Intent -----------------------
+ALTER TABLE payment_intent DROP CONSTRAINT payment_intent_pkey;
+
+ALTER TABLE payment_intent
 ADD PRIMARY KEY (id);

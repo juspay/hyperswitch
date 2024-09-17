@@ -152,10 +152,11 @@ pub async fn set_role_permissions_in_cache_if_required(
         return Ok(());
     }
 
-    let role_info = roles::RoleInfo::from_role_id(state, role_id, merchant_id, org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error getting role_info from role_id")?;
+    let role_info =
+        roles::RoleInfo::from_role_id_in_merchant_scope(state, role_id, merchant_id, org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error getting role_info from role_id")?;
 
     authz::set_role_info_in_cache(
         state,

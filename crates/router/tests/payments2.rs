@@ -2,7 +2,8 @@
     clippy::expect_used,
     clippy::unwrap_in_result,
     clippy::unwrap_used,
-    clippy::print_stdout
+    clippy::print_stdout,
+    unused_imports
 )]
 
 mod utils;
@@ -36,6 +37,7 @@ fn connector_list() {
     assert_eq!(true, true);
 }
 
+#[cfg(feature = "v1")]
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
@@ -299,6 +301,7 @@ async fn payments_create_core() {
 //     assert_eq!(expected_response, actual_response);
 // }
 
+#[cfg(feature = "v1")]
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]

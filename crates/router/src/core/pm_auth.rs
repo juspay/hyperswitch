@@ -45,6 +45,7 @@ use crate::{
     types::{self, domain, storage, transformers::ForeignTryFrom},
 };
 
+#[cfg(feature = "v1")]
 pub async fn create_link_token(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -201,6 +202,16 @@ pub async fn create_link_token(
     Ok(ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
+pub async fn create_link_token(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _payload: api_models::pm_auth::LinkTokenCreateRequest,
+) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
+    todo!()
+}
+
 impl ForeignTryFrom<&types::ConnectorAuthType> for PlaidAuthType {
     type Error = errors::ConnectorError;
 
@@ -289,6 +300,7 @@ pub async fn exchange_token_core(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 async fn store_bank_details_in_payment_methods(
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::ExchangeTokenCreateRequest,
@@ -515,6 +527,9 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_billing_address: None,
                 updated_by: None,
                 version: domain::consts::API_VERSION,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
             };
 
             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -539,6 +554,9 @@ async fn store_bank_details_in_payment_methods(
                 updated_by: None,
                 locker_fingerprint_id: None,
                 version: domain::consts::API_VERSION,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
             };
 
             new_entries.push(pm_new);
@@ -556,6 +574,19 @@ async fn store_bank_details_in_payment_methods(
     .await?;
 
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+async fn store_bank_details_in_payment_methods(
+    _key_store: domain::MerchantKeyStore,
+    _payload: api_models::pm_auth::ExchangeTokenCreateRequest,
+    _merchant_account: domain::MerchantAccount,
+    _state: SessionState,
+    _bank_account_details_resp: pm_auth_types::BankAccountCredentialsResponse,
+    _connector_details: (&str, Secret<String>),
+    _mca_id: common_utils::id_type::MerchantConnectorAccountId,
+) -> RouterResult<()> {
+    todo!()
 }
 
 async fn store_in_db(

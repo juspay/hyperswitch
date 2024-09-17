@@ -15,6 +15,7 @@ use crate::{
     SessionState,
 };
 
+#[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub async fn generate_sample_data(
     state: &SessionState,

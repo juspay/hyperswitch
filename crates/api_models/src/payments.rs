@@ -1026,7 +1026,15 @@ pub struct MandateIds {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
-    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
+    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkTokenWithNTIRef {
+    pub network_transaction_id: String,
+    pub token_exp_month: Option<Secret<String>>,
+    pub token_exp_year: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
@@ -4619,6 +4627,21 @@ pub struct PaymentsDynamicTaxCalculationResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// shipping cost for the order
     pub shipping_cost: Option<MinorUnit>,
+    /// amount in Base Unit display format
+    pub display_amount: DisplayAmountOnSdk,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct DisplayAmountOnSdk {
+    /// net amount = amount + order_tax_amount + shipping_cost
+    #[schema(value_type = String)]
+    pub net_amount: StringMajorUnit,
+    /// order tax amount calculated by tax connectors
+    #[schema(value_type = String)]
+    pub order_tax_amount: Option<StringMajorUnit>,
+    /// shipping cost for the order
+    #[schema(value_type = String)]
+    pub shipping_cost: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

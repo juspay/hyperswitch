@@ -1296,6 +1296,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Deutschebank => {
+                deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -3398,72 +3402,76 @@ impl ProfileCreateBridge for api::ProfileCreate {
             })
             .transpose()?;
 
-        Ok(domain::Profile::from(domain::ProfileSetter {
-            profile_id,
-            merchant_id: merchant_account.get_id().clone(),
-            profile_name,
-            created_at: current_time,
-            modified_at: current_time,
-            return_url: self
-                .return_url
-                .map(|return_url| return_url.to_string())
-                .or(merchant_account.return_url.clone()),
-            enable_payment_response_hash: self
-                .enable_payment_response_hash
-                .unwrap_or(merchant_account.enable_payment_response_hash),
-            payment_response_hash_key: Some(payment_response_hash_key),
-            redirect_to_merchant_with_http_post: self
-                .redirect_to_merchant_with_http_post
-                .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
-            webhook_details: webhook_details.or(merchant_account.webhook_details.clone()),
-            metadata: self.metadata,
-            routing_algorithm: None,
-            intent_fulfillment_time: self
-                .intent_fulfillment_time
-                .map(i64::from)
-                .or(merchant_account.intent_fulfillment_time)
-                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
-            frm_routing_algorithm: self
-                .frm_routing_algorithm
-                .or(merchant_account.frm_routing_algorithm.clone()),
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: self
-                .payout_routing_algorithm
-                .or(merchant_account.payout_routing_algorithm.clone()),
-            #[cfg(not(feature = "payouts"))]
-            payout_routing_algorithm: None,
-            is_recon_enabled: merchant_account.is_recon_enabled,
-            applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: self
-                .session_expiry
-                .map(i64::from)
-                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
-            authentication_connector_details: self
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: None,
-            extended_card_info_config: None,
-            use_billing_as_payment_method_billing: self
-                .use_billing_as_payment_method_billing
-                .or(Some(true)),
-            collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector
-                .or(Some(false)),
-            collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector
-                .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-            tax_connector_id: self.tax_connector_id,
-            is_tax_connector_enabled: self.is_tax_connector_enabled,
-            always_collect_billing_details_from_wallet_connector: self
-                .always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector: self
-                .always_collect_shipping_details_from_wallet_connector,
-        }))
+        Ok(domain::Profile::from(
+            domain::ProfileSetter {
+                profile_id,
+                merchant_id: merchant_account.get_id().clone(),
+                profile_name,
+                created_at: current_time,
+                modified_at: current_time,
+                return_url: self
+                    .return_url
+                    .map(|return_url| return_url.to_string())
+                    .or(merchant_account.return_url.clone()),
+                enable_payment_response_hash: self
+                    .enable_payment_response_hash
+                    .unwrap_or(merchant_account.enable_payment_response_hash),
+                payment_response_hash_key: Some(payment_response_hash_key),
+                redirect_to_merchant_with_http_post: self
+                    .redirect_to_merchant_with_http_post
+                    .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+                webhook_details: webhook_details.or(merchant_account.webhook_details.clone()),
+                metadata: self.metadata,
+                routing_algorithm: None,
+                intent_fulfillment_time: self
+                    .intent_fulfillment_time
+                    .map(i64::from)
+                    .or(merchant_account.intent_fulfillment_time)
+                    .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
+                frm_routing_algorithm: self
+                    .frm_routing_algorithm
+                    .or(merchant_account.frm_routing_algorithm.clone()),
+                #[cfg(feature = "payouts")]
+                payout_routing_algorithm: self
+                    .payout_routing_algorithm
+                    .or(merchant_account.payout_routing_algorithm.clone()),
+                #[cfg(not(feature = "payouts"))]
+                payout_routing_algorithm: None,
+                is_recon_enabled: merchant_account.is_recon_enabled,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self
+                    .session_expiry
+                    .map(i64::from)
+                    .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                use_billing_as_payment_method_billing: self
+                    .use_billing_as_payment_method_billing
+                    .or(Some(true)),
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector
+                    .or(Some(false)),
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector
+                    .or(Some(false)),
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                tax_connector_id: self.tax_connector_id,
+                is_tax_connector_enabled: self.is_tax_connector_enabled,
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            },
+        ))
     }
 
     #[cfg(feature = "v2")]
@@ -3511,61 +3519,64 @@ impl ProfileCreateBridge for api::ProfileCreate {
             })
             .transpose()?;
 
-        Ok(domain::Profile::from(domain::ProfileSetter {
-            id: profile_id,
-            merchant_id: merchant_id.clone(),
-            profile_name,
-            created_at: current_time,
-            modified_at: current_time,
-            return_url: self.return_url.map(|return_url| return_url.to_string()),
-            enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
-            payment_response_hash_key: Some(payment_response_hash_key),
-            redirect_to_merchant_with_http_post: self
-                .redirect_to_merchant_with_http_post
-                .unwrap_or(true),
-            webhook_details,
-            metadata: self.metadata,
-            is_recon_enabled: false,
-            applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: self
-                .session_expiry
-                .map(i64::from)
-                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
-            authentication_connector_details: self
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: None,
-            extended_card_info_config: None,
-            use_billing_as_payment_method_billing: self
-                .use_billing_as_payment_method_billing
-                .or(Some(true)),
-            collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector_if_required
-                .or(Some(false)),
-            collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector_if_required
-                .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-            always_collect_billing_details_from_wallet_connector: self
-                .always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector: self
-                .always_collect_shipping_details_from_wallet_connector,
-            routing_algorithm_id: None,
-            frm_routing_algorithm_id: None,
-            payout_routing_algorithm_id: None,
-            order_fulfillment_time: self
-                .order_fulfillment_time
-                .map(|order_fulfillment_time| order_fulfillment_time.into_inner())
-                .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
-            order_fulfillment_time_origin: self.order_fulfillment_time_origin,
-            default_fallback_routing: None,
-            tax_connector_id: self.tax_connector_id,
-            is_tax_connector_enabled: self.is_tax_connector_enabled,
-        }))
+        Ok(domain::Profile::from(
+            domain::ProfileSetter {
+                id: profile_id,
+                merchant_id: merchant_id.clone(),
+                profile_name,
+                created_at: current_time,
+                modified_at: current_time,
+                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
+                payment_response_hash_key: Some(payment_response_hash_key),
+                redirect_to_merchant_with_http_post: self
+                    .redirect_to_merchant_with_http_post
+                    .unwrap_or(true),
+                webhook_details,
+                metadata: self.metadata,
+                is_recon_enabled: false,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self
+                    .session_expiry
+                    .map(i64::from)
+                    .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                use_billing_as_payment_method_billing: self
+                    .use_billing_as_payment_method_billing
+                    .or(Some(true)),
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector_if_required
+                    .or(Some(false)),
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector_if_required
+                    .or(Some(false)),
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+                routing_algorithm_id: None,
+                frm_routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: self
+                    .order_fulfillment_time
+                    .map(|order_fulfillment_time| order_fulfillment_time.into_inner())
+                    .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
+                order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+                default_fallback_routing: None,
+                tax_connector_id: self.tax_connector_id,
+                is_tax_connector_enabled: self.is_tax_connector_enabled,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            },
+        ))
     }
 }
 
@@ -3840,6 +3851,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }
@@ -3932,6 +3945,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }
@@ -4546,7 +4560,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::call_to_locker_hs(
+    let store_resp = cards::add_card_to_hs_locker(
         state,
         &payload,
         &cust_id,

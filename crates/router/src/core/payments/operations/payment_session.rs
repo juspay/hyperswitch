@@ -330,7 +330,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::Profile>,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentSessionOperation<'b, F>,
         Option<domain::PaymentMethodData>,
