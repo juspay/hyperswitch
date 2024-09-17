@@ -34,6 +34,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
+        _header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>> {
         todo!()
     }

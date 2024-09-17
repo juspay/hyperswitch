@@ -51,6 +51,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     async fn get_merchant_recipient_data<'a>(

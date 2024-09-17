@@ -169,6 +169,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     _customer: &'a Option<domain::Customer>,
     _merchant_connector_account: &helpers::MerchantConnectorAccountType,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
+    _header_payload: Option<api_models::payments::HeaderPayload>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
