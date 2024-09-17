@@ -38,7 +38,7 @@ use transformers as nexixpay;
 use uuid::Uuid;
 use common_enums::enums;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{self, RefundsRequestData}};
 
 #[derive(Clone)]
 pub struct Nexixpay {
@@ -849,11 +849,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexixpay 
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}/operations/{}",
             self.base_url(connectors),
-            connector_payment_id
+            connector_refund_id
         ))
     }
 
