@@ -348,13 +348,17 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
         })?;
 
-    let frm_response = db
-        .find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_account.get_id().clone())
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
-        });
+    let frm_response = if cfg!(feature = "frm") {
+        db.find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_account.get_id().clone())
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable_lazy(|| {
+                format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
+            })
+            .ok()
+    } else {
+        None
+    };
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
 
@@ -472,7 +476,7 @@ async fn get_tracker_for_sync<
         redirect_response: None,
         payment_link_data: None,
         surcharge_details: None,
-        frm_message: frm_response.ok(),
+        frm_message: frm_response,
         incremental_authorization_details: None,
         authorizations,
         authentication,
