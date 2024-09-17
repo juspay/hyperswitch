@@ -211,7 +211,7 @@ pub struct DeleteEvidenceRequest {
     pub evidence_type: EvidenceType,
 }
 
-#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct DisputesAggregateResponse {
     /// Different status of disputes with their count
     pub status_with_count: HashMap<DisputeStatus, i64>,
