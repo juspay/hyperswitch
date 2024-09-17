@@ -444,6 +444,28 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
+    let charges_req = match payment_intent.charges.clone().zip(refund.charges.clone()) {
+        Some((charges, refund_charges)) => {
+            let payment_charges: PaymentCharges = charges
+                .peek()
+                .clone()
+                .parse_value("PaymentCharges")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse charges into PaymentCharges")?;
+
+            Some(ChargeRefunds {
+                charge_id: refund_charges.charge_id.clone(),
+                charge_type: payment_charges.charge_type.clone(),
+                transfer_account_id: payment_charges.transfer_account_id,
+                options: validator::validate_charge_refund(
+                    &refund_charges,
+                    &payment_charges.charge_type,
+                )?,
+            })
+        }
+        _ => None,
+    };
+
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         sync_refund_with_gateway(
             &state,
@@ -453,6 +475,7 @@ pub async fn refund_retrieve_core(
             &payment_intent,
             &refund,
             creds_identifier,
+            charges_req,
         )
         .await
     } else {
@@ -488,6 +511,7 @@ pub async fn sync_refund_with_gateway(
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
     creds_identifier: Option<String>,
+    charges: Option<ChargeRefunds>,
 ) -> RouterResult<storage::Refund> {
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -513,7 +537,7 @@ pub async fn sync_refund_with_gateway(
         payment_attempt,
         refund,
         creds_identifier.clone(),
-        None,
+        charges,
     )
     .await?;
 
