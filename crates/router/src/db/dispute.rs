@@ -143,7 +143,7 @@ impl DisputeInterface for Store {
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::get_dispute_status_with_count(
             &conn,
             merchant_id,
