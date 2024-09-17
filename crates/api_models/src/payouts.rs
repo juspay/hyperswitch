@@ -1,12 +1,13 @@
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils,
-    pii::{self, Email, PhoneNumber},
+    pii::{self, Email},
+    transformers::ForeignFrom,
 };
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -942,15 +943,13 @@ impl From<Wallet> for additional_info::WalletAdditionalData {
                 telephone_number,
                 paypal_id,
             }) => Self::Paypal(Box::new(additional_info::PaypalAdditionalData {
-                email,
-                telephone_number: telephone_number
-                    .and_then(|number| PhoneNumber::from_str(number.peek()).ok()),
+                email: email.map(ForeignFrom::foreign_from),
+                telephone_number: telephone_number.map(From::from),
                 paypal_id: paypal_id.map(From::from),
             })),
             Wallet::Venmo(Venmo { telephone_number }) => {
                 Self::Venmo(Box::new(additional_info::VenmoAdditionalData {
-                    telephone_number: telephone_number
-                        .and_then(|number| PhoneNumber::from_str(number.peek()).ok()),
+                    telephone_number: telephone_number.map(From::from),
                 }))
             }
         }

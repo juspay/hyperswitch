@@ -33,7 +33,7 @@ pub type SecretSerdeValue = Secret<serde_json::Value>;
 pub enum PhoneNumberStrategy {}
 
 /// Phone Number
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(try_from = "String")]
 pub struct PhoneNumber(Secret<String, PhoneNumberStrategy>);
 

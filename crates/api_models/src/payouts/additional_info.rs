@@ -1,6 +1,6 @@
-use common_utils::{
-    new_type::{MaskedBankAccount, MaskedBic, MaskedIban, MaskedRoutingNumber, MaskedSortCode},
-    pii::{Email, PhoneNumber},
+use common_utils::new_type::{
+    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedRoutingNumber,
+    MaskedSortCode,
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -167,11 +167,11 @@ pub enum WalletAdditionalData {
 pub struct PaypalAdditionalData {
     /// Email linked with paypal account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
-    pub email: Option<Email>,
+    pub email: Option<MaskedEmail>,
 
     /// mobile number linked to paypal account
     #[schema(value_type = Option<String>, example = "******* 3349")]
-    pub telephone_number: Option<PhoneNumber>,
+    pub telephone_number: Option<MaskedPhoneNumber>,
 
     /// id of the paypal account
     #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
@@ -182,5 +182,5 @@ pub struct PaypalAdditionalData {
 pub struct VenmoAdditionalData {
     /// mobile number linked to venmo account
     #[schema(value_type = Option<String>, example = "******* 3349")]
-    pub telephone_number: Option<PhoneNumber>,
+    pub telephone_number: Option<MaskedPhoneNumber>,
 }
