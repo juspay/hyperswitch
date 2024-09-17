@@ -137,20 +137,32 @@ impl ConnectorCommon for Nexixpay {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         ////TODO: error handling -> struct
         let resp = res.clone();
-        println!("*******redirect_payload{:?}",resp);
-        let response: nexixpay::NexixpayErrorResponse = resp
-            .response
-            .parse_struct("NexixpayErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: nexixpay::NexixpayErrorResponse = match res.status_code {
+            401 => nexixpay::NexixpayErrorResponse {
+                errors: vec![nexixpay::NexixpayErrorBody {
+                    code: "401".to_string(),
+                    description: "unauthorised".to_string(),
+                }],
+            },
+            404 => nexixpay::NexixpayErrorResponse {
+                errors: vec![nexixpay::NexixpayErrorBody {
+                    code: "404".to_string(),
+                    description: "not found".to_string(),
+                }],
+            },
+            _ => resp.response
+                .parse_struct("NexixpayErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.errors.first().map_or("no error code".to_string(), |error| error.code.clone()),
+            message: response.errors.first().map_or("message not found".to_string(), |error| error.description.clone()),
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
         })

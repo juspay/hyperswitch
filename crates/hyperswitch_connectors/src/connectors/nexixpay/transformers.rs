@@ -536,11 +536,11 @@ impl From<NexixpayPaymentStatus> for enums::RefundStatus {
             | NexixpayPaymentStatus::Failed => Self::Failure,
             NexixpayPaymentStatus::Authorized 
             | NexixpayPaymentStatus::ThreedsValidated
-            | NexixpayPaymentStatus::Executed
             | NexixpayPaymentStatus::Pending 
             | NexixpayPaymentStatus::StatusNotReceived => Self::Pending,
             NexixpayPaymentStatus::Canceled
             | NexixpayPaymentStatus::Voided
+            | NexixpayPaymentStatus::Executed
             | NexixpayPaymentStatus::Refunded => Self::Success,
         }
     }
@@ -671,7 +671,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
                 Ok(NexixpayCard {
                 pan: req_card.clone().card_number,
                 expiry_date: req_card.clone().get_expiry_date_as_mmyy()?,
-                cvv: Secret::new("396".to_string()),
+                cvv: Secret::new("".to_string()),
             })
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -790,11 +790,14 @@ impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
-pub struct NexixpayErrorResponse {
-    pub status_code: u16,
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayErrorBody {
     pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub description: String,
+}
+#[derive(Default, Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayErrorResponse {
+    pub errors: Vec<NexixpayErrorBody>
 }
