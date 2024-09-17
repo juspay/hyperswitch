@@ -6398,22 +6398,6 @@
           "dispute_lost"
         ]
       },
-      "DisputesAggregateResponse": {
-        "type": "object",
-        "required": [
-          "status_with_count"
-        ],
-        "properties": {
-          "status_with_count": {
-            "type": "object",
-            "description": "Different status of disputes with their count",
-            "additionalProperties": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        }
-      },
       "DokuBankTransferInstructions": {
         "type": "object",
         "required": [
