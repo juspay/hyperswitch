@@ -2226,6 +2226,15 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
+                                                "billing.phone.number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.number".to_string(),
+                                                    display_name: "phone".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
                                                 "billing.email".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.billing.email".to_string(),
@@ -5393,6 +5402,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "last_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.phone.number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.number".to_string(),
+                                                    display_name: "phone".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumber,
                                                     value: None,
                                                 }
                                             ),

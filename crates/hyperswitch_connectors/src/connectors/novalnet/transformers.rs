@@ -92,6 +92,11 @@ pub struct NovalnetCard {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NovalnetMandate {
+    token: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalNetPaymentData {
     PaymentCard(NovalnetCard),
@@ -192,13 +197,13 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         let custom = NovalnetCustom { lang };
         let hook_url = item.router_data.request.get_webhook_url()?;
 
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
+        match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref req_card) => {
                 let novalnet_card = NovalNetPaymentData::PaymentCard(NovalnetCard {
-                    card_number: req_card.card_number,
-                    card_expiry_month: req_card.card_exp_month,
-                    card_expiry_year: req_card.card_exp_year,
-                    card_cvc: req_card.card_cvc,
+                    card_number: req_card.card_number.clone(),
+                    card_expiry_month: req_card.card_exp_month.clone(),
+                    card_expiry_year: req_card.card_exp_year.clone(),
+                    card_cvc: req_card.card_cvc.clone(),
                     card_holder: item.router_data.get_billing_full_name()?,
                 });
                 let create_token = if item.router_data.request.is_mandate_payment() {
@@ -206,17 +211,17 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 } else {
                     None
                 };
-                let return_url = item.router_data.request.get_return_url().ok();
+                let return_url = item.router_data.request.get_return_url()?;
 
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
                     amount: item.amount.clone(),
-                    currency: item.router_data.request.currency.to_string(),
+                    currency: item.router_data.request.currency,
                     order_no: item.router_data.connector_request_reference_id.clone(),
-                    hook_url,
-                    return_url: return_url.clone(),
-                    error_return_url: return_url.clone(),
+                    hook_url: Some(hook_url),
+                    return_url: Some(return_url.clone()),
+                    error_return_url: Some(return_url.clone()),
                     payment_data: novalnet_card,
                     enforce_3d,
                     create_token,
@@ -419,13 +424,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: if transaction_status
-                            == NovalnetTransactionStatus::Confirmed
-                        {
-                            None //NOTE: for mandate successful flow, Novalnet always sends transaction.status of CONFIRMED
-                        } else {
-                            redirection_data
-                        },
+                        redirection_data,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
