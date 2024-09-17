@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 
-use common_utils::{
-    errors::CustomResult, ext_traits::OptionExt, id_type, transformers::ForeignFrom,
-};
-use error_stack::ResultExt;
-use hyperswitch_interfaces::api::api_models::routing::{
+use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
     SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
 };
+use common_utils::{
+    errors::CustomResult, ext_traits::OptionExt, id_type, transformers::ForeignTryFrom,
+};
+use error_stack::ResultExt;
 use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
@@ -31,12 +31,26 @@ pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 /// Dynamic Routing Errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum DynamicRoutingError {
-    /// Error buliding the Dynamic Routing Client Request as params was missing
-    #[error("Error buliding the Dynamic Routing Client Request as params was missing")]
-    MissingRequiredParamToBuildRequest,
+    /// Error building the Dynamic Routing Client Request as params was missing
+    #[error("Error building the Dynamic Routing Client Request as params was missing")]
+    MissingRequiredParam,
     /// Error getting a response from the gRPC Server
     #[error("Error getting a response from the Dynamic Routing Server")]
-    GrpcServerResponseFailure,
+    SuccessBasedResponseFailure(String),
+    /// Error building the Dynamic Routing Client Request as max count was missing
+    #[error("Error building the Dynamic Routing Client Request as max count was missing")]
+    MissingRequiredMaxTotalCount,
+    /// Error building the Dynamic Routing Client Request as min aggregate size was missing
+    #[error("Error building the Dynamic Routing Client Request as min aggregate size was missing")]
+    MissingRequiredMinAggregate,
+    /// Error building the Dynamic Routing Client Request as max aggregate size was missing
+    #[error("Error building the Dynamic Routing Client Request as max aggregate size was missing")]
+    MissingRequiredMaxAggregateSize,
+    /// Error building the Dynamic Routing Client Request as default success rate was missing
+    #[error(
+        "Error building the Dynamic Routing Client Request as default success rate was missing"
+    )]
+    MissingRequiredDefaultSuccessRate,
 }
 
 /// Struct consists of all the services provided by the client
@@ -48,13 +62,18 @@ pub struct RoutingStrategy {
 
 /// Contains the Dynamic Routing Client Config
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
-pub struct DynamicRoutingClientConfig {
-    /// The host for the client
-    pub host: String,
-    /// The port of the client
-    pub port: u16,
-    /// Booolean value for establishment of connection with the server
-    pub enabled: bool,
+#[serde(untagged)]
+pub enum DynamicRoutingClientConfig {
+    /// If the dynamic routing client config has been enabled
+    Enabled {
+        /// The host for the client
+        host: String,
+        /// The port of the client
+        port: u16,
+    },
+    #[default]
+    /// If the dynamic routing client config has been disabled
+    Disabled,
 }
 
 impl DynamicRoutingClientConfig {
@@ -62,12 +81,13 @@ impl DynamicRoutingClientConfig {
     pub async fn get_dynamic_routing_connection(
         self,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let success_rate_client = if self.enabled {
-            let uri = format!("http://{}:{}", self.host, self.port);
-            let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
-            Some(SuccessRateCalculatorClient::new(channel))
-        } else {
-            None
+        let success_rate_client = match self {
+            Self::Enabled { host, port } => {
+                let uri = format!("http://{}:{}", host, port);
+                let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
+                Some(SuccessRateCalculatorClient::new(channel))
+            }
+            Self::Disabled => None,
         };
         Ok(RoutingStrategy {
             success_rate_client,
@@ -82,14 +102,14 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
     async fn calculate_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: SuccessBasedRoutingConfig,
+        success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
     async fn update_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: SuccessBasedRoutingConfig,
+        success_rate_based_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
 }
@@ -99,10 +119,10 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
     async fn calculate_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: SuccessBasedRoutingConfig,
+        success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
-        let params = dynamic_routing_config
+        let params = success_rate_based_config
             .params
             .map(|vec| {
                 vec.into_iter().fold(String::new(), |mut acc_vec, params| {
@@ -114,14 +134,17 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                 })
             })
             .get_required_value("Vector of params")
-            .change_context(DynamicRoutingError::MissingRequiredParamToBuildRequest)?;
+            .change_context(DynamicRoutingError::MissingRequiredParam)?;
 
         let labels = label_input
             .into_iter()
             .map(|conn_choice| conn_choice.to_string())
             .collect::<Vec<_>>();
 
-        let config = dynamic_routing_config.config.map(ForeignFrom::foreign_from);
+        let config = success_rate_based_config
+            .config
+            .map(ForeignTryFrom::foreign_try_from)
+            .transpose()?;
 
         let request = tonic::Request::new(CalSuccessRateRequest {
             id: id.get_string_repr().to_owned(),
@@ -135,7 +158,9 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let response = client
             .fetch_success_rate(request)
             .await
-            .change_context(DynamicRoutingError::GrpcServerResponseFailure)?
+            .change_context(DynamicRoutingError::SuccessBasedResponseFailure(
+                "Failed to fetch the success rate".to_string(),
+            ))?
             .into_inner();
 
         Ok(response)
@@ -144,10 +169,13 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
     async fn update_success_rate(
         &self,
         id: id_type::ProfileId,
-        dynamic_routing_config: SuccessBasedRoutingConfig,
+        success_rate_based_config: SuccessBasedRoutingConfig,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
-        let config = dynamic_routing_config.config.map(ForeignFrom::foreign_from);
+        let config = success_rate_based_config
+            .config
+            .map(ForeignTryFrom::foreign_try_from)
+            .transpose()?;
 
         let labels_with_status = label_input
             .into_iter()
@@ -157,7 +185,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             })
             .collect();
 
-        let params = dynamic_routing_config
+        let params = success_rate_based_config
             .params
             .map(|vec| {
                 vec.into_iter().fold(String::new(), |mut acc_vec, params| {
@@ -169,7 +197,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                 })
             })
             .get_required_value("Vector of params")
-            .change_context(DynamicRoutingError::MissingRequiredParamToBuildRequest)?;
+            .change_context(DynamicRoutingError::MissingRequiredParam)?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id: id.get_string_repr().to_owned(),
@@ -183,38 +211,56 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let response = client
             .update_success_rate_window(request)
             .await
-            .change_context(DynamicRoutingError::GrpcServerResponseFailure)?
+            .change_context(DynamicRoutingError::SuccessBasedResponseFailure(
+                "Failed to update the successs rate window".to_string(),
+            ))?
             .into_inner();
 
         Ok(response)
     }
 }
 
-impl ForeignFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
-    fn foreign_from(current_threshold: CurrentBlockThreshold) -> Self {
-        Self {
+impl ForeignTryFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
+    type Error = error_stack::Report<DynamicRoutingError>;
+    fn foreign_try_from(current_threshold: CurrentBlockThreshold) -> Result<Self, Self::Error> {
+        Ok(Self {
             duration_in_mins: current_threshold.duration_in_mins,
-            max_total_count: current_threshold.max_total_count.unwrap_or_default(),
-        }
+            max_total_count: current_threshold
+                .max_total_count
+                .get_required_value("Max Total Count")
+                .change_context(DynamicRoutingError::MissingRequiredMaxTotalCount)?,
+        })
     }
 }
 
-impl ForeignFrom<SuccessBasedRoutingConfigBody> for UpdateSuccessRateWindowConfig {
-    fn foreign_from(config: SuccessBasedRoutingConfigBody) -> Self {
-        Self {
-            max_aggregates_size: config.max_aggregates_size.unwrap_or_default(),
+impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for UpdateSuccessRateWindowConfig {
+    type Error = error_stack::Report<DynamicRoutingError>;
+    fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
+        Ok(Self {
+            max_aggregates_size: config
+                .max_aggregates_size
+                .get_required_value("Max Aggregate Size")
+                .change_context(DynamicRoutingError::MissingRequiredMaxAggregateSize)?,
             current_block_threshold: config
                 .current_block_threshold
-                .map(ForeignFrom::foreign_from),
-        }
+                .map(ForeignTryFrom::foreign_try_from)
+                .transpose()?,
+        })
     }
 }
 
-impl ForeignFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
-    fn foreign_from(config: SuccessBasedRoutingConfigBody) -> Self {
-        Self {
-            min_aggregates_size: config.min_aggregates_size.unwrap_or_default(),
-            default_success_rate: config.default_success_rate.unwrap_or_default(),
-        }
+impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
+    type Error = error_stack::Report<DynamicRoutingError>;
+    fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
+        Ok(Self {
+            min_aggregates_size: config
+                .min_aggregates_size
+                .get_required_value("Min Agggregate Size")
+                .change_context(DynamicRoutingError::MissingRequiredMinAggregate)?,
+            default_success_rate: config
+                .default_success_rate
+                .get_required_value("Default Success Rate")
+                .change_context(DynamicRoutingError::MissingRequiredDefaultSuccessRate)?,
+        })
     }
 }

@@ -734,9 +734,7 @@ connector_list = ""
 
 
 [grpc_client.dynamic_routing_client]
-host = "localhost"
-port = 7000
-enabled = false
+disabled = {}
 
 
 [recipient_emails]
