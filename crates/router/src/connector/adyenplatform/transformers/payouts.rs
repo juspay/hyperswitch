@@ -281,7 +281,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenTransferResponse>>
             response: Ok(types::PayoutsResponseData {
                 status: Some(status),
                 connector_payout_id: Some(response.id),
-                payout_eligible: error_code.clone().map(|_| false),
+                payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
                 error_code,
                 error_message: None,
