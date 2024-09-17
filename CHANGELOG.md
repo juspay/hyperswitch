@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.13.0-hotfix2
+
+### Refactors
+
+- **core:** Update response for PaymentsDynamicTaxCalculationResponse ([#5910](https://github.com/juspay/hyperswitch/pull/5910)) ([`f462c73`](https://github.com/juspay/hyperswitch/commit/f462c7329982e6f8c1c266a6e19f33560fba6615))
+
+- - -
+
+## 2024.09.13.0-hotfix1
+
+### Revert
+
+- Feat(router): mask keys in connector_account_details for merchant_connector_response in mca retrieve flow ([#5890](https://github.com/juspay/hyperswitch/pull/5890)) ([`3e463bc`](https://github.com/juspay/hyperswitch/commit/3e463bcccfd5974efc82dde119c46016b2685691))
+
+- - -
+
 ## 2024.09.13.0
 
 ### Features
