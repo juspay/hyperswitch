@@ -501,7 +501,7 @@ where
     let payment_attempt = db
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error inserting payment attempt")?;
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
@@ -513,9 +513,8 @@ where
             storage_scheme,
         )
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error inserting payment attempt")?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data
     payment_data.set_payment_attempt(payment_attempt);
