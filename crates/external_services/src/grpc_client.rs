@@ -3,11 +3,10 @@
 pub mod dynamic_routing;
 use std::{fmt::Debug, sync::Arc};
 
-use router_env::logger;
-use serde;
-
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
+use router_env::logger;
+use serde;
 
 /// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
