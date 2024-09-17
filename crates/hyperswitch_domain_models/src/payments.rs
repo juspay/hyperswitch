@@ -241,13 +241,13 @@ pub struct PaymentIntent {
     pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     /// Capture method for the payment
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    /// Authentication type that is requsted by the merchant for this payment.
+    /// Authentication type that is requested by the merchant for this payment.
     pub authentication_type: Option<common_enums::AuthenticationType>,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
     pub prerouting_algorithm: Option<serde_json::Value>,
     /// The organization id for the payment. This is derived from the merchant account
     pub organization_id: id_type::OrganizationId,
-    /// Denotes the request by the merchat whether to enable a payment link for this payment.
+    /// Denotes the request by the merchant whether to enable a payment link for this payment.
     pub enable_payment_link: common_enums::EnablePaymentLinkRequest,
     /// Denotes the request by the merchant whether to apply MIT exemption for this payment
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
