@@ -20,6 +20,7 @@ pub struct OrganizationId {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct OrganizationRequest {
     pub organization_name: Option<String>,
     #[schema(value_type = Option<Object>)]
