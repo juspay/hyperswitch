@@ -7193,6 +7193,12 @@
           {
             "type": "string",
             "enum": [
+              "user_bank_account_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "text"
             ]
           },
