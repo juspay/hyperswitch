@@ -217,6 +217,7 @@ diesel::table! {
         id -> Varchar,
         version -> ApiVersion,
         dynamic_routing_algorithm -> Nullable<Json>,
+        is_network_tokenization_enabled -> Bool,
     }
 }
 
@@ -965,6 +966,11 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         version -> ApiVersion,
+        #[max_length = 128]
+        network_token_requestor_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        network_token_locker_id -> Nullable<Varchar>,
+        network_token_payment_method_data -> Nullable<Bytea>,
     }
 }
 

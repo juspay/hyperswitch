@@ -333,3 +333,19 @@ pub enum ConditionalConfigError {
     #[error("Error constructing the Input")]
     InputConstructionError,
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum NetworkTokenizationError {
+    #[error("Failed to save network token in vault")]
+    SaveNetworkTokenFailed,
+    #[error("Failed to fetch network token details from vault")]
+    FetchNetworkTokenFailed,
+    #[error("Failed to encode network token vault request")]
+    RequestEncodingFailed,
+    #[error("Failed to deserialize network token service response")]
+    ResponseDeserializationFailed,
+    #[error("Failed to delete network token")]
+    DeleteNetworkTokenFailed,
+    #[error("Network token service not configured")]
+    NetworkTokenizationServiceNotConfigured,
+}

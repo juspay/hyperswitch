@@ -32,7 +32,7 @@ pub trait MandateInterface {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_mandate_by_global_id(
         &self,
-        id: &String,
+        id: &str,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -203,7 +203,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_global_id(
             &self,
-            id: &String,
+            id: &str,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_global_id(&conn, id)
@@ -459,7 +459,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_global_id(
             &self,
-            customer_id: &String,
+            customer_id: &str,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_global_id(&conn, customer_id)
@@ -572,7 +572,7 @@ impl MandateInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_mandate_by_global_id(
         &self,
-        id: &String,
+        id: &str,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         todo!()
     }
