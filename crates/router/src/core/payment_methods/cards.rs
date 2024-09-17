@@ -1449,10 +1449,11 @@ pub async fn vault_payment_method_in_locker(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     pmd: &api::PaymentMethodCreateData,
+    existing_vault_id: Option<String>,
 ) -> errors::RouterResult<pm_types::AddVaultResponse> {
     let payload = pm_types::AddVaultRequest {
         entity_id: merchant_account.get_id().to_owned(),
-        vault_id: uuid::Uuid::now_v7().to_string(),
+        vault_id: existing_vault_id.unwrap_or(uuid::Uuid::now_v7().to_string()),
         data: pmd.clone(),
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     }
@@ -1469,6 +1470,40 @@ pub async fn vault_payment_method_in_locker(
         .parse_struct("AddVaultResponse")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse data into AddVaultResponse")?;
+
+    Ok(stored_pm_resp)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_from_vault(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    customer_id: &id_type::CustomerId,
+    pm: &domain::PaymentMethod,
+) -> errors::RouterResult<pm_types::VaultRetrieveResponse> {
+    let payload = pm_types::VaultRetrieveRequest {
+        entity_id: merchant_account.get_id().to_owned(),
+        vault_id: pm
+            .locker_id
+            .clone()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "locker_id",
+            })?,
+    }
+    .encode_to_vec()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get response from locker")?;
+
+    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+        .parse_struct("VaultRetrieveResponse")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
 
     Ok(stored_pm_resp)
 }
@@ -1781,18 +1816,6 @@ pub async fn update_customer_payment_method(
             message: "Payment method update for the given payment method is not supported".into()
         }))
     }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn update_customer_payment_method(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _req: api::PaymentMethodUpdate,
-    _payment_method_id: &str,
-    _key_store: domain::MerchantKeyStore,
-) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    todo!()
 }
 
 #[cfg(all(
@@ -5354,17 +5377,6 @@ pub async fn retrieve_payment_method(
             client_secret: pm.client_secret,
         },
     ))
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn retrieve_payment_method(
-    state: routes::SessionState,
-    pm: api::PaymentMethodId,
-    key_store: domain::MerchantKeyStore,
-    merchant_account: domain::MerchantAccount,
-) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    todo!()
 }
 
 #[cfg(all(

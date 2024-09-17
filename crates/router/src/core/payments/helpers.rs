@@ -2223,7 +2223,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         }
 
         (Some(_), _) => {
-            let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method(
+            let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method_core(
                 &request,
                 state,
                 &payment_data.payment_intent,

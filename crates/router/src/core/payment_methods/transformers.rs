@@ -525,6 +525,29 @@ pub fn mk_add_card_response_hs(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn generate_pm_create_from_update_request(
+    pm_create: api::PaymentMethodCreateData,
+    pm_udpate: api::PaymentMethodUpdateData,
+) -> api::PaymentMethodCreateData {
+    match (pm_create, pm_udpate) {
+        (
+            api::PaymentMethodCreateData::Card(card_create),
+            api::PaymentMethodUpdateData::Card(update_card),
+        ) => api::PaymentMethodCreateData::Card(api::CardDetail {
+            card_number: card_create.card_number,
+            card_exp_month: card_create.card_exp_month,
+            card_exp_year: card_create.card_exp_year,
+            card_issuing_country: card_create.card_issuing_country,
+            card_network: card_create.card_network,
+            card_issuer: card_create.card_issuer,
+            card_type: card_create.card_type,
+            card_holder_name: update_card.card_holder_name,
+            nick_name: update_card.nick_name,
+        }),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
