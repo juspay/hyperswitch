@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.13.0-hotfix3
+
+### Bug Fixes
+
+- **router:** [stripe] remove passing of customer_acceptance from Mandate Payment Request ([#5922](https://github.com/juspay/hyperswitch/pull/5922)) ([`adc0503`](https://github.com/juspay/hyperswitch/commit/adc05037daafffc81b130bc2677ea3de8495696a))
+
+- - -
+
 ## 2024.09.13.0-hotfix2
 
 ### Refactors
