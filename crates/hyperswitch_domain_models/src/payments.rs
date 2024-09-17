@@ -165,6 +165,7 @@ impl AmountDetails {
     }
 }
 
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
@@ -173,24 +174,27 @@ pub enum External3dsAuthenticationRequest {
     Disable,
 }
 
+#[cfg(feature = "v2")]
 impl From<Option<bool>> for External3dsAuthenticationRequest {
     fn from(value: Option<bool>) -> Self {
         match value {
-            Some(true) => External3dsAuthenticationRequest::Enable,
-            _ => External3dsAuthenticationRequest::Disable,
+            Some(true) => Self::Enable,
+            _ => Self::Disable,
         }
     }
 }
 
+#[cfg(feature = "v2")]
 impl External3dsAuthenticationRequest {
     pub fn as_bool(&self) -> bool {
         match self {
-            External3dsAuthenticationRequest::Enable => true,
-            External3dsAuthenticationRequest::Disable => false,
+            Self::Enable => true,
+            Self::Disable => false,
         }
     }
 }
 
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
@@ -199,24 +203,27 @@ pub enum EnablePaymentLinkRequest {
     Disable,
 }
 
+#[cfg(feature = "v2")]
 impl EnablePaymentLinkRequest {
     pub fn as_bool(&self) -> bool {
         match self {
-            EnablePaymentLinkRequest::Enable => true,
-            EnablePaymentLinkRequest::Disable => false,
+            Self::Enable => true,
+            Self::Disable => false,
         }
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<Option<bool>> for EnablePaymentLinkRequest {
     fn from(value: Option<bool>) -> Self {
         match value {
-            Some(true) => EnablePaymentLinkRequest::Enable,
-            _ => EnablePaymentLinkRequest::Disable,
+            Some(true) => Self::Enable,
+            _ => Self::Disable,
         }
     }
 }
 
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
@@ -225,20 +232,22 @@ pub enum MitExemptionRequest {
     DoNotApply,
 }
 
+#[cfg(feature = "v2")]
 impl From<Option<bool>> for MitExemptionRequest {
     fn from(value: Option<bool>) -> Self {
         match value {
-            Some(true) => MitExemptionRequest::Apply,
-            _ => MitExemptionRequest::DoNotApply,
+            Some(true) => Self::Apply,
+            _ => Self::DoNotApply,
         }
     }
 }
 
+#[cfg(feature = "v2")]
 impl MitExemptionRequest {
     pub fn as_bool(&self) -> bool {
         match self {
-            MitExemptionRequest::Apply => true,
-            MitExemptionRequest::DoNotApply => false,
+            Self::Apply => true,
+            Self::DoNotApply => false,
         }
     }
 }
