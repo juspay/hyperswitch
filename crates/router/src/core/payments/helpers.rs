@@ -4025,20 +4025,10 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
                 Some(api_models::payments::AdditionalPaymentData::Wallet {
-                    apple_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: apple_pay_wallet_data
-                            .payment_method
-                            .display_name
-                            .clone()
-                            .chars()
-                            .rev()
-                            .take(4)
-                            .collect::<String>()
-                            .chars()
-                            .rev()
-                            .collect::<String>(),
-                        card_network: apple_pay_wallet_data.payment_method.network.clone(),
-                        card_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
+                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
+                        display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
+                        network: apple_pay_wallet_data.payment_method.network.clone(),
+                        pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
                     google_pay: None,
                 })

@@ -2037,7 +2037,7 @@ pub enum AdditionalPaymentData {
         details: Option<additional_info::BankRedirectDetails>,
     },
     Wallet {
-        apple_pay: Option<additional_info::WalletAdditionalDataForCard>,
+        apple_pay: Option<ApplepayPaymentMethod>,
         google_pay: Option<additional_info::WalletAdditionalDataForCard>,
     },
     PayLater {
@@ -4435,7 +4435,22 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 google_pay,
             } => match (apple_pay, google_pay) {
                 (Some(apple_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
-                    details: Some(WalletResponseData::ApplePay(Box::new(apple_pay_pm))),
+                    details: Some(WalletResponseData::ApplePay(Box::new(
+                        additional_info::WalletAdditionalDataForCard {
+                            last4: apple_pay_pm
+                                .display_name
+                                .clone()
+                                .chars()
+                                .rev()
+                                .take(4)
+                                .collect::<String>()
+                                .chars()
+                                .rev()
+                                .collect::<String>(),
+                            card_network: apple_pay_pm.network.clone(),
+                            card_type: apple_pay_pm.pm_type.clone(),
+                        },
+                    ))),
                 })),
                 (_, Some(google_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
