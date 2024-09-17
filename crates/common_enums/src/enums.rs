@@ -3201,3 +3201,30 @@ pub enum DeleteStatus {
     Active,
     Redacted,
 }
+
+/// Whether 3ds authentication is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum External3dsAuthenticationRequest {
+    /// Request for 3ds authentication
+    Enable,
+    /// Skip 3ds authentication
+    Disable,
+}
+
+/// Whether payment link is requested to be enabled or not for this transaction
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum EnablePaymentLinkRequest {
+    /// Request for enabling payment link
+    Enable,
+    /// Skip enabling payment link
+    Disable,
+}
+
+/// Whether mit exemption is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum MitExemptionRequest {
+    /// Request for applying MIT exemption
+    Apply,
+    /// Skip applying MIT exemption
+    DoNotApply,
+}

@@ -668,7 +668,7 @@ impl behaviour::Conversion for PaymentIntent {
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication:
-                    super::External3dsAuthenticationRequest::from(
+                    common_enums::External3dsAuthenticationRequest::from(
                         storage_model.request_external_three_ds_authentication,
                     ),
                 frm_metadata: storage_model.frm_metadata,
@@ -690,10 +690,10 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type,
                 prerouting_algorithm: storage_model.prerouting_algorithm,
-                enable_payment_link: super::EnablePaymentLinkRequest::from(
+                enable_payment_link: common_enums::EnablePaymentLinkRequest::from(
                     storage_model.enable_payment_link,
                 ),
-                apply_mit_exemption: super::MitExemptionRequest::from(
+                apply_mit_exemption: common_enums::MitExemptionRequest::from(
                     storage_model.apply_mit_exemption,
                 ),
             })
