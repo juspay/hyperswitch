@@ -319,7 +319,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dynamic_routing_algorithm: None,
                 is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::DynamicRoutingAlgorithmUpdate {
+            ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
             } => Self {
                 profile_name: None,
@@ -424,7 +424,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dynamic_routing_algorithm: None,
                 is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::NetworkTokenizationUpdate {
+            ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
             } => Self {
                 profile_name: None,
@@ -1043,7 +1043,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::NetworkTokenizationUpdate {
+            ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
             } => Self {
                 profile_name: None,

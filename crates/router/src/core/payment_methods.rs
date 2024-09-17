@@ -478,7 +478,7 @@ pub async fn retrieve_payment_method_with_token(
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
     _mandate_id: Option<api_models::payments::MandateIds>,
     _payment_method_info: Option<domain::PaymentMethod>,
-    _business_profile: &domain::BusinessProfile,
+    _business_profile: &domain::Profile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     todo!()
 }
@@ -496,7 +496,7 @@ pub async fn retrieve_payment_method_with_token(
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
