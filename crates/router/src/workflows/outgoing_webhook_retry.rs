@@ -350,7 +350,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             disputes::retrieve_dispute,
             mandate::get_mandate,
             payments::{payments_core, CallConnectorAction, PaymentStatus},
-            refunds::refund_retrieve_core,
+            refunds::refund_retrieve_core_with_refund_id,
         },
         services::{ApplicationResponse, AuthFlow},
         types::{
@@ -433,7 +433,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 merchant_connector_details: None,
             };
 
-            let refund = Box::pin(refund_retrieve_core(
+            let refund = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
                 merchant_account,
                 None,

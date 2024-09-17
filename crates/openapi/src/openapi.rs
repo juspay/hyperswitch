@@ -158,6 +158,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_linked_config,
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
+        routes::routing::toggle_success_based_routing,
+        routes::routing::success_based_routing_update_configs,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -546,6 +548,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
+        api_models::routing::ToggleSuccessBasedRoutingQuery,
+        api_models::routing::SuccessBasedRoutingConfig,
+        api_models::routing::SuccessBasedRoutingConfigParams,
+        api_models::routing::SuccessBasedRoutingConfigBody,
+        api_models::routing::CurrentBlockThreshold,
+        api_models::routing::SuccessBasedRoutingUpdateConfigQuery,
+        api_models::routing::ToggleSuccessBasedRoutingPath,
         api_models::routing::ast::RoutableChoiceKind,
         api_models::enums::RoutableConnectors,
         api_models::routing::ast::ProgramConnectorSelection,
@@ -606,6 +615,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::UpiCollectAdditionalData,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
+        api_models::payments::DisplayAmountOnSdk,
     )),
     modifiers(&SecurityAddon)
 )]

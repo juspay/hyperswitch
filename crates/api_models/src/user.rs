@@ -188,6 +188,7 @@ pub struct GetUserRoleDetailsResponseV2 {
     pub profile: Option<NameIdUnit<String, id_type::ProfileId>>,
     pub status: UserStatus,
     pub entity_type: EntityType,
+    pub role_name: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

@@ -4,8 +4,13 @@ use api_models::payments::{
     Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest,
     PaymentChargeResponse, RequestSurchargeDetails,
 };
-use common_enums::RequestIncrementalAuthorization;
-use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
+use common_enums::{Currency, RequestIncrementalAuthorization};
+use common_utils::{
+    consts::X_HS_LATENCY,
+    fp_utils,
+    pii::Email,
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
@@ -505,15 +510,77 @@ where
             amount = amount + tax_amount;
         }
 
+        let currency = payment_data
+            .get_payment_attempt()
+            .currency
+            .get_required_value("currency")?;
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 net_amount: amount,
                 payment_id: payment_data.get_payment_attempt().payment_id.clone(),
                 order_tax_amount,
                 shipping_cost,
+                display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
+                    amount,
+                    shipping_cost,
+                    order_tax_amount,
+                    currency,
+                ))?,
             },
             vec![],
         )))
+    }
+}
+
+impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
+    for api_models::payments::DisplayAmountOnSdk
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        (net_amount, shipping_cost, order_tax_amount, currency): (
+            MinorUnit,
+            Option<MinorUnit>,
+            Option<MinorUnit>,
+            Currency,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let major_unit_convertor = StringMajorUnitForConnector;
+
+        let sdk_net_amount = major_unit_convertor
+            .convert(net_amount, currency)
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert net_amount to base unit".to_string(),
+            })
+            .attach_printable("Failed to convert net_amount to string major unit")?;
+
+        let sdk_shipping_cost = shipping_cost
+            .map(|cost| {
+                major_unit_convertor
+                    .convert(cost, currency)
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Failed to convert shipping_cost to base unit".to_string(),
+                    })
+                    .attach_printable("Failed to convert shipping_cost to string major unit")
+            })
+            .transpose()?;
+
+        let sdk_order_tax_amount = order_tax_amount
+            .map(|cost| {
+                major_unit_convertor
+                    .convert(cost, currency)
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Failed to convert order_tax_amount to base unit".to_string(),
+                    })
+                    .attach_printable("Failed to convert order_tax_amount to string major unit")
+            })
+            .transpose()?;
+        Ok(Self {
+            net_amount: sdk_net_amount,
+            shipping_cost: sdk_shipping_cost,
+            order_tax_amount: sdk_order_tax_amount,
+        })
     }
 }
 
@@ -714,14 +781,37 @@ where
         .map(ToString::to_string)
         .unwrap_or("".to_owned());
     let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
-        payment_attempt
-            .payment_method_data
-            .clone()
-            .map(|data| data.parse_value("payment_method_data"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            })?;
+    match payment_data.get_payment_method_data(){
+        Some(payment_method_data) => match payment_method_data{
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_) |
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_)  => {payment_attempt
+                .payment_method_data
+                .clone()
+                .map(|data| data.parse_value("payment_method_data"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_method_data",
+                })?},
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_) => None,
+        }
+        None => None
+
+        };
+
     let surcharge_details =
         payment_attempt
             .surcharge_amount
