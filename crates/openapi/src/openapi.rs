@@ -291,6 +291,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::TransactionDetailsUiConfiguration,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
+        api_models:disputes::DisputesAggregateResponse,
         api_models::gsm::GsmCreateRequest,
         api_models::gsm::GsmRetrieveRequest,
         api_models::gsm::GsmUpdateRequest,
