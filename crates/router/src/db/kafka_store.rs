@@ -3384,6 +3384,16 @@ impl RoleInterface for KafkaStore {
             .await
     }
 
+    async fn find_role_by_role_id_in_org_scope(
+        &self,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .find_role_by_role_id_in_org_scope(role_id, org_id)
+            .await
+    }
+
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
