@@ -39,15 +39,29 @@
     },
     "raw_json_formatted": {
       "client_secret": "{{client_secret}}",
-      "payment_method": "card",
-      "payment_method_type": "credit",
+      "payment_method": "bank_debit",
+      "payment_method_type": "bacs",
       "payment_method_data": {
-        "card": {
-          "card_number": "4111111111111111",
-          "card_exp_month": "03",
-          "card_exp_year": "2030",
-          "card_holder_name": "joseph Doe",
-          "card_cvc": "737"
+        "bank_debit": {
+          "bacs_bank_debit": {
+            "account_number": "40308669",
+            "routing_number": "121000358",
+            "sort_code": "560036",
+            "shopper_email": "example@gmail.com",
+            "card_holder_name": "joseph Doe",
+            "bank_account_holder_name": "David Archer",
+            "billing_details": {
+              "houseNumberOrName": "50",
+              "street": "Test Street",
+              "city": "Amsterdam",
+              "stateOrProvince": "NY",
+              "postalCode": "12010",
+              "country": "GB",
+              "name": "A. Klaassen",
+              "email": "abcd@gmail.com"
+            },
+            "reference": "daslvcgbaieh"
+          }
         }
       },
       "browser_info": {

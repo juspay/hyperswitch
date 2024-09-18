@@ -33,25 +33,39 @@
       "authentication_type": "no_three_ds",
       "return_url": "https://duck.com",
       "payment_method": "card",
+      "payment_method_type": "credit",
       "payment_method_data": {
         "card": {
-          "card_number": "371449635398431",
-          "card_exp_month": "10",
-          "card_exp_year": "25",
+          "card_number": "4111111111111111",
+          "card_exp_month": "03",
+          "card_exp_year": "2030",
           "card_holder_name": "joseph Doe",
-          "card_cvc": "12345"
+          "card_cvc": "737"
         }
       },
-      "billing": {
-        "address": {
-          "line1": "1467",
-          "line2": "Harrison Street",
-          "line3": "Harrison Street",
-          "city": "San Fransico",
-          "state": "California",
-          "zip": "94122",
-          "country": "US",
-          "first_name": "PiX"
+      "setup_future_usage": "off_session",
+      "mandate_data": {
+        "customer_acceptance": {
+          "acceptance_type": "offline",
+          "accepted_at": "1963-05-03T04:07:52.723Z",
+          "online": {
+            "ip_address": "127.0.0.1",
+            "user_agent": "amet irure esse"
+          }
+        },
+        "mandate_type": {
+          "single_use": {
+            "amount": 7000,
+            "currency": "USD"
+          }
+        }
+      },
+      "customer_acceptance": {
+        "acceptance_type": "offline",
+        "accepted_at": "1963-05-03T04:07:52.723Z",
+        "online": {
+          "ip_address": "127.0.0.1",
+          "user_agent": "amet irure esse"
         }
       },
       "shipping": {
@@ -63,7 +77,21 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "PiX"
+          "first_name": "Joseph",
+          "last_name": "Doe"
+        }
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "Joseph",
+          "last_name": "Doe"
         }
       },
       "statement_descriptor_name": "joseph",
