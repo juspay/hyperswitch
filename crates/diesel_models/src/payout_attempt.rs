@@ -1,3 +1,4 @@
+use common_utils::types::{UnifiedCode, UnifiedMessage};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -30,8 +31,8 @@ pub struct PayoutAttempt {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(
@@ -68,8 +69,8 @@ pub struct PayoutAttemptNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,8 +81,8 @@ pub enum PayoutAttemptUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
-        unified_code: Option<String>,
-        unified_message: Option<String>,
+        unified_code: Option<UnifiedCode>,
+        unified_message: Option<UnifiedMessage>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -116,8 +117,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {

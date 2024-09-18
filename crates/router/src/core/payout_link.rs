@@ -274,14 +274,14 @@ pub async fn initiate_payout_link(
 
         // Send back status page
         (_, link_utils::PayoutLinkStatus::Submitted) => {
-            let (unified_code, unified_message) =
+            let translated_unified_message =
                 payout_helpers::get_translated_unified_code_and_message(
                     &state,
-                    payout_attempt.unified_code,
-                    payout_attempt.unified_message,
+                    payout_attempt.unified_code.as_ref(),
+                    payout_attempt.unified_message.as_ref(),
                     &locale,
                 )
-                .await;
+                .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
@@ -295,8 +295,8 @@ pub async fn initiate_payout_link(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse payout status link's return URL")?,
                 status: payout.status,
-                error_code: unified_code,
-                error_message: unified_message,
+                error_code: payout_attempt.unified_code,
+                error_message: translated_unified_message,
                 ui_config: ui_config_data,
                 test_mode: link_data.test_mode.unwrap_or(false),
             };

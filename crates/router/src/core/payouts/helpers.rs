@@ -8,7 +8,7 @@ use common_utils::{
     fp_utils, id_type, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
-        MinorUnit,
+        MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -1269,20 +1269,25 @@ pub(super) fn get_customer_details_from_request(
 
 pub async fn get_translated_unified_code_and_message(
     state: &SessionState,
-    unified_code: Option<String>,
-    unified_message: Option<String>,
+    unified_code: Option<&UnifiedCode>,
+    unified_message: Option<&UnifiedMessage>,
     locale: &str,
-) -> (Option<String>, Option<String>) {
-    match (unified_code.clone(), unified_message.clone()) {
-        (Some(code), Some(message)) => {
-            let translated_message =
-                payment_helpers::get_unified_translation(state, code, message, locale.to_string())
-                    .await;
-            match translated_message {
-                Some(_) => (unified_code, translated_message),
-                _ => (unified_code, unified_message),
-            }
-        }
-        _ => (unified_code, unified_message),
-    }
+) -> CustomResult<Option<UnifiedMessage>, errors::ApiErrorResponse> {
+    unified_code
+        .zip(unified_message)
+        .async_and_then(|(code, message)| async {
+            payment_helpers::get_unified_translation(
+                state,
+                code.0.clone(),
+                message.0.clone(),
+                locale.to_string(),
+            )
+            .await
+            .map(UnifiedMessage::try_from)
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "unified_message",
+        })
 }

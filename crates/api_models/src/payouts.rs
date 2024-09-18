@@ -5,6 +5,7 @@ use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils,
     pii::{self, Email},
+    types::{UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
 use router_derive::FlatStruct;
@@ -539,12 +540,14 @@ pub struct PayoutCreateResponse {
     /// (This field is not live yet)
     /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
     #[remove_in(PayoutCreateResponse)]
-    pub unified_code: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_1000")]
+    pub unified_code: Option<UnifiedCode>,
 
     /// (This field is not live yet)
     /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
     #[remove_in(PayoutCreateResponse)]
-    pub unified_message: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(
@@ -581,11 +584,13 @@ pub struct PayoutAttemptResponse {
     /// (This field is not live yet)
     /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
     #[remove_in(PayoutAttemptResponse)]
-    pub unified_code: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_1000")]
+    pub unified_code: Option<UnifiedCode>,
     /// (This field is not live yet)
     /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
     #[remove_in(PayoutAttemptResponse)]
-    pub unified_message: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
@@ -833,8 +838,8 @@ pub struct PayoutLinkStatusDetails {
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<url::Url>,
     pub status: api_enums::PayoutStatus,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
+    pub error_code: Option<UnifiedCode>,
+    pub error_message: Option<UnifiedMessage>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub test_mode: bool,

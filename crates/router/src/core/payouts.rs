@@ -16,7 +16,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     id_type::CustomerId,
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
-    types::MinorUnit,
+    types::{MinorUnit, UnifiedCode, UnifiedMessage},
 };
 use diesel_models::{
     enums as storage_enums,
@@ -1474,8 +1474,18 @@ pub async fn check_payout_eligibility(
                 error_code,
                 error_message,
                 is_eligible: Some(false),
-                unified_code,
-                unified_message,
+                unified_code: unified_code
+                    .map(UnifiedCode::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_code",
+                    })?,
+                unified_message: unified_message
+                    .map(UnifiedMessage::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_message",
+                    })?,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1675,8 +1685,18 @@ pub async fn create_payout(
                 error_code,
                 error_message,
                 is_eligible: None,
-                unified_code,
-                unified_message,
+                unified_code: unified_code
+                    .map(UnifiedCode::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_code",
+                    })?,
+                unified_message: unified_message
+                    .map(UnifiedMessage::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_message",
+                    })?,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -1842,8 +1862,18 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     error_code,
                     error_message,
                     is_eligible: payout_response_data.payout_eligible,
-                    unified_code,
-                    unified_message,
+                    unified_code: unified_code
+                        .map(UnifiedCode::try_from)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "unified_code",
+                        })?,
+                    unified_message: unified_message
+                        .map(UnifiedMessage::try_from)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "unified_message",
+                        })?,
                 }
             } else {
                 storage::PayoutAttemptUpdate::StatusUpdate {
@@ -1983,8 +2013,18 @@ pub async fn create_recipient_disburse_account(
                 error_code,
                 error_message,
                 is_eligible: None,
-                unified_code,
-                unified_message,
+                unified_code: unified_code
+                    .map(UnifiedCode::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_code",
+                    })?,
+                unified_message: unified_message
+                    .map(UnifiedMessage::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_message",
+                    })?,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2086,8 +2126,18 @@ pub async fn cancel_payout(
                 error_code,
                 error_message,
                 is_eligible: None,
-                unified_code,
-                unified_message,
+                unified_code: unified_code
+                    .map(UnifiedCode::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_code",
+                    })?,
+                unified_message: unified_message
+                    .map(UnifiedMessage::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_message",
+                    })?,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2243,8 +2293,18 @@ pub async fn fulfill_payout(
                 error_code,
                 error_message,
                 is_eligible: None,
-                unified_code,
-                unified_message,
+                unified_code: unified_code
+                    .map(UnifiedCode::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_code",
+                    })?,
+                unified_message: unified_message
+                    .map(UnifiedMessage::try_from)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "unified_message",
+                    })?,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
@@ -2285,13 +2345,13 @@ pub async fn response_handler(
     let customer_id = payouts.customer_id;
     let billing = billing_address.as_ref().map(From::from);
 
-    let (unified_code, unified_message) = helpers::get_translated_unified_code_and_message(
+    let translated_unified_message = helpers::get_translated_unified_code_and_message(
         state,
-        payout_attempt.unified_code,
-        payout_attempt.unified_message,
+        payout_attempt.unified_code.as_ref(),
+        payout_attempt.unified_message.as_ref(),
         &payout_data.current_locale,
     )
-    .await;
+    .await?;
 
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
@@ -2329,8 +2389,8 @@ pub async fn response_handler(
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
         attempts: None,
-        unified_code,
-        unified_message,
+        unified_code: payout_attempt.unified_code,
+        unified_message: translated_unified_message,
         payout_link: payout_link
             .map(|payout_link| {
                 url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {
