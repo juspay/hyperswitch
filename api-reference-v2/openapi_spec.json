@@ -1532,6 +1532,7 @@
       },
       "AchBankTransferAdditionalData": {
         "type": "object",
+        "description": "Masked payout method details for ach bank transfer payout method",
         "required": [
           "bank_account_number",
           "bank_routing_number"
@@ -1622,6 +1623,44 @@
             }
           }
         ]
+      },
+      "AdditionalPayoutMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Card"
+            ],
+            "properties": {
+              "Card": {
+                "$ref": "#/components/schemas/CardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Bank"
+            ],
+            "properties": {
+              "Bank": {
+                "$ref": "#/components/schemas/BankAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Wallet"
+            ],
+            "properties": {
+              "Wallet": {
+                "$ref": "#/components/schemas/WalletAdditionalData"
+              }
+            }
+          }
+        ],
+        "description": "Masked payout method details for storing in db"
       },
       "Address": {
         "type": "object",
@@ -2176,6 +2215,7 @@
       },
       "BacsBankTransferAdditionalData": {
         "type": "object",
+        "description": "Masked payout method details for bacs bank transfer payout method",
         "required": [
           "bank_sort_code",
           "bank_account_number"
@@ -2294,7 +2334,8 @@
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
           }
-        ]
+        ],
+        "description": "Masked payout method details for bank payout method"
       },
       "BankDebitAdditionalData": {
         "oneOf": [
@@ -4612,6 +4653,7 @@
       },
       "CardAdditionalData": {
         "type": "object",
+        "description": "Masked payout method details for card payout method",
         "required": [
           "card_exp_month",
           "card_exp_year",
@@ -16220,6 +16262,7 @@
       },
       "PaypalAdditionalData": {
         "type": "object",
+        "description": "Masked payout method details for paypal wallet payout method",
         "properties": {
           "email": {
             "type": "string",
@@ -17778,6 +17821,7 @@
       },
       "SepaBankTransferAdditionalData": {
         "type": "object",
+        "description": "Masked payout method details for sepa bank transfer payout method",
         "required": [
           "iban"
         ],
@@ -18663,6 +18707,7 @@
       },
       "VenmoAdditionalData": {
         "type": "object",
+        "description": "Masked payout method details for venmo wallet payout method",
         "properties": {
           "telephone_number": {
             "type": "string",
@@ -18849,28 +18894,13 @@
       "WalletAdditionalData": {
         "oneOf": [
           {
-            "type": "object",
-            "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "$ref": "#/components/schemas/PaypalAdditionalData"
-              }
-            }
+            "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
-            "type": "object",
-            "required": [
-              "venmo"
-            ],
-            "properties": {
-              "venmo": {
-                "$ref": "#/components/schemas/VenmoAdditionalData"
-              }
-            }
+            "$ref": "#/components/schemas/VenmoAdditionalData"
           }
-        ]
+        ],
+        "description": "Masked payout method details for wallet payout method"
       },
       "WalletData": {
         "oneOf": [

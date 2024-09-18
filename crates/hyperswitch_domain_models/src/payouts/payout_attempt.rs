@@ -1,6 +1,6 @@
 use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
-use common_utils::id_type;
+use common_utils::{id_type, payout_method_utils};
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -59,7 +59,6 @@ pub struct PayoutListFilters {
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub additional_payout_method_data: Option<serde_json::Value>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub address_id: Option<String>,
@@ -79,13 +78,13 @@ pub struct PayoutAttempt {
     pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub additional_payout_method_data: Option<serde_json::Value>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub address_id: Option<String>,
@@ -103,6 +102,7 @@ pub struct PayoutAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Clone)]
@@ -129,7 +129,7 @@ pub enum PayoutAttemptUpdate {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     },
     AdditionalPayoutMethodDataUpdate {
-        additional_payout_method_data: Option<serde_json::Value>,
+        additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     },
 }
 
@@ -148,7 +148,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub additional_payout_method_data: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {

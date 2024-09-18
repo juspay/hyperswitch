@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
-    crypto, id_type, link_utils,
+    crypto, id_type, link_utils, payout_method_utils,
     pii::{self, Email},
     transformers::ForeignFrom,
 };
@@ -12,7 +12,7 @@ use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-pub mod additional_info;
+
 use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -562,11 +562,11 @@ pub struct PayoutCreateResponse {
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodDataResponse {
     #[schema(value_type = CardAdditionalData)]
-    Card(Box<additional_info::CardAdditionalData>),
+    Card(Box<payout_method_utils::CardAdditionalData>),
     #[schema(value_type = BankAdditionalData)]
-    Bank(Box<additional_info::BankAdditionalData>),
+    Bank(Box<payout_method_utils::BankAdditionalData>),
     #[schema(value_type = WalletAdditionalData)]
-    Wallet(Box<additional_info::WalletAdditionalData>),
+    Wallet(Box<payout_method_utils::WalletAdditionalData>),
 }
 
 #[derive(
@@ -858,7 +858,7 @@ pub struct PayoutLinkStatusDetails {
     pub test_mode: bool,
 }
 
-impl From<Bank> for additional_info::BankAdditionalData {
+impl From<Bank> for payout_method_utils::BankAdditionalData {
     fn from(bank_data: Bank) -> Self {
         match bank_data {
             Bank::Ach(AchBankTransfer {
@@ -867,70 +867,78 @@ impl From<Bank> for additional_info::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_routing_number,
-            }) => Self::Ach(Box::new(additional_info::AchBankTransferAdditionalData {
-                bank_name,
-                bank_country_code,
-                bank_city,
-                bank_account_number: bank_account_number.into(),
-                bank_routing_number: bank_routing_number.into(),
-            })),
+            }) => Self::Ach(Box::new(
+                payout_method_utils::AchBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    bank_account_number: bank_account_number.into(),
+                    bank_routing_number: bank_routing_number.into(),
+                },
+            )),
             Bank::Bacs(BacsBankTransfer {
                 bank_name,
                 bank_country_code,
                 bank_city,
                 bank_account_number,
                 bank_sort_code,
-            }) => Self::Bacs(Box::new(additional_info::BacsBankTransferAdditionalData {
-                bank_name,
-                bank_country_code,
-                bank_city,
-                bank_account_number: bank_account_number.into(),
-                bank_sort_code: bank_sort_code.into(),
-            })),
+            }) => Self::Bacs(Box::new(
+                payout_method_utils::BacsBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    bank_account_number: bank_account_number.into(),
+                    bank_sort_code: bank_sort_code.into(),
+                },
+            )),
             Bank::Sepa(SepaBankTransfer {
                 bank_name,
                 bank_country_code,
                 bank_city,
                 iban,
                 bic,
-            }) => Self::Sepa(Box::new(additional_info::SepaBankTransferAdditionalData {
-                bank_name,
-                bank_country_code,
-                bank_city,
-                iban: iban.into(),
-                bic: bic.map(From::from),
-            })),
+            }) => Self::Sepa(Box::new(
+                payout_method_utils::SepaBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    iban: iban.into(),
+                    bic: bic.map(From::from),
+                },
+            )),
             Bank::Pix(PixBankTransfer {
                 bank_name,
                 bank_branch,
                 bank_account_number,
                 pix_key,
                 tax_id,
-            }) => Self::Pix(Box::new(additional_info::PixBankTransferAdditionalData {
-                bank_name,
-                bank_branch,
-                bank_account_number: bank_account_number.into(),
-                pix_key: pix_key.into(),
-                tax_id: tax_id.map(From::from),
-            })),
+            }) => Self::Pix(Box::new(
+                payout_method_utils::PixBankTransferAdditionalData {
+                    bank_name,
+                    bank_branch,
+                    bank_account_number: bank_account_number.into(),
+                    pix_key: pix_key.into(),
+                    tax_id: tax_id.map(From::from),
+                },
+            )),
         }
     }
 }
 
-impl From<Wallet> for additional_info::WalletAdditionalData {
+impl From<Wallet> for payout_method_utils::WalletAdditionalData {
     fn from(wallet_data: Wallet) -> Self {
         match wallet_data {
             Wallet::Paypal(Paypal {
                 email,
                 telephone_number,
                 paypal_id,
-            }) => Self::Paypal(Box::new(additional_info::PaypalAdditionalData {
+            }) => Self::Paypal(Box::new(payout_method_utils::PaypalAdditionalData {
                 email: email.map(ForeignFrom::foreign_from),
                 telephone_number: telephone_number.map(From::from),
                 paypal_id: paypal_id.map(From::from),
             })),
             Wallet::Venmo(Venmo { telephone_number }) => {
-                Self::Venmo(Box::new(additional_info::VenmoAdditionalData {
+                Self::Venmo(Box::new(payout_method_utils::VenmoAdditionalData {
                     telephone_number: telephone_number.map(From::from),
                 }))
             }
@@ -938,12 +946,16 @@ impl From<Wallet> for additional_info::WalletAdditionalData {
     }
 }
 
-impl From<additional_info::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
-    fn from(additional_data: additional_info::AdditionalPayoutMethodData) -> Self {
+impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
+    fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
         match additional_data {
-            additional_info::AdditionalPayoutMethodData::Card(card_data) => Self::Card(card_data),
-            additional_info::AdditionalPayoutMethodData::Bank(bank_data) => Self::Bank(bank_data),
-            additional_info::AdditionalPayoutMethodData::Wallet(wallet_data) => {
+            payout_method_utils::AdditionalPayoutMethodData::Card(card_data) => {
+                Self::Card(card_data)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::Bank(bank_data) => {
+                Self::Bank(bank_data)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::Wallet(wallet_data) => {
                 Self::Wallet(wallet_data)
             }
         }

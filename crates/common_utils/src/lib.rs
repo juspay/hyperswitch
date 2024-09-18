@@ -20,6 +20,7 @@ pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
 pub mod new_type;
+pub mod payout_method_utils;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;

@@ -1,15 +1,11 @@
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::customers::CustomerRequestWithEmail;
-use api_models::{
-    enums,
-    payment_methods::Card,
-    payouts::{self, additional_info as payout_additional},
-};
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, id_type, type_name,
+    fp_utils, id_type, payout_method_utils as payout_additional, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
         MinorUnit,

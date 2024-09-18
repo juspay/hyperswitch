@@ -1,28 +1,44 @@
-use common_utils::new_type::{
-    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedRoutingNumber,
-    MaskedSortCode,
-};
+//! This module has common utilities for payout method data in HyperSwitch
+
+use common_enums;
+use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::new_type::{
+    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedRoutingNumber,
+    MaskedSortCode,
+};
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+/// Masked payout method details for storing in db
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub enum AdditionalPayoutMethodData {
+    /// Additional data for card payout method
     Card(Box<CardAdditionalData>),
+    /// Additional data for bank payout method
     Bank(Box<BankAdditionalData>),
+    /// Additional data for wallet payout method
     Wallet(Box<WalletAdditionalData>),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
+crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
+
+/// Masked payout method details for card payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Serialize, Deserialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct CardAdditionalData {
     /// Issuer of the card
     pub card_issuer: Option<String>,
 
     /// Card network of the card
     #[schema(value_type = Option<CardNetwork>)]
-    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_network: Option<common_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
@@ -55,16 +71,28 @@ pub struct CardAdditionalData {
     pub card_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+/// Masked payout method details for bank payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum BankAdditionalData {
+    /// Additional data for ach bank transfer payout method
     Ach(Box<AchBankTransferAdditionalData>),
+    /// Additional data for bacs bank transfer payout method
     Bacs(Box<BacsBankTransferAdditionalData>),
+    /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
+    /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Masked payout method details for ach bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct AchBankTransferAdditionalData {
     /// Partially masked account number for ach bank debit payment
     #[schema(value_type = String, example = "0001****3456")]
@@ -80,14 +108,18 @@ pub struct AchBankTransferAdditionalData {
 
     /// Bank country code
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub bank_country_code: Option<api_enums::CountryAlpha2>,
+    pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
     pub bank_city: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Masked payout method details for bacs bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct BacsBankTransferAdditionalData {
     /// Partially masked sort code for Bacs payment method
     #[schema(value_type = String, example = "108800")]
@@ -103,14 +135,18 @@ pub struct BacsBankTransferAdditionalData {
 
     /// Bank country code
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub bank_country_code: Option<api_enums::CountryAlpha2>,
+    pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
     pub bank_city: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Masked payout method details for sepa bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct SepaBankTransferAdditionalData {
     /// Partially masked international bank account number (iban) for SEPA
     #[schema(value_type = String, example = "DE8937******013000")]
@@ -122,7 +158,7 @@ pub struct SepaBankTransferAdditionalData {
 
     /// Bank country code
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub bank_country_code: Option<api_enums::CountryAlpha2>,
+    pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
@@ -133,7 +169,11 @@ pub struct SepaBankTransferAdditionalData {
     pub bic: Option<MaskedBic>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Masked payout method details for pix bank transfer payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
     #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
@@ -156,14 +196,24 @@ pub struct PixBankTransferAdditionalData {
     pub bank_branch: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+/// Masked payout method details for wallet payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(untagged)]
 pub enum WalletAdditionalData {
+    /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
+    /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+/// Masked payout method details for paypal wallet payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct PaypalAdditionalData {
     /// Email linked with paypal account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
@@ -178,7 +228,11 @@ pub struct PaypalAdditionalData {
     pub paypal_id: Option<MaskedBankAccount>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+/// Masked payout method details for venmo wallet payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct VenmoAdditionalData {
     /// mobile number linked to venmo account
     #[schema(value_type = Option<String>, example = "******* 3349")]

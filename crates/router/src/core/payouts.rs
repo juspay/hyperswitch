@@ -13,7 +13,7 @@ use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 use common_enums::PayoutRetryType;
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ValueExt},
     id_type::CustomerId,
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     types::MinorUnit,
@@ -2176,15 +2176,7 @@ pub async fn response_handler(
     let customer_id = payouts.customer_id;
     let billing = billing_address.as_ref().map(From::from);
 
-    let additional_payout_method_data: Option<payouts::AdditionalInfo::AdditionalPayoutMethodData> =
-        payout_attempt
-            .additional_payout_method_data
-            .clone()
-            .map(|data| data.parse_value("additional_payout_method_data"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "additional_payout_method_data",
-            })?;
+    let additional_payout_method_data = payout_attempt.additional_payout_method_data.clone();
 
     let payout_method_data =
         additional_payout_method_data.map(payouts::PayoutMethodDataResponse::from);
@@ -2383,7 +2375,7 @@ pub async fn payout_create_db_entries(
     // Make payout_attempt entry
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id, 1);
 
-    let additional_pm_data = req
+    let additional_pm_data_value = req
         .payout_method_data
         .clone()
         .or(stored_payout_method_data.cloned())
@@ -2392,13 +2384,6 @@ pub async fn payout_create_db_entries(
                 .await
         })
         .await;
-
-    let additional_pm_data_value = additional_pm_data
-        .as_ref()
-        .map(Encode::encode_to_value)
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encode additional payout method data")?;
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
@@ -2582,16 +2567,9 @@ pub async fn make_payout_data(
     };
 
     if let Some(payout_method_data) = payout_method_data_req.clone() {
-        let additional_pm_data =
+        let additional_payout_method_data =
             helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id)
                 .await;
-
-        let additional_payout_method_data = additional_pm_data
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional payout method data")?;
 
         let update_additional_payout_method_data =
             storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {

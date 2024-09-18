@@ -1,3 +1,4 @@
+use common_utils::payout_method_utils;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -30,7 +31,7 @@ pub struct PayoutAttempt {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
-    pub additional_payout_method_data: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(
@@ -67,7 +68,7 @@ pub struct PayoutAttemptNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
-    pub additional_payout_method_data: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,7 +95,7 @@ pub enum PayoutAttemptUpdate {
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
     AdditionalPayoutMethodDataUpdate {
-        additional_payout_method_data: Option<serde_json::Value>,
+        additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     },
 }
 
@@ -115,7 +116,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub additional_payout_method_data: Option<serde_json::Value>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
