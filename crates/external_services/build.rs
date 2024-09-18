@@ -1,5 +1,7 @@
+#[cfg(feature = "dynamic_routing")]
 use std::{env, path::PathBuf};
 
+#[cfg(feature = "dynamic_routing")]
 #[allow(clippy::expect_used)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get the directory of the current crate
