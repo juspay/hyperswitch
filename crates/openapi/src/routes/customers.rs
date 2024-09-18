@@ -106,6 +106,8 @@ pub async fn customers_delete() {}
 #[cfg(feature = "v1")]
 pub async fn customers_list() {}
 
+/// Customers - Create
+///
 /// Creates a customer object and stores the customer details to be reused for future payments.
 /// Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
