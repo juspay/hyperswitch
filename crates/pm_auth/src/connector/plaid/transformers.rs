@@ -52,7 +52,9 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                         },
                     )?)
                 }
-                _ => None,
+                api_models::enums::ClientPlatform::Ios
+                | api_models::enums::ClientPlatform::Web
+                | api_models::enums::ClientPlatform::Unknown => None,
             },
             redirect_uri: match item.request.client_platform {
                 api_models::enums::ClientPlatform::Ios => {
@@ -62,7 +64,9 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                         },
                     )?)
                 }
-                _ => None,
+                api_models::enums::ClientPlatform::Android
+                | api_models::enums::ClientPlatform::Web
+                | api_models::enums::ClientPlatform::Unknown => None,
             },
         })
     }
