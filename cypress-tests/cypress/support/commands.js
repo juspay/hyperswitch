@@ -967,7 +967,6 @@ Cypress.Commands.add(
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
     const connectorId = globalState.get("connectorId");
-    console.log("connectorId", connectorId);
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
@@ -989,7 +988,6 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         globalState.set("paymentID", paymentIntentId);
         globalState.set("connectorId", response.body.connector);
-        console.log("connectorId", response.body.connector);
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
         switch (response.body.authentication_type) {
