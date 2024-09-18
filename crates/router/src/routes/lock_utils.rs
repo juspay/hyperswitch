@@ -65,6 +65,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingDeleteConfig
             | Flow::DecisionManagerDeleteConfig
             | Flow::DecisionManagerRetrieveConfig
+            | Flow::ToggleDynamicRouting
+            | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -133,7 +135,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
-            | Flow::PaymentsManualUpdate => Self::Payments,
+            | Flow::PaymentsManualUpdate
+            | Flow::SessionUpdateTaxCalculation => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -152,6 +155,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList
             | Flow::RefundsFilters
+            | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
@@ -171,6 +175,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence
+            | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
             Flow::CardsInfo => Self::CardsInfo,

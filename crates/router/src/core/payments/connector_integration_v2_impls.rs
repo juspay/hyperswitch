@@ -42,6 +42,10 @@ mod dummy_connector_default_impl {
 
     impl<const T: u8> api::PaymentsPostProcessingV2 for connector::DummyConnector<T> {}
 
+    impl<const T: u8> api::TaxCalculationV2 for connector::DummyConnector<T> {}
+
+    impl<const T: u8> api::PaymentSessionUpdateV2 for connector::DummyConnector<T> {}
+
     impl<const T: u8>
         services::ConnectorIntegrationV2<
             api::Authorize,
@@ -177,6 +181,24 @@ mod dummy_connector_default_impl {
             api::PostProcessing,
             types::PaymentFlowData,
             types::PaymentsPostProcessingData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::CalculateTax,
+            types::PaymentFlowData,
+            types::PaymentsTaxCalculationData,
+            types::TaxCalculationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::SdkSessionUpdate,
+            types::PaymentFlowData,
+            types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
@@ -557,6 +579,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::ConnectorCustomerV2 for $path::$connector{}
             impl api::PaymentsPreProcessingV2 for $path::$connector{}
             impl api::PaymentsPostProcessingV2 for $path::$connector{}
+            impl api::TaxCalculationV2 for $path::$connector{}
+            impl api::PaymentSessionUpdateV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
             for $path::$connector{}
@@ -629,6 +653,19 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 types::AuthorizeSessionTokenData,
                 types::PaymentsResponseData
         > for $path::$connector{}
+        impl services::ConnectorIntegrationV2<
+            api::CalculateTax,
+            types::PaymentFlowData,
+                types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData,
+            > for $path::$connector{}
+
+            impl services::ConnectorIntegrationV2<
+            api::SdkSessionUpdate,
+            types::PaymentFlowData,
+                types::SdkPaymentsSessionUpdateData,
+                types::PaymentsResponseData,
+            > for $path::$connector{}
     )*
     };
 }
@@ -661,7 +698,6 @@ default_imp_for_new_connector_integration_payment!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -687,7 +723,6 @@ default_imp_for_new_connector_integration_payment!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
@@ -741,7 +776,6 @@ default_imp_for_new_connector_integration_refund!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -767,7 +801,6 @@ default_imp_for_new_connector_integration_refund!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -815,7 +848,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -841,7 +873,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -911,7 +942,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -937,7 +967,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -989,7 +1018,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1015,7 +1043,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1051,7 +1078,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1077,7 +1103,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1140,7 +1165,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1166,7 +1190,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1250,6 +1273,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Taxjar,
     connector::Trustpay,
     connector::Threedsecureio,
+    connector::Thunes,
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
@@ -1307,7 +1331,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1333,7 +1356,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1388,7 +1410,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1414,7 +1435,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1469,7 +1489,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1495,7 +1514,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1550,7 +1568,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1576,7 +1593,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1631,7 +1647,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1657,7 +1672,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1712,7 +1726,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1738,7 +1751,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1793,7 +1805,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1819,7 +1830,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Shift4,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1874,7 +1884,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1900,7 +1909,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -1953,7 +1961,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -1979,7 +1986,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2063,6 +2069,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Taxjar,
     connector::Trustpay,
     connector::Threedsecureio,
+    connector::Thunes,
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
@@ -2120,7 +2127,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -2146,7 +2152,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2201,7 +2206,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -2227,7 +2231,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2282,7 +2285,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -2308,7 +2310,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2363,7 +2364,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -2389,7 +2389,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2444,7 +2443,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -2470,7 +2468,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2522,7 +2519,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
@@ -2548,7 +2544,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Shift4,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
@@ -2667,6 +2662,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Taxjar,
     connector::Trustpay,
     connector::Threedsecureio,
+    connector::Thunes,
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,

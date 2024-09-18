@@ -29,16 +29,16 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn do_gsm_actions<F, ApiRequest, FData>(
+pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &mut D,
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -49,8 +49,12 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-
-    payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+    D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
@@ -66,7 +70,7 @@ where
         .map(|gsm| gsm.step_up_possible)
         .unwrap_or(false);
     let is_no_three_ds_payment = matches!(
-        payment_data.payment_attempt.authentication_type,
+        payment_data.get_payment_attempt().authentication_type,
         Some(storage_enums::AuthenticationType::NoThreeDs)
     );
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
@@ -268,15 +272,15 @@ fn get_flow_name<F>() -> RouterResult<String> {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn do_retry<F, ApiRequest, FData>(
+pub async fn do_retry<F, ApiRequest, FData, D>(
     state: &routes::SessionState,
     req_state: ReqState,
     connector: api::ConnectorData,
-    operation: &operations::BoxedOperation<'_, F, ApiRequest>,
+    operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
@@ -288,8 +292,12 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-
-    payments::PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+    D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
@@ -329,10 +337,10 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn modify_trackers<F, FData>(
+pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
     connector: String,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &mut D,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -341,19 +349,24 @@ pub async fn modify_trackers<F, FData>(
 where
     F: Clone + Send,
     FData: Send,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
-    let new_attempt_count = payment_data.payment_intent.attempt_count + 1;
+    let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
     let new_payment_attempt = make_new_payment_attempt(
         connector,
-        payment_data.payment_attempt.clone(),
+        payment_data.get_payment_attempt().clone(),
         new_attempt_count,
         is_step_up,
     );
 
     let db = &*state.store;
+    let key_manager_state = &state.into();
     let additional_payment_method_data =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
-            payment_data.payment_attempt.payment_method_data.clone(),
+            payment_data
+                .get_payment_attempt()
+                .payment_method_data
+                .clone(),
             router_data
                 .connector_response
                 .clone()
@@ -368,7 +381,7 @@ where
             charge_id,
             ..
         }) => {
-            let encoded_data = payment_data.payment_attempt.encoded_data.clone();
+            let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
 
             let authentication_data = redirection_data
                 .as_ref()
@@ -377,44 +390,57 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
 
-            db.update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
-                storage::PaymentAttemptUpdate::ResponseUpdate {
-                    status: router_data.status,
-                    connector: None,
-                    connector_transaction_id: match resource_id {
-                        types::ResponseId::NoResponseId => None,
-                        types::ResponseId::ConnectorTransactionId(id)
-                        | types::ResponseId::EncodedData(id) => Some(id),
-                    },
-                    connector_response_reference_id: payment_data
-                        .payment_attempt
-                        .connector_response_reference_id
-                        .clone(),
-                    authentication_type: None,
-                    payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
-                    mandate_id: payment_data
-                        .mandate_id
-                        .clone()
-                        .and_then(|mandate| mandate.mandate_id),
-                    connector_metadata,
-                    payment_token: None,
-                    error_code: None,
-                    error_message: None,
-                    error_reason: None,
-                    amount_capturable: if router_data.status.is_terminal_status() {
-                        Some(MinorUnit::new(0))
-                    } else {
-                        None
-                    },
-                    updated_by: storage_scheme.to_string(),
-                    authentication_data,
-                    encoded_data,
-                    unified_code: None,
-                    unified_message: None,
-                    payment_method_data: additional_payment_method_data,
-                    charge_id,
+            let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
+                status: router_data.status,
+                connector: None,
+                connector_transaction_id: match resource_id {
+                    types::ResponseId::NoResponseId => None,
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
                 },
+                connector_response_reference_id: payment_data
+                    .get_payment_attempt()
+                    .connector_response_reference_id
+                    .clone(),
+                authentication_type: None,
+                payment_method_id: payment_data.get_payment_attempt().payment_method_id.clone(),
+                mandate_id: payment_data
+                    .get_mandate_id()
+                    .and_then(|mandate| mandate.mandate_id.clone()),
+                connector_metadata,
+                payment_token: None,
+                error_code: None,
+                error_message: None,
+                error_reason: None,
+                amount_capturable: if router_data.status.is_terminal_status() {
+                    Some(MinorUnit::new(0))
+                } else {
+                    None
+                },
+                updated_by: storage_scheme.to_string(),
+                authentication_data,
+                encoded_data,
+                unified_code: None,
+                unified_message: None,
+                payment_method_data: additional_payment_method_data,
+                charge_id,
+            };
+
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            db.update_payment_attempt_with_attempt_id(
+                payment_data.get_payment_attempt().clone(),
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            db.update_payment_attempt_with_attempt_id(
+                key_manager_state,
+                key_store,
+                payment_data.get_payment_attempt().clone(),
+                payment_attempt_update,
                 storage_scheme,
             )
             .await
@@ -427,29 +453,43 @@ where
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
             let auth_update = if Some(router_data.auth_type)
-                != payment_data.payment_attempt.authentication_type
+                != payment_data.get_payment_attempt().authentication_type
             {
                 Some(router_data.auth_type)
             } else {
                 None
             };
 
+            let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
+                connector: None,
+                error_code: Some(Some(error_response.code.clone())),
+                error_message: Some(Some(error_response.message.clone())),
+                status: storage_enums::AttemptStatus::Failure,
+                error_reason: Some(error_response.reason.clone()),
+                amount_capturable: Some(MinorUnit::new(0)),
+                updated_by: storage_scheme.to_string(),
+                unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
+                unified_message: option_gsm.map(|gsm| gsm.unified_message),
+                connector_transaction_id: error_response.connector_transaction_id.clone(),
+                payment_method_data: additional_payment_method_data,
+                authentication_type: auth_update,
+            };
+
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
             db.update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
-                storage::PaymentAttemptUpdate::ErrorUpdate {
-                    connector: None,
-                    error_code: Some(Some(error_response.code.clone())),
-                    error_message: Some(Some(error_response.message.clone())),
-                    status: storage_enums::AttemptStatus::Failure,
-                    error_reason: Some(error_response.reason.clone()),
-                    amount_capturable: Some(MinorUnit::new(0)),
-                    updated_by: storage_scheme.to_string(),
-                    unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
-                    unified_message: option_gsm.map(|gsm| gsm.unified_message),
-                    connector_transaction_id: error_response.connector_transaction_id.clone(),
-                    payment_method_data: additional_payment_method_data,
-                    authentication_type: auth_update,
-                },
+                payment_data.get_payment_attempt().clone(),
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            db.update_payment_attempt_with_attempt_id(
+                key_manager_state,
+                key_store,
+                payment_data.get_payment_attempt().clone(),
+                payment_attempt_update,
                 storage_scheme,
             )
             .await
@@ -457,22 +497,36 @@ where
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     let payment_attempt = db
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.payment_intent.payment_id.clone(),
+            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
+        })?;
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    let payment_attempt = db
+        .insert_payment_attempt(
+            key_manager_state,
+            key_store,
+            new_payment_attempt,
+            storage_scheme,
+        )
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
         })?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data
-    payment_data.payment_attempt = payment_attempt;
+    payment_data.set_payment_attempt(payment_attempt);
 
-    payment_data.payment_intent = db
+    let payment_intent = db
         .update_payment_intent(
-            &state.into(),
-            payment_data.payment_intent.clone(),
+            key_manager_state,
+            payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+                active_attempt_id: payment_data.get_payment_attempt().attempt_id.clone(),
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },
@@ -482,9 +536,12 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    payment_data.set_payment_intent(payment_intent);
+
     Ok(())
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     connector: String,
@@ -527,6 +584,9 @@ pub fn make_new_payment_attempt(
         created_at,
         modified_at,
         last_synced,
+        profile_id: old_payment_attempt.profile_id,
+        organization_id: old_payment_attempt.organization_id,
+        shipping_cost: old_payment_attempt.shipping_cost,
         net_amount: Default::default(),
         error_message: Default::default(),
         cancellation_reason: Default::default(),
@@ -556,9 +616,19 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
-        profile_id: old_payment_attempt.profile_id,
-        organization_id: old_payment_attempt.organization_id,
+        order_tax_amount: Default::default(),
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[instrument(skip_all)]
+pub fn make_new_payment_attempt(
+    _connector: String,
+    _old_payment_attempt: storage::PaymentAttempt,
+    _new_attempt_count: i16,
+    _is_step_up: bool,
+) -> storage::PaymentAttempt {
+    todo!()
 }
 
 pub async fn config_should_call_gsm(

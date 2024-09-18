@@ -537,6 +537,7 @@ async fn payments_incoming_webhook_flow(
                 _,
                 _,
                 _,
+                payments::PaymentData<api::PSync>,
             >(
                 state.clone(),
                 req_state,
@@ -815,7 +816,7 @@ async fn refunds_incoming_webhook_flow(
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     } else {
-        Box::pin(refunds::refund_retrieve_core(
+        Box::pin(refunds::refund_retrieve_core_with_refund_id(
             state.clone(),
             merchant_account.clone(),
             None,
@@ -1068,6 +1069,7 @@ async fn external_authentication_incoming_webhook_flow(
                     _,
                     _,
                     _,
+                    payments::PaymentData<api::Authorize>,
                 >(
                     state.clone(),
                     req_state,
@@ -1258,6 +1260,7 @@ async fn frm_incoming_webhook_flow(
                     _,
                     _,
                     _,
+                    payments::PaymentData<api::Capture>,
                 >(
                     state.clone(),
                     req_state,
@@ -1284,6 +1287,7 @@ async fn frm_incoming_webhook_flow(
                     _,
                     _,
                     _,
+                    payments::PaymentData<api::Void>,
                 >(
                     state.clone(),
                     req_state,
@@ -1447,6 +1451,7 @@ async fn bank_transfer_webhook_flow(
             _,
             _,
             _,
+            payments::PaymentData<api::Authorize>,
         >(
             state.clone(),
             req_state,

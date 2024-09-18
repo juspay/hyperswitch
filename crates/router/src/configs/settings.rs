@@ -6,13 +6,14 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, pii::Email};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
     file_storage::FileStorageConfig,
+    grpc_client::GrpcClientSettings,
     managers::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
@@ -120,6 +121,11 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    pub grpc_client: GrpcClientSettings,
+    pub recipient_emails: RecipientMails,
+    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
+    pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -393,6 +399,24 @@ pub struct NetworkTransactionIdSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationSupportedCardNetworks {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub card_networks: HashSet<enums::CardNetwork>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NetworkTokenizationService {
+    pub generate_token_url: url::Url,
+    pub fetch_token_url: url::Url,
+    pub token_service_api_key: Secret<String>,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub key_id: String,
+    pub delete_token_url: url::Url,
+    pub check_token_status_url: url::Url,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedPaymentMethodsForMandate(
     pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
@@ -490,6 +514,10 @@ pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
@@ -513,7 +541,6 @@ pub struct RequiredFieldFinal {
 pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
-    pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
 }
 
@@ -712,6 +739,12 @@ pub struct UserAuthMethodSettings {
     pub encryption_key: Secret<String>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 impl Settings<SecuredSecret> {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -821,6 +854,12 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
+
+        self.network_tokenization_service
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
         Ok(())
     }
 }
@@ -841,6 +880,8 @@ impl Settings<RawSecret> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+    #[serde(default)]
+    pub required_fields: PayoutRequiredFields,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -898,6 +939,11 @@ pub struct ServerTls {
     pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
     pub certificate: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct RecipientMails {
+    pub recon: Email,
 }
 
 fn deserialize_hashmap_inner<K, V>(

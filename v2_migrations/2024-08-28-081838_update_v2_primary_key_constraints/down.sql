@@ -62,3 +62,12 @@ WHERE customer_id IS NULL;
 
 ALTER TABLE customers
 ADD PRIMARY KEY (merchant_id, customer_id);
+
+ALTER TABLE payment_intent DROP CONSTRAINT payment_intent_pkey;
+
+UPDATE payment_intent
+SET payment_id = id
+WHERE payment_id IS NULL;
+
+ALTER TABLE payment_intent
+ADD PRIMARY KEY (payment_id, merchant_id);

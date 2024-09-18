@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
+use common_enums::{EntityType, PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
@@ -158,6 +158,8 @@ pub struct GetUserDetailsResponse {
     pub org_id: id_type::OrganizationId,
     pub is_two_factor_auth_setup: bool,
     pub recovery_codes_left: Option<usize>,
+    pub profile_id: id_type::ProfileId,
+    pub entity_type: EntityType,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -185,7 +187,8 @@ pub struct GetUserRoleDetailsResponseV2 {
     pub merchant: Option<NameIdUnit<OptionalEncryptableName, id_type::MerchantId>>,
     pub profile: Option<NameIdUnit<String, id_type::ProfileId>>,
     pub status: UserStatus,
-    pub entity_type: common_enums::EntityType,
+    pub entity_type: EntityType,
+    pub role_name: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

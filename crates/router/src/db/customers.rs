@@ -202,9 +202,12 @@ mod storage {
                 .await
                 .map_err(|err| report!(errors::StorageError::from(err)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let maybe_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -273,9 +276,12 @@ mod storage {
                 .await
                 .map_err(|err| report!(errors::StorageError::from(err)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let maybe_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -338,9 +344,12 @@ mod storage {
                 .await
                 .map_err(|err| report!(errors::StorageError::from(err)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let maybe_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -419,11 +428,11 @@ mod storage {
                 customer_id: &customer_id,
             };
             let field = format!("cust_{}", customer_id.get_string_repr());
-            let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
                 Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
-            )
+            ))
             .await;
             let updated_object = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -491,9 +500,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -556,9 +568,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -653,11 +668,11 @@ mod storage {
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
-            let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
                 Op::Insert,
-            )
+            ))
             .await;
             new_customer.update_storage_scheme(storage_scheme);
             let create_customer = match storage_scheme {
@@ -729,11 +744,11 @@ mod storage {
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
-            let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
                 Op::Insert,
-            )
+            ))
             .await;
             new_customer.update_storage_scheme(storage_scheme);
             let create_customer = match storage_scheme {
@@ -826,9 +841,12 @@ mod storage {
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -895,11 +913,11 @@ mod storage {
             };
             let key = PartitionKey::GlobalId { id: &id };
             let field = format!("cust_{}", id);
-            let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
                 Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
-            )
+            ))
             .await;
             let updated_object = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -1359,7 +1377,7 @@ impl CustomerInterface for MockDb {
         let customer = customers
             .iter()
             .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
+                customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
             })
             .cloned();
         customer

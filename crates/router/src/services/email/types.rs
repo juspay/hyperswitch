@@ -6,7 +6,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 
 use crate::{configs, consts, routes::SessionState};
 #[cfg(feature = "olap")]
@@ -454,6 +454,7 @@ pub struct ProFeatureRequest {
     pub feature_name: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub user_name: domain::UserName,
+    pub user_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,
 }
@@ -467,7 +468,7 @@ impl EmailData for ProFeatureRequest {
             user_name: self.user_name.clone().get_secret().expose(),
             feature_name: self.feature_name.clone(),
             merchant_id: self.merchant_id.clone(),
-            user_email: recipient.peek().to_string(),
+            user_email: self.user_email.clone().get_secret().expose(),
         });
 
         Ok(EmailContents {

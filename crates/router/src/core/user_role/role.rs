@@ -127,7 +127,7 @@ pub async fn get_role_with_groups(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         &role.role_id,
         &user_from_token.merchant_id,
@@ -172,7 +172,7 @@ pub async fn update_role(
         utils::user_role::validate_role_groups(groups)?;
     }
 
-    let role_info = roles::RoleInfo::from_role_id(
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
         role_id,
         &user_from_token.merchant_id,

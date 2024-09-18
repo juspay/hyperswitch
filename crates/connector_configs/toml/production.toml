@@ -1125,6 +1125,14 @@ placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
 
+[deutschebank]
+[[deutschebank.bank_debit]]
+  payment_method_type = "sepa"
+[deutschebank.connector_auth.SignatureKey]
+api_key="Client ID"
+key1="Merchant ID"
+api_secret="Client Key"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
@@ -1701,6 +1709,48 @@ api_key="API Key"
 key1="Public Key"
 [nmi.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[novalnet]
+[[novalnet.credit]]
+  payment_method_type = "Mastercard"
+[[novalnet.credit]]
+  payment_method_type = "Visa"
+[[novalnet.credit]]
+  payment_method_type = "Interac"
+[[novalnet.credit]]
+  payment_method_type = "AmericanExpress"
+[[novalnet.credit]]
+  payment_method_type = "JCB"
+[[novalnet.credit]]
+  payment_method_type = "DinersClub"
+[[novalnet.credit]]
+  payment_method_type = "Discover"
+[[novalnet.credit]]
+  payment_method_type = "CartesBancaires"
+[[novalnet.credit]]
+  payment_method_type = "UnionPay"
+[[novalnet.debit]]
+  payment_method_type = "Mastercard"
+[[novalnet.debit]]
+  payment_method_type = "Visa"
+[[novalnet.debit]]
+  payment_method_type = "Interac"
+[[novalnet.debit]]
+  payment_method_type = "AmericanExpress"
+[[novalnet.debit]]
+  payment_method_type = "JCB"
+[[novalnet.debit]]
+  payment_method_type = "DinersClub"
+[[novalnet.debit]]
+  payment_method_type = "Discover"
+[[novalnet.debit]]
+  payment_method_type = "CartesBancaires"
+[[novalnet.debit]]
+  payment_method_type = "UnionPay"
+[novalnet.connector_auth.SignatureKey]
+api_key="Product Activation Key"
+key1="Payment Access Key"
+api_secret="Tariff ID"
 
 [nuvei]
 [[nuvei.credit]]
@@ -2809,6 +2859,10 @@ placeholder="Enter ThreeDS request id"
 required=true
 type="Text"
 
+[taxjar]
+[taxjar.connector_auth.HeaderKey]
+api_key="Live Token"
+
 [billwerk]
 [[billwerk.credit]]
   payment_method_type = "Mastercard"
@@ -3011,6 +3065,10 @@ api_secret="Shared Secret"
   payment_method_type = "CartesBancaires"
 [[fiuu.debit]]
   payment_method_type = "UnionPay"
+[[fiuu.real_time_payment]]
+  payment_method_type = "duit_now"
+[[fiuu.bank_redirect]]
+  payment_method_type = "online_banking_fpx"
 [fiuu.connector_auth.SignatureKey]
 api_key="Verify Key"
 key1="Merchant ID"

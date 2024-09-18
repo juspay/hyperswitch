@@ -164,6 +164,50 @@
         ]
       }
     },
+    "/v2/organization/{organization_id}/merchant_accounts": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Merchant Account - List",
+        "description": "List merchant accounts for an Organization",
+        "operationId": "List Merchant Accounts",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantAccountResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/connector_accounts": {
       "post": {
         "tags": [
@@ -401,7 +445,7 @@
         ]
       }
     },
-    "/v2/accounts": {
+    "/v2/merchant_accounts": {
       "post": {
         "tags": [
           "Merchant Account"
@@ -469,7 +513,7 @@
         ]
       }
     },
-    "/v2/accounts/{id}": {
+    "/v2/merchant_accounts/{id}": {
       "get": {
         "tags": [
           "Merchant Account"
@@ -566,6 +610,50 @@
           },
           "404": {
             "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/merchant_accounts/{account_id}/profiles": {
+      "get": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Business Profile - List",
+        "description": "List business profiles for an Merchant",
+        "operationId": "List Business Profiles",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profile list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessProfileResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
           }
         },
         "security": [
@@ -710,6 +798,53 @@
           },
           "400": {
             "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/connector_accounts": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Merchant Connector - List",
+        "description": "List Merchant Connector Details for the business profile",
+        "operationId": "List all Merchant Connectors",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantConnectorResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "security": [
@@ -1297,6 +1432,227 @@
           }
         ]
       }
+    },
+    "/v2/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Create",
+        "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Create a customer with name and email": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/{id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve",
+        "description": "Retrieves a customer's details.",
+        "operationId": "Retrieve a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Update",
+        "description": "Updates the customer's details in a customer object.",
+        "operationId": "Update a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer was Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Delete",
+        "description": "Delete a customer record.",
+        "operationId": "Delete a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer was Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/list": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - List",
+        "description": "Lists all the customers for a particular merchant id.",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1434,6 +1790,61 @@
         ],
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "AchBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "routing_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for ach bank debit payment",
+            "example": "0001****3456"
+          },
+          "routing_number": {
+            "type": "string",
+            "description": "Partially masked routing number for ach bank debit payment",
+            "example": "110***000"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder's name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_holder_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankHolderType"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "AchBankTransfer": {
@@ -2014,6 +2425,31 @@
           "unresolved"
         ]
       },
+      "BacsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "sort_code"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Bacs payment method",
+            "example": "0001****3456"
+          },
+          "sort_code": {
+            "type": "string",
+            "description": "Partially masked sort code for Bacs payment method",
+            "example": "108800"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -2075,6 +2511,35 @@
           }
         }
       },
+      "BancontactBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "example": "4242",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
       "Bank": {
         "oneOf": [
           {
@@ -2088,6 +2553,54 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          }
+        ]
+      },
+      "BankDebitAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "$ref": "#/components/schemas/AchBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "$ref": "#/components/schemas/BacsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "becs"
+            ],
+            "properties": {
+              "becs": {
+                "$ref": "#/components/schemas/BecsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -2298,6 +2811,28 @@
           }
         ]
       },
+      "BankDebitResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "BankHolderType": {
+        "type": "string",
+        "enum": [
+          "personal",
+          "business"
+        ]
+      },
       "BankNames": {
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
@@ -2308,6 +2843,7 @@
           "alliance_bank",
           "am_bank",
           "bank_of_america",
+          "bank_of_china",
           "bank_islam",
           "bank_muamalat",
           "bank_rakyat",
@@ -2899,6 +3435,226 @@
           }
         ]
       },
+      "BankRedirectDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "BancontactCard"
+            ],
+            "properties": {
+              "BancontactCard": {
+                "$ref": "#/components/schemas/BancontactBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Blik"
+            ],
+            "properties": {
+              "Blik": {
+                "$ref": "#/components/schemas/BlikBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Giropay"
+            ],
+            "properties": {
+              "Giropay": {
+                "$ref": "#/components/schemas/GiropayBankRedirectAdditionalData"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankRedirectDetails"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "BankTransferAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco"
+            ],
+            "properties": {
+              "multibanco": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "permata"
+            ],
+            "properties": {
+              "permata": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bca"
+            ],
+            "properties": {
+              "bca": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bni_va"
+            ],
+            "properties": {
+              "bni_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bri_va"
+            ],
+            "properties": {
+              "bri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cimb_va"
+            ],
+            "properties": {
+              "cimb_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "danamon_va"
+            ],
+            "properties": {
+              "danamon_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandiri_va"
+            ],
+            "properties": {
+              "mandiri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
+              }
+            }
+          }
+        ]
+      },
       "BankTransferData": {
         "oneOf": [
           {
@@ -3278,6 +4034,63 @@
           }
         ]
       },
+      "BankTransferResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "BankType": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
+        ]
+      },
+      "BecsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "bsb_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Becs payment method",
+            "example": "0001****3456"
+          },
+          "bsb_number": {
+            "type": "string",
+            "description": "Bank-State-Branch (bsb) number",
+            "example": "000000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "BlikBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "blik_code": {
+            "type": "string",
+            "example": "3GD9MO",
+            "nullable": true
+          }
+        }
+      },
       "BlocklistDataKind": {
         "type": "string",
         "enum": [
@@ -3534,6 +4347,14 @@
           {
             "type": "object",
             "properties": {
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
+                "nullable": true
+              },
               "payout_test_mode": {
                 "type": "boolean",
                 "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
@@ -3701,6 +4522,10 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
           }
         },
         "additionalProperties": false
@@ -3713,7 +4538,8 @@
           "profile_name",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "is_tax_connector_enabled"
+          "is_tax_connector_enabled",
+          "is_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -3883,6 +4709,12 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -4303,6 +5135,21 @@
           }
         ]
       },
+      "CardRedirectResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardRedirectData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "CardResponse": {
         "type": "object",
         "properties": {
@@ -4375,6 +5222,34 @@
             "nullable": true
           }
         }
+      },
+      "CardTokenAdditionalData": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          }
+        }
+      },
+      "CardTokenResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "CashappQr": {
         "type": "object"
@@ -4471,6 +5346,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -4492,6 +5368,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -4508,6 +5385,7 @@
           "square",
           "stax",
           "stripe",
+          "taxjar",
           "threedsecureio",
           "trustpay",
           "tsys",
@@ -4622,7 +5500,8 @@
           "non_banking_finance",
           "payout_processor",
           "payment_method_auth",
-          "authentication_processor"
+          "authentication_processor",
+          "tax_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -4989,6 +5868,21 @@
           }
         }
       },
+      "CryptoResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CryptoData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "Currency": {
         "type": "string",
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
@@ -5204,13 +6098,14 @@
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
-          "customer_id",
+          "merchant_reference_id",
           "customer_deleted",
           "address_deleted",
-          "payment_methods_deleted"
+          "payment_methods_deleted",
+          "id"
         ],
         "properties": {
-          "customer_id": {
+          "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
@@ -5230,6 +6125,10 @@
             "type": "boolean",
             "description": "Whether payment methods deleted or not",
             "example": false
+          },
+          "id": {
+            "type": "string",
+            "description": "Global id"
           }
         }
       },
@@ -5680,6 +6579,28 @@
           "APP",
           "BRW"
         ]
+      },
+      "DisplayAmountOnSdk": {
+        "type": "object",
+        "required": [
+          "net_amount",
+          "order_tax_amount",
+          "shipping_cost"
+        ],
+        "properties": {
+          "net_amount": {
+            "type": "string",
+            "description": "net amount = amount + order_tax_amount + shipping_cost"
+          },
+          "order_tax_amount": {
+            "type": "string",
+            "description": "order tax amount calculated by tax connectors"
+          },
+          "shipping_cost": {
+            "type": "string",
+            "description": "shipping cost for the order"
+          }
+        }
       },
       "DisputeResponse": {
         "type": "object",
@@ -6493,6 +7414,12 @@
           {
             "type": "string",
             "enum": [
+              "user_bank_account_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "text"
             ]
           },
@@ -6568,6 +7495,24 @@
             "type": "string",
             "enum": [
               "user_cnpj"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_language"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_ip"
             ]
           }
         ],
@@ -6737,6 +7682,32 @@
           }
         }
       },
+      "GiftCardAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GivexGiftCardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -6777,6 +7748,57 @@
           "cvc": {
             "type": "string",
             "description": "The card verification code."
+          }
+        }
+      },
+      "GiftCardResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "GiropayBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bic": {
+            "type": "string",
+            "description": "Masked bank account bic code",
+            "nullable": true
+          },
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "nullable": true
+          },
+          "country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GivexGiftCardAdditionalData": {
+        "type": "object",
+        "required": [
+          "last4"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the gift card number",
+            "example": "4242"
           }
         }
       },
@@ -7620,6 +8642,17 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "LocalBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bank_code": {
+            "type": "string",
+            "description": "Partially masked bank code",
+            "example": "**** OA2312",
+            "nullable": true
           }
         }
       },
@@ -9268,6 +10301,21 @@
           }
         ]
       },
+      "OpenBankingResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "OpenBankingSessionToken": {
         "type": "object",
         "required": [
@@ -9336,6 +10384,11 @@
               }
             ],
             "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
+            "nullable": true
           }
         }
       },
@@ -9400,6 +10453,11 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
             "nullable": true
           }
         }
@@ -10143,7 +11201,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "string",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -10195,7 +11256,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "object",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -10245,6 +11309,35 @@
           "active",
           "expired"
         ]
+      },
+      "PaymentLinkTransactionDetails": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Key for the transaction details",
+            "example": "Policy-Number",
+            "maxLength": 255
+          },
+          "value": {
+            "type": "string",
+            "description": "Value for the transaction details",
+            "example": "297472368473924",
+            "maxLength": 255
+          },
+          "ui_configuration": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionDetailsUiConfiguration"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentListConstraints": {
         "type": "object",
@@ -10808,7 +11901,7 @@
             ],
             "properties": {
               "bank_transfer": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankTransferResponse"
               }
             }
           },
@@ -10841,7 +11934,7 @@
             ],
             "properties": {
               "bank_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankRedirectResponse"
               }
             }
           },
@@ -10852,7 +11945,7 @@
             ],
             "properties": {
               "crypto": {
-                "type": "object"
+                "$ref": "#/components/schemas/CryptoResponse"
               }
             }
           },
@@ -10863,7 +11956,7 @@
             ],
             "properties": {
               "bank_debit": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankDebitResponse"
               }
             }
           },
@@ -10896,7 +11989,7 @@
             ],
             "properties": {
               "real_time_payment": {
-                "type": "object"
+                "$ref": "#/components/schemas/RealTimePaymentDataResponse"
               }
             }
           },
@@ -10907,7 +12000,7 @@
             ],
             "properties": {
               "upi": {
-                "type": "object"
+                "$ref": "#/components/schemas/UpiResponse"
               }
             }
           },
@@ -10918,7 +12011,7 @@
             ],
             "properties": {
               "voucher": {
-                "type": "object"
+                "$ref": "#/components/schemas/VoucherResponse"
               }
             }
           },
@@ -10929,7 +12022,7 @@
             ],
             "properties": {
               "gift_card": {
-                "type": "object"
+                "$ref": "#/components/schemas/GiftCardResponse"
               }
             }
           },
@@ -10940,7 +12033,7 @@
             ],
             "properties": {
               "card_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardRedirectResponse"
               }
             }
           },
@@ -10951,7 +12044,7 @@
             ],
             "properties": {
               "card_token": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardTokenResponse"
               }
             }
           },
@@ -10962,7 +12055,7 @@
             ],
             "properties": {
               "open_banking": {
-                "type": "object"
+                "$ref": "#/components/schemas/OpenBankingResponse"
               }
             }
           }
@@ -11056,7 +12149,8 @@
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "is_tax_calculation_enabled"
         ],
         "properties": {
           "redirect_url": {
@@ -11118,6 +12212,10 @@
             "type": "boolean",
             "description": "flag that indicates whether to collect billing details from wallets or from the customer",
             "nullable": true
+          },
+          "is_tax_calculation_enabled": {
+            "type": "boolean",
+            "description": "flag that indicates whether to calculate tax on the order amount"
           }
         }
       },
@@ -11560,7 +12658,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -11577,6 +12675,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -11899,6 +13004,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -11912,7 +13022,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
           },
           "currency": {
@@ -11922,6 +13032,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -12257,6 +13374,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -12304,7 +13426,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -12776,6 +13898,70 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationRequest": {
+        "type": "object",
+        "required": [
+          "shipping",
+          "client_secret",
+          "payment_method_type"
+        ],
+        "properties": {
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "net_amount",
+          "display_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "display_amount": {
+            "$ref": "#/components/schemas/DisplayAmountOnSdk"
           }
         }
       },
@@ -12878,7 +14064,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -12895,6 +14081,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -13309,6 +14502,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13357,7 +14555,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -13854,6 +15052,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -13976,7 +15182,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -13993,6 +15199,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -14310,6 +15523,11 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "skip_external_tax_calculation": {
+            "type": "boolean",
+            "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
           }
         }
       },
@@ -14437,6 +15655,14 @@
                 },
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              },
+              "form_layout": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UIWidgetFormLayout"
+                  }
+                ],
                 "nullable": true
               },
               "test_mode": {
@@ -14742,8 +15968,11 @@
             "nullable": true
           },
           "billing": {
-            "type": "object",
-            "description": "The billing address for the payout",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
           },
           "auto_fulfill": {
@@ -15382,6 +16611,29 @@
           }
         }
       },
+      "PixBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "pix_key": {
+            "type": "string",
+            "description": "Partially masked unique key for pix transfer",
+            "example": "a1f4102e ****** 6fa48899c1d1",
+            "nullable": true
+          },
+          "cpf": {
+            "type": "string",
+            "description": "Partially masked CPF - CPF is a Brazilian tax identification number",
+            "example": "**** 124689",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
+            "example": "**** 417312",
+            "nullable": true
+          }
+        }
+      },
       "PollConfigResponse": {
         "type": "object",
         "required": [
@@ -15561,6 +16813,21 @@
           }
         ]
       },
+      "RealTimePaymentDataResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RealTimePaymentData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "ReceiverDetails": {
         "type": "object",
         "required": [
@@ -15667,6 +16934,22 @@
           "json_payload": {
             "type": "object",
             "nullable": true
+          }
+        }
+      },
+      "RefundAggregateResponse": {
+        "type": "object",
+        "required": [
+          "status_with_count"
+        ],
+        "properties": {
+          "status_with_count": {
+            "type": "object",
+            "description": "The list of refund status with their count",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         }
       },
@@ -16330,6 +17613,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -16349,6 +17633,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -16482,7 +17767,8 @@
           "single",
           "priority",
           "volume_split",
-          "advanced"
+          "advanced",
+          "dynamic"
         ]
       },
       "RoutingConfigRequest": {
@@ -16730,6 +18016,25 @@
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
             "example": "Jane Doe",
+            "nullable": true
+          }
+        }
+      },
+      "SepaBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "iban"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "example": "DE8937******013000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -17310,6 +18615,32 @@
       "TouchNGoRedirection": {
         "type": "object"
       },
+      "TransactionDetailsUiConfiguration": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Position of the key-value pair in the UI",
+            "example": 5,
+            "nullable": true
+          },
+          "is_key_bold": {
+            "type": "boolean",
+            "description": "Whether the key should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "is_value_bold": {
+            "type": "boolean",
+            "description": "Whether the value should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          }
+        }
+      },
       "TransactionStatus": {
         "type": "string",
         "description": "Indicates the transaction status",
@@ -17329,6 +18660,13 @@
         "enum": [
           "payment",
           "payout"
+        ]
+      },
+      "UIWidgetFormLayout": {
+        "type": "string",
+        "enum": [
+          "tabs",
+          "journey"
         ]
       },
       "UpdateApiKeyRequest": {
@@ -17359,6 +18697,43 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpiAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiCollectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "vpa_id": {
+            "type": "string",
+            "description": "Masked VPA ID",
+            "example": "ab********@okhdfcbank",
+            "nullable": true
+          }
+        }
       },
       "UpiCollectData": {
         "type": "object",
@@ -17398,6 +18773,21 @@
       },
       "UpiIntentData": {
         "type": "object"
+      },
+      "UpiResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiAdditionalData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
       },
       "ValueType": {
         "oneOf": [
@@ -17690,6 +19080,21 @@
                 "$ref": "#/components/schemas/JCSVoucherData"
               }
             }
+          }
+        ]
+      },
+      "VoucherResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
           }
         ]
       },

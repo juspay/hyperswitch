@@ -9,12 +9,13 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+use hyperswitch_domain_models::{
+    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    refunds,
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -628,6 +629,17 @@ impl DisputeInterface for KafkaStore {
             .find_disputes_by_merchant_id_payment_id(merchant_id, payment_id)
             .await
     }
+
+    async fn get_dispute_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_dispute_status_with_count(merchant_id, profile_id_list, time_range)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -847,6 +859,14 @@ impl MandateInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
+        self.diesel_store.find_mandate_by_global_id(id).await
+    }
+
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -999,7 +1019,7 @@ impl MerchantAccountInterface for KafkaStore {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         self.diesel_store
             .list_merchant_accounts_by_organization_id(state, organization_id)
@@ -1216,6 +1236,18 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    async fn list_connector_account_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        self.diesel_store
+            .list_connector_account_by_profile_id(state, profile_id, key_store)
+            .await
+    }
+
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -1311,6 +1343,7 @@ impl QueueInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for KafkaStore {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: storage::PaymentAttemptNew,
@@ -1332,6 +1365,36 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    async fn insert_payment_attempt(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        payment_attempt: storage::PaymentAttempt,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        let attempt = self
+            .diesel_store
+            .insert_payment_attempt(
+                key_manager_state,
+                merchant_key_store,
+                payment_attempt,
+                storage_scheme,
+            )
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_payment_attempt(&attempt, None, self.tenant_id.clone())
+            .await
+        {
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        }
+
+        Ok(attempt)
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: storage::PaymentAttempt,
@@ -1354,6 +1417,38 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        this: storage::PaymentAttempt,
+        payment_attempt: storage::PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        let attempt = self
+            .diesel_store
+            .update_payment_attempt_with_attempt_id(
+                key_manager_state,
+                merchant_key_store,
+                this.clone(),
+                payment_attempt,
+                storage_scheme,
+            )
+            .await?;
+
+        if let Err(er) = self
+            .kafka_producer
+            .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
+            .await
+        {
+            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        }
+
+        Ok(attempt)
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -1371,6 +1466,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1386,6 +1482,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -1403,6 +1500,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -1414,6 +1512,27 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    async fn find_payment_attempt_by_attempt_id_merchant_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        attempt_id: &str,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_attempt_by_attempt_id_merchant_id(
+                key_manager_state,
+                merchant_key_store,
+                attempt_id,
+                merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -1429,6 +1548,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -1444,6 +1564,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -1459,6 +1580,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn get_filters_for_payments(
         &self,
         pi: &[hyperswitch_domain_models::payments::PaymentIntent],
@@ -1473,6 +1595,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1482,6 +1605,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1493,11 +1617,13 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
+                profile_id_list,
                 storage_scheme,
             )
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1566,6 +1692,7 @@ impl PaymentIntentInterface for KafkaStore {
         Ok(intent)
     }
 
+    #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -1585,7 +1712,20 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_id(
+        &self,
+        state: &KeyManagerState,
+        payment_id: &id_type::PaymentId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentIntent, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_intent_by_id(state, payment_id, key_store, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -1605,7 +1745,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -1625,18 +1765,19 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
         self.diesel_store
-            .get_intent_status_with_count(merchant_id, time_range)
+            .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -1662,7 +1803,7 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1691,11 +1832,28 @@ impl PaymentIntentInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for KafkaStore {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method(state, key_store, payment_method_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
@@ -1723,6 +1881,19 @@ impl PaymentMethodInterface for KafkaStore {
                 merchant_id,
                 limit,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_list_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        id: &str,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_list_by_global_id(state, key_store, id, limit)
             .await
     }
 
@@ -2049,6 +2220,7 @@ impl PayoutsInterface for KafkaStore {
             storage::Payouts,
             storage::PayoutAttempt,
             Option<diesel_models::Customer>,
+            Option<diesel_models::Address>,
         )>,
         errors::DataStorageError,
     > {
@@ -2340,7 +2512,7 @@ impl RefundInterface for KafkaStore {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -2369,10 +2541,22 @@ impl RefundInterface for KafkaStore {
     }
 
     #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_refund_status_with_count(merchant_id, constraints, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -3312,6 +3496,16 @@ impl RoleInterface for KafkaStore {
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
             .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+            .await
+    }
+
+    async fn find_role_by_role_id_in_org_scope(
+        &self,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .find_role_by_role_id_in_org_scope(role_id, org_id)
             .await
     }
 

@@ -29,6 +29,7 @@ impl PaymentAttemptNew {
 }
 
 impl PaymentAttempt {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -45,6 +46,34 @@ impl PaymentAttempt {
                 .eq(self.attempt_id.to_owned())
                 .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             PaymentAttemptUpdateInternal::from(payment_attempt).populate_derived_fields(&self),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    pub async fn update_with_attempt_id(
+        self,
+        conn: &PgPooledConn,
+        payment_attempt: PaymentAttemptUpdateInternal,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::attempt_id
+                .eq(self.attempt_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            payment_attempt.populate_derived_fields(&self),
         )
         .await
         {
@@ -322,6 +351,7 @@ impl PaymentAttempt {
         payment_method: Option<Vec<enums::PaymentMethod>>,
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
@@ -345,6 +375,9 @@ impl PaymentAttempt {
         }
         if let Some(merchant_connector_id) = merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
+        }
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list))
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 

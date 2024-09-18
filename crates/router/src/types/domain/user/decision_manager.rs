@@ -1,8 +1,5 @@
 use common_enums::TokenPurpose;
-use diesel_models::{
-    enums::{UserRoleVersion, UserStatus},
-    user_role::UserRole,
-};
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 
@@ -67,10 +64,21 @@ impl SPTFlow {
             Self::ForceSetPassword => user
                 .is_password_rotate_required(state)
                 .map(|rotate_required| rotate_required && !path.contains(&TokenPurpose::SSO)),
-            Self::MerchantSelect => user
-                .get_roles_from_db(state)
+            Self::MerchantSelect => Ok(state
+                .store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: user.get_user_id(),
+                    org_id: None,
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: Some(1),
+                })
                 .await
-                .map(|roles| !roles.iter().any(|role| role.status == UserStatus::Active)),
+                .change_context(UserErrors::InternalServerError)?
+                .is_empty()),
         }
     }
 
@@ -105,15 +113,17 @@ impl JWTFlow {
         Ok(true)
     }
 
-    pub async fn generate_jwt_without_profile(
+    pub async fn generate_jwt(
         self,
         state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
+        let (merchant_id, profile_id) =
+            utils::user_role::get_single_merchant_id_and_profile_id(state, user_role).await?;
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            utils::user_role::get_single_merchant_id(state, user_role).await?,
+            merchant_id,
             user_role.role_id.clone(),
             &state.conf,
             user_role
@@ -121,7 +131,7 @@ impl JWTFlow {
                 .clone()
                 .ok_or(report!(UserErrors::InternalServerError))
                 .attach_printable("org_id not found")?,
-            None,
+            Some(profile_id),
         )
         .await
         .map(|token| token.into())
@@ -296,7 +306,7 @@ impl NextFlow {
                         merchant_id: None,
                         profile_id: None,
                         entity_id: None,
-                        version: Some(UserRoleVersion::V1),
+                        version: None,
                         status: Some(UserStatus::Active),
                         limit: Some(1),
                     })
@@ -307,9 +317,7 @@ impl NextFlow {
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
                     .await;
 
-                jwt_flow
-                    .generate_jwt_without_profile(state, self, &user_role)
-                    .await
+                jwt_flow.generate_jwt(state, self, &user_role).await
             }
         }
     }
@@ -329,9 +337,7 @@ impl NextFlow {
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
                     .await;
 
-                jwt_flow
-                    .generate_jwt_without_profile(state, self, user_role)
-                    .await
+                jwt_flow.generate_jwt(state, self, user_role).await
             }
         }
     }

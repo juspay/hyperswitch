@@ -5,7 +5,7 @@ use api_models::{
 };
 use common_enums::EntityType;
 use common_utils::{
-    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii, type_name,
+    crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
 };
 use diesel_models::{
@@ -28,7 +28,7 @@ use crate::{
     consts,
     core::{
         admin,
-        errors::{self, UserErrors, UserResult},
+        errors::{UserErrors, UserResult},
     },
     db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
     routes::SessionState,
@@ -401,7 +401,7 @@ impl NewUserMerchant {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
         } else {
-            MerchantName::new("merchant".to_string())
+            MerchantName::try_new("merchant".to_string())
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("merchant name validation failed")
         }
@@ -867,22 +867,6 @@ impl UserFromStorage {
         self.0.email.clone()
     }
 
-    pub async fn get_role_from_db(&self, state: SessionState) -> UserResult<UserRole> {
-        state
-            .store
-            .find_user_role_by_user_id(&self.0.user_id, UserRoleVersion::V1)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
-    pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
-        state
-            .store
-            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
     #[cfg(feature = "email")]
     pub fn get_verification_days_left(&self, state: &SessionState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
@@ -928,21 +912,6 @@ impl UserFromStorage {
         let days_left_for_password_rotate = last_date_for_password_rotate - today;
 
         Ok(days_left_for_password_rotate.whole_days() < 0)
-    }
-
-    pub async fn get_role_from_db_by_merchant_id(
-        &self,
-        state: &SessionState,
-        merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        state
-            .store
-            .find_user_role_by_user_id_merchant_id(
-                self.get_user_id(),
-                merchant_id,
-                UserRoleVersion::V1,
-            )
-            .await
     }
 
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
@@ -1076,6 +1045,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
             info::PermissionModule::AccountCreate => Self::AccountCreate,
             info::PermissionModule::Payouts => Self::Payouts,
+            info::PermissionModule::Recon => Self::Recon,
         }
     }
 }
@@ -1253,7 +1223,7 @@ where
         }
     }
 
-    async fn insert_v1_and_v2_in_db_and_get_v1(
+    async fn insert_v1_and_v2_in_db_and_get_v2(
         state: &SessionState,
         v1_role: UserRoleNew,
         v2_role: UserRoleNew,
@@ -1264,10 +1234,9 @@ where
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        // Returning v1 role so other code which was not migrated doesn't break
         inserted_roles
             .into_iter()
-            .find(|role| role.version == UserRoleVersion::V1)
+            .find(|role| role.version == UserRoleVersion::V2)
             .ok_or(report!(UserErrors::InternalServerError))
     }
 }
@@ -1323,7 +1292,7 @@ impl NewUserRole<OrganizationLevel> {
             entity_type: EntityType::Organization,
         });
 
-        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
     }
 }
 
@@ -1343,7 +1312,7 @@ impl NewUserRole<MerchantLevel> {
             entity_type: EntityType::Merchant,
         });
 
-        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
     }
 }
 
@@ -1366,7 +1335,7 @@ impl NewUserRole<InternalLevel> {
             entity_type: EntityType::Internal,
         });
 
-        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
     }
 }
 

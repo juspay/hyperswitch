@@ -126,6 +126,16 @@ impl PaymentMethod {
         .await
     }
 
+    // Need to fix this function once we start moving to v2 for payment method
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub async fn find_by_global_id(
+        _conn: &PgPooledConn,
+        _id: &str,
+        _limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        todo!()
+    }
+
     pub async fn get_count_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &common_utils::id_type::CustomerId,
@@ -201,7 +211,10 @@ impl PaymentMethod {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethod {
-    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalPaymentMethodId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
             .await
     }
