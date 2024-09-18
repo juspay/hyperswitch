@@ -540,7 +540,7 @@ pub struct PayoutCreateResponse {
     /// (This field is not live yet)
     /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
     #[remove_in(PayoutCreateResponse)]
-    #[schema(value_type = Option<String>, max_length = 255, example = "UE_1000")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_000")]
     pub unified_code: Option<UnifiedCode>,
 
     /// (This field is not live yet)
@@ -584,7 +584,7 @@ pub struct PayoutAttemptResponse {
     /// (This field is not live yet)
     /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
     #[remove_in(PayoutAttemptResponse)]
-    #[schema(value_type = Option<String>, max_length = 255, example = "UE_1000")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_000")]
     pub unified_code: Option<UnifiedCode>,
     /// (This field is not live yet)
     /// Error message unified across the connectors is received here in case of errors while calling the underlying connector

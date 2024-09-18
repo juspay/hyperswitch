@@ -19203,7 +19203,7 @@
           "unified_code": {
             "type": "string",
             "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
-            "example": "UE_1000",
+            "example": "UE_000",
             "nullable": true,
             "maxLength": 255
           },
@@ -19723,7 +19723,7 @@
           "unified_code": {
             "type": "string",
             "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
-            "example": "UE_1000",
+            "example": "UE_000",
             "nullable": true,
             "maxLength": 255
           },

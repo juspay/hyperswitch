@@ -1273,7 +1273,7 @@ pub async fn get_translated_unified_code_and_message(
     unified_message: Option<&UnifiedMessage>,
     locale: &str,
 ) -> CustomResult<Option<UnifiedMessage>, errors::ApiErrorResponse> {
-    unified_code
+    Ok(unified_code
         .zip(unified_message)
         .async_and_then(|(code, message)| async {
             payment_helpers::get_unified_translation(
@@ -1289,5 +1289,6 @@ pub async fn get_translated_unified_code_and_message(
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "unified_message",
-        })
+        })?
+        .or_else(|| unified_message.cloned()))
 }
