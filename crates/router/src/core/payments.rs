@@ -11,7 +11,6 @@ pub mod routing;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
-
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
@@ -160,7 +159,6 @@ where
             &header_payload,
         )
         .await?;
-
     utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
@@ -4427,6 +4425,7 @@ where
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
