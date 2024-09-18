@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.18.0
+
+### Features
+
+- **router:** Add admin list apis for v2 ([#5883](https://github.com/juspay/hyperswitch/pull/5883)) ([`bc6c460`](https://github.com/juspay/hyperswitch/commit/bc6c460ca9767d3b80604166ce2cbd98550d175a))
+
+### Bug Fixes
+
+- **connector:** Add field types for bank debits ([#5908](https://github.com/juspay/hyperswitch/pull/5908)) ([`90e8de1`](https://github.com/juspay/hyperswitch/commit/90e8de18a854a7f83470e84a954ed365078c24c2))
+- **frm:** Add feature flag for querying FRM data ([#5889](https://github.com/juspay/hyperswitch/pull/5889)) ([`75400a3`](https://github.com/juspay/hyperswitch/commit/75400a3af7aaff87e03dbab4e00be8b00ed5a70e))
+- **router:**
+  - Cache invalidation in merchant_connector_update flow for v2 ([#5918](https://github.com/juspay/hyperswitch/pull/5918)) ([`66de680`](https://github.com/juspay/hyperswitch/commit/66de680e6fcaa318694df48dafdaabfceb745961))
+  - [stripe] remove passing of customer_acceptance from Mandate Payment Request ([#5920](https://github.com/juspay/hyperswitch/pull/5920)) ([`97c8e98`](https://github.com/juspay/hyperswitch/commit/97c8e98a48f514b0ba36b109971dd479ae84861e))
+
+### Refactors
+
+- **connector:** Move connector Volt and Mollie from Router to HyperswitchConnector Trait ([#5612](https://github.com/juspay/hyperswitch/pull/5612)) ([`1d9e639`](https://github.com/juspay/hyperswitch/commit/1d9e6396522fc0b6cbe0b7ff1be2377098655690))
+- Add encryption support to payment attempt domain model ([#5882](https://github.com/juspay/hyperswitch/pull/5882)) ([`f72abe4`](https://github.com/juspay/hyperswitch/commit/f72abe4b979873b06d75553c7412f8072c29c8a9))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`d7d6a31`](https://github.com/juspay/hyperswitch/commit/d7d6a3101611857319d9f5fb607f7df7d3fd9d59))
+
+**Full Changelog:** [`2024.09.17.0...2024.09.18.0`](https://github.com/juspay/hyperswitch/compare/2024.09.17.0...2024.09.18.0)
+
+- - -
+
 ## 2024.09.17.0
 
 ### Features
