@@ -4757,7 +4757,7 @@ async fn perform_surcharge_ops(
     _state: &routes::SessionState,
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
-    _business_profile: Option<BusinessProfile>,
+    _business_profile: Option<Profile>,
     _response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     todo!()

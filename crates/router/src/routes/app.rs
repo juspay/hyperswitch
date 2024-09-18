@@ -1220,8 +1220,7 @@ impl MerchantAccount {
                             .route(web::put().to(admin::update_merchant_account)),
                     )
                     .service(
-                        web::resource("/profiles")
-                            .route(web::get().to(admin::business_profiles_list)),
+                        web::resource("/profiles").route(web::get().to(profiles::profiles_list)),
                     ),
             )
     }
@@ -1586,7 +1585,7 @@ impl Profile {
                     )
                     .service(
                         web::resource("/connector_accounts")
-                            .route(web::get().to(profiles::connector_list)),
+                            .route(web::get().to(admin::connector_list)),
                     )
                     .service(
                         web::resource("/fallback_routing")
