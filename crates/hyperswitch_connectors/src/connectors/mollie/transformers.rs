@@ -1,20 +1,25 @@
-use api_models::payments;
 use cards::CardNumber;
-use common_utils::pii::Email;
-use diesel_models::enums;
+use common_enums::enums;
+use common_utils::{pii::Email, request::Method};
+use hyperswitch_domain_models::{
+    payment_method_data::{BankDebitData, BankRedirectData, PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData,
-        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData,
-    },
-    core::errors,
-    services, types,
-    types::{domain, storage::enums as storage_enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
+    utils::{
+        self, AddressDetailsData, BrowserInformationData, CardData as CardDataUtil,
+        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData as _,
+    },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -25,20 +30,13 @@ pub struct MollieRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for MollieRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MollieRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (currency_unit, currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -61,7 +59,7 @@ pub struct MolliePaymentsRequest {
     webhook_url: String,
     locale: Option<String>,
     #[serde(flatten)]
-    payment_method_data: PaymentMethodData,
+    payment_method_data: MolliePaymentMethodData,
     metadata: Option<MollieMetadata>,
     sequence_type: SequenceType,
     mandate_id: Option<Secret<String>>,
@@ -76,7 +74,7 @@ pub struct Amount {
 #[derive(Debug, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
-pub enum PaymentMethodData {
+pub enum MolliePaymentMethodData {
     Applepay(Box<ApplePayMethodData>),
     Eps,
     Giropay,
@@ -169,15 +167,15 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
         {
             enums::CaptureMethod::Automatic => {
                 match &item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::Card(_) => {
+                    PaymentMethodData::Card(_) => {
                         let pm_token = item.router_data.get_payment_method_token()?;
-                        Ok(PaymentMethodData::CreditCard(Box::new(
+                        Ok(MolliePaymentMethodData::CreditCard(Box::new(
                             CreditCardMethodData {
                                 billing_address: get_billing_details(item.router_data)?,
                                 shipping_address: get_shipping_details(item.router_data)?,
                                 card_token: Some(match pm_token {
-                                    types::PaymentMethodToken::Token(token) => token,
-                                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    PaymentMethodToken::Token(token) => token,
+                                    PaymentMethodToken::ApplePayDecrypt(_) => {
                                         Err(unimplemented_payment_method!(
                                             "Apple Pay",
                                             "Simplified",
@@ -188,14 +186,14 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                             },
                         )))
                     }
-                    domain::PaymentMethodData::BankRedirect(ref redirect_data) => {
-                        PaymentMethodData::try_from((item.router_data, redirect_data))
+                    PaymentMethodData::BankRedirect(ref redirect_data) => {
+                        MolliePaymentMethodData::try_from((item.router_data, redirect_data))
                     }
-                    domain::PaymentMethodData::Wallet(ref wallet_data) => {
+                    PaymentMethodData::Wallet(ref wallet_data) => {
                         get_payment_method_for_wallet(item.router_data, wallet_data)
                     }
-                    domain::PaymentMethodData::BankDebit(ref directdebit_data) => {
-                        PaymentMethodData::try_from((directdebit_data, item.router_data))
+                    PaymentMethodData::BankDebit(ref directdebit_data) => {
+                        MolliePaymentMethodData::try_from((directdebit_data, item.router_data))
                     }
                     _ => Err(
                         errors::ConnectorError::NotImplemented("Payment Method".to_string()).into(),
@@ -230,47 +228,39 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
     }
 }
 
-impl
-    TryFrom<(
-        &types::PaymentsAuthorizeRouterData,
-        &domain::BankRedirectData,
-    )> for PaymentMethodData
-{
+impl TryFrom<(&types::PaymentsAuthorizeRouterData, &BankRedirectData)> for MolliePaymentMethodData {
     type Error = Error;
     fn try_from(
-        (item, value): (
-            &types::PaymentsAuthorizeRouterData,
-            &domain::BankRedirectData,
-        ),
+        (item, value): (&types::PaymentsAuthorizeRouterData, &BankRedirectData),
     ) -> Result<Self, Self::Error> {
         match value {
-            domain::BankRedirectData::Eps { .. } => Ok(Self::Eps),
-            domain::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
-            domain::BankRedirectData::Ideal { .. } => {
+            BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            BankRedirectData::Ideal { .. } => {
                 Ok(Self::Ideal(Box::new(IdealMethodData {
                     // To do if possible this should be from the payment request
                     issuer: None,
                 })))
             }
-            domain::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            domain::BankRedirectData::Przelewy24 { .. } => {
+            BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            BankRedirectData::Przelewy24 { .. } => {
                 Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
                     billing_email: item.get_optional_billing_email(),
                 })))
             }
-            domain::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
+            BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
-impl TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)> for PaymentMethodData {
+impl TryFrom<(&BankDebitData, &types::PaymentsAuthorizeRouterData)> for MolliePaymentMethodData {
     type Error = Error;
     fn try_from(
-        (bank_debit_data, item): (&domain::BankDebitData, &types::PaymentsAuthorizeRouterData),
+        (bank_debit_data, item): (&BankDebitData, &types::PaymentsAuthorizeRouterData),
     ) -> Result<Self, Self::Error> {
         match bank_debit_data {
-            domain::BankDebitData::SepaBankDebit { iban, .. } => {
+            BankDebitData::SepaBankDebit { iban, .. } => {
                 Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
                     consumer_name: item.get_optional_billing_full_name(),
                     consumer_account: iban.clone(),
@@ -297,7 +287,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ccard) => {
+            PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
                 let card_holder = item
                     .get_optional_billing_full_name()
@@ -334,20 +324,20 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
 
 fn get_payment_method_for_wallet(
     item: &types::PaymentsAuthorizeRouterData,
-    wallet_data: &domain::WalletData,
-) -> Result<PaymentMethodData, Error> {
+    wallet_data: &WalletData,
+) -> Result<MolliePaymentMethodData, Error> {
     match wallet_data {
-        domain::WalletData::PaypalRedirect { .. } => {
-            Ok(PaymentMethodData::Paypal(Box::new(PaypalMethodData {
+        WalletData::PaypalRedirect { .. } => Ok(MolliePaymentMethodData::Paypal(Box::new(
+            PaypalMethodData {
                 billing_address: get_billing_details(item)?,
                 shipping_address: get_shipping_details(item)?,
-            })))
-        }
-        domain::WalletData::ApplePay(applepay_wallet_data) => {
-            Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
+            },
+        ))),
+        WalletData::ApplePay(applepay_wallet_data) => Ok(MolliePaymentMethodData::Applepay(
+            Box::new(ApplePayMethodData {
                 apple_pay_payment_token: Secret::new(applepay_wallet_data.payment_data.to_owned()),
-            })))
-        }
+            }),
+        )),
         _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
     }
 }
@@ -371,7 +361,7 @@ fn get_billing_details(
 }
 
 fn get_address_details(
-    address: Option<&payments::AddressDetails>,
+    address: Option<&api_models::payments::AddressDetails>,
 ) -> Result<Option<Address>, Error> {
     let address_details = match address {
         Some(address) => {
@@ -467,15 +457,15 @@ pub struct MollieAuthType {
     pub(super) profile_token: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
+impl TryFrom<&ConnectorAuthType> for MollieAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
                 profile_token: None,
             }),
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 profile_token: Some(key1.to_owned()),
             }),
@@ -490,20 +480,17 @@ pub struct MollieCardTokenResponse {
     card_token: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, MollieCardTokenResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, MollieCardTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, MollieCardTokenResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, MollieCardTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.card_token.clone(),
-            )),
-            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+            status: enums::AttemptStatus::Pending,
+            payment_method_token: Some(PaymentMethodToken::Token(item.response.card_token.clone())),
+            response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),
             }),
             ..item.data
@@ -511,23 +498,22 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, MolliePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, MolliePaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let url = item
             .response
             .links
             .checkout
-            .map(|link| services::RedirectForm::from((link.href, services::Method::Get)));
+            .map(|link| RedirectForm::from((link.href, Method::Get)));
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: url,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -608,15 +594,11 @@ impl From<MollieRefundStatus> for enums::RefundStatus {
     }
 }
 
-impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
-    for types::RefundsRouterData<T>
-{
+impl<T> TryFrom<RefundsResponseRouterData<T, RefundResponse>> for types::RefundsRouterData<T> {
     type Error = Error;
-    fn try_from(
-        item: types::RefundsResponseRouterData<T, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: RefundsResponseRouterData<T, RefundResponse>) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -626,7 +608,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ErrorResponse {
+pub struct MollieErrorResponse {
     pub status: u16,
     pub title: Option<String>,
     pub detail: String,

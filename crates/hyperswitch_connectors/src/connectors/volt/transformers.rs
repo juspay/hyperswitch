@@ -1,14 +1,20 @@
-use common_utils::{id_type, pii::Email, types::MinorUnit};
-use diesel_models::enums;
+use common_enums::enums;
+use common_utils::{id_type, pii::Email, request::Method, types::MinorUnit};
+use hyperswitch_domain_models::{
+    payment_method_data::{BankRedirectData, PaymentMethodData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::refunds::Execute,
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, RouterData},
-    consts,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums as storage_enums},
+    types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, AddressDetailsData, RouterData as _},
 };
 
 const PASSWORD: &str = "password";
@@ -37,7 +43,7 @@ pub mod webhook_headers {
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
     amount: MinorUnit,
-    currency_code: storage_enums::Currency,
+    currency_code: enums::Currency,
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     merchant_internal_reference: String,
@@ -72,8 +78,8 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
         item: &VoltRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
-                domain::BankRedirectData::OpenBankingUk { .. } => {
+            PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
+                BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency;
                     let merchant_internal_reference =
@@ -104,50 +110,48 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         transaction_type,
                     })
                 }
-                domain::BankRedirectData::BancontactCard { .. }
-                | domain::BankRedirectData::Bizum {}
-                | domain::BankRedirectData::Blik { .. }
-                | domain::BankRedirectData::Eps { .. }
-                | domain::BankRedirectData::Giropay { .. }
-                | domain::BankRedirectData::Ideal { .. }
-                | domain::BankRedirectData::Interac { .. }
-                | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | domain::BankRedirectData::OnlineBankingFinland { .. }
-                | domain::BankRedirectData::OnlineBankingPoland { .. }
-                | domain::BankRedirectData::OnlineBankingSlovakia { .. }
-                | domain::BankRedirectData::Przelewy24 { .. }
-                | domain::BankRedirectData::Sofort { .. }
-                | domain::BankRedirectData::Trustly { .. }
-                | domain::BankRedirectData::OnlineBankingFpx { .. }
-                | domain::BankRedirectData::OnlineBankingThailand { .. }
-                | domain::BankRedirectData::LocalBankRedirect {} => {
+                BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::Bizum {}
+                | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eps { .. }
+                | BankRedirectData::Giropay { .. }
+                | BankRedirectData::Ideal { .. }
+                | BankRedirectData::Interac { .. }
+                | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | BankRedirectData::OnlineBankingFinland { .. }
+                | BankRedirectData::OnlineBankingPoland { .. }
+                | BankRedirectData::OnlineBankingSlovakia { .. }
+                | BankRedirectData::Przelewy24 { .. }
+                | BankRedirectData::Sofort { .. }
+                | BankRedirectData::Trustly { .. }
+                | BankRedirectData::OnlineBankingFpx { .. }
+                | BankRedirectData::OnlineBankingThailand { .. }
+                | BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
                     )
                     .into())
                 }
             },
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Volt"),
-                )
-                .into())
-            }
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Volt"),
+            )
+            .into()),
         }
     }
 }
@@ -161,9 +165,9 @@ pub struct VoltAuthUpdateRequest {
     password: Secret<String>,
 }
 
-impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
+impl TryFrom<&RefreshTokenRouterData> for VoltAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
         let auth = VoltAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             grant_type: PASSWORD.to_string(),
@@ -183,15 +187,15 @@ pub struct VoltAuthUpdateResponse {
     pub refresh_token: Secret<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+impl<F, T> TryFrom<ResponseRouterData<F, VoltAuthUpdateResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>,
+        item: ResponseRouterData<F, VoltAuthUpdateResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -207,11 +211,11 @@ pub struct VoltAuthType {
     pub(super) client_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
+impl TryFrom<&ConnectorAuthType> for VoltAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::MultiAuthKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
@@ -253,24 +257,23 @@ pub struct VoltPaymentsResponse {
     id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, VoltPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, VoltPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let url = item.response.checkout_url;
-        let redirection_data = Some(services::RedirectForm::Form {
+        let redirection_data = Some(RedirectForm::Form {
             endpoint: url,
-            method: services::Method::Get,
+            method: Method::Get,
             form_fields: Default::default(),
         });
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -319,18 +322,12 @@ pub struct VoltPsyncResponse {
     merchant_internal_reference: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, VoltPaymentsResponseData, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            VoltPaymentsResponseData,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             VoltPaymentsResponseData::PsyncResponse(payment_response) => {
@@ -338,7 +335,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
-                        Err(types::ErrorResponse {
+                        Err(ErrorResponse {
                             code: payment_response.status.clone().to_string(),
                             message: payment_response.status.clone().to_string(),
                             reason: Some(payment_response.status.to_string()),
@@ -347,8 +344,8 @@ impl<F, T>
                             connector_transaction_id: Some(payment_response.id),
                         })
                     } else {
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
+                        Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
                                 payment_response.id.clone(),
                             ),
                             redirection_data: None,
@@ -371,7 +368,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
-                        Err(types::ErrorResponse {
+                        Err(ErrorResponse {
                             code: detailed_status
                                 .clone()
                                 .map(|volt_status| volt_status.to_string())
@@ -388,8 +385,8 @@ impl<F, T>
                             connector_transaction_id: Some(webhook_response.payment.clone()),
                         })
                     } else {
-                        Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
+                        Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
                                 webhook_response.payment.clone(),
                             ),
                             redirection_data: None,
@@ -447,15 +444,15 @@ pub struct RefundResponse {
     id: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::Pending, //We get Refund Status only by Webhooks
             }),
@@ -564,7 +561,7 @@ pub enum VoltDetailedStatus {
     AwaitingCheckoutAuthorisation,
 }
 
-impl From<VoltWebhookBodyEventType> for api::IncomingWebhookEvent {
+impl From<VoltWebhookBodyEventType> for api_models::webhooks::IncomingWebhookEvent {
     fn from(status: VoltWebhookBodyEventType) -> Self {
         match status {
             VoltWebhookBodyEventType::Payment(payment_data) => match payment_data.status {
