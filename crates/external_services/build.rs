@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .join("proto")
             .join("success_rate.proto");
         // Compile the .proto file
-        tonic_build::compile_protos(proto_file).expect("Failed to compile success rate proto");
+        tonic_build::compile_protos(proto_file).expect("Failed to compile success rate proto file");
     }
     Ok(())
 }
