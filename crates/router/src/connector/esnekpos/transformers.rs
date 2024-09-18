@@ -13,22 +13,10 @@ pub struct EsnekposRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for EsnekposRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for EsnekposRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount: String = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
@@ -150,6 +138,7 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
 
                         match billing_details.as_ref().map(|bd| *bd) {
                             Err(e) => {
+                                router_env::logger::error!("Error: {:?}", e);
                                 return Err(errors::ConnectorError::MissingRequiredField {
                                     field_name: "billing_details",
                                 }

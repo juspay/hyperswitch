@@ -1,11 +1,8 @@
 pub mod transformers;
 
-use super::utils::{self as connector_utils, RefundsRequestData};
-
 use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::consts;
-use masking::PeekInterface;
 use serde_json::json;
 use transformers as esnekpos;
 
