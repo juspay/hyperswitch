@@ -198,7 +198,7 @@ impl super::settings::CellInformation {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::{fp_utils::when, id_type};
 
-        when(self.id == id_type::CellId::default(), || {
+        when(self == &super::settings::CellInformation::default(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "CellId cannot be set to a default".into(),
             ))

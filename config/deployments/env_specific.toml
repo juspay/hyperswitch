@@ -304,7 +304,7 @@ encryption_key = "user_auth_table_encryption_key" # Encryption key used for encr
 recon = "recon@example.com"
 
 [cell_information]
-id = "12345"
+id = "12345" # Default CellID for Global Cell Information
 
 [network_tokenization_service] # Network Tokenization Service Configuration
 generate_token_url= ""        # base url to generate token

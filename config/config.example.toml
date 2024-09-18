@@ -732,7 +732,7 @@ connector_list = ""
 recon = "test@example.com"
 
 [cell_information]
-id = "12345"
+id = "12345" # Default CellID for Global Cell Information
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard" # Supported card networks for network tokenization

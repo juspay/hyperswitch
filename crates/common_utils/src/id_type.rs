@@ -52,13 +52,6 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
 /// A type for alphanumeric ids
 pub(crate) struct AlphaNumericId(String);
 
-impl Default for AlphaNumericId {
-    fn default() -> Self {
-        let string = "abcde".to_string();
-        Self(string)
-    }
-}
-
 #[derive(Debug, Deserialize, Hash, Serialize, Error, Eq, PartialEq)]
 #[error("value `{0}` contains invalid character `{1}`")]
 /// The error type for alphanumeric id
@@ -101,7 +94,7 @@ impl AlphaNumericId {
 }
 
 /// A common type of id that can be used for reference ids with length constraint
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression, Default)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub(crate) struct LengthId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 

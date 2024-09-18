@@ -944,9 +944,18 @@ pub struct ServerTls {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: common_utils::id_type::CellId,
+}
+
+#[cfg(feature = "v2")]
+impl Default for CellInformation {
+    fn default() -> Self {
+        let cell_id = common_utils::id_type::CellId::from_str("abcde")
+            .expect("Failed to create a default for Cell Id");
+        Self { id: cell_id }
+    }
 }
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct RecipientMails {
