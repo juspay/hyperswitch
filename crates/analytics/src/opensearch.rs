@@ -623,8 +623,6 @@ impl OpenSearchQueryBuilder {
                         Value::Object(sort_obj)
                     ]
                 });
-                println!("{:?}", index);
-                println!("{}", serde_json::to_string_pretty(&payload).unwrap());
                 payload
             })
             .collect::<Vec<Value>>())
