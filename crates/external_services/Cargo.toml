@@ -50,6 +50,7 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 
 [build-dependencies]
 tonic-build = { version =  "0.12" , optional = true }
+router_env = { version = "0.1.0", path = "../router_env", default-features = false  }
 
 [lints]
 workspace = true
