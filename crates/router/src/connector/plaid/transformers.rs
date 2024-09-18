@@ -160,7 +160,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PlaidSyncRequest {
 impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPostProcessingRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+        match item.request.payment_method_data {
             domain::PaymentMethodData::OpenBanking(ref data) => match data {
                 domain::OpenBankingData::OpenBankingPIS { .. } => {
                     let headers = item.header_payload.clone().ok_or(

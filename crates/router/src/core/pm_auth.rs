@@ -166,8 +166,8 @@ pub async fn create_link_token(
             language: payload.language,
             user_info: payment_intent.and_then(|pi| pi.customer_id),
             client_platform: payload.client_platform,
-            android_package_name: payload.android_package_name.clone(),
-            redirect_uri: payload.redirect_uri.clone(),
+            android_package_name: payload.android_package_name,
+            redirect_uri: payload.redirect_uri,
         },
         response: Ok(pm_auth_types::LinkTokenResponse {
             link_token: "".to_string(),
