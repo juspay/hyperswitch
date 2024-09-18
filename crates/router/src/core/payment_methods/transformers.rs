@@ -527,9 +527,9 @@ pub fn mk_add_card_response_hs(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_pm_create_from_update_request(
     pm_create: api::PaymentMethodCreateData,
-    pm_udpate: api::PaymentMethodUpdateData,
+    pm_update: api::PaymentMethodUpdateData,
 ) -> api::PaymentMethodCreateData {
-    match (pm_create, pm_udpate) {
+    match (pm_create, pm_update) {
         (
             api::PaymentMethodCreateData::Card(card_create),
             api::PaymentMethodUpdateData::Card(update_card),
