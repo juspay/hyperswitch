@@ -1496,6 +1496,13 @@ impl Disputes {
                     .route(web::post().to(disputes::accept_dispute)),
             )
             .service(
+                web::resource("/aggregate").route(web::get().to(disputes::get_disputes_aggregate)),
+            )
+            .service(
+                web::resource("/profile/aggregate")
+                    .route(web::get().to(disputes::get_disputes_aggregate_profile)),
+            )
+            .service(
                 web::resource("/evidence")
                     .route(web::post().to(disputes::submit_dispute_evidence))
                     .route(web::put().to(disputes::attach_dispute_evidence))

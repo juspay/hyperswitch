@@ -14,6 +14,13 @@ pub trait DisputeDbExt: Sized {
         merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    async fn get_dispute_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -67,6 +74,40 @@ impl DisputeDbExt for Dispute {
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             filter.get_results_async(conn),
             db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
+    }
+
+    async fn get_dispute_status_with_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::DatabaseError> {
+        let mut query = <Self as HasTable>::table()
+            .group_by(dsl::dispute_status)
+            .select((dsl::dispute_status, diesel::dsl::count_star()))
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        if let Some(profile_id) = profile_id_list {
+            query = query.filter(dsl::profile_id.eq_any(profile_id));
+        }
+
+        query = query.filter(dsl::created_at.ge(time_range.start_time));
+
+        query = match time_range.end_time {
+            Some(ending_at) => query.filter(dsl::created_at.le(ending_at)),
+            None => query,
+        };
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn),
+            db_metrics::DatabaseOperation::Count,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
