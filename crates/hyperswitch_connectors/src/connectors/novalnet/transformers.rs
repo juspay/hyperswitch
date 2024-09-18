@@ -31,7 +31,7 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
         RouterData as OtherRouterData,
     },
@@ -66,7 +66,7 @@ pub struct NovalnetPaymentsRequestMerchant {
 pub struct NovalnetPaymentsRequestBilling {
     house_no: Secret<String>,
     street: Secret<String>,
-    city: String,
+    city: Secret<String>,
     zip: Secret<String>,
     country_code: api_enums::CountryAlpha2,
 }
@@ -154,7 +154,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         let billing = NovalnetPaymentsRequestBilling {
             house_no: item.router_data.get_billing_line1()?,
             street: item.router_data.get_billing_line2()?,
-            city: item.router_data.get_billing_city()?,
+            city: Secret::new(item.router_data.get_billing_city()?),
             zip: item.router_data.get_billing_zip()?,
             country_code: item.router_data.get_billing_country()?,
         };
@@ -182,45 +182,57 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         let custom = NovalnetCustom { lang };
         let hook_url = item.router_data.request.get_webhook_url()?;
 
-        match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref req_card) => {
-                let novalnet_card = NovalNetPaymentData::PaymentCard(NovalnetCard {
-                    card_number: req_card.card_number.clone(),
-                    card_expiry_month: req_card.card_exp_month.clone(),
-                    card_expiry_year: req_card.card_exp_year.clone(),
-                    card_cvc: req_card.card_cvc.clone(),
-                    card_holder: item.router_data.get_billing_full_name()?,
-                });
-                let create_token = if item.router_data.request.is_mandate_payment() {
-                    Some(1)
-                } else {
-                    None
-                };
-                let return_url = item.router_data.request.get_return_url()?;
+        match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_id| mandate_id.mandate_reference_id)
+        {
+            None => match item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ref req_card) => {
+                    let novalnet_card = NovalNetPaymentData::PaymentCard(NovalnetCard {
+                        card_number: req_card.card_number.clone(),
+                        card_expiry_month: req_card.card_exp_month.clone(),
+                        card_expiry_year: req_card.card_exp_year.clone(),
+                        card_cvc: req_card.card_cvc.clone(),
+                        card_holder: item.router_data.get_billing_full_name()?,
+                    });
+                    let create_token = if item.router_data.request.is_mandate_payment() {
+                        Some(1)
+                    } else {
+                        None
+                    };
+                    let return_url = item.router_data.request.get_return_url()?;
 
-                let transaction = NovalnetPaymentsRequestTransaction {
-                    test_mode,
-                    payment_type: NovalNetPaymentTypes::CREDITCARD,
-                    amount: item.amount.clone(),
-                    currency: item.router_data.request.currency,
-                    order_no: item.router_data.connector_request_reference_id.clone(),
-                    hook_url: Some(hook_url),
-                    return_url: Some(return_url.clone()),
-                    error_return_url: Some(return_url.clone()),
-                    payment_data: novalnet_card,
-                    enforce_3d,
-                    create_token,
-                };
+                    let transaction = NovalnetPaymentsRequestTransaction {
+                        test_mode,
+                        payment_type: NovalNetPaymentTypes::CREDITCARD,
+                        amount: item.amount.clone(),
+                        currency: item.router_data.request.currency,
+                        order_no: item.router_data.connector_request_reference_id.clone(),
+                        hook_url: Some(hook_url),
+                        return_url: Some(return_url.clone()),
+                        error_return_url: Some(return_url.clone()),
+                        payment_data: novalnet_card,
+                        enforce_3d,
+                        create_token,
+                    };
 
-                Ok(Self {
-                    merchant,
-                    transaction,
-                    customer,
-                    custom,
-                })
-            }
-            PaymentMethodData::MandatePayment => {
-                let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                    Ok(Self {
+                        merchant,
+                        transaction,
+                        customer,
+                        custom,
+                    })
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+            },
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
                     },
@@ -251,7 +263,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     custom,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
+            )
+            .into()),
         }
     }
 }
@@ -427,7 +442,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
 pub struct NovalnetResponseCustomer {
     pub billing: Option<NovalnetResponseBilling>,
     pub customer_ip: Option<Secret<String>>,
-    pub email: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub first_name: Option<Secret<String>>,
     pub gender: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
@@ -438,7 +453,7 @@ pub struct NovalnetResponseCustomer {
 pub struct NovalnetResponseBilling {
     pub city: Secret<String>,
     pub country_code: Secret<String>,
-    pub house_no: Secret<String>,
+    pub house_no: Option<Secret<String>>,
     pub street: Secret<String>,
     pub zip: Secret<String>,
 }
@@ -451,17 +466,17 @@ pub struct NovalnetResponseMerchant {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseTransactionData {
-    pub amount: u32,
-    pub currency: common_enums::Currency,
+    pub amount: Option<u32>,
+    pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
-    pub order_no: String,
+    pub order_no: Option<String>,
     pub payment_data: NovalnetResponsePaymentData,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
     pub status_code: u16,
     pub test_mode: u8,
-    pub tid: Secret<i64>,
-    pub txn_secret: Secret<String>,
+    pub tid: Option<Secret<i64>>,
+    pub txn_secret: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -479,7 +494,7 @@ pub struct NovalnetResponseCard {
     pub card_number: Secret<String>,
     pub cc_3d: Option<Secret<u8>>,
     pub last_four: Option<Secret<String>>,
-    pub token: Option<Secret<String>>,
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -728,7 +743,7 @@ impl NovalnetResponseTransactionData {
         if let Some(data) = transaction_data {
             match &data.payment_data {
                 NovalnetResponsePaymentData::PaymentCard(card_data) => {
-                    card_data.token.as_ref().map(|t| t.clone().expose().clone())
+                    card_data.token.clone()
                 }
             }
         } else {
@@ -751,7 +766,8 @@ impl<F>
                     .response
                     .transaction
                     .clone()
-                    .map(|data| data.tid.expose().to_string());
+                    .and_then(|data| data.tid)
+                    .map(|tid| tid.expose().to_string());
                 let transaction_status = item
                     .response
                     .transaction
@@ -923,9 +939,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                     .response
                     .transaction
                     .clone()
-                    .map(|transaction_data: NovalnetResponseTransactionData| {
-                        transaction_data.tid.expose().to_string()
-                    })
+                    .and_then(|data| data.tid)
+                    .map(|tid| tid.expose().to_string())
                     .unwrap_or("".to_string());
                 //NOTE: Mapping refund_id with "" incase we dont get any tid
 
