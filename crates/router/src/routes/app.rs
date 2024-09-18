@@ -9,7 +9,7 @@ use common_enums::TransactionType;
 use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
-use external_services::file_storage::FileStorageInterface;
+use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -105,6 +105,7 @@ pub struct SessionState {
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
+    pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -202,6 +203,7 @@ pub struct AppState {
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
+    pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -351,6 +353,8 @@ impl AppState {
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
 
+            let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
+
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -367,6 +371,7 @@ impl AppState {
                 request_id: None,
                 file_storage_client,
                 encryption_client,
+                grpc_client,
             }
         })
         .await
@@ -447,6 +452,7 @@ impl AppState {
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
+            grpc_client: Arc::clone(&self.grpc_client),
         })
     }
 }
