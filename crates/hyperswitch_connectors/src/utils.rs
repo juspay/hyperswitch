@@ -19,9 +19,9 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
-        AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
-        SetupMandateRequestData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -1077,7 +1077,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -1306,6 +1308,18 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+}
+
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 

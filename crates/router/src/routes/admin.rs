@@ -128,7 +128,39 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
+pub async fn merchant_account_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    organization_id: web::Path<common_utils::id_type::OrganizationId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantAccountList;
+
+    let organization_id = admin::OrganizationId {
+        organization_id: organization_id.into_inner(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        organization_id,
+        |state, _, request, _| list_merchant_account(state, request),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
 pub async fn merchant_account_list(
     state: web::Data<AppState>,
@@ -143,7 +175,14 @@ pub async fn merchant_account_list(
         &req,
         query_params.into_inner(),
         |state, _, request, _| list_merchant_account(state, request),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -387,6 +426,38 @@ pub async fn connector_retrieve(
     )
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
+pub async fn connector_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsList;
+    let profile_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id.to_owned(),
+        |state, auth, _, _| {
+            list_connectors_for_a_profile(state, auth.merchant_account.clone(), profile_id.clone())
+        },
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
@@ -405,8 +476,9 @@ pub async fn connector_retrieve(
     operation_id = "List all Merchant Connectors",
     security(("admin_api_key" = []))
 )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
-pub async fn payment_connector_list(
+pub async fn connector_list(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::MerchantId>,
@@ -452,7 +524,7 @@ pub async fn payment_connector_list(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
-pub async fn payment_connector_list_profile(
+pub async fn connector_list_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::MerchantId>,

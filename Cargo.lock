@@ -4076,6 +4076,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror",
  "time",
+ "url",
 ]
 
 [[package]]

@@ -229,8 +229,7 @@ pub async fn get_single_merchant_id(
                     .org_id
                     .as_ref()
                     .ok_or(UserErrors::InternalServerError)
-                    .attach_printable("org_id not found")?
-                    .get_string_repr(),
+                    .attach_printable("org_id not found")?,
             )
             .await
             .change_context(UserErrors::InternalServerError)
