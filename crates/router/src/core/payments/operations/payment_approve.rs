@@ -136,13 +136,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
 
-        let frm_response = db
-        .find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_account.get_id().clone())
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", merchant_account.get_id().get_string_repr())
-        });
+        let frm_response = if cfg!(feature = "frm") {
+            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_account.get_id().clone())
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable_lazy(|| {
+                    format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", merchant_account.get_id().get_string_repr())
+                })
+                .ok()
+        } else {
+            None
+        };
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -180,7 +184,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details: None,
-            frm_message: frm_response.ok(),
+            frm_message: frm_response,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],

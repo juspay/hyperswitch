@@ -73,6 +73,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::organization::organization_create,
         routes::organization::organization_retrieve,
         routes::organization::organization_update,
+        routes::organization::merchant_account_list,
 
         // Routes for merchant connector account
         routes::merchant_connector_account::connector_create,
@@ -84,11 +85,13 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::merchant_account_retrieve,
         routes::merchant_account::merchant_account_update,
+        routes::merchant_account::business_profiles_list,
 
         // Routes for profile
         routes::profile::profile_create,
         routes::profile::profile_retrieve,
         routes::profile::profile_update,
+        routes::profile::connector_list,
 
         // Routes for routing under profile
         routes::profile::routing_link_config,

@@ -104,7 +104,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for merchant connector account
         routes::merchant_connector_account::connector_create,
         routes::merchant_connector_account::connector_retrieve,
-        routes::merchant_connector_account::payment_connector_list,
+        routes::merchant_connector_account::connector_list,
         routes::merchant_connector_account::connector_update,
         routes::merchant_connector_account::connector_delete,
 

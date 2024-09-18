@@ -3757,6 +3757,7 @@ pub enum AttemptType {
 }
 
 impl AttemptType {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
@@ -3851,6 +3852,20 @@ impl AttemptType {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
+    // Logic to override the fields with data provided in the request should be done after this if required.
+    // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
+    #[inline(always)]
+    fn make_new_payment_attempt(
+        _payment_method_data: Option<&api_models::payments::PaymentMethodData>,
+        _old_payment_attempt: PaymentAttempt,
+        _new_attempt_count: i16,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> PaymentAttempt {
+        todo!()
+    }
+
     #[instrument(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
@@ -3865,19 +3880,34 @@ impl AttemptType {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
                 let db = &*state.store;
+                let key_manager_state = &state.into();
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
+                let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
+                    request
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|request_payment_method_data| {
+                            request_payment_method_data.payment_method_data.as_ref()
+                        }),
+                    fetched_payment_attempt,
+                    new_attempt_count,
+                    storage_scheme,
+                );
+
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+                let new_payment_attempt = db
+                    .insert_payment_attempt(new_payment_attempt_to_insert, storage_scheme)
+                    .await
+                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: fetched_payment_intent.get_id().to_owned(),
+                    })?;
+
+                #[cfg(all(feature = "v2", feature = "payment_v2"))]
                 let new_payment_attempt = db
                     .insert_payment_attempt(
-                        Self::make_new_payment_attempt(
-                            request.payment_method_data.as_ref().and_then(
-                                |request_payment_method_data| {
-                                    request_payment_method_data.payment_method_data.as_ref()
-                                },
-                            ),
-                            fetched_payment_attempt,
-                            new_attempt_count,
-                            storage_scheme,
-                        ),
+                        key_manager_state,
+                        key_store,
+                        new_payment_attempt_to_insert,
                         storage_scheme,
                     )
                     .await
@@ -3887,7 +3917,7 @@ impl AttemptType {
 
                 let updated_payment_intent = db
                     .update_payment_intent(
-                        &state.into(),
+                        key_manager_state,
                         fetched_payment_intent,
                         storage::PaymentIntentUpdate::StatusAndAttemptUpdate {
                             status: payment_intent_status_fsm(

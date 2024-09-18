@@ -172,7 +172,7 @@ common_utils::impl_to_sql_from_sql_json!(MandateDataType);
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: common_utils::types::MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,

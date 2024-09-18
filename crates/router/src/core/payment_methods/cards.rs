@@ -2046,7 +2046,7 @@ pub async fn delete_card_from_locker(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn delete_card_by_locker_id(
     state: &routes::SessionState,
-    id: &String,
+    id: &str,
     merchant_id: &id_type::MerchantId,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     todo!()
@@ -2472,7 +2472,7 @@ pub async fn delete_card_from_hs_locker<'a>(
 #[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker_by_global_id<'a>(
     state: &routes::SessionState,
-    id: &String,
+    id: &str,
     merchant_id: &id_type::MerchantId,
     card_reference: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
@@ -4706,6 +4706,7 @@ async fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 async fn perform_surcharge_ops(
     payment_intent: Option<storage::PaymentIntent>,
     state: &routes::SessionState,
@@ -4748,6 +4749,18 @@ async fn perform_surcharge_ops(
     }
 
     Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+async fn perform_surcharge_ops(
+    _payment_intent: Option<storage::PaymentIntent>,
+    _state: &routes::SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _business_profile: Option<BusinessProfile>,
+    _response: &mut api::CustomerPaymentMethodsListResponse,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    todo!()
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

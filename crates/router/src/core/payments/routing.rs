@@ -1095,7 +1095,7 @@ async fn perform_session_routing_for_pm_type(
             &session_pm_input.state.clone(),
             merchant_id,
             algorithm_id,
-            &session_pm_input.profile_id,
+            session_pm_input.profile_id,
             transaction_type,
         )
         .await?;
@@ -1124,7 +1124,7 @@ async fn perform_session_routing_for_pm_type(
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
-        &session_pm_input.profile_id,
+        session_pm_input.profile_id,
         transaction_type,
     )
     .await?;
@@ -1140,7 +1140,7 @@ async fn perform_session_routing_for_pm_type(
             fallback,
             session_pm_input.backend_input.clone(),
             None,
-            &session_pm_input.profile_id,
+            session_pm_input.profile_id,
             transaction_type,
         )
         .await?;

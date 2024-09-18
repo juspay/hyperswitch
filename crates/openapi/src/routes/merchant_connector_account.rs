@@ -185,7 +185,7 @@ pub async fn connector_retrieve() {}
     operation_id = "List all Merchant Connectors",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_list() {}
+pub async fn connector_list() {}
 
 /// Merchant Connector - Update
 ///

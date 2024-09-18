@@ -2681,10 +2681,7 @@ pub async fn list_merchants_for_user_in_org(
     let merchant_accounts = match role_info.get_entity_type() {
         EntityType::Organization | EntityType::Internal => state
             .store
-            .list_merchant_accounts_by_organization_id(
-                &(&state).into(),
-                user_from_token.org_id.get_string_repr(),
-            )
+            .list_merchant_accounts_by_organization_id(&(&state).into(), &user_from_token.org_id)
             .await
             .change_context(UserErrors::InternalServerError)?,
         EntityType::Merchant | EntityType::Profile => {
