@@ -93,7 +93,7 @@ pub async fn customers_delete() {}
 ///
 /// Lists all the customers for a particular merchant id.
 #[utoipa::path(
-    post,
+    get,
     path = "/customers/list",
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
@@ -201,7 +201,7 @@ pub async fn customers_delete() {}
 ///
 /// Lists all the customers for a particular merchant id.
 #[utoipa::path(
-    post,
+    get,
     path = "/v2/customers/list",
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),

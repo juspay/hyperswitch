@@ -1622,7 +1622,7 @@
       }
     },
     "/v2/customers/list": {
-      "post": {
+      "get": {
         "tags": [
           "Customers"
         ],
