@@ -1,8 +1,5 @@
 use masking::Secret;
-use router::{
-    core::utils as core_utils,
-    types::{self, api, storage::enums},
-};
+use router::types::{self, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -13,12 +10,12 @@ impl ConnectorActions for EsnekposTest {}
 impl utils::Connector for EsnekposTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Esnekpos;
-        types::api::ConnectorData {
-            connector: Box::new(&Esnekpos),
-            connector_name: types::Connector::Esnekpos,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Esnekpos::new()),
+            types::Connector::Esnekpos,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -95,7 +92,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 ..Default::default()
@@ -215,7 +212,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
                 capture_method: Some(enums::CaptureMethod::Automatic),
