@@ -1843,7 +1843,6 @@ pub enum DisputeStage {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumIter,
     strum::EnumString,
     strum::EnumIter,
     ToSchema,

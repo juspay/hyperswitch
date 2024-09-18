@@ -8,9 +8,6 @@ use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use strum::IntoEnumIterator;
 pub mod transformers;
-use std::collections::HashMap;
-
-use strum::IntoEnumIterator;
 
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
@@ -82,7 +79,6 @@ pub async fn accept_dispute(
     todo!()
 }
 
-#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_filters_for_disputes(
     state: SessionState,
