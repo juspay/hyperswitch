@@ -1,6 +1,5 @@
 pub mod transformers;
 
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::consts;
 use serde_json::json;
@@ -21,15 +20,11 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Esnekpos {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-}
+pub struct Esnekpos {}
 
 impl Esnekpos {
     pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMajorUnitForConnector,
-        }
+        &Self {}
     }
 }
 
