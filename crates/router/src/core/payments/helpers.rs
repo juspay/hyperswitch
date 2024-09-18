@@ -1781,6 +1781,23 @@ pub async fn retrieve_payment_method_with_temporary_token(
     })
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn retrieve_card_with_permanent_token(
+    state: &SessionState,
+    locker_id: &str,
+    _payment_method_id: &common_utils::id_type::GlobalPaymentMethodId,
+    payment_intent: &PaymentIntent,
+    card_token_data: Option<&domain::CardToken>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<domain::PaymentMethodData> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 #[allow(clippy::too_many_arguments)]
 pub async fn retrieve_card_with_permanent_token(
     state: &SessionState,
@@ -1986,6 +2003,20 @@ pub async fn fetch_card_details_from_locker(
     Ok(domain::PaymentMethodData::Card(api_card.into()))
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn retrieve_payment_method_from_db_with_token_data(
+    state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    token_data: &storage::PaymentTokenData,
+    storage_scheme: storage::enums::MerchantStorageScheme,
+) -> RouterResult<Option<domain::PaymentMethod>> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn retrieve_payment_method_from_db_with_token_data(
     state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -2082,6 +2113,27 @@ pub async fn retrieve_payment_token_data(
     Ok(token_data)
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn make_pm_data<'a, F: Clone, R, D>(
+    _operation: BoxedOperation<'a, F, R, D>,
+    _state: &'a SessionState,
+    _payment_data: &mut PaymentData<F>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _customer: &Option<domain::Customer>,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
+    _business_profile: Option<&domain::BusinessProfile>,
+) -> RouterResult<(
+    BoxedOperation<'a, F, R, D>,
+    Option<domain::PaymentMethodData>,
+    Option<String>,
+)> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn make_pm_data<'a, F: Clone, R, D>(
     operation: BoxedOperation<'a, F, R, D>,
     state: &'a SessionState,
@@ -5100,6 +5152,21 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
         .attach_printable("Failed to encode additional pm data")
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn get_payment_method_details_from_payment_token(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_payment_method_details_from_payment_token(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,

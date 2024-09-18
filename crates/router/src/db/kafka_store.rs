@@ -1821,11 +1821,28 @@ impl PaymentIntentInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for KafkaStore {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method(state, key_store, payment_method_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
