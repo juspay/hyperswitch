@@ -1030,31 +1030,6 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
     }
 }
 
-// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-// impl From<CardDetailsPaymentMethod> for CardDetail {
-//     fn from(item: CardDetailsPaymentMethod) -> Self {
-//         Self {
-//             card_issuing_country: item
-//                 .issuer_country
-//                 .as_ref()
-//                 .map(|c| api_enums::CountryAlpha2::from_str(c))
-//                 .transpose()
-//                 .ok()
-//                 .flatten(),
-//             last4_digits: Some(item.card_number.get_last4()),
-//             expiry_month: Some(item.card_exp_month),
-//             expiry_year: Some(item.card_exp_year),
-//             card_holder_name: item.card_holder_name,
-//             nick_name: item.nick_name,
-//             card_isin: None,
-//             card_issuer: item.card_issuer,
-//             card_network: item.card_network,
-//             card_type: item.card_type.map(|card| card.to_string()),
-//             saved_to_locker: true,
-//         }
-//     }
-// }
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")

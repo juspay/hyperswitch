@@ -26,7 +26,7 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "v1")]
