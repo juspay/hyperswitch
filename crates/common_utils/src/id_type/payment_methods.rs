@@ -31,8 +31,10 @@ impl GlobalPaymentMethodId {
         &self.0
     }
     /// Create a new GlobalPaymentMethodId from celll id information
-    pub fn generate(cell_id: &str) -> error_stack::Result<Self, errors::ValidationError> {
-        let cell_id = CellId::from_string(cell_id.to_string())?;
+    pub fn generate(cell_id: &str) -> error_stack::Result<Self, GlobalPaymentMethodIdError> {
+        let cell_id = CellId::from_str(cell_id)
+        .change_context(GlobalPaymentMethodIdError::ConstructionError)
+        .attach_printable("Failed to construct CellId from str")?;
         let global_id = GlobalId::generate(cell_id, GlobalEntity::PaymentMethod);
         Ok(Self(global_id))
     }
