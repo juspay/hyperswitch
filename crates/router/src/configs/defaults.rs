@@ -8773,15 +8773,6 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
-                                            (
-                                                "billing.phone.country_code".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
-                                                    display_name: "dialing_code".to_string(),
-                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
-                                                    value: None,
-                                                }
-                                            ),
                                             ]
                                         ),
                                     }
@@ -11069,7 +11060,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_debit.ach.account_number".to_string(),
                                                 display_name: "bank_account_number".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                field_type: enums::FieldType::UserBankAccountNumber,
                                                 value: None,
                                             }
                                         ),
@@ -11111,7 +11102,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.bank_debit.ach.account_number".to_string(),
                                                         display_name: "bank_account_number".to_string(),
-                                                        field_type: enums::FieldType::Text,
+                                                        field_type: enums::FieldType::UserBankAccountNumber,
                                                         value: None,
                                                     }
                                                 ),
@@ -11159,9 +11150,9 @@ impl Default for super::settings::RequiredFields {
                                         (
                                             "payment_method_data.bank_debit.sepa.iban".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.bacs.iban".to_string(),
-                                                display_name: "bank_account_number".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                display_name: "iban".to_string(),
+                                                field_type: enums::FieldType::UserIban,
                                                 value: None,
                                             }
                                         ),
@@ -11202,9 +11193,9 @@ impl Default for super::settings::RequiredFields {
                                             (
                                                 "payment_method_data.bank_debit.sepa.iban".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.bacs.iban".to_string(),
-                                                    display_name: "bank_account_number".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                    display_name: "iban".to_string(),
+                                                    field_type: enums::FieldType::UserIban,
                                                     value: None,
                                                 }
                                             )
@@ -11234,11 +11225,20 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
+                                                "billing.email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.email".to_string(),
+                                                    display_name: "email".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
                                                 "payment_method_data.bank_debit.sepa.iban".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.bacs.iban".to_string(),
-                                                    display_name: "bank_account_number".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                    display_name: "iban".to_string(),
+                                                    field_type: enums::FieldType::UserIban,
                                                     value: None,
                                                 }
                                             )
@@ -11271,7 +11271,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_debit.bacs.account_number".to_string(),
                                                 display_name: "bank_account_number".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                field_type: enums::FieldType::UserBankAccountNumber,
                                                 value: None,
                                             }
                                         ),
@@ -11343,7 +11343,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_debit.bacs.account_number".to_string(),
                                                     display_name: "bank_account_number".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserBankAccountNumber,
                                                     value: None,
                                                 }
                                             ),
@@ -11393,7 +11393,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_debit.becs.account_number".to_string(),
                                                 display_name: "bank_account_number".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                field_type: enums::FieldType::UserBankAccountNumber,
                                                 value: None,
                                             }
                                         ),
@@ -11445,7 +11445,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_debit.bacs.account_number".to_string(),
                                                     display_name: "bank_account_number".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserBankAccountNumber,
                                                     value: None,
                                                 }
                                             ),

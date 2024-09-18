@@ -74,7 +74,7 @@ where
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
@@ -282,7 +282,7 @@ impl MerchantAccountInterface for Store {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         use futures::future::try_join_all;
         let conn = connection::pg_connection_read(self).await?;
@@ -555,7 +555,7 @@ impl MerchantAccountInterface for MockDb {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         _state: &KeyManagerState,
-        _organization_id: &str,
+        _organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

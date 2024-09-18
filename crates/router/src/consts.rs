@@ -135,3 +135,15 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
+
+/// Vault Add request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+
+/// Vault Get Fingerprint request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+
+/// Vault Header content type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
