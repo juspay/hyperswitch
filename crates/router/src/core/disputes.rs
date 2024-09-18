@@ -127,6 +127,7 @@ pub async fn get_filters_for_disputes(
     ))
 }
 
+[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
