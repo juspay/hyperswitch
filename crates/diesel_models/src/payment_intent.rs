@@ -66,6 +66,9 @@ pub struct PaymentIntent {
     pub statement_descriptor: Option<String>,
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
+    pub customer_present: Option<bool>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::PaymentGlobalId,
 }
 
@@ -132,6 +135,50 @@ pub struct PaymentIntent {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
 }
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentLinkConfigRequestForPayments {
+    /// custom theme for the payment link
+    pub theme: Option<String>,
+    /// merchant display logo
+    pub logo: Option<String>,
+    /// Custom merchant name for payment link
+    pub seller_name: Option<String>,
+    /// Custom layout for sdk
+    pub sdk_layout: Option<String>,
+    /// Display only the sdk for payment link
+    pub display_sdk_only: Option<bool>,
+    /// Enable saved payment method option for payment link
+    pub enabled_saved_payment_method: Option<bool>,
+    /// Dynamic details related to merchant to be rendered in payment link
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentLinkTransactionDetails {
+    /// Key for the transaction details
+    pub key: String,
+    /// Value for the transaction details
+    pub value: String,
+    /// UI configuration for the transaction details
+    pub ui_configuration: Option<TransactionDetailsUiConfiguration>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentLinkTransactionDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct TransactionDetailsUiConfiguration {
+    /// Position of the key-value pair in the UI
+    pub position: Option<i8>,
+    /// Whether the key should be bold
+    pub is_key_bold: Option<bool>,
+    /// Whether the value should be bold
+    pub is_value_bold: Option<bool>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(TransactionDetailsUiConfiguration);
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
@@ -211,8 +258,6 @@ pub struct PaymentIntentNew {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    // Denotes the action(approve or reject) taken by merchant in case of manual review.
-    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub frm_merchant_decision: Option<String>,
     pub statement_descriptor: Option<String>,
     pub enable_payment_link: Option<bool>,

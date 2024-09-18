@@ -1519,6 +1519,9 @@ impl behaviour::Conversion for PaymentIntent {
             organization_id,
             enable_payment_link,
             apply_mit_exemption,
+            customer_present,
+            routing_algorithm_id,
+            payment_link_config,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1571,6 +1574,9 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(enable_payment_link.as_bool()),
             apply_mit_exemption: Some(apply_mit_exemption.as_bool()),
+            customer_present: Some(customer_present.as_bool()),
+            payment_link_config,
+            routing_algorithm_id,
         })
     }
     async fn convert_back(
@@ -1667,6 +1673,11 @@ impl behaviour::Conversion for PaymentIntent {
                 apply_mit_exemption: common_enums::MitExemptionRequest::from(
                     storage_model.apply_mit_exemption,
                 ),
+                customer_present: common_enums::PresenceOfCustomerDuringPayment::from(
+                    storage_model.customer_present,
+                ),
+                payment_link_config: storage_model.payment_link_config,
+                routing_algorithm_id: storage_model.routing_algorithm_id,
             })
         }
         .await

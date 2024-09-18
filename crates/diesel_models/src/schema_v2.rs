@@ -891,6 +891,10 @@ diesel::table! {
         statement_descriptor -> Nullable<Varchar>,
         enable_payment_link -> Nullable<Bool>,
         apply_mit_exemption -> Nullable<Bool>,
+        customer_present -> Nullable<Bool>,
+        #[max_length = 64]
+        routing_algorithm_id -> Nullable<Varchar>,
+        payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
     }

@@ -251,4 +251,10 @@ pub struct PaymentIntent {
     pub enable_payment_link: common_enums::EnablePaymentLinkRequest,
     /// Denotes the request by the merchant whether to apply MIT exemption for this payment
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
+    /// Denotes whether the customer is present during the payment flow. This information may be used for 3ds authentication
+    pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
+    /// Denotes the override for payment link configuration
+    pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
+    /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
 }

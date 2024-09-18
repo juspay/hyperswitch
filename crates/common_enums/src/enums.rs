@@ -3239,3 +3239,12 @@ pub enum MitExemptionRequest {
     /// Skip applying MIT exemption
     Skip,
 }
+
+/// Whether customer is present / absent during the payment
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum PresenceOfCustomerDuringPayment {
+    /// Customer is present during the payment. This is the default value
+    Present,
+    /// Customer is absent during the payment
+    Absent,
+}

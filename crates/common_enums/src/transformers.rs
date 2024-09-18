@@ -2046,6 +2046,24 @@ impl super::MitExemptionRequest {
     }
 }
 
+impl From<Option<bool>> for super::PresenceOfCustomerDuringPayment {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(false) => Self::Absent,
+            _ => Self::Present,
+        }
+    }
+}
+
+impl super::PresenceOfCustomerDuringPayment {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Present => true,
+            Self::Absent => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

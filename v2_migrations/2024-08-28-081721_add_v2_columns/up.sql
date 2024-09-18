@@ -29,4 +29,7 @@ ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
     ADD COLUMN frm_merchant_decision VARCHAR(64),
     ADD COLUMN statement_descriptor VARCHAR(255),
     ADD COLUMN enable_payment_link BOOLEAN,
-    ADD COLUMN apply_mit_exemption BOOLEAN;
+    ADD COLUMN apply_mit_exemption BOOLEAN,
+    ADD COLUMN customer_present BOOLEAN,
+    ADD COLUMN routing_algorithm_id VARCHAR(64),
+    ADD COLUMN payment_link_config JSONB;
