@@ -502,6 +502,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
     predicate1 && predicate2
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
     state: &SessionState,
