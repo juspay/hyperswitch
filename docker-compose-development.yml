@@ -8,10 +8,8 @@ volumes:
   drainer_build_cache:
   redisinsight_store:
 
-
 networks:
   router_net:
-
 
 services:
   ### Dependencies
@@ -28,7 +26,7 @@ services:
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready" ]
+      test: ["CMD-SHELL", "pg_isready"]
       interval: 5s
       retries: 3
       start_period: 5s
@@ -41,7 +39,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD-SHELL", "redis-cli ping | grep '^PONG$'" ]
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
       interval: 5s
       retries: 3
       start_period: 5s
@@ -330,7 +328,7 @@ services:
         RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
         WORKDIR hyperswitch-web
         RUN npm i --force
-    command: bash -c 'npm run re:build && npx webpack serve --config webpack.dev.js --host 0.0.0.0'
+    command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
     ports:
       - "9050:9050"
     environment:
