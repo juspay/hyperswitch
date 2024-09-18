@@ -1576,13 +1576,13 @@ impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(super::admin::business_profile_create)))
+            .service(web::resource("").route(web::post().to(admin::business_profile_create)))
             .service(
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::get().to(super::admin::business_profile_retrieve))
-                            .route(web::put().to(super::admin::business_profile_update)),
+                            .route(web::get().to(admin::business_profile_retrieve))
+                            .route(web::put().to(admin::business_profile_update)),
                     )
                     .service(
                         web::resource("/connector_accounts")

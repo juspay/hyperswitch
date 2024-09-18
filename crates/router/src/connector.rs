@@ -28,7 +28,6 @@ pub mod iatapay;
 pub mod itaubank;
 pub mod klarna;
 pub mod mifinity;
-pub mod mollie;
 pub mod multisafepay;
 pub mod netcetera;
 pub mod nexinets;
@@ -56,7 +55,6 @@ pub mod stripe;
 pub mod threedsecureio;
 pub mod trustpay;
 pub mod utils;
-pub mod volt;
 pub mod wellsfargo;
 pub mod wellsfargopayout;
 pub mod wise;
@@ -67,9 +65,10 @@ pub mod zsl;
 pub use hyperswitch_connectors::connectors::{
     bambora, bambora::Bambora, bitpay, bitpay::Bitpay, deutschebank, deutschebank::Deutschebank,
     fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay,
-    globepay::Globepay, helcim, helcim::Helcim, nexixpay, nexixpay::Nexixpay, novalnet,
-    novalnet::Novalnet, powertranz, powertranz::Powertranz, stax, stax::Stax, taxjar,
-    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, worldline, worldline::Worldline,
+    globepay::Globepay, helcim, helcim::Helcim, mollie, mollie::Mollie, nexixpay,
+    nexixpay::Nexixpay, novalnet, novalnet::Novalnet, powertranz, powertranz::Powertranz, stax,
+    stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt,
+    worldline, worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]
