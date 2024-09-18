@@ -230,6 +230,11 @@ pub async fn payment_method_retrieve_api(
     })
     .into_inner();
 
+    let auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -238,7 +243,7 @@ pub async fn payment_method_retrieve_api(
         |state, auth, pm, _| {
             retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
