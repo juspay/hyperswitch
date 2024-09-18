@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::{
@@ -66,6 +67,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b,
@@ -82,6 +84,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -283,6 +286,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
+        _routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -415,6 +419,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -427,6 +432,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await
     }
@@ -470,6 +476,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -482,6 +489,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -506,6 +514,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
+        _routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -575,6 +584,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -587,6 +597,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -605,6 +616,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -617,6 +629,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -637,6 +650,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -649,6 +663,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -667,6 +682,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -679,6 +695,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -703,6 +720,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -720,6 +738,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await?;
 
@@ -804,6 +823,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -816,6 +836,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             key_store,
             storage_scheme,
             locale,
+            routable_connector,
         ))
         .await
     }
@@ -856,6 +877,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     locale: &Option<String>,
+    routable_connector: Vec<RoutableConnectorChoice>,
 ) -> RouterResult<PaymentData<F>> {
     todo!()
 }
@@ -870,8 +892,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     locale: &Option<String>,
+    routable_connectors: Vec<RoutableConnectorChoice>,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
+
+    use crate::core::routing::helpers::metrics_for_success_based_routing;
     let additional_payment_method_data =
         update_additional_payment_data_with_connector_response_pm_data(
             payment_data.payment_attempt.payment_method_data.clone(),
@@ -1495,6 +1520,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         utils::flatten_join_error(mandate_update_fut),
         utils::flatten_join_error(payment_attempt_fut)
     )?;
+
+    // grpc metrics
+    let _ = metrics_for_success_based_routing(
+        state,
+        key_store,
+        &payment_attempt.status,
+        &payment_attempt.merchant_connector_id,
+        &payment_attempt.profile_id,
+        &payment_attempt.connector,
+        routable_connectors,
+    )
+    .await
+    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e));
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;

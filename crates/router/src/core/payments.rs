@@ -82,7 +82,9 @@ use crate::{
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{self, ConnectorCallType, ConnectorCommon},
+        api::{
+            self, convert_connector_data_to_routable_connectors, ConnectorCallType, ConnectorCommon,
+        },
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
@@ -292,6 +294,8 @@ where
             };
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(connector) => {
+                    let routable_connectors =
+                        convert_connector_data_to_routable_connectors(&vec![connector.clone()]);
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -359,6 +363,7 @@ where
                             &key_store,
                             merchant_account.storage_scheme,
                             &locale,
+                            routable_connectors,
                         )
                         .await?;
 
@@ -380,6 +385,9 @@ where
                 }
 
                 ConnectorCallType::Retryable(connectors) => {
+                    let routable_connectors =
+                        convert_connector_data_to_routable_connectors(&connectors);
+
                     let mut connectors = connectors.into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
@@ -483,6 +491,7 @@ where
                             &key_store,
                             merchant_account.storage_scheme,
                             &locale,
+                            routable_connectors,
                         )
                         .await?;
 
@@ -4164,6 +4173,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    use super::routing::helpers::fetch_and_cache_dynamic_routing_configs;
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
@@ -4197,6 +4207,10 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+
+    // Dynamic routing metrics
+    // grpc
+    fetch_and_cache_dynamic_routing_configs(state, business_profile).await;
 
     let connector_data = connectors
         .into_iter()

@@ -3201,3 +3201,25 @@ pub enum DeleteStatus {
     Active,
     Redacted,
 }
+
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SuccessBasedRoutingConclusiveState {
+    // pc: payment connector
+    // sc: success based routing outcome/first connector
+    // status: payment status
+    //
+    // pc == sc && status = success
+    TruePositive,
+    // pc == sc && status = failed
+    TrueNegative,
+    // pc != sc && status = success
+    FalsePositive,
+    // pc == sc && status = failed
+    FalseNegative,
+    // status = processing
+    NonDeterministic,
+}

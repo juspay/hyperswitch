@@ -26,7 +26,7 @@ pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, routing::RoutableConnectorChoice};
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -263,6 +263,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
+        routable_connector: Vec<RoutableConnectorChoice>,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;

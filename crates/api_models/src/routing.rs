@@ -259,6 +259,16 @@ pub struct RoutableConnectorChoiceWithStatus {
     pub routable_connector_choice: RoutableConnectorChoice,
     pub status: bool,
 }
+
+impl RoutableConnectorChoiceWithStatus {
+    pub fn new(routable_connector_choice: RoutableConnectorChoice, status: bool) -> Self {
+        Self {
+            routable_connector_choice,
+            status,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

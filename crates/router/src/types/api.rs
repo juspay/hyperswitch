@@ -38,6 +38,9 @@ pub mod refunds_v2;
 
 use std::{fmt::Debug, str::FromStr};
 
+use api_models::routing::RoutableConnectorChoice;
+use common_enums::RoutableConnectors;
+use common_utils::transformers::ForeignFrom;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
@@ -68,7 +71,6 @@ use crate::{
     services::{connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
-
 #[derive(Clone)]
 pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
@@ -223,6 +225,26 @@ impl SessionConnectorData {
             payment_method_type,
             connector,
             business_sub_label,
+        }
+    }
+}
+
+pub fn convert_connector_data_to_routable_connectors(
+    connectors: &Vec<ConnectorData>,
+) -> Vec<RoutableConnectorChoice> {
+    connectors
+        .clone()
+        .into_iter()
+        .map(|connector| RoutableConnectorChoice::from(connector))
+        .collect::<Vec<RoutableConnectorChoice>>()
+}
+
+impl From<ConnectorData> for RoutableConnectorChoice {
+    fn from(value: ConnectorData) -> Self {
+        RoutableConnectorChoice {
+            choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+            connector: RoutableConnectors::foreign_from(value.connector_name),
+            merchant_connector_id: value.merchant_connector_id,
         }
     }
 }
