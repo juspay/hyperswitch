@@ -13,9 +13,10 @@
   outputs = inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       systems = inputs.nixpkgs.lib.systems.flakeExposed;
-      perSystem = { self', pkgs, system, ... }:
+      perSystem = { self', pkgs, lib, system, ... }:
         let
-          rustVersion = "1.65.0";
+          cargoToml = lib.importTOML ./Cargo.toml;
+          rustVersion = cargoToml.workspace.package.rust-version;
           frameworks = pkgs.darwin.apple_sdk.frameworks;
         in
         {
