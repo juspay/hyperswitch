@@ -23,7 +23,7 @@ describe("Priority Based Routing Test", () => {
       cy.terminate2Fa(globalState);
       cy.userInfo(globalState);
     });
-    
+
     it("merchant retrieve call", () => {
       cy.merchantRetrieveCall(globalState);
     });
