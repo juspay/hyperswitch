@@ -561,30 +561,12 @@ pub struct PayoutCreateResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodDataResponse {
-    Card(Box<CardPayoutResponse>),
-    Bank(Box<BankPayoutResponse>),
-    Wallet(Box<WalletPayoutResponse>),
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct CardPayoutResponse {
-    #[serde(flatten)]
     #[schema(value_type = CardAdditionalData)]
-    details: additional_info::CardAdditionalData,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct BankPayoutResponse {
-    #[serde(flatten)]
+    Card(Box<additional_info::CardAdditionalData>),
     #[schema(value_type = BankAdditionalData)]
-    details: Option<additional_info::BankAdditionalData>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct WalletPayoutResponse {
-    #[serde(flatten)]
+    Bank(Box<additional_info::BankAdditionalData>),
     #[schema(value_type = WalletAdditionalData)]
-    details: Option<additional_info::WalletAdditionalData>,
+    Wallet(Box<additional_info::WalletAdditionalData>),
 }
 
 #[derive(
@@ -959,20 +941,10 @@ impl From<Wallet> for additional_info::WalletAdditionalData {
 impl From<additional_info::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
     fn from(additional_data: additional_info::AdditionalPayoutMethodData) -> Self {
         match additional_data {
-            additional_info::AdditionalPayoutMethodData::Card(card_data) => {
-                Self::Card(Box::new(CardPayoutResponse {
-                    details: *card_data,
-                }))
-            }
-            additional_info::AdditionalPayoutMethodData::Bank(bank_data) => {
-                Self::Bank(Box::new(BankPayoutResponse {
-                    details: Some(*bank_data),
-                }))
-            }
+            additional_info::AdditionalPayoutMethodData::Card(card_data) => Self::Card(card_data),
+            additional_info::AdditionalPayoutMethodData::Bank(bank_data) => Self::Bank(bank_data),
             additional_info::AdditionalPayoutMethodData::Wallet(wallet_data) => {
-                Self::Wallet(Box::new(WalletPayoutResponse {
-                    details: Some(*wallet_data),
-                }))
+                Self::Wallet(wallet_data)
             }
         }
     }

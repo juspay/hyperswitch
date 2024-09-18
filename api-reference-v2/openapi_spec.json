@@ -2725,16 +2725,6 @@
           "nationale_nederlanden"
         ]
       },
-      "BankPayoutResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/BankAdditionalData"
-          },
-          {
-            "type": "object"
-          }
-        ]
-      },
       "BankRedirectBilling": {
         "type": "object",
         "required": [
@@ -4893,16 +4883,6 @@
             "example": "John Doe"
           }
         }
-      },
-      "CardPayoutResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/CardAdditionalData"
-          },
-          {
-            "type": "object"
-          }
-        ]
       },
       "CardRedirectData": {
         "oneOf": [
@@ -16068,7 +16048,7 @@
             ],
             "properties": {
               "card": {
-                "$ref": "#/components/schemas/CardPayoutResponse"
+                "$ref": "#/components/schemas/CardAdditionalData"
               }
             }
           },
@@ -16079,7 +16059,7 @@
             ],
             "properties": {
               "bank": {
-                "$ref": "#/components/schemas/BankPayoutResponse"
+                "$ref": "#/components/schemas/BankAdditionalData"
               }
             }
           },
@@ -16090,7 +16070,7 @@
             ],
             "properties": {
               "wallet": {
-                "$ref": "#/components/schemas/WalletPayoutResponse"
+                "$ref": "#/components/schemas/WalletAdditionalData"
               }
             }
           }
@@ -19193,16 +19173,6 @@
                 "$ref": "#/components/schemas/MifinityData"
               }
             }
-          }
-        ]
-      },
-      "WalletPayoutResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WalletAdditionalData"
-          },
-          {
-            "type": "object"
           }
         ]
       },

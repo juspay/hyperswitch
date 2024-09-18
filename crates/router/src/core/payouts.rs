@@ -2553,7 +2553,7 @@ pub async fn make_payout_data(
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
         validate_and_get_business_profile(state, key_store, &profile_id, merchant_id).await?;
-    let payout_method_data = match req {
+    let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
             match payout_attempt.payout_token.to_owned() {
@@ -2581,19 +2581,10 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
-    if payout_method_data.is_some() {
-        let async_move_profile_id = profile_id.clone();
-        let additional_pm_data = payout_method_data
-            .clone()
-            .async_and_then(|payout_method_data| async move {
-                helpers::get_additional_payout_data(
-                    &payout_method_data,
-                    &*state.store,
-                    &async_move_profile_id,
-                )
-                .await
-            })
-            .await;
+    if let Some(payout_method_data) = payout_method_data_req.clone() {
+        let additional_pm_data =
+            helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id)
+                .await;
 
         let additional_payout_method_data = additional_pm_data
             .as_ref()
@@ -2617,7 +2608,7 @@ pub async fn make_payout_data(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error updating routing info in payout_attempt")?;
-    }
+    };
 
     let merchant_connector_account =
         if payout_attempt.connector.is_some() && payout_attempt.merchant_connector_id.is_some() {
@@ -2659,7 +2650,7 @@ pub async fn make_payout_data(
         customer_details,
         payouts,
         payout_attempt,
-        payout_method_data: payout_method_data.to_owned(),
+        payout_method_data: payout_method_data_req.to_owned(),
         merchant_connector_account,
         should_terminate: false,
         profile_id,
