@@ -25,6 +25,7 @@ Cargo.lock @juspay/hyperswitch-framework
 
 postman/ @juspay/hyperswitch-qa
 cypress-tests/ @juspay/hyperswitch-qa
+cypress-tests-v2/ @juspay/hyperswitch-qa
 
 crates/api_models/src/events/ @juspay/hyperswitch-analytics
 crates/api_models/src/events.rs @juspay/hyperswitch-analytics
