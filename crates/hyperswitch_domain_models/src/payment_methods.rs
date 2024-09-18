@@ -77,7 +77,7 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub version: common_enums::ApiVersion,
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
@@ -94,7 +94,7 @@ impl PaymentMethod {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    pub fn get_id(&self) -> &String {
+    pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
     }
 }
