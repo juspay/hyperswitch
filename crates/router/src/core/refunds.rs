@@ -1098,11 +1098,17 @@ pub async fn get_filters_for_refunds(
 pub async fn get_aggregates_for_refunds(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     time_range: api::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundAggregateResponse> {
     let db = state.store.as_ref();
     let refund_status_with_count = db
-        .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme)
+        .get_refund_status_with_count(
+            merchant.get_id(),
+            profile_id_list,
+            &time_range,
+            merchant.storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find status count")?;

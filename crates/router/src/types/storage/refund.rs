@@ -41,6 +41,7 @@ pub trait RefundDbExt: Sized {
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
 }
@@ -299,6 +300,7 @@ impl RefundDbExt for Refund {
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &api_models::payments::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
         let mut query = <Self as HasTable>::table()
@@ -306,6 +308,10 @@ impl RefundDbExt for Refund {
             .select((dsl::refund_status, diesel::dsl::count_star()))
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .into_boxed();
+
+        if let Some(profile_id) = profile_id_list {
+            query = query.filter(dsl::profile_id.eq_any(profile_id));
+        }
 
         query = query.filter(dsl::created_at.ge(time_range.start_time));
 
