@@ -1685,19 +1685,13 @@ impl pm_types::SavedPMLPaymentsInfo {
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        let profile_id = payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("profile_id is not set in payment_intent")?
-            .clone();
+        let profile_id = &payment_intent.profile_id;
 
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             key_manager_state,
             key_store,
-            Some(profile_id).as_ref(),
+            Some(profile_id),
             merchant_account.get_id(),
         )
         .await?;
