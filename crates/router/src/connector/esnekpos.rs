@@ -49,16 +49,6 @@ impl api::RefundExecute for Esnekpos {}
 impl api::RefundSync for Esnekpos {}
 impl api::PaymentToken for Esnekpos {}
 
-impl api::PaymentSessionUpdate for Esnekpos {}
-impl
-    services::ConnectorIntegration<
-        api::SdkSessionUpdate,
-        types::SdkPaymentsSessionUpdateData,
-        types::PaymentsResponseData,
-    > for Esnekpos
-{
-}
-
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
