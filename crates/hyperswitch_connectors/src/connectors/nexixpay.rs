@@ -683,7 +683,24 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexixpay::NexixpayPaymentsCancleRequest::try_from(req)?;
+        let minor_amount = req.request.minor_amount.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?;
+        let currency = req.request.currency.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            },
+        )?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            minor_amount,
+            currency,
+        )?;
+
+        let connector_router_data = nexixpay::NexixpayRouterData::from((amount, req));
+        let connector_req = nexixpay::NexixpayPaymentsCancleRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -881,7 +898,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexixpay 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: nexixpay::NexixpayTransactionResponse = res
+        let response: nexixpay::NexixpayRSyncResponse = res
             .response
             .parse_struct("NexixpayTransactionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

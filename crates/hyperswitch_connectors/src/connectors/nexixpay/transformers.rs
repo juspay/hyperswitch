@@ -22,9 +22,8 @@ use crate::{
     utils::{RouterData as _,missing_field_err,CardData},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct NexixpayRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMinorUnit,
     pub router_data: T,
 }
 
@@ -131,7 +130,6 @@ struct Recurrence {
     action: String,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPaymentsResponse  {
@@ -230,7 +228,6 @@ impl TryFrom<&PaymentsPreProcessingRouterData>for NexixpayPreProcessingRequest{
                         field_name: "redirection_payload",
                     },
                 )?;
-        //TODO: error handling ->enum
         let operation_id = customer_details_encrypted.payment_id;
         let pares = customer_details_encrypted.pa_res;
         Ok(Self {
@@ -247,7 +244,6 @@ impl<F> TryFrom<ResponseRouterData<F, NexixpayPreProcessingResponse, PaymentsPre
         fn try_from(
             item: ResponseRouterData<F, NexixpayPreProcessingResponse, PaymentsPreProcessingData, PaymentsResponseData>,
         ) -> Result<Self, Self::Error> {
-           // let complete_authorise_url = item.data.request.complete_authorize_url.clone().ok_or_else(missing_field_err("complete_authorise_url"))?;
             let three_ds_data: ThreeDSAuthResult = item.response.three_d_s_auth_result; 
 
             let redirect_response = item.data.request.redirect_response.clone().ok_or(
@@ -332,8 +328,6 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct NexixpayAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -381,12 +375,36 @@ pub enum NexixpayOperationType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NexixpayRefundOperationType {
+    Refund,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NexixpayRefundResultStatus {
+    Pending,
+    Voided,
+    Refunded,
+    Failed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, )]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayTransactionResponse {
     order_id: String,
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
     operation_type: NexixpayOperationType
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, )]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayRSyncResponse {
+    order_id: String,
+    operation_id: String,
+    operation_result: NexixpayRefundResultStatus,
+    operation_type: NexixpayRefundOperationType
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, )]
@@ -400,7 +418,7 @@ pub struct NexixpayPaymentsCaptureRequest {
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPaymentsCancleRequest {
     description: Option<String>,
-    amount: i64,
+    amount: StringMinorUnit,
     currency: Currency
 }
 
@@ -410,9 +428,6 @@ pub struct NexixpayOperationResponse  {
     operation_id: String,
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Clone, Serialize, Deserialize, )]
 pub struct NexixpayRefundRequest {
     pub amount: StringMinorUnit,
@@ -525,12 +540,14 @@ impl<F> TryFrom<&NexixpayRouterData<&RefundsRouterData<F>>> for NexixpayRefundRe
     }
 }
 
-fn get_hs_refund_status((operation_type, operation_result):(NexixpayOperationType, NexixpayPaymentStatus)) -> CustomResult<RefundStatus, errors::ConnectorError> {
-    match (operation_type, operation_result) {
-        (NexixpayOperationType::Refund, NexixpayPaymentStatus::Voided) 
-        | (NexixpayOperationType::Refund, NexixpayPaymentStatus::Refunded)=> Ok(RefundStatus::Success),
-        (NexixpayOperationType::Refund, NexixpayPaymentStatus::Pending) => Ok(RefundStatus::Pending),
-        (_, _) => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+impl From<NexixpayRefundResultStatus> for RefundStatus {
+    fn from(item: NexixpayRefundResultStatus) -> Self {
+        match item {
+            NexixpayRefundResultStatus::Voided
+            | NexixpayRefundResultStatus::Refunded => Self::Success,
+            NexixpayRefundResultStatus::Pending => Self::Pending,
+            NexixpayRefundResultStatus::Failed => Self::Failure
+        }
     }
 }
 
@@ -542,22 +559,22 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.operation_id,
-                refund_status: get_hs_refund_status((NexixpayOperationType::Refund, NexixpayPaymentStatus::Pending))?,
+                refund_status: RefundStatus::from(NexixpayRefundResultStatus::Pending),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, NexixpayTransactionResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, NexixpayRSyncResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, NexixpayTransactionResponse>,
+        item: RefundsResponseRouterData<RSync, NexixpayRSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.operation_id,
-                refund_status: get_hs_refund_status((item.response.operation_type,item.response.operation_result))?,
+                refund_status: RefundStatus::from(item.response.operation_result),
             }),
             ..item.data
         })
@@ -633,11 +650,11 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>> for Nexi
         let connector_metadata = item.router_data.request.connector_meta.clone().ok_or(errors::ConnectorError::MissingRequiredField {
             field_name: "connector_meta",
         })?;
-        let three_d_s_auth =
+        let three_d_s_complete_auth_request_data =
             serde_json::from_value::<ThreeDSCompleteAuthRequestData>(connector_metadata).change_context(errors::ConnectorError::ParsingFailed)?;
         let three_d_s_auth_data= ThreeDSAuthData {
-            three_d_s_auth_response: three_d_s_auth.three_d_s_auth_response,
-            authentication_value: three_d_s_auth.three_d_s_auth_result.authentication_value,            
+            three_d_s_auth_response: three_d_s_complete_auth_request_data.three_d_s_auth_response,
+            authentication_value: three_d_s_complete_auth_request_data.three_d_s_auth_result.authentication_value,            
         };
         let card: Result<NexixpayCard, error_stack::Report<errors::ConnectorError>> = match payment_method_data {
             PaymentMethodData::Card(req_card) =>
@@ -750,24 +767,19 @@ impl<F,T>
     }
 }
 
-impl TryFrom<&PaymentsCancelRouterData>for NexixpayPaymentsCancleRequest{
+impl TryFrom<NexixpayRouterData<&PaymentsCancelRouterData>>for NexixpayPaymentsCancleRequest{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &PaymentsCancelRouterData,
+        item: NexixpayRouterData<&PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
-        let description = item.request.cancellation_reason.clone();
-        let amount = item.request.amount.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            },
-        )?;
-        let currency = item.request.currency.ok_or(
+        let description = item.router_data.request.cancellation_reason.clone();
+        let currency = item.router_data.request.currency.ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "currency",
             },
         )?;
         Ok(Self {
-            amount,
+            amount:item.amount,
             currency,
             description,
         })
