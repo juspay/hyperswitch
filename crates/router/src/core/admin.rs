@@ -674,7 +674,35 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn list_merchant_account(
+    state: SessionState,
+    organization_id: api_models::organization::OrganizationId,
+) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    let merchant_accounts = state
+        .store
+        .list_merchant_accounts_by_organization_id(
+            &(&state).into(),
+            &organization_id.organization_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_accounts = merchant_accounts
+        .into_iter()
+        .map(|merchant_account| {
+            api::MerchantAccountResponse::foreign_try_from(merchant_account).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_account",
+                },
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(services::ApplicationResponse::Json(merchant_accounts))
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn list_merchant_account(
     state: SessionState,
     req: api_models::admin::MerchantAccountListRequest,
@@ -2920,6 +2948,36 @@ pub async fn retrieve_connector(
     ))
 }
 
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn list_connectors_for_a_profile(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: id_type::ProfileId,
+) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
+    let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_account.get_id(),
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_connector_accounts = store
+        .list_connector_account_by_profile_id(key_manager_state, &profile_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+    let mut response = vec![];
+
+    for mca in merchant_connector_accounts.into_iter() {
+        response.push(mca.foreign_try_into()?);
+    }
+
+    Ok(service_api::ApplicationResponse::Json(response))
+}
+
 pub async fn list_payment_connectors(
     state: SessionState,
     merchant_id: id_type::MerchantId,
@@ -3479,6 +3537,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
                 dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
     }
@@ -3583,6 +3642,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 default_fallback_routing: None,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
     }
@@ -3827,6 +3887,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
                 dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }
@@ -3919,6 +3980,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }

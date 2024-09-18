@@ -499,7 +499,7 @@ pub struct NetworkTokenData {
     pub token_number: cards::CardNumber,
     pub token_exp_month: Secret<String>,
     pub token_exp_year: Secret<String>,
-    pub token_cryptogram: Secret<String>,
+    pub token_cryptogram: Option<Secret<String>>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,

@@ -227,4 +227,18 @@ impl MerchantConnectorAccount {
             .await
         }
     }
+
+    pub async fn list_by_profile_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::profile_id.eq(profile_id.to_owned()),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
+    }
 }

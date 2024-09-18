@@ -309,12 +309,15 @@ jobs:
 
       - name: Run cargo check with v2 features enabled
         shell: bash
-        # env:
-        #   # Not denying warnings for now.
-        #   # We only want to ensure successful compilation for now.
-        #   RUSTFLAGS: "-D warnings -A clippy::todo"
+        env:
+          RUSTFLAGS: "-A warnings"
+          # Not denying warnings for now.
+          # We only want to ensure successful compilation for now.
+          # RUSTFLAGS: "-D warnings -A clippy::todo"
         run: just check_v2
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2"
