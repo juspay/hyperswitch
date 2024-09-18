@@ -1489,7 +1489,8 @@ pub async fn retrieve_payment_method_from_vault(
             .clone()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "locker_id",
-            })?,
+            })
+            .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
     }
     .encode_to_vec()
     .change_context(errors::ApiErrorResponse::InternalServerError)

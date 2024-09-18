@@ -192,9 +192,9 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
+    let auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
     };
 
     Box::pin(api::server_wrap(
