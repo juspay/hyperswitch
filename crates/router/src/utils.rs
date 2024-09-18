@@ -378,6 +378,9 @@ pub async fn get_mca_from_payment_intent(
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
@@ -386,7 +389,19 @@ pub async fn get_mca_from_payment_intent(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    let payment_attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            key_manager_state,
+            key_store,
+            &payment_intent.active_attempt.get_id(),
+            merchant_account.get_id(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]

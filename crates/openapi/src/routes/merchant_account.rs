@@ -50,7 +50,7 @@ pub async fn merchant_account_create() {}
 /// Before creating the merchant account, it is mandatory to create an organization.
 #[utoipa::path(
     post,
-    path = "/v2/accounts",
+    path = "/v2/merchant_accounts",
     request_body(
         content = MerchantAccountCreate,
         examples(
@@ -124,7 +124,7 @@ pub async fn retrieve_merchant_account() {}
 /// Retrieve a *merchant* account details.
 #[utoipa::path(
     get,
-    path = "/v2/accounts/{id}",
+    path = "/v2/merchant_accounts/{id}",
     params (("id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
@@ -186,7 +186,7 @@ pub async fn update_merchant_account() {}
 /// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
     put,
-    path = "/v2/accounts/{id}",
+    path = "/v2/merchant_accounts/{id}",
     request_body (
         content = MerchantAccountUpdate,
         examples(
@@ -269,3 +269,21 @@ pub async fn delete_merchant_account() {}
     security(("admin_api_key" = []))
 )]
 pub async fn merchant_account_kv_status() {}
+
+#[cfg(feature = "v2")]
+/// Business Profile - List
+///
+/// List business profiles for an Merchant
+#[utoipa::path(
+    get,
+    path = "/v2/merchant_accounts/{account_id}/profiles",
+    params (("account_id" = String, Path, description = "The unique identifier for the Merchant")),
+    responses(
+        (status = 200, description = "Business profile list retrieved successfully", body = Vec<BusinessProfileResponse>),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Merchant Account",
+    operation_id = "List Business Profiles",
+    security(("admin_api_key" = []))
+)]
+pub async fn business_profiles_list() {}

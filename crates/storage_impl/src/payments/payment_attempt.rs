@@ -1,5 +1,7 @@
 use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
-use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found, types::MinorUnit};
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -25,6 +27,10 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use hyperswitch_domain_models::{
+    behaviour::ReverseConversion, merchant_key_store::MerchantKeyStore,
+};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -39,6 +45,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
@@ -57,6 +64,36 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn insert_payment_attempt(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_attempt: PaymentAttempt,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+        payment_attempt
+            .construct_new()
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
+            .insert(&conn)
+            .await
+            .map_err(|error| {
+                let new_error = diesel_error_to_data_error(error.current_context());
+                error.change_context(new_error)
+            })?
+            .convert(
+                key_manager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -75,6 +112,40 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+
+        Conversion::convert(this)
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
+            .update_with_attempt_id(
+                &conn,
+                diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
+            )
+            .await
+            .map_err(|error| {
+                let new_error = diesel_error_to_data_error(error.current_context());
+                error.change_context(new_error)
+            })?
+            .convert(
+                key_manager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
@@ -98,6 +169,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
@@ -119,6 +191,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
@@ -140,6 +213,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
@@ -161,6 +235,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -185,6 +260,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn get_filters_for_payments(
         &self,
@@ -194,7 +270,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         let intents = futures::future::try_join_all(pi.iter().cloned().map(|pi| async {
-            pi.convert()
+            Conversion::convert(pi)
                 .await
                 .change_context(errors::StorageError::EncryptionError)
         }))
@@ -225,6 +301,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             )
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
@@ -247,6 +324,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
@@ -268,6 +346,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             })
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
@@ -286,6 +365,34 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_by_attempt_id_merchant_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        attempt_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+
+        DieselPaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })?
+            .convert(
+                key_manager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
@@ -332,6 +439,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
@@ -480,6 +588,27 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn insert_payment_attempt(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_attempt: PaymentAttempt,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .insert_payment_attempt(
+                key_manager_state,
+                merchant_key_store,
+                payment_attempt,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -603,6 +732,29 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .update_payment_attempt_with_attempt_id(
+                key_manager_state,
+                merchant_key_store,
+                this,
+                payment_attempt,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
@@ -662,6 +814,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
@@ -720,6 +873,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
@@ -781,6 +935,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
@@ -849,6 +1004,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -902,6 +1058,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
@@ -967,6 +1124,29 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_by_attempt_id_merchant_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        attempt_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .find_payment_attempt_by_attempt_id_merchant_id(
+                key_manager_state,
+                merchant_key_store,
+                attempt_id,
+                merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
@@ -1035,6 +1215,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
@@ -1084,6 +1265,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn get_filters_for_payments(
         &self,
@@ -1096,6 +1278,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
@@ -1130,7 +1313,7 @@ impl DataModelExt for MandateAmountData {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselMandateAmountData {
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             currency: self.currency,
             start_date: self.start_date,
             end_date: self.end_date,
@@ -1140,7 +1323,7 @@ impl DataModelExt for MandateAmountData {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            amount: MinorUnit::new(storage_model.amount),
+            amount: storage_model.amount,
             currency: storage_model.currency,
             start_date: storage_model.start_date,
             end_date: storage_model.end_date,
@@ -1198,19 +1381,15 @@ impl DataModelExt for PaymentAttempt {
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount.get_amount_as_i64(),
-            net_amount: Some(self.net_amount.get_amount_as_i64()),
+            amount: self.amount,
+            net_amount: Some(self.net_amount),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
-            offer_amount: self
-                .offer_amount
-                .map(|offer_amt| offer_amt.get_amount_as_i64()),
-            surcharge_amount: self
-                .surcharge_amount
-                .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
-            tax_amount: self.tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             connector_transaction_id: self.connector_transaction_id,
@@ -1222,9 +1401,7 @@ impl DataModelExt for PaymentAttempt {
             modified_at: self.modified_at,
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
-            amount_to_capture: self
-                .amount_to_capture
-                .map(|capture_amt| capture_amt.get_amount_as_i64()),
+            amount_to_capture: self.amount_to_capture,
             mandate_id: self.mandate_id,
             browser_info: self.browser_info,
             error_code: self.error_code,
@@ -1249,7 +1426,7 @@ impl DataModelExt for PaymentAttempt {
             error_reason: self.error_reason,
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
-            amount_capturable: self.amount_capturable.get_amount_as_i64(),
+            amount_capturable: self.amount_capturable,
             updated_by: self.updated_by,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
@@ -1276,19 +1453,19 @@ impl DataModelExt for PaymentAttempt {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
-            amount: MinorUnit::new(storage_model.amount),
+            amount: storage_model.amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
-            offer_amount: storage_model.offer_amount.map(MinorUnit::new),
-            surcharge_amount: storage_model.surcharge_amount.map(MinorUnit::new),
-            tax_amount: storage_model.tax_amount.map(MinorUnit::new),
+            offer_amount: storage_model.offer_amount,
+            surcharge_amount: storage_model.surcharge_amount,
+            tax_amount: storage_model.tax_amount,
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             connector_transaction_id: storage_model.connector_transaction_id,
@@ -1300,7 +1477,7 @@ impl DataModelExt for PaymentAttempt {
             modified_at: storage_model.modified_at,
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
-            amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
+            amount_to_capture: storage_model.amount_to_capture,
             mandate_id: storage_model.mandate_id,
             browser_info: storage_model.browser_info,
             error_code: storage_model.error_code,
@@ -1318,7 +1495,7 @@ impl DataModelExt for PaymentAttempt {
             error_reason: storage_model.error_reason,
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
-            amount_capturable: MinorUnit::new(storage_model.amount_capturable),
+            amount_capturable: storage_model.amount_capturable,
             updated_by: storage_model.updated_by,
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
@@ -1356,19 +1533,15 @@ impl DataModelExt for PaymentAttempt {
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount.get_amount_as_i64(),
-            net_amount: Some(self.net_amount.get_amount_as_i64()),
+            amount: self.amount,
+            net_amount: Some(self.net_amount),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
-            offer_amount: self
-                .offer_amount
-                .map(|offer_amt| offer_amt.get_amount_as_i64()),
-            surcharge_amount: self
-                .surcharge_amount
-                .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
-            tax_amount: self.tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             connector_transaction_id: self.connector_transaction_id,
@@ -1380,9 +1553,7 @@ impl DataModelExt for PaymentAttempt {
             modified_at: self.modified_at,
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
-            amount_to_capture: self
-                .amount_to_capture
-                .map(|capture_amt| capture_amt.get_amount_as_i64()),
+            amount_to_capture: self.amount_to_capture,
             mandate_id: self.mandate_id,
             browser_info: self.browser_info,
             error_code: self.error_code,
@@ -1407,7 +1578,7 @@ impl DataModelExt for PaymentAttempt {
             error_reason: self.error_reason,
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
-            amount_capturable: self.amount_capturable.get_amount_as_i64(),
+            amount_capturable: self.amount_capturable,
             updated_by: self.updated_by,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
@@ -1434,19 +1605,19 @@ impl DataModelExt for PaymentAttempt {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
-            amount: MinorUnit::new(storage_model.amount),
+            amount: storage_model.amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
-            offer_amount: storage_model.offer_amount.map(MinorUnit::new),
-            surcharge_amount: storage_model.surcharge_amount.map(MinorUnit::new),
-            tax_amount: storage_model.tax_amount.map(MinorUnit::new),
+            offer_amount: storage_model.offer_amount,
+            surcharge_amount: storage_model.surcharge_amount,
+            tax_amount: storage_model.tax_amount,
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             connector_transaction_id: storage_model.connector_transaction_id,
@@ -1458,7 +1629,7 @@ impl DataModelExt for PaymentAttempt {
             modified_at: storage_model.modified_at,
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
-            amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
+            amount_to_capture: storage_model.amount_to_capture,
             mandate_id: storage_model.mandate_id,
             browser_info: storage_model.browser_info,
             error_code: storage_model.error_code,
@@ -1476,7 +1647,7 @@ impl DataModelExt for PaymentAttempt {
             error_reason: storage_model.error_reason,
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
-            amount_capturable: MinorUnit::new(storage_model.amount_capturable),
+            amount_capturable: storage_model.amount_capturable,
             updated_by: storage_model.updated_by,
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
@@ -1509,23 +1680,19 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
-            net_amount: Some(self.net_amount.get_amount_as_i64()),
+            net_amount: Some(self.net_amount),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
-            offer_amount: self
-                .offer_amount
-                .map(|offer_amt| offer_amt.get_amount_as_i64()),
-            surcharge_amount: self
-                .surcharge_amount
-                .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
-            tax_amount: self.tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             capture_method: self.capture_method,
@@ -1538,9 +1705,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .unwrap_or_else(common_utils::date_time::now),
             last_synced: self.last_synced,
             cancellation_reason: self.cancellation_reason,
-            amount_to_capture: self
-                .amount_to_capture
-                .map(|capture_amt| capture_amt.get_amount_as_i64()),
+            amount_to_capture: self.amount_to_capture,
             mandate_id: self.mandate_id,
             browser_info: self.browser_info,
             payment_token: self.payment_token,
@@ -1565,7 +1730,7 @@ impl DataModelExt for PaymentAttemptNew {
             error_reason: self.error_reason,
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
-            amount_capturable: self.amount_capturable.get_amount_as_i64(),
+            amount_capturable: self.amount_capturable,
             updated_by: self.updated_by,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
@@ -1592,19 +1757,19 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            net_amount: MinorUnit::new(storage_model.get_or_calculate_net_amount()),
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
-            amount: MinorUnit::new(storage_model.amount),
+            amount: storage_model.amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
-            offer_amount: storage_model.offer_amount.map(MinorUnit::new),
-            surcharge_amount: storage_model.surcharge_amount.map(MinorUnit::new),
-            tax_amount: storage_model.tax_amount.map(MinorUnit::new),
+            offer_amount: storage_model.offer_amount,
+            surcharge_amount: storage_model.surcharge_amount,
+            tax_amount: storage_model.tax_amount,
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             capture_method: storage_model.capture_method,
@@ -1615,7 +1780,7 @@ impl DataModelExt for PaymentAttemptNew {
             modified_at: Some(storage_model.modified_at),
             last_synced: storage_model.last_synced,
             cancellation_reason: storage_model.cancellation_reason,
-            amount_to_capture: storage_model.amount_to_capture.map(MinorUnit::new),
+            amount_to_capture: storage_model.amount_to_capture,
             mandate_id: storage_model.mandate_id,
             browser_info: storage_model.browser_info,
             payment_token: storage_model.payment_token,
@@ -1633,7 +1798,7 @@ impl DataModelExt for PaymentAttemptNew {
             error_reason: storage_model.error_reason,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
-            amount_capturable: MinorUnit::new(storage_model.amount_capturable),
+            amount_capturable: storage_model.amount_capturable,
             updated_by: storage_model.updated_by,
             authentication_data: storage_model.authentication_data,
             encoded_data: storage_model.encoded_data,
@@ -1685,7 +1850,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::Update {
-                amount: amount.get_amount_as_i64(),
+                amount,
                 currency,
                 status,
                 authentication_type,
@@ -1695,12 +1860,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_type,
                 payment_experience,
                 business_sub_label,
-                amount_to_capture: amount_to_capture
-                    .map(|capture_amt| capture_amt.get_amount_as_i64()),
+                amount_to_capture,
                 capture_method,
-                surcharge_amount: surcharge_amount
-                    .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
-                tax_amount: tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+                surcharge_amount,
+                tax_amount,
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
@@ -1718,11 +1881,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
-                amount_capturable: amount_capturable
-                    .map(|amount_capturable| amount_capturable.get_amount_as_i64()),
-                surcharge_amount: surcharge_amount
-                    .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
-                tax_amount: tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+                amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id,
             },
@@ -1785,7 +1946,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 shipping_cost,
                 order_tax_amount,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
-                amount: amount.get_amount_as_i64(),
+                amount,
                 currency,
                 status,
                 authentication_type,
@@ -1801,11 +1962,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
-                amount_capturable: amount_capturable
-                    .map(|capture_amt| capture_amt.get_amount_as_i64()),
-                surcharge_amount: surcharge_amount
-                    .map(|surcharge_amt| surcharge_amt.get_amount_as_i64()),
-                tax_amount: tax_amount.map(|tax_amt| tax_amt.get_amount_as_i64()),
+                amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
@@ -1863,8 +2022,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
-                amount_capturable: amount_capturable
-                    .map(|capture_amt| capture_amt.get_amount_as_i64()),
+                amount_capturable,
                 updated_by,
                 authentication_data,
                 encoded_data,
@@ -1916,8 +2074,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 error_reason,
-                amount_capturable: amount_capturable
-                    .map(|capture_amt| capture_amt.get_amount_as_i64()),
+                amount_capturable,
                 updated_by,
                 unified_code,
                 unified_message,
@@ -1932,8 +2089,7 @@ impl DataModelExt for PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
-                amount_to_capture: amount_to_capture
-                    .map(|capture_amt| capture_amt.get_amount_as_i64()),
+                amount_to_capture,
             },
             Self::PreprocessingUpdate {
                 status,
@@ -1969,7 +2125,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
             } => DieselPaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
-                amount_capturable: amount_capturable.get_amount_as_i64(),
+                amount_capturable,
                 updated_by,
             },
             Self::ConnectorResponse {
@@ -1991,8 +2147,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount,
                 amount_capturable,
             } => DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                amount: amount.get_amount_as_i64(),
-                amount_capturable: amount_capturable.get_amount_as_i64(),
+                amount,
+                amount_capturable,
             },
             Self::AuthenticationUpdate {
                 status,
@@ -2050,7 +2206,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 payment_method_billing_address_id,
             } => Self::Update {
-                amount: MinorUnit::new(amount),
+                amount,
                 currency,
                 status,
                 authentication_type,
@@ -2060,10 +2216,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_method_type,
                 payment_experience,
                 business_sub_label,
-                amount_to_capture: amount_to_capture.map(MinorUnit::new),
+                amount_to_capture,
                 capture_method,
-                surcharge_amount: surcharge_amount.map(MinorUnit::new),
-                tax_amount: tax_amount.map(MinorUnit::new),
+                surcharge_amount,
+                tax_amount,
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
@@ -2081,9 +2237,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
-                amount_capturable: amount_capturable.map(MinorUnit::new),
-                surcharge_amount: surcharge_amount.map(MinorUnit::new),
-                tax_amount: tax_amount.map(MinorUnit::new),
+                amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -2128,7 +2284,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 shipping_cost,
                 order_tax_amount,
             } => Self::ConfirmUpdate {
-                amount: MinorUnit::new(amount),
+                amount,
                 currency,
                 status,
                 authentication_type,
@@ -2144,9 +2300,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
-                amount_capturable: amount_capturable.map(MinorUnit::new),
-                surcharge_amount: surcharge_amount.map(MinorUnit::new),
-                tax_amount: tax_amount.map(MinorUnit::new),
+                amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
@@ -2222,7 +2378,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
-                amount_capturable: amount_capturable.map(MinorUnit::new),
+                amount_capturable,
                 updated_by,
                 authentication_data,
                 encoded_data,
@@ -2274,7 +2430,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 error_reason,
-                amount_capturable: amount_capturable.map(MinorUnit::new),
+                amount_capturable,
                 updated_by,
                 unified_code,
                 unified_message,
@@ -2287,7 +2443,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 multiple_capture_count,
                 updated_by,
             } => Self::CaptureUpdate {
-                amount_to_capture: amount_to_capture.map(MinorUnit::new),
+                amount_to_capture,
                 multiple_capture_count,
                 updated_by,
             },
@@ -2325,7 +2481,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
             } => Self::AmountToCaptureUpdate {
                 status,
-                amount_capturable: MinorUnit::new(amount_capturable),
+                amount_capturable,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::ConnectorResponse {
@@ -2347,8 +2503,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount,
                 amount_capturable,
             } => Self::IncrementalAuthorizationAmountUpdate {
-                amount: MinorUnit::new(amount),
-                amount_capturable: MinorUnit::new(amount_capturable),
+                amount,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::AuthenticationUpdate {
                 status,
