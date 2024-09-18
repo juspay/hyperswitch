@@ -15,7 +15,7 @@ use crate::{
         payment_methods::transformers as payment_methods,
     },
     headers, routes,
-    services::{api as services, encryption},
+    services::{api as services, encryption, EncryptionAlgorithm},
     types::{storage, transformers::ForeignFrom},
     utils::ConnectorResponseExt,
 };
@@ -87,10 +87,11 @@ async fn generate_jwe_payload_for_request(
         }
     };
 
-    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Error on jwe encrypt")?;
+    let jwe_encrypted =
+        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
 
     let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {

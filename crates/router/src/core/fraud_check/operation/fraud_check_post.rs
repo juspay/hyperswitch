@@ -405,6 +405,7 @@ where
         frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let frm_check_update = match frm_router_data.response {
             FrmResponse::Sale(response) => match response {
                 Err(err) => Some(FraudCheckUpdate::ErrorUpdate {
@@ -569,15 +570,30 @@ where
                     ),
                 };
 
+            let payment_attempt_update = PaymentAttemptUpdate::RejectUpdate {
+                status: payment_attempt_status,
+                error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
+                error_message,
+                updated_by: frm_data.merchant_account.storage_scheme.to_string(),
+            };
+
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
             let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     payment_data.get_payment_attempt().clone(),
-                    PaymentAttemptUpdate::RejectUpdate {
-                        status: payment_attempt_status,
-                        error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
-                        error_message,
-                        updated_by: frm_data.merchant_account.storage_scheme.to_string(),
-                    },
+                    payment_attempt_update,
+                    frm_data.merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            let payment_attempt = db
+                .update_payment_attempt_with_attempt_id(
+                    key_manager_state,
+                    key_store,
+                    payment_data.get_payment_attempt().clone(),
+                    payment_attempt_update,
                     frm_data.merchant_account.storage_scheme,
                 )
                 .await
@@ -587,7 +603,7 @@ where
 
             let payment_intent = db
                 .update_payment_intent(
-                    &state.into(),
+                    key_manager_state,
                     payment_data.get_payment_intent().clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,

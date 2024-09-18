@@ -65,6 +65,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingDeleteConfig
             | Flow::DecisionManagerDeleteConfig
             | Flow::DecisionManagerRetrieveConfig
+            | Flow::ToggleDynamicRouting
+            | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -173,6 +175,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence
+            | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
             Flow::CardsInfo => Self::CardsInfo,

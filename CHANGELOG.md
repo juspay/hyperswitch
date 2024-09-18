@@ -4,6 +4,73 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.18.0
+
+### Features
+
+- **router:** Add admin list apis for v2 ([#5883](https://github.com/juspay/hyperswitch/pull/5883)) ([`bc6c460`](https://github.com/juspay/hyperswitch/commit/bc6c460ca9767d3b80604166ce2cbd98550d175a))
+
+### Bug Fixes
+
+- **connector:** Add field types for bank debits ([#5908](https://github.com/juspay/hyperswitch/pull/5908)) ([`90e8de1`](https://github.com/juspay/hyperswitch/commit/90e8de18a854a7f83470e84a954ed365078c24c2))
+- **frm:** Add feature flag for querying FRM data ([#5889](https://github.com/juspay/hyperswitch/pull/5889)) ([`75400a3`](https://github.com/juspay/hyperswitch/commit/75400a3af7aaff87e03dbab4e00be8b00ed5a70e))
+- **router:**
+  - Cache invalidation in merchant_connector_update flow for v2 ([#5918](https://github.com/juspay/hyperswitch/pull/5918)) ([`66de680`](https://github.com/juspay/hyperswitch/commit/66de680e6fcaa318694df48dafdaabfceb745961))
+  - [stripe] remove passing of customer_acceptance from Mandate Payment Request ([#5920](https://github.com/juspay/hyperswitch/pull/5920)) ([`97c8e98`](https://github.com/juspay/hyperswitch/commit/97c8e98a48f514b0ba36b109971dd479ae84861e))
+
+### Refactors
+
+- **connector:** Move connector Volt and Mollie from Router to HyperswitchConnector Trait ([#5612](https://github.com/juspay/hyperswitch/pull/5612)) ([`1d9e639`](https://github.com/juspay/hyperswitch/commit/1d9e6396522fc0b6cbe0b7ff1be2377098655690))
+- Add encryption support to payment attempt domain model ([#5882](https://github.com/juspay/hyperswitch/pull/5882)) ([`f72abe4`](https://github.com/juspay/hyperswitch/commit/f72abe4b979873b06d75553c7412f8072c29c8a9))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`d7d6a31`](https://github.com/juspay/hyperswitch/commit/d7d6a3101611857319d9f5fb607f7df7d3fd9d59))
+
+**Full Changelog:** [`2024.09.17.0...2024.09.18.0`](https://github.com/juspay/hyperswitch/compare/2024.09.17.0...2024.09.18.0)
+
+- - -
+
+## 2024.09.17.0
+
+### Features
+
+- **connector:** Wasm changes for Taxjar ([#5879](https://github.com/juspay/hyperswitch/pull/5879)) ([`90ebd54`](https://github.com/juspay/hyperswitch/commit/90ebd54ec9dfabf03ee85c0d0e7d96755a135083))
+- **core:** Add support for card network tokenization ([#5599](https://github.com/juspay/hyperswitch/pull/5599)) ([`61e2ca9`](https://github.com/juspay/hyperswitch/commit/61e2ca9b1779887f6bd5f567806d891e0204e217))
+- **router:** Default configs and toggle api for dynamic routing feature ([#5830](https://github.com/juspay/hyperswitch/pull/5830)) ([`9f9a414`](https://github.com/juspay/hyperswitch/commit/9f9a41404228e98d63ca79784cbca69f410927ea))
+
+### Bug Fixes
+
+- **process:** Add process tracker support for instant refunds ([#5818](https://github.com/juspay/hyperswitch/pull/5818)) ([`6e74b80`](https://github.com/juspay/hyperswitch/commit/6e74b800986c609664a9c12cfb27e0d6b2adcc17))
+- **user_roles:** Populate `profile_id` from token in update user role API ([#5907](https://github.com/juspay/hyperswitch/pull/5907)) ([`a258602`](https://github.com/juspay/hyperswitch/commit/a258602ff161bcd21381f53a717c819ea38f832e))
+
+### Refactors
+
+- **connector:** [Paybox] Fix Error Handling/Datetime format ([#5905](https://github.com/juspay/hyperswitch/pull/5905)) ([`00a7865`](https://github.com/juspay/hyperswitch/commit/00a78655766fc3fa78bbb844ab80f8d4bb67ff03))
+- **core:** Update response for PaymentsDynamicTaxCalculationResponse ([#5909](https://github.com/juspay/hyperswitch/pull/5909)) ([`45c19a1`](https://github.com/juspay/hyperswitch/commit/45c19a1729af3f4b80bde2661868cb213138df86))
+- **payment_methods:** Unify locker api function call ([#5863](https://github.com/juspay/hyperswitch/pull/5863)) ([`4137d7b`](https://github.com/juspay/hyperswitch/commit/4137d7b48a95647646853f7b346a525642d5c04c))
+
+**Full Changelog:** [`2024.09.16.0...2024.09.17.0`](https://github.com/juspay/hyperswitch/compare/2024.09.16.0...2024.09.17.0)
+
+- - -
+
+## 2024.09.16.0
+
+### Features
+
+- **connector:**
+  - [Fiuu] ADD Wasm Configs ([#5874](https://github.com/juspay/hyperswitch/pull/5874)) ([`71bf627`](https://github.com/juspay/hyperswitch/commit/71bf627fbcdab6263e837fb851b77cefef833ea1))
+  - [DEUTSCHEBANK] Integrate SEPA Payments ([#5826](https://github.com/juspay/hyperswitch/pull/5826)) ([`6fc2060`](https://github.com/juspay/hyperswitch/commit/6fc20606202749fd671a25071793900dc5577da6))
+- **payments_v2:** Payment intent diesel and domain models changes v2 ([#5783](https://github.com/juspay/hyperswitch/pull/5783)) ([`10ac089`](https://github.com/juspay/hyperswitch/commit/10ac08944986a1fd101f8f05263e92ed7ebbba94))
+
+### Refactors
+
+- **user_roles:** Populate role names and entity names in user role APIs ([#5861](https://github.com/juspay/hyperswitch/pull/5861)) ([`4d28cf2`](https://github.com/juspay/hyperswitch/commit/4d28cf276f8c350d6c1aaf073a138ce7ae3eddd8))
+
+**Full Changelog:** [`2024.09.13.0...2024.09.16.0`](https://github.com/juspay/hyperswitch/compare/2024.09.13.0...2024.09.16.0)
+
+- - -
+
 ## 2024.09.13.0
 
 ### Features

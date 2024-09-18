@@ -30,6 +30,12 @@ pub trait RoleInterface {
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
+    async fn find_role_by_role_id_in_org_scope(
+        &self,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError>;
+
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
@@ -89,6 +95,18 @@ impl RoleInterface for Store {
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_role_by_role_id_in_org_scope(
+        &self,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Role::find_by_role_id_in_org_scope(&conn, role_id, org_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -218,6 +236,24 @@ impl RoleInterface for MockDb {
                 errors::StorageError::ValueNotFound(format!(
                     "No role available in merchant scope for role_id = {role_id}, \
                     merchant_id = {merchant_id:?} and org_id = {org_id:?}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_role_by_role_id_in_org_scope(
+        &self,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let roles = self.roles.lock().await;
+        roles
+            .iter()
+            .find(|role| role.role_id == role_id && role.org_id == *org_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No role available in org scope for role_id = {role_id} and org_id = {org_id:?}"
                 ))
                 .into(),
             )

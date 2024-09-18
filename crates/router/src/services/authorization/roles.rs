@@ -71,7 +71,7 @@ impl RoleInfo {
             .any(|group| get_permissions_vec(group).contains(required_permission))
     }
 
-    pub async fn from_role_id(
+    pub async fn from_role_id_in_merchant_scope(
         state: &SessionState,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -83,6 +83,22 @@ impl RoleInfo {
             state
                 .store
                 .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+                .await
+                .map(Self::from)
+        }
+    }
+
+    pub async fn from_role_id_in_org_scope(
+        state: &SessionState,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<Self, errors::StorageError> {
+        if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
+            Ok(role.clone())
+        } else {
+            state
+                .store
+                .find_role_by_role_id_in_org_scope(role_id, org_id)
                 .await
                 .map(Self::from)
         }
