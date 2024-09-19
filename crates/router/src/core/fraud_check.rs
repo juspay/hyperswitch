@@ -724,6 +724,7 @@ impl From<PaymentToFrmData> for PaymentDetails {
     }
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn frm_fulfillment_core(
     state: SessionState,
@@ -785,6 +786,7 @@ pub async fn frm_fulfillment_core(
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[instrument(skip_all)]
 pub async fn make_fulfillment_api_call(
     db: &dyn StorageInterface,

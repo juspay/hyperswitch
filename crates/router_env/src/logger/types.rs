@@ -212,6 +212,8 @@ pub enum Flow {
     RefundsList,
     /// Refunds filters flow
     RefundsFilters,
+    /// Refunds aggregates flow
+    RefundsAggregate,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -242,6 +244,10 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Toggle dynamic routing
+    ToggleDynamicRouting,
+    /// Update dynamic routing config
+    UpdateDynamicRoutingConfigs,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
@@ -284,6 +290,8 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Delete Dispute Evidence flow
     DeleteDisputeEvidence,
+    /// Disputes aggregate flow
+    DisputesAggregate,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow

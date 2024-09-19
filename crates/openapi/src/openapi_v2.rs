@@ -73,6 +73,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::organization::organization_create,
         routes::organization::organization_retrieve,
         routes::organization::organization_update,
+        routes::organization::merchant_account_list,
 
         // Routes for merchant connector account
         routes::merchant_connector_account::connector_create,
@@ -84,11 +85,13 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::merchant_account_retrieve,
         routes::merchant_account::merchant_account_update,
+        routes::merchant_account::business_profiles_list,
 
         // Routes for business profile
         routes::business_profile::business_profile_create,
         routes::business_profile::business_profile_retrieve,
         routes::business_profile::business_profile_update,
+        routes::business_profile::connector_list,
 
         // Routes for routing under business profile
         routes::business_profile::routing_link_config,
@@ -106,6 +109,13 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::api_keys::api_key_retrieve,
         routes::api_keys::api_key_update,
         routes::api_keys::api_key_revoke,
+
+        //Routes for customers
+        routes::customers::customers_create,
+        routes::customers::customers_retrieve,
+        routes::customers::customers_update,
+        routes::customers::customers_delete,
+        routes::customers::customers_list,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -204,6 +214,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,
+        api_models::admin::PaymentLinkTransactionDetails,
+        api_models::admin::TransactionDetailsUiConfiguration,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::gsm::GsmCreateRequest,
@@ -380,6 +392,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
+        api_models::refunds::RefundAggregateResponse,
         api_models::payments::TimeRange,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
@@ -518,6 +531,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::GivexGiftCardAdditionalData,
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
+        api_models::payments::PaymentsDynamicTaxCalculationRequest,
+        api_models::payments::PaymentsDynamicTaxCalculationResponse,
+        api_models::payments::DisplayAmountOnSdk,
     )),
     modifiers(&SecurityAddon)
 )]

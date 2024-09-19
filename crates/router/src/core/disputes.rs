@@ -3,6 +3,9 @@ use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 pub mod transformers;
+use std::collections::HashMap;
+
+use strum::IntoEnumIterator;
 
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
@@ -61,6 +64,19 @@ pub async fn retrieve_disputes_list(
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn accept_dispute(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    req: disputes::DisputeId,
+) -> RouterResponse<dispute_models::DisputeResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
@@ -92,6 +108,7 @@ pub async fn accept_dispute(
         })
         },
     )?;
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
@@ -102,6 +119,7 @@ pub async fn accept_dispute(
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
@@ -165,6 +183,19 @@ pub async fn accept_dispute(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn submit_evidence(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    req: dispute_models::SubmitEvidenceRequest,
+) -> RouterResponse<dispute_models::DisputeResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
@@ -208,6 +239,7 @@ pub async fn submit_evidence(
         &dispute,
     )
     .await?;
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
@@ -218,6 +250,7 @@ pub async fn submit_evidence(
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
@@ -476,4 +509,32 @@ pub async fn delete_evidence(
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     Ok(services::ApplicationResponse::StatusOk)
+}
+
+#[instrument(skip(state))]
+pub async fn get_aggregates_for_disputes(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    time_range: api::TimeRange,
+) -> RouterResponse<dispute_models::DisputesAggregateResponse> {
+    let db = state.store.as_ref();
+    let dispute_status_with_count = db
+        .get_dispute_status_with_count(merchant.get_id(), profile_id_list, &time_range)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve disputes aggregate")?;
+
+    let mut status_map: HashMap<storage_enums::DisputeStatus, i64> =
+        dispute_status_with_count.into_iter().collect();
+
+    for status in storage_enums::DisputeStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        dispute_models::DisputesAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
 }

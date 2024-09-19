@@ -375,9 +375,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, storage_types::Address>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Address>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -458,11 +461,11 @@ mod storage {
                 payment_id: &payment_id,
             };
             let field = format!("add_{}", address.address_id);
-            let storage_scheme = decide_storage_scheme::<_, storage_types::Address>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Address>(
                 self,
                 storage_scheme,
                 Op::Update(key.clone(), &field, Some(address.updated_by.as_str())),
-            )
+            ))
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
@@ -539,11 +542,11 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
             let merchant_id = address_new.merchant_id.clone();
-            let storage_scheme = decide_storage_scheme::<_, storage_types::Address>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Address>(
                 self,
                 storage_scheme,
                 Op::Insert,
-            )
+            ))
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {

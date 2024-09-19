@@ -16,6 +16,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
         utils as core_utils,
     },
+    db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -215,14 +216,17 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-        if business_profile.is_tax_connector_enabled {
-            *should_continue_confirm_transaction = false;
+        let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+        let skip_external_tax_calculation = payment_data
+            .payment_intent
+            .skip_external_tax_calculation
+            .unwrap_or(false);
+        if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
             let key_manager_state: &KeyManagerState = &state.into();
 
@@ -285,7 +289,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                 None,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .to_payment_failed_response()
             .attach_printable("Tax connector Response Failed")?;
 
             let tax_response = response.response.map_err(|err| {
@@ -326,7 +330,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
+        _business_profile: &domain::BusinessProfile,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,

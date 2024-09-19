@@ -2567,6 +2567,12 @@ impl<'a>
                     }
                 }
             }
+            payments::MandateReferenceId::NetworkTokenWithNTI(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Network tokenization for payment method".to_string(),
+                    connector: "Adyen",
+                })?
+            }
         }?;
         Ok(AdyenPaymentRequest {
             amount,

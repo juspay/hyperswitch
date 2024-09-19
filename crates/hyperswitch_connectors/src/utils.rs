@@ -19,9 +19,9 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
-        AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
-        SetupMandateRequestData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -179,6 +179,7 @@ pub trait RouterData {
     fn get_billing_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_last_name(&self) -> Result<Secret<String>, Error>;
     fn get_billing_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_line2(&self) -> Result<Secret<String>, Error>;
     fn get_billing_zip(&self) -> Result<Secret<String>, Error>;
     fn get_billing_state(&self) -> Result<Secret<String>, Error>;
     fn get_billing_state_code(&self) -> Result<Secret<String>, Error>;
@@ -423,6 +424,19 @@ impl<Flow, Request, Response> RouterData
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.line1",
+            ))
+    }
+    fn get_billing_line2(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line2.clone())
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line2",
             ))
     }
     fn get_billing_zip(&self) -> Result<Secret<String>, Error> {
@@ -984,6 +998,7 @@ impl PhoneDetailsData for PhoneDetails {
 }
 
 pub trait PaymentsAuthorizeRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -1025,6 +1040,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
+    }
+
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
             .clone()
@@ -1056,7 +1077,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -1156,6 +1179,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 }
 
 pub trait PaymentsCaptureRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
@@ -1168,6 +1192,11 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 
@@ -1199,6 +1228,7 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
 }
 
 pub trait PaymentsCancelRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
@@ -1222,9 +1252,15 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
+    }
 }
 
 pub trait RefundsRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -1248,6 +1284,11 @@ impl RefundsRequestData for RefundsData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
+    }
 }
 
 pub trait PaymentsSetupMandateRequestData {
@@ -1267,6 +1308,18 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+}
+
+pub trait PaymentMethodTokenizationRequestData {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 

@@ -158,6 +158,14 @@ pub fn make_dsl_input_for_payouts(
     })
 }
 
+#[cfg(feature = "v2")]
+pub fn make_dsl_input(
+    payments_dsl_input: &routing::PaymentsDslInput<'_>,
+) -> RoutingResult<dsl_inputs::BackendInput> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub fn make_dsl_input(
     payments_dsl_input: &routing::PaymentsDslInput<'_>,
 ) -> RoutingResult<dsl_inputs::BackendInput> {
@@ -849,6 +857,7 @@ pub async fn perform_session_flow_routing(
         card_network: None,
     };
 
+    #[cfg(feature = "v1")]
     let payment_input = dsl_inputs::PaymentInput {
         amount: session_input.payment_intent.amount,
         currency: session_input
@@ -872,6 +881,30 @@ pub async fn perform_session_flow_routing(
             .country
             .map(storage_enums::Country::from_alpha2),
         business_label: session_input.payment_intent.business_label.clone(),
+        setup_future_usage: session_input.payment_intent.setup_future_usage,
+    };
+
+    #[cfg(feature = "v2")]
+    let payment_input = dsl_inputs::PaymentInput {
+        amount: session_input.payment_intent.amount,
+        currency: session_input
+            .payment_intent
+            .currency
+            .get_required_value("Currency")
+            .change_context(errors::RoutingError::DslMissingRequiredField {
+                field_name: "currency".to_string(),
+            })?,
+        authentication_type: session_input.payment_attempt.authentication_type,
+        card_bin: None,
+        capture_method: session_input
+            .payment_attempt
+            .capture_method
+            .and_then(|cm| cm.foreign_into()),
+        business_country: None,
+        business_label: None,
+        billing_country: session_input
+            .country
+            .map(storage_enums::Country::from_alpha2),
         setup_future_usage: session_input.payment_intent.setup_future_usage,
     };
 
@@ -1062,7 +1095,7 @@ async fn perform_session_routing_for_pm_type(
             &session_pm_input.state.clone(),
             merchant_id,
             algorithm_id,
-            &session_pm_input.profile_id,
+            session_pm_input.profile_id,
             transaction_type,
         )
         .await?;
@@ -1091,7 +1124,7 @@ async fn perform_session_routing_for_pm_type(
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
-        &session_pm_input.profile_id,
+        session_pm_input.profile_id,
         transaction_type,
     )
     .await?;
@@ -1107,7 +1140,7 @@ async fn perform_session_routing_for_pm_type(
             fallback,
             session_pm_input.backend_input.clone(),
             None,
-            &session_pm_input.profile_id,
+            session_pm_input.profile_id,
             transaction_type,
         )
         .await?;
@@ -1119,6 +1152,17 @@ async fn perform_session_routing_for_pm_type(
         Ok(Some(final_selection))
     }
 }
+
+#[cfg(feature = "v2")]
+pub fn make_dsl_input_for_surcharge(
+    payment_attempt: &oss_storage::PaymentAttempt,
+    payment_intent: &oss_storage::PaymentIntent,
+    billing_address: Option<Address>,
+) -> RoutingResult<dsl_inputs::BackendInput> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub fn make_dsl_input_for_surcharge(
     payment_attempt: &oss_storage::PaymentAttempt,
     payment_intent: &oss_storage::PaymentIntent,
@@ -1129,6 +1173,7 @@ pub fn make_dsl_input_for_surcharge(
         mandate_type: None,
         payment_type: None,
     };
+
     let payment_input = dsl_inputs::PaymentInput {
         amount: payment_attempt.amount,
         // currency is always populated in payment_attempt during payment create
@@ -1151,6 +1196,7 @@ pub fn make_dsl_input_for_surcharge(
         business_label: payment_intent.business_label.clone(),
         setup_future_usage: payment_intent.setup_future_usage,
     };
+
     let metadata = payment_intent
         .metadata
         .clone()

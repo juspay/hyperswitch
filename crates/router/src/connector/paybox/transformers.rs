@@ -7,7 +7,7 @@ use masking::Secret;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, PaymentsAuthorizeRequestData},
     core::errors,
     types::{self, api, domain, storage::enums},
 };
@@ -138,7 +138,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
             utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
@@ -195,7 +195,7 @@ impl TryFrom<&types::RefundSyncRouterData> for PayboxRsyncRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
@@ -252,7 +252,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PayboxPSyncRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let paybox_meta_data: PayboxMeta =
@@ -335,7 +335,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
                     common_utils::date_time::now(),
-                    DateFormat::YYYYMMDDHHmmss,
+                    DateFormat::DDMMYYYYHHmmss,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
@@ -363,7 +363,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
 
 fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<String, Error> {
     match capture_method {
-        Some(enums::CaptureMethod::Automatic) => Ok(AUTH_AND_CAPTURE_REQUEST.to_string()),
+        Some(enums::CaptureMethod::Automatic) | None => Ok(AUTH_AND_CAPTURE_REQUEST.to_string()),
         Some(enums::CaptureMethod::Manual) => Ok(AUTH_REQUEST.to_string()),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
@@ -405,24 +405,6 @@ impl TryFrom<&ConnectorAuthType> for PayboxAuthType {
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PayboxPaymentStatus {
-    Succeeded,
-    Failed,
-    Processing,
-}
-
-impl From<PayboxPaymentStatus> for enums::AttemptStatus {
-    fn from(item: PayboxPaymentStatus) -> Self {
-        match item {
-            PayboxPaymentStatus::Succeeded => Self::Charged,
-            PayboxPaymentStatus::Failed => Self::Failure,
-            PayboxPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
@@ -512,7 +494,7 @@ impl<F, T>
         let status = get_status_of_request(response.response_code.clone());
         match status {
             true => Ok(Self {
-                status: enums::AttemptStatus::Pending,
+                status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
@@ -545,17 +527,33 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PayboxResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PayboxResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            PayboxResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
         let status = get_status_of_request(response.response_code.clone());
         match status {
             true => Ok(Self {
+                status: match item.data.request.is_auto_capture()? {
+                    true => enums::AttemptStatus::Charged,
+                    false => enums::AttemptStatus::Authorized,
+                },
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
@@ -669,7 +667,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
             .to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let paybox_meta_data: PayboxMeta =
@@ -697,13 +695,27 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.transaction_number,
-                refund_status: enums::RefundStatus::from(item.response.status),
+        let status = get_status_of_request(item.response.response_code.clone());
+        match status {
+            true => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: item.response.transaction_number,
+                    refund_status: enums::RefundStatus::from(item.response.status),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            false => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -714,13 +726,27 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PayboxResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, PayboxResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.transaction_number,
-                refund_status: common_enums::RefundStatus::Pending,
+        let status = get_status_of_request(item.response.response_code.clone());
+        match status {
+            true => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: item.response.transaction_number,
+                    refund_status: common_enums::RefundStatus::Pending,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            false => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

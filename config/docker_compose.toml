@@ -130,7 +130,7 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
-deutschebank.base_url = "https://sandbox.directpos.de/rest-api/services/v2.1"
+deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -317,6 +317,7 @@ bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi = { payment_method = "card" }
 payme = { payment_method = "card" }
+deutschebank = { payment_method = "bank_debit" }
 
 [dummy_connector]
 enabled = true
@@ -592,3 +593,19 @@ connector_list = ""
 
 [recipient_emails]
 recon = "recon@example.com"
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_service]
+generate_token_url= ""
+fetch_token_url= ""
+token_service_api_key= ""
+public_key= ""
+private_key= ""
+key_id= ""
+delete_token_url= ""
+check_token_status_url= ""
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

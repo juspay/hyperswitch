@@ -164,6 +164,50 @@
         ]
       }
     },
+    "/v2/organization/{organization_id}/merchant_accounts": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Merchant Account - List",
+        "description": "List merchant accounts for an Organization",
+        "operationId": "List Merchant Accounts",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantAccountResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/connector_accounts": {
       "post": {
         "tags": [
@@ -401,7 +445,7 @@
         ]
       }
     },
-    "/v2/accounts": {
+    "/v2/merchant_accounts": {
       "post": {
         "tags": [
           "Merchant Account"
@@ -469,7 +513,7 @@
         ]
       }
     },
-    "/v2/accounts/{id}": {
+    "/v2/merchant_accounts/{id}": {
       "get": {
         "tags": [
           "Merchant Account"
@@ -566,6 +610,50 @@
           },
           "404": {
             "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/merchant_accounts/{account_id}/profiles": {
+      "get": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Business Profile - List",
+        "description": "List business profiles for an Merchant",
+        "operationId": "List Business Profiles",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profile list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessProfileResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
           }
         },
         "security": [
@@ -710,6 +798,53 @@
           },
           "400": {
             "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/connector_accounts": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Merchant Connector - List",
+        "description": "List Merchant Connector Details for the business profile",
+        "operationId": "List all Merchant Connectors",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantConnectorResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "security": [
@@ -1294,6 +1429,227 @@
         "security": [
           {
             "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Create",
+        "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Create a customer with name and email": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/{id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve",
+        "description": "Retrieves a customer's details.",
+        "operationId": "Retrieve a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Update",
+        "description": "Updates the customer's details in a customer object.",
+        "operationId": "Update a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer was Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Delete",
+        "description": "Delete a customer record.",
+        "operationId": "Delete a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer was Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/list": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - List",
+        "description": "Lists all the customers for a particular merchant id.",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
           }
         ]
       }
@@ -4166,6 +4522,10 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
           }
         },
         "additionalProperties": false
@@ -4178,7 +4538,8 @@
           "profile_name",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "is_tax_connector_enabled"
+          "is_tax_connector_enabled",
+          "is_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -4348,6 +4709,12 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -4979,6 +5346,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -5000,6 +5368,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -6211,6 +6580,28 @@
           "BRW"
         ]
       },
+      "DisplayAmountOnSdk": {
+        "type": "object",
+        "required": [
+          "net_amount",
+          "order_tax_amount",
+          "shipping_cost"
+        ],
+        "properties": {
+          "net_amount": {
+            "type": "string",
+            "description": "net amount = amount + order_tax_amount + shipping_cost"
+          },
+          "order_tax_amount": {
+            "type": "string",
+            "description": "order tax amount calculated by tax connectors"
+          },
+          "shipping_cost": {
+            "type": "string",
+            "description": "shipping cost for the order"
+          }
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -7023,6 +7414,12 @@
           {
             "type": "string",
             "enum": [
+              "user_bank_account_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "text"
             ]
           },
@@ -7104,6 +7501,18 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_language"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "browser_ip"
             ]
           }
         ],
@@ -10792,7 +11201,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "string",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -10844,7 +11256,10 @@
             "nullable": true
           },
           "transaction_details": {
-            "type": "object",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
+            },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
@@ -10894,6 +11309,35 @@
           "active",
           "expired"
         ]
+      },
+      "PaymentLinkTransactionDetails": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Key for the transaction details",
+            "example": "Policy-Number",
+            "maxLength": 255
+          },
+          "value": {
+            "type": "string",
+            "description": "Value for the transaction details",
+            "example": "297472368473924",
+            "maxLength": 255
+          },
+          "ui_configuration": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionDetailsUiConfiguration"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentListConstraints": {
         "type": "object",
@@ -12982,7 +13426,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -13454,6 +13898,70 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationRequest": {
+        "type": "object",
+        "required": [
+          "shipping",
+          "client_secret",
+          "payment_method_type"
+        ],
+        "properties": {
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
+      "PaymentsDynamicTaxCalculationResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "net_amount",
+          "display_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "display_amount": {
+            "$ref": "#/components/schemas/DisplayAmountOnSdk"
           }
         }
       },
@@ -14047,7 +14555,7 @@
           "net_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount,\nIf no surcharge_details, net_amount = amount",
+            "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
           "amount_capturable": {
@@ -14544,6 +15052,14 @@
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16421,6 +16937,22 @@
           }
         }
       },
+      "RefundAggregateResponse": {
+        "type": "object",
+        "required": [
+          "status_with_count"
+        ],
+        "properties": {
+          "status_with_count": {
+            "type": "object",
+            "description": "The list of refund status with their count",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -17081,6 +17613,7 @@
           "cryptopay",
           "cybersource",
           "datatrans",
+          "deutschebank",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -17100,6 +17633,7 @@
           "nexinets",
           "nmi",
           "noon",
+          "novalnet",
           "nuvei",
           "opennode",
           "paybox",
@@ -17233,7 +17767,8 @@
           "single",
           "priority",
           "volume_split",
-          "advanced"
+          "advanced",
+          "dynamic"
         ]
       },
       "RoutingConfigRequest": {
@@ -18079,6 +18614,32 @@
       },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionDetailsUiConfiguration": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Position of the key-value pair in the UI",
+            "example": 5,
+            "nullable": true
+          },
+          "is_key_bold": {
+            "type": "boolean",
+            "description": "Whether the key should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "is_value_bold": {
+            "type": "boolean",
+            "description": "Whether the value should be bold",
+            "default": false,
+            "example": true,
+            "nullable": true
+          }
+        }
       },
       "TransactionStatus": {
         "type": "string",
