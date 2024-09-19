@@ -5,8 +5,6 @@ import * as utils from "../RoutingUtils/Utils";
 let globalState;
 
 describe("Rule Based Routing Test", () => {
-  let should_continue = true;
-
   context("Login", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
