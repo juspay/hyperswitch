@@ -620,7 +620,7 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
   if (
     !(
       Array.isArray(paymentDetails.transaction_details) &&
-      Object.keys(paymentDetails.transaction_details).length > 0
+      paymentDetails.transaction_details.length > 0
     )
   ) {
     return;
@@ -643,6 +643,8 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
     });
 
     if (merchantDetailsObject.length > 0) {
+      // show the dynamic merchant details container
+      show("#hyper-checkout-payment-merchant-dynamic-details");
       // set min-height for the dynamic merchant details container
       merchantDynamicDetails.style.minHeight = "80px";
       // render a horizontal line above dynamic merchant details
