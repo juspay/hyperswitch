@@ -1853,11 +1853,9 @@ pub async fn verify_token(
     state: SessionState,
     user: auth::UserFromToken,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
-    let user_in_db = state
-        .global_store
-        .find_user_by_id(&user.user_id)
+    let user_in_db = user
+        .get_user_from_db(&state)
         .await
-        .change_context(UserErrors::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed to fetch the user from DB for user_id - {}",
@@ -1867,7 +1865,7 @@ pub async fn verify_token(
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
         merchant_id: user.merchant_id.to_owned(),
-        user_email: user_in_db.email,
+        user_email: user_in_db.0.email,
     }))
 }
 
