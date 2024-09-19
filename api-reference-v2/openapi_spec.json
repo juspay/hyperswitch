@@ -1438,8 +1438,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "Creates a customer object and stores the customer details to be reused for future payments.",
-        "description": "Incase the customer already exists in the system, this API will respond with the customer details.",
+        "summary": "Customers - Create",
+        "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
         "requestBody": {
           "content": {
@@ -1622,7 +1622,7 @@
       }
     },
     "/v2/customers/list": {
-      "post": {
+      "get": {
         "tags": [
           "Customers"
         ],
