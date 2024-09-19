@@ -18,11 +18,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
 use rustc_hash::FxHashMap;
-use serde::{
-    de::{self, Unexpected, Visitor},
-    ser::Serializer,
-    Deserialize, Deserializer, Serialize,
-};
+use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
