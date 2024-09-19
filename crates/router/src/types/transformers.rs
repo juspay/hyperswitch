@@ -1081,6 +1081,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
+                        data.expose(),
+                        "ConnectorWalletDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_wallets_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         #[cfg(feature = "v2")]
         let response = Self {
@@ -1109,6 +1121,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
+                        data.expose(),
+                        "ConnectorWalletDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_wallets_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         Ok(response)
     }
@@ -1204,6 +1228,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
+                        data.expose(),
+                        "ConnectorWalletDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_wallets_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         #[cfg(feature = "v1")]
         let response = Self {
@@ -1248,6 +1284,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
+                        data.expose(),
+                        "ConnectorWalletDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_wallets_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         Ok(response)
     }

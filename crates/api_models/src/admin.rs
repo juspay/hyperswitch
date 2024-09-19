@@ -746,6 +746,10 @@ pub struct MerchantConnectorCreate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -883,6 +887,10 @@ pub struct MerchantConnectorCreate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1103,6 +1111,10 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1222,6 +1234,10 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1328,6 +1344,10 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1418,6 +1438,10 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1513,6 +1537,28 @@ pub struct MerchantConnectorUpdate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+
+pub struct ConnectorWalletDetails {
+    /// This field contains the Apple Pay certificates and credentials for iOS and Web Apple Pay flow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub apple_pay_combined: Option<pii::SecretSerdeValue>,
+    /// This field is for our legacy that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub apple_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Samsung Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub samsung_pay: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1598,6 +1644,9 @@ pub struct MerchantConnectorUpdate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]

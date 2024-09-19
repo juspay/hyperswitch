@@ -2779,9 +2779,36 @@ impl GetAddressFromPaymentMethodData for WalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletData {
-    /// The encrypted payment token from Samsung
+    pub payment_credential: SamsungPayWalletCredentials,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayWalletCredentials {
+    pub method: Option<String>,
+    /// Value if credential is enabled for recurring payment
+    pub recurring_payment: Option<bool>,
+    /// Brand of the payment card
+    pub card_brand: String,
+    /// Last 4 digits of the card number
+    #[serde(rename = "card_last4digits")]
+    pub card_last_four_digits: String,
+    /// Samsung Pay token data
+    #[serde(rename = "3DS")]
+    pub token_data: SamsungPayTokenData,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayTokenData {
+    /// 3DS type used by Samsung Pay
+    #[serde(rename = "type")]
+    pub three_ds_type: Option<String>,
+    /// 3DS version used by Samsung Pay
+    pub version: String,
+    /// Samsung Pay encrypted payment credential data
     #[schema(value_type = String)]
-    pub token: Secret<String>,
+    pub data: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4716,6 +4743,20 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SamsungSessionTokenData {
+    #[serde(rename = "samsung_pay")]
+    pub data: SamsungMetaData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SamsungMetaData {
+    pub service_id: String,
+    pub merchant_display_name: String,
+    pub merchant_business_country: api_enums::CountryAlpha2,
+    pub allowed_brands: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaypalSdkMetaData {
     pub client_id: String,
 }
@@ -4880,6 +4921,8 @@ pub struct SessionTokenForSimplifiedApplePay {
 pub enum SessionToken {
     /// The session response structure for Google Pay
     GooglePay(Box<GpaySessionTokenResponse>),
+    /// The session response structure for Samsung Pay
+    SamsungPay(Box<SamsungPaySessionTokenResponse>),
     /// The session response structure for Klarna
     Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
@@ -4935,6 +4978,51 @@ pub struct GooglePaySessionResponse {
     pub sdk_next_action: SdkNextAction,
     /// Secrets for sdk display and payment
     pub secrets: Option<SecretInfoToInitiateSdk>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct SamsungPaySessionTokenResponse {
+    pub version: String,
+    pub service_id: String,
+    pub order_number: String,
+    pub merchant_payment_information: MerchantPaymentInformation,
+    pub amount: AmountDetails,
+    pub protocol: ProtocolType,
+    pub allowed_brands: Vec<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProtocolType {
+    Protocol3ds,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct MerchantPaymentInformation {
+    pub name: String,
+    pub url: String,
+    pub country_code: api_enums::CountryAlpha2,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct AmountDetails {
+    #[serde(rename = "option")]
+    pub amount_format: AmountFormat,
+    pub currency_code: api_enums::Currency,
+    #[serde(rename = "total")]
+    pub total_amount: StringMajorUnit,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AmountFormat {
+    /// Display the total amount only
+    FormatTotalPriceOnly,
+    /// Display "Total (Estimated amount)" and total amount
+    FormatTotalEstimatedAmount,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]

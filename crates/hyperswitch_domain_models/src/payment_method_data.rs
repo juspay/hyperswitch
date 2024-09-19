@@ -135,10 +135,37 @@ pub struct MifinityData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
+#[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletData {
-    /// The encrypted payment token from Samsung
-    pub token: Secret<String>,
+    pub payment_credential: SamsungPayWalletCredentials,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayWalletCredentials {
+    pub method: Option<String>,
+    /// Value if credential is enabled for recurring payment
+    pub recurring_payment: Option<bool>,
+    /// Brand of the payment card
+    pub card_brand: String,
+    /// Last 4 digits of the card number
+    #[serde(rename = "card_last4digits")]
+    pub card_last_four_digits: String,
+    /// Samsung Pay token data
+    #[serde(rename = "3DS")]
+    pub token_data: SamsungPayTokenData,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayTokenData {
+    /// 3DS type used by Samsung Pay
+    #[serde(rename = "type")]
+    pub three_ds_type: Option<String>,
+    /// 3DS version used by Samsung Pay
+    pub version: String,
+    /// Samsung Pay encrypted payment credential data
+    pub data: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -670,9 +697,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                 })
             }
             api_models::payments::WalletData::SamsungPay(samsung_pay_data) => {
-                Self::SamsungPay(Box::new(SamsungPayWalletData {
-                    token: samsung_pay_data.token,
-                }))
+                Self::SamsungPay(Box::new(SamsungPayWalletData::from(samsung_pay_data)))
             }
             api_models::payments::WalletData::TwintRedirect {} => Self::TwintRedirect {},
             api_models::payments::WalletData::VippsRedirect {} => Self::VippsRedirect {},
@@ -732,6 +757,24 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
                 pm_type: value.payment_method.pm_type,
             },
             transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+
+impl From<Box<api_models::payments::SamsungPayWalletData>> for SamsungPayWalletData {
+    fn from(value: Box<api_models::payments::SamsungPayWalletData>) -> Self {
+        Self {
+            payment_credential: SamsungPayWalletCredentials {
+                method: value.payment_credential.method,
+                recurring_payment: value.payment_credential.recurring_payment,
+                card_brand: value.payment_credential.card_brand,
+                card_last_four_digits: value.payment_credential.card_last_four_digits,
+                token_data: SamsungPayTokenData {
+                    three_ds_type: value.payment_credential.token_data.three_ds_type,
+                    version: value.payment_credential.token_data.version,
+                    data: value.payment_credential.token_data.data,
+                },
+            },
         }
     }
 }
