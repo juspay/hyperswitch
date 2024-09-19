@@ -169,7 +169,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
             email: item.router_data.get_billing_email()?,
-            mobile: Some(item.router_data.get_billing_phone_number()?),
+            mobile: item.router_data.get_optional_billing_phone_number(),
             billing,
             customer_ip,
         };
@@ -742,9 +742,7 @@ impl NovalnetResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
         if let Some(data) = transaction_data {
             match &data.payment_data {
-                NovalnetResponsePaymentData::PaymentCard(card_data) => {
-                    card_data.token.clone()
-                }
+                NovalnetResponsePaymentData::PaymentCard(card_data) => card_data.token.clone(),
             }
         } else {
             None
