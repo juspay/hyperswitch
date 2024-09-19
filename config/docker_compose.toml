@@ -591,11 +591,22 @@ ach = { country = "US", currency = "USD" }
 [locker_based_open_banking_connectors]
 connector_list = ""
 
-[recipient_emails]
-recon = "recon@example.com"
-
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+# EmailClient configuration. Only applicable when the `email` feature flag is enabled.
+[email]
+sender_email = "example@example.com"                 # Sender email
+aws_region = ""                                      # AWS region used by AWS SES
+allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+active_email_client = "SES"                          # The currently active email client
+recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
+prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
+
+# Configuration for aws ses, applicable when the active email client is SES
+[email.aws_ses]
+email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
+sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
