@@ -5,6 +5,7 @@ pub mod keymanager;
 pub mod authentication;
 
 use std::{
+    borrow::Cow,
     fmt::Display,
     ops::{Add, Sub},
     primitive::i64,
@@ -28,11 +29,13 @@ use rust_decimal::{
 };
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use thiserror::Error;
 use utoipa::ToSchema;
 
 use crate::{
-    consts,
+    consts::{self, MAX_DESCRIPTION_LENGTH},
     errors::{CustomResult, ParsingError, PercentageError},
+    fp_utils::when,
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
@@ -953,24 +956,100 @@ pub struct ChargeRefunds {
 
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 
-/// Domain type for description
-#[derive(
-    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
-)]
+/// A common type of id that can be used for reference ids with length constraint
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub struct Description(String);
+pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u8>(String);
 
-impl Description {
-    // TODO: add length restriction
-    /// Create a new Description Domain type
-    pub fn new(value: String) -> Self {
-        Self(value)
+/// Error generated from violation of constraints for MerchantReferenceId
+#[derive(Debug, Error, PartialEq, Eq)]
+pub(crate) enum LengthStringError {
+    #[error("the maximum allowed length for this field is {0}")]
+    /// Maximum length of string violated
+    MaxLengthViolated(u16),
+
+    #[error("the minimum required length for this field is {0}")]
+    /// Minimum length of string violated
+    MinLengthViolated(u8),
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u8> LengthString<MAX_LENGTH, MIN_LENGTH> {
+    /// Generates new [MerchantReferenceId] from the given input string
+    pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthStringError> {
+        let trimmed_input_string = input_string.trim().to_string();
+        let length_of_input_string = u16::try_from(trimmed_input_string.len())
+            .map_err(|_| LengthStringError::MaxLengthViolated(MAX_LENGTH))?;
+
+        when(length_of_input_string > MAX_LENGTH, || {
+            Err(LengthStringError::MaxLengthViolated(MAX_LENGTH))
+        })?;
+
+        when(length_of_input_string < u16::from(MIN_LENGTH), || {
+            Err(LengthStringError::MinLengthViolated(MIN_LENGTH))
+        })?;
+
+        Ok(Self(trimmed_input_string))
+    }
+
+    pub(crate) fn new_unchecked(input_string: String) -> Self {
+        Self(input_string)
     }
 }
 
-impl From<String> for Description {
-    fn from(description: String) -> Self {
-        Self(description)
+impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for LengthString<MAX_DESCRIPTION_LENGTH, 1>
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> diesel::Queryable<diesel::sql_types::Text, DB> for LengthString<MAX_DESCRIPTION_LENGTH, 1>
+where
+    DB: diesel::backend::Backend,
+    Self: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+{
+    type Row = Self;
+    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+/// Domain type for description
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct Description(LengthString<MAX_DESCRIPTION_LENGTH, 1>);
+
+impl Description {
+    /// Create a new Description Domain type without any length check from a static str
+    pub fn from_str_unchecked(input_str: &'static str) -> Self {
+        Self(LengthString::new_unchecked(input_str.to_owned()))
     }
 }
 
@@ -989,18 +1068,18 @@ where
 impl<DB> FromSql<sql_types::Text, DB> for Description
 where
     DB: Backend,
-    String: FromSql<sql_types::Text, DB>,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: FromSql<sql_types::Text, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let val = String::from_sql(bytes)?;
-        Ok(Self::from(val))
+        let val = LengthString::<MAX_DESCRIPTION_LENGTH, 1>::from_sql(bytes)?;
+        Ok(Self(val))
     }
 }
 
 impl<DB> ToSql<sql_types::Text, DB> for Description
 where
     DB: Backend,
-    String: ToSql<sql_types::Text, DB>,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
