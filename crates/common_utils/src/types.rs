@@ -1030,13 +1030,13 @@ where
     }
 }
 
-impl<DB> diesel::Queryable<diesel::sql_types::Text, DB> for LengthString<MAX_DESCRIPTION_LENGTH, 1>
+impl<DB> Queryable<sql_types::Text, DB> for LengthString<MAX_DESCRIPTION_LENGTH, 1>
 where
-    DB: diesel::backend::Backend,
-    Self: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
 {
     type Row = Self;
-    fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
         Ok(row)
     }
 }
