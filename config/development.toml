@@ -653,7 +653,7 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "kafka"
+source = "logs"
 
 [events.kafka]
 brokers = ["localhost:9092"]
@@ -671,7 +671,7 @@ consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
-source = "clickhouse"
+source = "sqlx"
 
 [analytics.clickhouse]
 username = "default"
