@@ -1,3 +1,5 @@
+use common_enums::UserStatus;
+
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -216,27 +218,6 @@ pub enum FraudCheckLastStep {
     CheckoutOrSale,
     TransactionOrRecordRefund,
     Fulfillment,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum UserStatus {
-    Active,
-    #[default]
-    InvitationSent,
 }
 
 #[derive(

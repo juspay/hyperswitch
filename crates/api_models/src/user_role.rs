@@ -1,5 +1,6 @@
 use common_enums::PermissionGroup;
 use common_utils::pii;
+use common_enums::UserStatus;
 
 pub mod role;
 
@@ -89,12 +90,6 @@ pub struct PermissionInfo {
 pub struct UpdateUserRoleRequest {
     pub email: pii::Email,
     pub role_id: String,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub enum UserStatus {
-    Active,
-    InvitationSent,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
