@@ -978,6 +978,35 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
 }
 
 impl PaymentCreate {
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[instrument(skip_all)]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn make_payment_attempt(
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        organization_id: &common_utils::id_type::OrganizationId,
+        money: (api::Amount, enums::Currency),
+        payment_method: Option<enums::PaymentMethod>,
+        payment_method_type: Option<enums::PaymentMethodType>,
+        request: &api::PaymentsRequest,
+        browser_info: Option<serde_json::Value>,
+        state: &SessionState,
+        payment_method_billing_address_id: Option<String>,
+        payment_method_info: &Option<domain::PaymentMethod>,
+        _key_store: &domain::MerchantKeyStore,
+        profile_id: common_utils::id_type::ProfileId,
+        customer_acceptance: &Option<payments::CustomerAcceptance>,
+    ) -> RouterResult<(
+        storage::PaymentAttemptNew,
+        Option<api_models::payments::AdditionalPaymentData>,
+    )> {
+        todo!()
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(

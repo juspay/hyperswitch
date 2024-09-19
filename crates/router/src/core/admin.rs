@@ -606,12 +606,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.store;
 
-        let metadata = self.get_metadata_as_secret().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata",
-            },
-        )?;
-
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
@@ -659,7 +653,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         })
                         .await?,
                     publishable_key,
-                    metadata,
+                    metadata: self.metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),

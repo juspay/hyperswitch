@@ -9,7 +9,7 @@ use common_enums::TransactionType;
 use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
-use external_services::file_storage::FileStorageInterface;
+use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -105,6 +105,7 @@ pub struct SessionState {
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
+    pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -202,6 +203,7 @@ pub struct AppState {
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
+    pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -351,6 +353,8 @@ impl AppState {
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
 
+            let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
+
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -367,6 +371,7 @@ impl AppState {
                 request_id: None,
                 file_storage_client,
                 encryption_client,
+                grpc_client,
             }
         })
         .await
@@ -447,6 +452,7 @@ impl AppState {
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
+            grpc_client: Arc::clone(&self.grpc_client),
         })
     }
 }
@@ -1064,6 +1070,24 @@ impl Payouts {
     }
 }
 
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2",))]
+impl PaymentMethods {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
+        route = route
+            .service(web::resource("").route(web::post().to(create_payment_method_api)))
+            .service(
+                web::resource("/create-intent")
+                    .route(web::post().to(create_payment_method_intent_api)),
+            )
+            .service(
+                web::resource("/{id}/confirm-intent")
+                    .route(web::post().to(confirm_payment_method_intent_api)),
+            );
+
+        route
+    }
+}
 pub struct PaymentMethods;
 
 #[cfg(all(
@@ -1476,6 +1500,13 @@ impl Disputes {
             .service(
                 web::resource("/accept/{dispute_id}")
                     .route(web::post().to(disputes::accept_dispute)),
+            )
+            .service(
+                web::resource("/aggregate").route(web::get().to(disputes::get_disputes_aggregate)),
+            )
+            .service(
+                web::resource("/profile/aggregate")
+                    .route(web::get().to(disputes::get_disputes_aggregate_profile)),
             )
             .service(
                 web::resource("/evidence")
