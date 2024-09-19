@@ -167,7 +167,6 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                 let mandate_metadata: DeutschebankMandateMetadata = mandate_data
                     .mandate_metadata
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
-                    .peek()
                     .clone()
                     .parse_value("DeutschebankMandateMetadata")
                     .change_context(errors::ConnectorError::ParsingFailed)?;
@@ -299,23 +298,21 @@ impl
                     mandate_reference: Some(MandateReference {
                         connector_mandate_id: item.response.mandate_id,
                         payment_method_id: None,
-                        mandate_metadata: Some(
-                            serde_json::json!(DeutschebankMandateMetadata {
-                                account_holder: item.data.get_billing_address()?.get_full_name()?,
-                                iban: match item.data.request.payment_method_data.clone() {
-                                    PaymentMethodData::BankDebit(
-                                        BankDebitData::SepaBankDebit { iban, .. },
-                                    ) => Ok(iban),
-                                    _ => Err(errors::ConnectorError::MissingRequiredField {
-                                        field_name:
-                                            "payment_method_data.bank_debit.sepa_bank_debit.iban"
-                                    }),
-                                }?,
-                                reference: Secret::from(reference),
-                                signed_on,
-                            })
-                            .into(),
-                        ),
+                        mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
+                            account_holder: item.data.get_billing_address()?.get_full_name()?,
+                            iban: match item.data.request.payment_method_data.clone() {
+                                PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                                    iban,
+                                    ..
+                                }) => Ok(iban),
+                                _ => Err(errors::ConnectorError::MissingRequiredField {
+                                    field_name:
+                                        "payment_method_data.bank_debit.sepa_bank_debit.iban"
+                                }),
+                            }?,
+                            reference: Secret::from(reference),
+                            signed_on,
+                        })),
                     }),
                     connector_metadata: None,
                     network_txn_id: None,

@@ -1166,7 +1166,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<pii::SecretSerdeValue>,
+    mandate_metadata: Option<serde_json::Value>,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
 
@@ -1196,7 +1196,7 @@ pub fn update_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<pii::SecretSerdeValue>,
+    mandate_metadata: Option<serde_json::Value>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match payment_method.connector_mandate_details {
         Some(_) => {
