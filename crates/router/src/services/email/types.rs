@@ -414,7 +414,7 @@ impl BizEmailProd {
     pub fn new(state: &SessionState, data: ProdIntent) -> UserResult<Self> {
         Ok(Self {
             recipient_email: domain::UserEmail::from_pii_email(
-                state.conf.recipient_emails.recon.clone(),
+                state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
             subject: "New Prod Intent",

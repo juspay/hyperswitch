@@ -484,9 +484,7 @@ async fn insert_metadata(
                             state.conf.proxy.https_url.as_ref(),
                         )
                         .await;
-                    logger::info!(?send_email_result);
-                } else {
-                    logger::info!("Prod email not required")
+                    logger::info!(prod_intent_email=?send_email_result);
                 }
             }
 

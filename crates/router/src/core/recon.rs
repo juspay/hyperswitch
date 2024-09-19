@@ -34,7 +34,7 @@ pub async fn send_recon_request(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert recipient's email to UserEmail")?,
         recipient_email: domain::UserEmail::from_pii_email(
-            state.conf.recipient_emails.recon.clone(),
+            state.conf.email.recon_recipient_email.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert recipient's email to UserEmail")?,
