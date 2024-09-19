@@ -685,7 +685,7 @@ pub struct PayoutListConstraints {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
-    pub time_range: Option<payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -713,7 +713,7 @@ pub struct PayoutListFilterConstraints {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
-    pub time_range: Option<payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
     /// The list of connectors to filter payouts list
     #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,

@@ -28,6 +28,7 @@ use rust_decimal::{
 };
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
@@ -580,6 +581,21 @@ impl StringMajorUnit {
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
+}
+
+/// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
+pub struct TimeRange {
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "crate::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "crate::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
+    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[cfg(test)]

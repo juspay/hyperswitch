@@ -7,8 +7,6 @@ use common_utils::consts;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-#[cfg(feature = "olap")]
-use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
     headers::ACCEPT_LANGUAGE,
@@ -342,7 +340,7 @@ pub async fn payouts_list_by_filter_profile(
 pub async fn payouts_list_available_filters_for_merchant(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_types::TimeRange>,
+    json_payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
@@ -374,7 +372,7 @@ pub async fn payouts_list_available_filters_for_merchant(
 pub async fn payouts_list_available_filters_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_types::TimeRange>,
+    json_payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();

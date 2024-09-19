@@ -634,7 +634,7 @@ impl DisputeInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         self.diesel_store
             .get_dispute_status_with_count(merchant_id, profile_id_list, time_range)
@@ -1605,6 +1605,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
@@ -1617,6 +1618,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
+                time_range,
                 profile_id_list,
                 storage_scheme,
             )
@@ -1750,7 +1752,7 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::DataStorageError> {
@@ -1770,7 +1772,7 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
         self.diesel_store
             .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
@@ -2233,7 +2235,7 @@ impl PayoutsInterface for KafkaStore {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
         self.diesel_store
@@ -2532,7 +2534,7 @@ impl RefundInterface for KafkaStore {
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        refund_details: &api_models::payments::TimeRange,
+        refund_details: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         self.diesel_store
@@ -2544,7 +2546,7 @@ impl RefundInterface for KafkaStore {
     async fn get_refund_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
-        constraints: &api_models::payments::TimeRange,
+        constraints: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
         self.diesel_store

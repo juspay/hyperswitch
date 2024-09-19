@@ -4188,7 +4188,7 @@ pub struct PaymentListFilterConstraints {
     pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
-    pub time_range: Option<TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
     /// The list of connectors to filter payments list
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
@@ -4279,19 +4279,19 @@ pub enum SortBy {
     Desc,
 }
 
-#[derive(
-    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
-)]
-pub struct TimeRange {
-    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    #[serde(alias = "startTime")]
-    pub start_time: PrimitiveDateTime,
-    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(alias = "endTime")]
-    pub end_time: Option<PrimitiveDateTime>,
-}
+// #[derive(
+//     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+// )]
+// pub struct TimeRange {
+//     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+//     #[serde(with = "common_utils::custom_serde::iso8601")]
+//     #[serde(alias = "startTime")]
+//     pub start_time: PrimitiveDateTime,
+//     /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+//     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+//     #[serde(alias = "endTime")]
+//     pub end_time: Option<PrimitiveDateTime>,
+// }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
