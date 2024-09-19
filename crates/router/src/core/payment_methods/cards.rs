@@ -3840,7 +3840,11 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
 ) -> HashMap<String, RequiredFieldInfo> {
     match (payment_method, payment_experience_optional) {
-        (api_enums::PaymentMethod::Wallet, Some(api_enums::PaymentExperience::InvokeSdkClient)) => {
+        (api_enums::PaymentMethod::Wallet, Some(api_enums::PaymentExperience::InvokeSdkClient))
+        | (
+            api_enums::PaymentMethod::PayLater,
+            Some(api_enums::PaymentExperience::InvokeSdkClient),
+        ) => {
             let always_send_billing_details = business_profile.and_then(|business_profile| {
                 business_profile.always_collect_billing_details_from_wallet_connector
             });

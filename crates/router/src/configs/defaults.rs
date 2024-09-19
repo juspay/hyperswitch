@@ -12335,6 +12335,24 @@ pub fn get_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
                 value: None,
             },
         ),
+        (
+            "billing.phone.number".to_string(),
+            RequiredFieldInfo {
+                required_field: "payment_method_data.billing.phone.number".to_string(),
+                display_name: "phone_number".to_string(),
+                field_type: enums::FieldType::UserPhoneNumber,
+                value: None,
+            },
+        ),
+        (
+            "billing.phone.country_code".to_string(),
+            RequiredFieldInfo {
+                required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                display_name: "dialing_code".to_string(),
+                field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                value: None,
+            },
+        ),
     ])
 }
 
@@ -12402,6 +12420,24 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
                 required_field: "shipping.address.line1".to_string(),
                 display_name: "line1".to_string(),
                 field_type: enums::FieldType::UserShippingAddressLine1,
+                value: None,
+            },
+        ),
+        (
+            "shipping.phone.number".to_string(),
+            RequiredFieldInfo {
+                required_field: "shipping.phone.number".to_string(),
+                display_name: "phone_number".to_string(),
+                field_type: enums::FieldType::UserPhoneNumber,
+                value: None,
+            },
+        ),
+        (
+            "shipping.phone.country_code".to_string(),
+            RequiredFieldInfo {
+                required_field: "shipping.phone.country_code".to_string(),
+                display_name: "dialing_code".to_string(),
+                field_type: enums::FieldType::UserPhoneNumberCountryCode,
                 value: None,
             },
         ),
