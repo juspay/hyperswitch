@@ -146,21 +146,30 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
             .and_then(|mandate_id| mandate_id.mandate_reference_id)
         {
             None => {
-                let billing_address = item.router_data.get_billing_address()?;
-                match item.router_data.request.payment_method_data.clone() {
-                    PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban, .. }) => {
-                        Ok(Self::MandatePost(DeutschebankMandatePostRequest {
-                            approval_by: DeutschebankSEPAApproval::Click,
-                            email_address: item.router_data.request.get_email()?,
-                            iban,
-                            first_name: billing_address.get_first_name()?.clone(),
-                            last_name: billing_address.get_last_name()?.clone(),
-                        }))
+                if item.router_data.request.is_mandate_payment() {
+                    match item.router_data.request.payment_method_data.clone() {
+                        PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                            iban, ..
+                        }) => {
+                            let billing_address = item.router_data.get_billing_address()?;
+                            Ok(Self::MandatePost(DeutschebankMandatePostRequest {
+                                approval_by: DeutschebankSEPAApproval::Click,
+                                email_address: item.router_data.request.get_email()?,
+                                iban,
+                                first_name: billing_address.get_first_name()?.clone(),
+                                last_name: billing_address.get_last_name()?.clone(),
+                            }))
+                        }
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("deutschebank"),
+                        )
+                        .into()),
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("deutschebank"),
-                    )
-                    .into()),
+                } else {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_future_usage or customer_acceptance.acceptance_type",
+                    }
+                    .into())
                 }
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
