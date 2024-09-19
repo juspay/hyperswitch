@@ -19417,13 +19417,17 @@
           },
           "unified_code": {
             "type": "string",
-            "description": "error code unified across the connectors is received here if there was an error while calling connector",
-            "nullable": true
+            "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "UE_000",
+            "nullable": true,
+            "maxLength": 255
           },
           "unified_message": {
             "type": "string",
-            "description": "error message unified across the connectors is received here if there was an error while calling connector",
-            "nullable": true
+            "description": "(This field is not live yet)\nError message unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "Invalid card details",
+            "nullable": true,
+            "maxLength": 1024
           }
         }
       },
@@ -19930,6 +19934,20 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "UE_000",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "(This field is not live yet)\nError message unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "Invalid card details",
+            "nullable": true,
+            "maxLength": 1024
           }
         },
         "additionalProperties": false

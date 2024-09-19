@@ -689,6 +689,8 @@ async fn payouts_incoming_webhook_flow(
             error_message: None,
             error_code: None,
             is_eligible: payout_attempt.is_eligible,
+            unified_code: None,
+            unified_message: None,
         };
 
         let action_req =
@@ -696,9 +698,15 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data =
-            payouts::make_payout_data(&state, &merchant_account, None, &key_store, &action_req)
-                .await?;
+        let payout_data = payouts::make_payout_data(
+            &state,
+            &merchant_account,
+            None,
+            &key_store,
+            &action_req,
+            common_utils::consts::DEFAULT_LOCALE,
+        )
+        .await?;
 
         let updated_payout_attempt = db
             .update_payout_attempt(
@@ -721,7 +729,7 @@ async fn payouts_incoming_webhook_flow(
         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
         if let Some(outgoing_event_type) = event_type {
             let router_response =
-                payouts::response_handler(&merchant_account, &payout_data).await?;
+                payouts::response_handler(&state, &merchant_account, &payout_data).await?;
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {

@@ -32,7 +32,7 @@ use utoipa::ToSchema;
 
 use crate::{
     consts,
-    errors::{CustomResult, ParsingError, PercentageError},
+    errors::{CustomResult, ParsingError, PercentageError, ValidationError},
 };
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
@@ -759,6 +759,110 @@ where
 }
 
 impl<DB> ToSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified code
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedCode(pub String);
+
+impl TryFrom<String> for UnifiedCode {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 255 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_code's length should not exceed 255 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified messages
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedMessage(pub String);
+
+impl TryFrom<String> for UnifiedMessage {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 1024 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_message's length should not exceed 1024 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,
     String: ToSql<sql_types::Text, DB>,
