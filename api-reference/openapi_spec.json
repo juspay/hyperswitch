@@ -2304,7 +2304,7 @@
       }
     },
     "/customers/list": {
-      "post": {
+      "get": {
         "tags": [
           "Customers"
         ],

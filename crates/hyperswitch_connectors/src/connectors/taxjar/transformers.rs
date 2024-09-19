@@ -183,7 +183,7 @@ impl<F>
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TaxjarErrorResponse {
-    pub status: String,
+    pub status: i64,
     pub error: String,
     pub detail: String,
 }
