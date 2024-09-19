@@ -3,6 +3,7 @@
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
 use std::sync::Arc;
+use std::str::FromStr;
 
 use api_models::routing as routing_types;
 use common_utils::{
@@ -649,12 +650,6 @@ pub async fn metrics_for_success_based_routing(
     attempt_connector: &Option<String>,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResult<()> {
-    use std::str::FromStr;
-
-    use api_models::routing::RoutableConnectorChoiceWithStatus;
-
-    use crate::core::routing::helpers::fetch_and_cache_dynamic_routing_configs;
-
     let key_manager_state = &state.into();
     let business_profile = state
         .store
@@ -756,7 +751,7 @@ pub async fn metrics_for_success_based_routing(
                 _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
             };
 
-            core_metrics::DYNAMIC_ROUTING_SUCCESS_BASED_ROUTING.add(
+            core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
                 &metrics::CONTEXT,
                 1,
                 &add_attributes([
@@ -773,7 +768,7 @@ pub async fn metrics_for_success_based_routing(
                 .update_success_rate(
                     profile_id.clone().get_string_repr().to_string(),
                     default_success_based_routing_configs,
-                    vec![RoutableConnectorChoiceWithStatus::new(
+                    vec![routing_types::RoutableConnectorChoiceWithStatus::new(
                         routing_types::RoutableConnectorChoice {
                             choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                             connector: common_enums::RoutableConnectors::from_str(
