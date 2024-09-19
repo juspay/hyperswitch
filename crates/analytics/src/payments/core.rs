@@ -296,6 +296,11 @@ pub async fn get_filters(
             PaymentDimensions::ClientSource => fil.client_source,
             PaymentDimensions::ClientVersion => fil.client_version,
             PaymentDimensions::ProfileId => fil.profile_id,
+            PaymentDimensions::CardNetwork => fil.card_network,
+            PaymentDimensions::MerchantId => fil.merchant_id,
+            PaymentDimensions::CardLast4 => fil.card_last_4,
+            PaymentDimensions::CardIssuer => fil.card_issuer,
+            PaymentDimensions::ErrorReason => fil.error_reason,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

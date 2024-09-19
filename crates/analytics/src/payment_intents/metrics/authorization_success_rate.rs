@@ -14,7 +14,7 @@ use super::PaymentIntentMetricRow;
 use crate::{
     enums::AuthInfo,
     query::{
-        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
         Window,
     },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
@@ -76,10 +76,6 @@ where
 
         auth.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_custom_filter_clause("attempt_count", "1", FilterTypes::Equal)
-            .switch()?;
-
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
@@ -111,6 +107,15 @@ where
                         None,
                         i.currency.as_ref().map(|i| i.0),
                         i.profile_id.clone(),
+                        i.connector.clone(),
+                        i.authentication_type.as_ref().map(|i| i.0),
+                        i.payment_method.clone(),
+                        i.payment_method_type.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

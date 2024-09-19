@@ -48,7 +48,7 @@ where
                     PaymentDimensions::PaymentMethodType,
                     &self.payment_method_type,
                 )
-                .attach_printable("Error adding payment method filter")?;
+                .attach_printable("Error adding payment method type filter")?;
         }
         if !self.client_source.is_empty() {
             builder
@@ -64,6 +64,31 @@ where
             builder
                 .add_filter_in_range_clause(PaymentDimensions::ProfileId, &self.profile_id)
                 .attach_printable("Error adding profile id filter")?;
+        }
+        if !self.card_network.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::CardNetwork, &self.card_network)
+                .attach_printable("Error adding card network filter")?;
+        }
+        if !self.merchant_id.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::MerchantId, &self.merchant_id)
+                .attach_printable("Error adding merchant id filter")?;
+        }
+        if !self.card_last_4.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::CardLast4, &self.card_last_4)
+                .attach_printable("Error adding card last 4 filter")?;
+        }
+        if !self.card_issuer.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::CardIssuer, &self.card_issuer)
+                .attach_printable("Error adding card issuer filter")?;
+        }
+        if !self.error_reason.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::ErrorReason, &self.error_reason)
+                .attach_printable("Error adding error reason filter")?;
         }
         Ok(())
     }

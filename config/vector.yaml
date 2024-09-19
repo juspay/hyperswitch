@@ -120,6 +120,30 @@ sinks:
       # Add a date suffixed index for better grouping
       index: "vector-{{ .topic }}-%Y-%m-%d"
 
+  opensearch_events_2:
+    type: elasticsearch
+    inputs:
+      - events
+    endpoints:
+      - "https://opensearch:9200"
+    id_key: message_key
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    encoding:
+      except_fields:
+        - message_key
+        - offset
+        - partition
+        - topic
+    bulk:
+      index: "{{ .topic }}"
+
   opensearch_logs:
     type: elasticsearch
     inputs:
