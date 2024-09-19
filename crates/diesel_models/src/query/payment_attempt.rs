@@ -361,6 +361,8 @@ impl PaymentAttempt {
             .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
             .into_boxed();
 
+        println!("intimerange {:#?}", time_range);
+
         if let Some(time_range) = time_range {
             filter = filter.filter(dsl::created_at.ge(time_range.start_time));
 
