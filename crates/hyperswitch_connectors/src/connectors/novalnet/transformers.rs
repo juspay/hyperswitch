@@ -349,11 +349,11 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ResultData {
-    redirect_url: Option<Secret<url::Url>>,
-    status: NovalnetAPIStatus,
-    status_code: u16,
-    status_text: String,
-    additional_message: Option<String>,
+    pub redirect_url: Option<Secret<url::Url>>,
+    pub status: NovalnetAPIStatus,
+    pub status_code: u16,
+    pub status_text: String,
+    pub additional_message: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -461,6 +461,8 @@ pub struct NovalnetResponseCustomer {
     pub gender: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
     pub mobile: Option<Secret<String>>,
+    pub tel: Option<Secret<String>>,
+    pub fax: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -470,12 +472,15 @@ pub struct NovalnetResponseBilling {
     pub house_no: Option<Secret<String>>,
     pub street: Secret<String>,
     pub zip: Secret<String>,
+    pub state: Secret<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseMerchant {
-    pub project: u32,
-    pub vendor: u32,
+    pub project: i64,
+    pub project_name: String,
+    pub project_url: String,
+    pub vendor: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -1103,4 +1108,33 @@ pub struct NovalnetErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum EventType {
+    Payment,
+    TransactionCapture,
+    TransactionCancel,
+    TransactionRefund,
+    TransactionUpdate,
+    Chargeback,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NovalnetWebhookEvent {
+    pub checksum: String,
+    pub tid: i64,
+    pub parent_tid: Option<i64>,
+    #[serde(rename = "type")]
+    pub event_type: EventType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NovalnetWebhookNotificationResponse {
+    pub customer: NovalnetResponseCustomer,
+    pub event: NovalnetWebhookEvent,
+    pub merchant: NovalnetResponseMerchant,
+    pub result: ResultData,
+    pub transaction: NovalnetResponseTransactionData,
 }

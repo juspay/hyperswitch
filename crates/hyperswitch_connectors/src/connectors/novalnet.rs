@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -720,8 +721,64 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
     }
 }
 
+fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<novalnet::NovalnetWebhookNotificationResponse, errors::ConnectorError> {
+    serde_urlencoded::from_bytes::<transformers::NovalnetWebhookNotificationResponse>(body).change_context(
+        errors::ConnectorError::WebhookBodyDecodingFailed,
+    )
+       
+}
+
+fn reverse_string(s: &str) -> String {
+    s.chars().rev().collect()
+}
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Novalnet {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Sha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let notif_item = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+            hex::decode(notif_item.event.checksum)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
+    }
+
+fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let notif = get_webhook_object_from_body(request.body)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let amount = notif.transaction.amount.map(|amount| amount.to_string()).unwrap_or("".to_string()); 
+        let currency = notif.transaction.currency.map(|amount| amount.to_string()).unwrap_or("".to_string()); 
+        let header_value = utils::get_header_key_value("X-NN-Access-Key", request.headers)?;
+        let reversed_header_value  = reverse_string(header_value);
+        let message = format!(
+            "{}:{:?}:{}:{}:{}:{}",
+            notif.event.tid,
+            notif.event.event_type,
+            notif.result.status,
+            amount,
+            currency,
+            reversed_header_value
+        );
+
+        Ok(message.into_bytes())
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
