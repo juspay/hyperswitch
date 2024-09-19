@@ -1459,10 +1459,38 @@ impl
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "customer_details",
             })?;
+
+        let mut billing_address = billing.map(api_types::Address::from);
+
+        // This change is to fix a merchant integration
+        // If billing.email is not passed by the merchant, and if the customer email is present, then use the `customer.email` as the billing email
+        if let Some(billing_address) = &mut billing_address {
+            billing_address.email = billing_address.email.clone().or_else(|| {
+                customer
+                    .and_then(|cust| {
+                        cust.email
+                            .as_ref()
+                            .map(|email| pii::Email::from(email.clone()))
+                    })
+                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email))
+            });
+        } else {
+            billing_address = Some(payments::Address {
+                email: customer
+                    .and_then(|cust| {
+                        cust.email
+                            .as_ref()
+                            .map(|email| pii::Email::from(email.clone()))
+                    })
+                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+                ..Default::default()
+            });
+        }
+
         Ok(Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
-            billing: billing.map(api_types::Address::from),
+            billing: billing_address,
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
             email: customer
                 .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
