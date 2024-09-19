@@ -3,6 +3,9 @@ use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 pub mod transformers;
+use std::collections::HashMap;
+
+use strum::IntoEnumIterator;
 
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
@@ -506,4 +509,32 @@ pub async fn delete_evidence(
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     Ok(services::ApplicationResponse::StatusOk)
+}
+
+#[instrument(skip(state))]
+pub async fn get_aggregates_for_disputes(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    time_range: api::TimeRange,
+) -> RouterResponse<dispute_models::DisputesAggregateResponse> {
+    let db = state.store.as_ref();
+    let dispute_status_with_count = db
+        .get_dispute_status_with_count(merchant.get_id(), profile_id_list, &time_range)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve disputes aggregate")?;
+
+    let mut status_map: HashMap<storage_enums::DisputeStatus, i64> =
+        dispute_status_with_count.into_iter().collect();
+
+    for status in storage_enums::DisputeStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        dispute_models::DisputesAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
 }

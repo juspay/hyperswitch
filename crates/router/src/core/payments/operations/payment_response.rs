@@ -88,6 +88,26 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         Ok(payment_data)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::BusinessProfile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        todo!()
+    }
+
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -246,6 +266,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 payment_method_id,
                                 updated_by: storage_scheme.clone().to_string(),
                             };
+
+                        #[cfg(all(
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_v2")
+                        ))]
                         let respond = state
                             .store
                             .update_payment_attempt_with_attempt_id(
@@ -254,6 +279,19 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 storage_scheme,
                             )
                             .await;
+
+                        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                        let respond = state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                &(&state).into(),
+                                &key_store,
+                                payment_attempt,
+                                payment_attempt_update,
+                                storage_scheme,
+                            )
+                            .await;
+
                         if let Err(err) = respond {
                             logger::error!("Error updating payment attempt: {:?}", err);
                         };
@@ -325,15 +363,33 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
-            payment_data.payment_attempt = state
-                .store
-                .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt.clone(),
-                    payment_attempt_update,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            {
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            }
+
+            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            {
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        &state.into(),
+                        key_store,
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            }
         }
         // payment_intent update
         if let Some(payment_intent_update) = option_payment_intent_update {
@@ -1566,6 +1622,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn update_payment_method_status_and_ntid<F: Clone>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+    payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+) -> RouterResult<()> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,

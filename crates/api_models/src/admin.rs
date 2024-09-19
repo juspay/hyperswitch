@@ -26,7 +26,7 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "v1")]
@@ -188,7 +188,7 @@ pub struct MerchantAccountCreate {
 
     /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<MerchantAccountMetadata>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
@@ -207,15 +207,6 @@ impl MerchantAccountCreate {
         self.merchant_details
             .as_ref()
             .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
-            .transpose()
-    }
-
-    pub fn get_metadata_as_secret(
-        &self,
-    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
-        self.metadata
-            .as_ref()
-            .map(|metadata| metadata.encode_to_value().map(Secret::new))
             .transpose()
     }
 

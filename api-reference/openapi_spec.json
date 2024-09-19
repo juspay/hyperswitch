@@ -2304,7 +2304,7 @@
       }
     },
     "/customers/list": {
-      "post": {
+      "get": {
         "tags": [
           "Customers"
         ],
@@ -10844,6 +10844,12 @@
             "type": "string",
             "enum": [
               "user_bank"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_account_number"
             ]
           },
           {

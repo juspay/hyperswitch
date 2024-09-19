@@ -10,7 +10,6 @@ use common_utils::{
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
     pii,
-    types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -130,19 +129,7 @@ impl
             domain::PaymentMethod,
         ),
     ) -> Self {
-        Self {
-            merchant_id: item.merchant_id.to_owned(),
-            customer_id: item.customer_id.to_owned(),
-            payment_method_id: item.get_id().clone(),
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
-            payment_method_data: card_details.map(payment_methods::PaymentMethodResponseData::Card),
-            recurring_enabled: false,
-            metadata: item.metadata,
-            created: Some(item.created_at),
-            last_used_at: None,
-            client_secret: item.client_secret,
-        }
+        todo!()
     }
 }
 
@@ -376,7 +363,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
 impl ForeignFrom<storage_enums::MandateAmountData> for payments::MandateAmountData {
     fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
         Self {
-            amount: MinorUnit::new(from.amount),
+            amount: from.amount,
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
@@ -443,7 +430,7 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
 impl ForeignFrom<payments::MandateAmountData> for storage_enums::MandateAmountData {
     fn foreign_from(from: payments::MandateAmountData) -> Self {
         Self {
-            amount: from.amount.get_amount_as_i64(),
+            amount: from.amount,
             currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,

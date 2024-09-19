@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -45,6 +47,13 @@ pub trait DisputeInterface {
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
+
+    async fn get_dispute_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -125,6 +134,24 @@ impl DisputeInterface for Store {
         this.update(&conn, dispute)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn get_dispute_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Dispute::get_dispute_status_with_count(
+            &conn,
+            merchant_id,
+            profile_id_list,
+            time_range,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -357,6 +384,50 @@ impl DisputeInterface for MockDb {
         dispute_to_update.modified_at = now;
 
         Ok(dispute_to_update.clone())
+    }
+
+    async fn get_dispute_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+        let locked_disputes = self.disputes.lock().await;
+
+        let filtered_disputes_data = locked_disputes
+            .iter()
+            .filter(|d| {
+                d.merchant_id == *merchant_id
+                    && d.created_at >= time_range.start_time
+                    && time_range
+                        .end_time
+                        .as_ref()
+                        .map(|received_end_time| received_end_time >= &d.created_at)
+                        .unwrap_or(true)
+                    && profile_id_list
+                        .as_ref()
+                        .zip(d.profile_id.as_ref())
+                        .map(|(received_profile_list, received_profile_id)| {
+                            received_profile_list.contains(received_profile_id)
+                        })
+                        .unwrap_or(true)
+            })
+            .cloned()
+            .collect::<Vec<storage::Dispute>>();
+
+        Ok(filtered_disputes_data
+            .into_iter()
+            .fold(
+                HashMap::new(),
+                |mut acc: HashMap<common_enums::DisputeStatus, i64>, value| {
+                    acc.entry(value.dispute_status)
+                        .and_modify(|value| *value += 1)
+                        .or_insert(1);
+                    acc
+                },
+            )
+            .into_iter()
+            .collect::<Vec<(common_enums::DisputeStatus, i64)>>())
     }
 }
 

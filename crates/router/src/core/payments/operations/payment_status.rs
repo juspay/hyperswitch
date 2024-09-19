@@ -214,6 +214,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn get_tracker_for_sync<
+    'a,
+    F: Send + Clone,
+    Op: Operation<F, api::PaymentsRetrieveRequest, Data = PaymentData<F>> + 'a + Send + Sync,
+>(
+    _payment_id: &api::PaymentIdType,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _state: &SessionState,
+    _request: &api::PaymentsRetrieveRequest,
+    _operation: Op,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
+{
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -348,13 +370,17 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
         })?;
 
-    let frm_response = db
-        .find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_account.get_id().clone())
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
-        });
+    let frm_response = if cfg!(feature = "frm") {
+        db.find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_account.get_id().clone())
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable_lazy(|| {
+                format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
+            })
+            .ok()
+    } else {
+        None
+    };
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
 
@@ -472,7 +498,7 @@ async fn get_tracker_for_sync<
         redirect_response: None,
         payment_link_data: None,
         surcharge_details: None,
-        frm_message: frm_response.ok(),
+        frm_message: frm_response,
         incremental_authorization_details: None,
         authorizations,
         authentication,

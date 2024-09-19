@@ -143,3 +143,21 @@ pub async fn organization_retrieve() {}
     security(("admin_api_key" = []))
 )]
 pub async fn organization_update() {}
+
+#[cfg(feature = "v2")]
+/// Merchant Account - List
+///
+/// List merchant accounts for an Organization
+#[utoipa::path(
+    get,
+    path = "/v2/organization/{organization_id}/merchant_accounts",
+    params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
+    responses(
+        (status = 200, description = "Merchant Account list retrieved successfully", body = Vec<MerchantAccountResponse>),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Organization",
+    operation_id = "List Merchant Accounts",
+    security(("admin_api_key" = []))
+)]
+pub async fn merchant_account_list() {}

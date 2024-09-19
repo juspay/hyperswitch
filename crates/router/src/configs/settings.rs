@@ -13,6 +13,7 @@ use error_stack::ResultExt;
 use external_services::email::EmailSettings;
 use external_services::{
     file_storage::FileStorageConfig,
+    grpc_client::GrpcClientSettings,
     managers::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
@@ -120,6 +121,7 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    pub grpc_client: GrpcClientSettings,
     pub recipient_emails: RecipientMails,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,

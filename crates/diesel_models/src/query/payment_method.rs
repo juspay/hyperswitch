@@ -211,7 +211,10 @@ impl PaymentMethod {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethod {
-    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalPaymentMethodId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
             .await
     }
