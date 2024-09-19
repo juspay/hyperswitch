@@ -14,8 +14,9 @@ pub mod hashicorp_vault;
 
 pub mod no_encryption;
 
-#[allow(missing_docs)]
+/// Building grpc clients to communicate with the server
 pub mod grpc_client;
+
 pub mod managers;
 
 /// Crate specific constants

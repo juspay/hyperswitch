@@ -3111,6 +3111,7 @@ dependencies = [
 name = "external_services"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-trait",
  "aws-config 0.55.3",
  "aws-sdk-kms",
@@ -4075,6 +4076,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror",
  "time",
+ "url",
 ]
 
 [[package]]

@@ -230,18 +230,19 @@ impl SessionConnectorData {
 }
 
 pub fn convert_connector_data_to_routable_connectors(
-    connectors: &Vec<ConnectorData>,
+    connectors: &[ConnectorData],
 ) -> Vec<RoutableConnectorChoice> {
     connectors
+        .to_owned()
         .clone()
         .into_iter()
-        .map(|connector| RoutableConnectorChoice::from(connector))
+        .map(RoutableConnectorChoice::from)
         .collect::<Vec<RoutableConnectorChoice>>()
 }
 
 impl From<ConnectorData> for RoutableConnectorChoice {
     fn from(value: ConnectorData) -> Self {
-        RoutableConnectorChoice {
+        Self {
             choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
             connector: RoutableConnectors::foreign_from(value.connector_name),
             merchant_connector_id: value.merchant_connector_id,

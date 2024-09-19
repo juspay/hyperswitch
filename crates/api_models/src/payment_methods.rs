@@ -160,8 +160,68 @@ pub struct PaymentMethodIntentConfirm {
 
     /// Payment method data to be passed
     pub payment_method_data: PaymentMethodCreateData,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_type: api_enums::PaymentMethodType,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodIntentConfirm {
+    pub fn validate_payment_method_data_against_payment_method(
+        payment_method: api_enums::PaymentMethod,
+        payment_method_data: PaymentMethodCreateData,
+    ) -> bool {
+        match payment_method {
+            api_enums::PaymentMethod::Card => {
+                matches!(payment_method_data, PaymentMethodCreateData::Card(_))
+            }
+            _ => false,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentMethodIntentConfirmInternal {
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub id: String,
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_type: api_enums::PaymentMethodType,
+
+    /// For SDK based calls, client_secret would be required
+    pub client_secret: String,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Payment method data to be passed
+    pub payment_method_data: PaymentMethodCreateData,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
+    fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
+        Self {
+            client_secret: item.client_secret,
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            customer_id: item.customer_id,
+            payment_method_data: item.payment_method_data.clone(),
+        }
+    }
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
@@ -276,11 +336,16 @@ impl PaymentMethodCreate {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodCreate {
-    pub fn get_payment_method_create_from_payment_method_migrate(
-        _card_number: CardNumber,
-        _payment_method_migrate: &PaymentMethodMigrate,
-    ) -> Self {
-        todo!()
+    pub fn validate_payment_method_data_against_payment_method(
+        payment_method: api_enums::PaymentMethod,
+        payment_method_data: PaymentMethodCreateData,
+    ) -> bool {
+        match payment_method {
+            api_enums::PaymentMethod::Card => {
+                matches!(payment_method_data, PaymentMethodCreateData::Card(_))
+            }
+            _ => false,
+        }
     }
 }
 
@@ -332,12 +397,6 @@ pub enum PaymentMethodUpdateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Bank)]
-    BankTransfer(payouts::Bank),
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Wallet)]
-    Wallet(payouts::Wallet),
 }
 
 #[cfg(all(
@@ -577,9 +636,6 @@ impl CardDetailUpdate {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Bank)]
-    Bank(payouts::Bank),
 }
 
 #[cfg(all(
@@ -930,6 +986,25 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<CardDetail> for CardDetailsPaymentMethod {
+    fn from(item: CardDetail) -> Self {
+        Self {
+            issuer_country: item.card_issuing_country.map(|c| c.to_string()),
+            last4_digits: Some(item.card_number.get_last4()),
+            expiry_month: Some(item.card_exp_month),
+            expiry_year: Some(item.card_exp_year),
+            card_holder_name: item.card_holder_name,
+            nick_name: item.nick_name,
+            card_isin: None,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type.map(|card| card.to_string()),
+            saved_to_locker: true,
         }
     }
 }

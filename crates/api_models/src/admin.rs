@@ -26,7 +26,7 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "v1")]
@@ -188,7 +188,7 @@ pub struct MerchantAccountCreate {
 
     /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<MerchantAccountMetadata>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
@@ -207,15 +207,6 @@ impl MerchantAccountCreate {
         self.merchant_details
             .as_ref()
             .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
-            .transpose()
-    }
-
-    pub fn get_metadata_as_secret(
-        &self,
-    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
-        self.metadata
-            .as_ref()
-            .map(|metadata| metadata.encode_to_value().map(Secret::new))
             .transpose()
     }
 
@@ -1917,6 +1908,11 @@ pub struct BusinessProfileCreate {
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[serde(default)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -2021,6 +2017,11 @@ pub struct BusinessProfileCreate {
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[serde(default)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2138,6 +2139,11 @@ pub struct BusinessProfileResponse {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[schema(default = false, example = false)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2246,6 +2252,11 @@ pub struct BusinessProfileResponse {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[schema(default = false, example = false)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2359,6 +2370,9 @@ pub struct BusinessProfileUpdate {
     /// Indicates if dynamic routing is enabled or not.
     #[serde(default)]
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2459,6 +2473,9 @@ pub struct BusinessProfileUpdate {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

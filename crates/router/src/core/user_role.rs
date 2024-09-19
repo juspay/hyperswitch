@@ -119,7 +119,7 @@ pub async fn update_user_role(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            None,
+            user_from_token.profile_id.as_ref(),
             UserRoleVersion::V2,
         )
         .await
@@ -165,7 +165,7 @@ pub async fn update_user_role(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                None,
+                user_from_token.profile_id.as_ref(),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id.clone(),
@@ -184,7 +184,7 @@ pub async fn update_user_role(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            None,
+            user_from_token.profile_id.as_ref(),
             UserRoleVersion::V1,
         )
         .await
@@ -230,7 +230,7 @@ pub async fn update_user_role(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                None,
+                user_from_token.profile_id.as_ref(),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id,

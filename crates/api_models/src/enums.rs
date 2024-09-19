@@ -593,6 +593,7 @@ pub enum FieldType {
     UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
+    UserBankAccountNumber,
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
