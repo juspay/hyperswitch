@@ -954,8 +954,9 @@ pub struct CellInformation {
 #[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
-        let cell_id = common_utils::id_type::CellId::from_str("abcde")
-            .expect("Failed to create a default for Cell Id");
+        #[allow(clippy::expect_used)]
+        let cell_id = common_utils::id_type::CellId::from_str("default_cell_id") // This is to provide a default cell id for application settings.
+            .expect("Failed to create a default for Cell Id"); // Ideally we're not meant to have a default for Cell Id, so a panic here is acceptable here.
         Self { id: cell_id }
     }
 }
