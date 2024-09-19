@@ -475,7 +475,6 @@ impl ProfileUpdateInternal {
     }
 }
 
-
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct AuthenticationConnectorDetails {
