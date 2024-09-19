@@ -639,7 +639,7 @@ mod client_secret_type {
     #[diesel(sql_type = sql_types::Text)]
     pub struct ClientSecret {
         /// The payment id of the payment
-        pub payment_id: id_type::PaymentGlobalId,
+        pub payment_id: id_type::GlobalPaymentId,
         /// The secret string
         pub secret: masking::Secret<String>,
     }
@@ -679,7 +679,7 @@ mod client_secret_type {
                         )
                     })?;
 
-                    let payment_id = id_type::PaymentGlobalId::try_from(std::borrow::Cow::Owned(
+                    let payment_id = id_type::GlobalPaymentId::try_from(std::borrow::Cow::Owned(
                         payment_id.to_owned(),
                     ))
                     .map_err(serde::de::Error::custom)?;

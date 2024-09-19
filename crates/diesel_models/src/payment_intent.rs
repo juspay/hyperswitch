@@ -20,8 +20,8 @@ pub struct PaymentIntent {
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
+    pub description: Option<common_utils::types::Description>,
+    pub return_url: Option<common_utils::types::Url>,
     pub metadata: Option<pii::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -30,11 +30,11 @@ pub struct PaymentIntent {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub client_secret: String,
+    pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub allowed_payment_method_types: Option<serde_json::Value>,
+    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
@@ -52,7 +52,7 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
-    pub merchant_reference_id: String,
+    pub merchant_reference_id: Option<common_utils::id_type::PaymentId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -62,14 +62,14 @@ pub struct PaymentIntent {
     pub tax_on_surcharge: Option<MinorUnit>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
-    pub frm_merchant_decision: Option<String>,
+    pub frm_merchant_decision: Option<common_enums::MerchantDecision>,
     pub statement_descriptor: Option<String>,
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
     pub customer_present: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
-    pub id: common_utils::id_type::PaymentGlobalId,
+    pub id: common_utils::id_type::GlobalPaymentId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -217,8 +217,8 @@ pub struct PaymentIntentNew {
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
+    pub description: Option<common_utils::types::Description>,
+    pub return_url: Option<common_utils::types::Url>,
     pub metadata: Option<pii::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -227,11 +227,11 @@ pub struct PaymentIntentNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub client_secret: String,
+    pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub allowed_payment_method_types: Option<serde_json::Value>,
+    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
@@ -250,7 +250,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
-    pub merchant_reference_id: String,
+    pub merchant_reference_id: Option<common_utils::id_type::PaymentId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -258,12 +258,11 @@ pub struct PaymentIntentNew {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub frm_merchant_decision: Option<String>,
+    pub frm_merchant_decision: Option<common_enums::MerchantDecision>,
     pub statement_descriptor: Option<String>,
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
-    // TODO: change this to global id
-    pub id: common_utils::id_type::PaymentGlobalId,
+    pub id: common_utils::id_type::GlobalPaymentId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

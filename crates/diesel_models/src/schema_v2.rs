@@ -877,7 +877,7 @@ diesel::table! {
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
         #[max_length = 64]
-        merchant_reference_id -> Varchar,
+        merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
         shipping_address -> Nullable<Bytea>,
         capture_method -> Nullable<CaptureMethod>,

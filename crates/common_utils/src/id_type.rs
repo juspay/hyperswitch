@@ -13,8 +13,6 @@ mod routing;
 
 #[cfg(feature = "v2")]
 mod global_id;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-mod payment_methods;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -25,13 +23,11 @@ use diesel::{
     sql_types,
 };
 #[cfg(feature = "v2")]
-pub use global_id::{payment::PaymentGlobalId, CellId};
+pub use global_id::{payment::GlobalPaymentId, payment_methods::GlobalPaymentMethodId, CellId};
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
 pub use payment::PaymentId;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub use payment_methods::GlobalPaymentMethodId;
 pub use profile::ProfileId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
