@@ -39,8 +39,6 @@ use crate::{
     verifications::*,
 };
 
-// impl ApiEventMetric for TimeRange {}
-
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Analytics)
