@@ -552,7 +552,7 @@ pub fn get_default_config_key(
     }
 }
 
-pub async fn get_dynamic_routing_config_for_profile<'a>(
+pub async fn get_dynamic_routing_cached_config_for_profile<'a>(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {
@@ -614,7 +614,7 @@ pub async fn fetch_and_cache_dynamic_routing_configs(
         success_based_routing_id.get_string_repr()
     );
 
-    if let Some(config) = get_dynamic_routing_config_for_profile(state, key.as_str()).await {
+    if let Some(config) = get_dynamic_routing_cached_config_for_profile(state, key.as_str()).await {
         Ok(config.as_ref().clone())
     } else {
         let success_rate_algorithm = state

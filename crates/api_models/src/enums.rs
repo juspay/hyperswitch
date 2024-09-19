@@ -325,12 +325,19 @@ impl ForeignFrom<Connector> for RoutableConnectors {
     fn foreign_from(from: Connector) -> Self {
         match from {
             Connector::Adyenplatform => Self::Adyenplatform,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Self::DummyConnector7,
             Connector::Aci => Self::Aci,
             Connector::Adyen => Self::Adyen,

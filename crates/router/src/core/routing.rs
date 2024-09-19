@@ -10,6 +10,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
+use storage_impl::redis::cache::{self, CacheKind};
 
 #[cfg(feature = "payouts")]
 use super::payouts;
@@ -25,6 +26,7 @@ use crate::{
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
     },
+    logger,
     routes::SessionState,
     services::api as service_api,
     types::{
@@ -1300,12 +1302,26 @@ pub async fn success_based_routing_update_configs(
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    use self::helpers::refresh_success_based_routing_cache;
+
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         &metrics::CONTEXT,
         1,
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
     let db = state.store.as_ref();
+
+    // remove cache for success based routing configs
+    let cache_key = format!(
+        "{}_{}",
+        profile_id.get_string_repr(),
+        algorithm_id.get_string_repr()
+    );
+    let cache_to_redact = vec![CacheKind::DynamicRouting(cache_key.clone().into())];
+    let _ = cache::publish_into_redact_channel(db.get_cache_store().as_ref(), cache_to_redact)
+        .await
+        .map_err(|e| logger::error!("unable to redact the success based routing config cache {e}"));
+
     let dynamic_routing_algo_to_update = db
         .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
         .await
@@ -1339,6 +1355,8 @@ pub async fn success_based_routing_update_configs(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
 
+    // refresh the cache for success based routing configs
+    refresh_success_based_routing_cache(&state, cache_key.as_str(), config_to_update).await;
     let new_record = record.foreign_into();
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
