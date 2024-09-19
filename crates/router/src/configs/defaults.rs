@@ -2225,15 +2225,6 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
-                                             (
-                                                "billing.phone.country_code".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
-                                                    display_name: "dialing_code".to_string(),
-                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
-                                                    value: None,
-                                                }
-                                            ),
                                             (
                                                 "billing.email".to_string(),
                                                 RequiredFieldInfo {
@@ -5195,15 +5186,6 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                     display_name: "last_name".to_string(),
                                                     field_type: enums::FieldType::UserFullName,
-                                                    value: None,
-                                                }
-                                            ),
-                                             (
-                                                "billing.phone.country_code".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
-                                                    display_name: "dialing_code".to_string(),
-                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                     value: None,
                                                 }
                                             ),
