@@ -360,7 +360,7 @@ impl PaymentAttempt {
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
             .into_boxed();
-        
+
         if let Some(time_range) = time_range {
             filter = filter.filter(dsl::created_at.ge(time_range.start_time));
 
