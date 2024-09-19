@@ -62,7 +62,7 @@ use crate::{
 #[derive(Clone)]
 pub struct PayoutData {
     pub billing_address: Option<domain::Address>,
-    pub business_profile: domain::BusinessProfile,
+    pub business_profile: domain::Profile,
     pub customer_details: Option<domain::Customer>,
     pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
     pub payouts: storage::Payouts,
@@ -2820,7 +2820,7 @@ async fn validate_and_get_business_profile(
     merchant_key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<domain::BusinessProfile> {
+) -> RouterResult<domain::Profile> {
     let db = &*state.store;
     let key_manager_state = &state.into();
 
@@ -2837,7 +2837,7 @@ async fn validate_and_get_business_profile(
     } else {
         db.find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })
     }
@@ -2846,7 +2846,7 @@ async fn validate_and_get_business_profile(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payout_link(
     state: &SessionState,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     customer_id: &CustomerId,
     merchant_id: &common_utils::id_type::MerchantId,
     req: &payouts::PayoutCreateRequest,

@@ -792,7 +792,7 @@ pub async fn decide_payout_connector(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {

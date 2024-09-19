@@ -53,7 +53,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     tags(
         (name = "Merchant Account", description = "Create and manage merchant accounts"),
-        (name = "Business Profile", description = "Create and manage business profiles"),
+        (name = "Profile", description = "Create and manage profiles"),
         (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
         (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
         (name = "Refunds", description = "Create and manage refunds for successful payments"),
@@ -85,20 +85,20 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::merchant_account_retrieve,
         routes::merchant_account::merchant_account_update,
-        routes::merchant_account::business_profiles_list,
+        routes::merchant_account::profiles_list,
 
-        // Routes for business profile
-        routes::business_profile::business_profile_create,
-        routes::business_profile::business_profile_retrieve,
-        routes::business_profile::business_profile_update,
-        routes::business_profile::connector_list,
+        // Routes for profile
+        routes::profile::profile_create,
+        routes::profile::profile_retrieve,
+        routes::profile::profile_update,
+        routes::profile::connector_list,
 
-        // Routes for routing under business profile
-        routes::business_profile::routing_link_config,
-        routes::business_profile::routing_unlink_config,
-        routes::business_profile::routing_update_default_config,
-        routes::business_profile::routing_retrieve_default_config,
-        routes::business_profile::routing_retrieve_linked_config,
+        // Routes for routing under profile
+        routes::profile::routing_link_config,
+        routes::profile::routing_unlink_config,
+        routes::profile::routing_update_default_config,
+        routes::profile::routing_retrieve_default_config,
+        routes::profile::routing_retrieve_linked_config,
 
         // Routes for routing
         routes::routing::routing_create_config,
@@ -209,8 +209,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
-        api_models::admin::BusinessProfileCreate,
-        api_models::admin::BusinessProfileResponse,
+        api_models::admin::ProfileCreate,
+        api_models::admin::ProfileResponse,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,

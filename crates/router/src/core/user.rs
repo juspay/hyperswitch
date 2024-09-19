@@ -2754,7 +2754,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     let profiles = match role_info.get_entity_type() {
         EntityType::Organization | EntityType::Merchant | EntityType::Internal => state
             .store
-            .list_business_profile_by_merchant_id(
+            .list_profile_by_merchant_id(
                 key_manager_state,
                 &key_store,
                 &user_from_token.merchant_id,
@@ -2934,7 +2934,7 @@ pub async fn switch_merchant_for_user_in_org(
 
             let profile_id = state
                 .store
-                .list_business_profile_by_merchant_id(
+                .list_profile_by_merchant_id(
                     key_manager_state,
                     &merchant_key_store,
                     &request.merchant_id,
@@ -2987,11 +2987,7 @@ pub async fn switch_merchant_for_user_in_org(
 
             let profile_id = state
                 .store
-                .list_business_profile_by_merchant_id(
-                    key_manager_state,
-                    &merchant_key_store,
-                    &merchant_id,
-                )
+                .list_profile_by_merchant_id(key_manager_state, &merchant_key_store, &merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to list business profiles by merchant_id")?
@@ -3047,7 +3043,7 @@ pub async fn switch_merchant_for_user_in_org(
 
                 state
                     .store
-                    .list_business_profile_by_merchant_id(
+                    .list_profile_by_merchant_id(
                         key_manager_state,
                         &merchant_key_store,
                         &request.merchant_id,

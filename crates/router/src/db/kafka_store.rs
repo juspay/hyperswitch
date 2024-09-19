@@ -50,7 +50,7 @@ use crate::{
         api_keys::ApiKeyInterface,
         authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
-        business_profile::BusinessProfileInterface,
+        business_profile::ProfileInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
         configs::ConfigInterface,
@@ -2625,13 +2625,13 @@ impl MerchantKeyStoreInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl BusinessProfileInterface for KafkaStore {
+impl ProfileInterface for KafkaStore {
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        business_profile: domain::BusinessProfile,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        business_profile: domain::Profile,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .insert_business_profile(key_manager_state, merchant_key_store, business_profile)
             .await
@@ -2642,7 +2642,7 @@ impl BusinessProfileInterface for KafkaStore {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
@@ -2654,7 +2654,7 @@ impl BusinessProfileInterface for KafkaStore {
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_merchant_id_profile_id(
                 key_manager_state,
@@ -2665,15 +2665,15 @@ impl BusinessProfileInterface for KafkaStore {
             .await
     }
 
-    async fn update_business_profile_by_profile_id(
+    async fn update_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        current_state: domain::BusinessProfile,
-        business_profile_update: domain::BusinessProfileUpdate,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        current_state: domain::Profile,
+        business_profile_update: domain::ProfileUpdate,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
-            .update_business_profile_by_profile_id(
+            .update_profile_by_profile_id(
                 key_manager_state,
                 merchant_key_store,
                 current_state,
@@ -2682,28 +2682,24 @@ impl BusinessProfileInterface for KafkaStore {
             .await
     }
 
-    async fn delete_business_profile_by_profile_id_merchant_id(
+    async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &id_type::ProfileId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_business_profile_by_profile_id_merchant_id(profile_id, merchant_id)
+            .delete_profile_by_profile_id_merchant_id(profile_id, merchant_id)
             .await
     }
 
-    async fn list_business_profile_by_merchant_id(
+    async fn list_profile_by_merchant_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Vec<domain::BusinessProfile>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::Profile>, errors::StorageError> {
         self.diesel_store
-            .list_business_profile_by_merchant_id(
-                key_manager_state,
-                merchant_key_store,
-                merchant_id,
-            )
+            .list_profile_by_merchant_id(key_manager_state, merchant_key_store, merchant_id)
             .await
     }
 
@@ -2713,7 +2709,7 @@ impl BusinessProfileInterface for KafkaStore {
         merchant_key_store: &domain::MerchantKeyStore,
         profile_name: &str,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_profile_name_merchant_id(
                 key_manager_state,
