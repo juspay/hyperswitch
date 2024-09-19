@@ -195,7 +195,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .build(),
         );
 
-        let masked_request_body = match req.as_ref().unwrap().body.as_ref() {
+        let masked_request_body = match req.as_ref().and_then(|i| i.body.as_ref()) {
             Some(request) => match request {
                 RequestContent::Json(i)
                 | RequestContent::FormUrlEncoded(i)

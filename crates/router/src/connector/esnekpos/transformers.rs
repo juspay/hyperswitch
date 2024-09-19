@@ -115,8 +115,7 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
                 Some(name) => Ok(name),
                 None => Err(errors::ConnectorError::MissingRequiredField {
                     field_name: "card_holder_name",
-                }
-                .into()),
+                }),
             };
 
         match card_holder_name {
@@ -139,10 +138,10 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
                         match billing_details.as_ref().map(|bd| *bd) {
                             Err(e) => {
                                 router_env::logger::error!("Error: {:?}", e);
-                                return Err(errors::ConnectorError::MissingRequiredField {
+                                Err(errors::ConnectorError::MissingRequiredField {
                                     field_name: "billing_details",
                                 }
-                                .into());
+                                .into())
                             }
                             Ok(bill) => {
                                 let billing_details = bill.clone();
@@ -205,8 +204,8 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
                                     errors::ConnectorError,
                                 > = Ok(EsnekposPaymentRequestCustomer {
                                     // pub struct Email(Secret<String, EmailStrategy>);
-                                    mail: mail,
-                                    phone: phone,
+                                    mail,
+                                    phone,
                                     first_name: match address.clone() {
                                         Some(address) => address.first_name,
                                         None => None,
@@ -269,7 +268,7 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
                                         order_amount: item.amount.clone(),
                                     },
                                     card,
-                                    customer: customer,
+                                    customer,
                                     product: vec![],
                                 })
                             }
@@ -281,7 +280,7 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
                     ),
                 }
             }
-            Err(e) => return Err(e.into()),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -450,7 +449,10 @@ impl<F> TryFrom<&EsnekposRouterData<&types::RefundsRouterData<F>>> for EsnekposR
         item: &EsnekposRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.parse::<i64>().unwrap(),
+            amount: item
+                .amount
+                .parse::<i64>()
+                .map_err(|_| errors::ConnectorError::AmountConversionFailed)?,
         })
     }
 }
