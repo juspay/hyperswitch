@@ -5015,12 +5015,20 @@ pub struct GooglePaySessionResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct SamsungPaySessionTokenResponse {
+    /// Samsung Pay API version
     pub version: String,
+    /// Samsung Pay service ID to which session call needs to be made
     pub service_id: String,
+    /// Order number of the transaction
     pub order_number: String,
+    /// Filed containing merchant information
+    #[serde(rename = "merchant")]
     pub merchant_payment_information: MerchantPaymentInformation,
+    /// Filed containing the payment amount
     pub amount: AmountDetails,
+    /// Payment protocol type
     pub protocol: ProtocolType,
+    /// List of supported card brands
     pub allowed_brands: Vec<String>,
 }
 
@@ -5033,8 +5041,12 @@ pub enum ProtocolType {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct MerchantPaymentInformation {
+    /// Merchant name, this will be displayed on the Samsung Pay screen
     pub name: String,
+    /// Merchant domain that process payments
     pub url: String,
+    /// Merchant country code
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
 }
 
@@ -5042,9 +5054,14 @@ pub struct MerchantPaymentInformation {
 #[serde(rename_all = "lowercase")]
 pub struct AmountDetails {
     #[serde(rename = "option")]
+    /// Amount format to be displayed
     pub amount_format: AmountFormat,
+    /// The currency code
+    #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
+    /// The total amount of the transaction
     #[serde(rename = "total")]
+    #[schema(value_type = String, example = "38.02")]
     pub total_amount: StringMajorUnit,
 }
 
