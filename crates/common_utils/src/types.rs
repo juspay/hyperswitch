@@ -629,9 +629,8 @@ mod client_secret_type {
 
     use masking::PeekInterface;
 
-    use crate::id_type;
-
     use super::*;
+    use crate::id_type;
 
     /// A domain type that can be used to represent a client secret
     /// Client secret is generated for a payment and is used to authenticate the client side api calls
