@@ -294,8 +294,7 @@ pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
         logger::info!(prod_intent_email = poc_email_check);
         logger::info!(prod_intent_email = business_website_check);
         logger::info!(prod_intent_email = user_email_check);
-        return false;
     }
 
-    true
+    return poc_email_check && business_website_check && user_email_check;
 }
