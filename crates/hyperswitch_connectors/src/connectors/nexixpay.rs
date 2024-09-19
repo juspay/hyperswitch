@@ -33,7 +33,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
     configs::Connectors,
-    errors,
+    consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -108,9 +108,6 @@ impl ConnectorCommon for Nexixpay {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -144,22 +141,20 @@ impl ConnectorCommon for Nexixpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        ////TODO: error handling -> struct
-        let resp = res.clone();
         let response: nexixpay::NexixpayErrorResponse = match res.status_code {
             401 => nexixpay::NexixpayErrorResponse {
                 errors: vec![nexixpay::NexixpayErrorBody {
-                    code: Some("401".to_string()),
-                    description: Some("unauthorised".to_string()),
+                    code: Some(consts::NO_ERROR_CODE.to_string()),
+                    description: Some("UNAUTHORIZED".to_string()),
                 }],
             },
             404 => nexixpay::NexixpayErrorResponse {
                 errors: vec![nexixpay::NexixpayErrorBody {
-                    code: Some("404".to_string()),
-                    description: Some("not found".to_string()),
+                    code: Some(consts::NO_ERROR_CODE.to_string()),
+                    description: Some("NOT FOUND".to_string()),
                 }],
             },
-            _ => resp
+            _ => res
                 .response
                 .parse_struct("NexixpayErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
@@ -189,12 +184,12 @@ impl ConnectorCommon for Nexixpay {
                 .errors
                 .first()
                 .and_then(|error| error.code.clone())
-                .unwrap_or("no error code".to_string()),
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: response
                 .errors
                 .first()
                 .and_then(|error| error.description.clone())
-                .unwrap_or("no description".to_string()),
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: concatenated_descriptions,
             attempt_status: None,
             connector_transaction_id: None,
@@ -218,9 +213,7 @@ impl ConnectorValidation for Nexixpay {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nexixpay {
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nexixpay {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nexixpay {}
 
@@ -715,7 +708,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
 
         let connector_router_data = nexixpay::NexixpayRouterData::from((amount, req));
         let connector_req =
-            nexixpay::NexixpayPaymentsCancleRequest::try_from(connector_router_data)?;
+            nexixpay::NexixpayPaymentsCancelRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -840,7 +833,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpa
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: nexixpay::RefundResponse = res
             .response
-            .parse_struct("nexixpay RefundResponse")
+            .parse_struct("RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -912,7 +905,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nexixpay 
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: nexixpay::NexixpayRSyncResponse = res
             .response
-            .parse_struct("NexixpayTransactionResponse")
+            .parse_struct("NexixpayRSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

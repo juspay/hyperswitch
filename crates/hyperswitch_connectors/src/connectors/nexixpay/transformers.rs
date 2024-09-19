@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, RefundStatus};
-use common_utils::{errors::CustomResult, request::Method, types::StringMinorUnit};
+use common_utils::{
+    errors::CustomResult, ext_traits::ValueExt, request::Method, types::StringMinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -21,11 +23,10 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{missing_field_err, CardData, RouterData as _},
+    utils::{CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub struct NexixpayRouterData<T> {
@@ -35,7 +36,6 @@ pub struct NexixpayRouterData<T> {
 
 impl<T> From<(StringMinorUnit, T)> for NexixpayRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -48,8 +48,6 @@ impl<T> From<(StringMinorUnit, T)> for NexixpayRouterData<T> {
 pub struct NexixpayPaymentsRequest {
     order: Order,
     card: NexixpayCard,
-    recurrence: Option<Recurrence>,
-    exemptions: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,7 +82,7 @@ pub struct NexixpayCompleteAuthorizeResponse {
     operation: OperationData,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPreProcessingRequest {
     operation_id: String,
@@ -98,28 +96,25 @@ pub struct Order {
     amount: StringMinorUnit,
     currency: Currency,
     description: Option<String>,
-    custom_field: Option<String>,
-    customer_info: Option<CustomerInfo>,
+    customer_info: CustomerInfo,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomerInfo {
-    card_holder_name: Option<Secret<String>>,
+    card_holder_name: Secret<String>,
     billing_address: Address,
-    shipping_address: Address,
+    shipping_address: Option<Address>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
-    name: Option<Secret<String>>,
-    street: Option<Secret<String>>,
-    additional_info: Option<String>,
-    city: Option<String>,
-    post_code: Option<Secret<String>>,
-    province: Option<String>,
-    country: Option<enums::CountryAlpha2>,
+    name: Secret<String>,
+    street: Secret<String>,
+    city: String,
+    post_code: Secret<String>,
+    country: enums::CountryAlpha2,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,10 +122,9 @@ pub struct Address {
 pub struct NexixpayCard {
     pan: CardNumber,
     expiry_date: Secret<String>,
-    cvv: Option<Secret<String>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Recurrence {
     action: String,
@@ -141,7 +135,7 @@ struct Recurrence {
 pub struct NexixpayPaymentsResponse {
     operation: Operation,
     three_d_s_auth_request: String,
-    three_d_s_auth_url: Secret<String>,
+    three_d_s_auth_url: Secret<url::Url>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,12 +146,12 @@ pub struct ThreeDSAuthResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreeDSCompleteAuthRequestData {
+pub struct NexixpayConnectorMetaData {
     three_d_s_auth_result: ThreeDSAuthResult,
     three_d_s_auth_response: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreeDSAuthData {
     three_d_s_auth_response: String,
     authentication_value: Secret<String>,
@@ -189,7 +183,7 @@ pub struct Operation {
     warnings: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
     masked_pan: String,
@@ -198,12 +192,7 @@ pub struct AdditionalData {
     card_expiry_date: Option<Secret<String>>,
 }
 
-pub struct NexixpayLinks {
-    _href: Option<Url>,
-    _rel: String,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RedirectPayload {
     #[serde(rename = "PaRes")]
     pa_res: String,
@@ -261,34 +250,29 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let three_ds_data: ThreeDSAuthResult = item.response.three_d_s_auth_result;
-
-        let redirect_response = item.data.request.redirect_response.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
-            },
-        )?;
-        let redirect_payload = redirect_response
-            .payload
+        let customer_details_encrypted: RedirectPayload = item
+            .data
+            .request
+            .redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
                 field_name: "request.redirect_response.payload",
             })?
-            .expose();
-        let customer_details_encrypted = serde_json::from_value::<RedirectPayload>(
-            redirect_payload,
-        )
-        .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "redirection_payload",
-        })?;
+            .expose()
+            .parse_value("RedirectPayload")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
+            three_d_s_auth_result: three_ds_data,
+            three_d_s_auth_response: customer_details_encrypted.pa_res,
+        }));
         Ok(Self {
             status: AttemptStatus::from(item.response.operation.operation_result),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: Some(serde_json::json!({
-                    "threeDSAuthResult": three_ds_data,
-                    "threeDSAuthResponse": customer_details_encrypted.pa_res,
-                })),
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.operation_id),
                 incremental_authorization_allowed: None,
@@ -304,41 +288,32 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
+        match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref req_card) => {
                 let card = NexixpayCard {
                     pan: req_card.card_number.clone(),
                     expiry_date: req_card.get_expiry_date_as_mmyy()?,
-                    cvv: Some(req_card.card_cvc.clone()),
                 };
                 let billing_address = Address {
-                    name: item.router_data.get_optional_billing_full_name().clone(),
-                    street: item.router_data.get_optional_billing_line1(),
-                    additional_info: None,
-                    city: item.router_data.get_optional_billing_city(),
-                    post_code: item.router_data.get_optional_billing_zip(),
-                    province: None,
-                    country: item.router_data.get_optional_billing_country(),
+                    name: item.router_data.get_billing_full_name()?,
+                    street: item.router_data.get_billing_line1()?,
+                    city: item.router_data.get_billing_city()?,
+                    post_code: item.router_data.get_billing_zip()?,
+                    country: item.router_data.get_billing_country()?,
                 };
                 let customer_info = CustomerInfo {
-                    card_holder_name: item.router_data.get_optional_billing_full_name().clone(),
+                    card_holder_name: item.router_data.get_billing_full_name()?,
                     billing_address: billing_address.clone(),
-                    shipping_address: billing_address,
+                    shipping_address: Some(billing_address),
                 };
                 let order = Order {
                     order_id: item.router_data.connector_request_reference_id.clone(),
                     amount: item.amount.clone(),
                     currency: item.router_data.request.currency,
-                    description: None,
-                    custom_field: None,
-                    customer_info: Some(customer_info),
+                    description: item.router_data.description.clone(),
+                    customer_info,
                 };
-                Ok(Self {
-                    order,
-                    card,
-                    recurrence: None,
-                    exemptions: None,
-                })
+                Ok(Self { order, card })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -361,7 +336,6 @@ impl TryFrom<&ConnectorAuthType> for NexixpayAuthType {
     }
 }
 
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexixpayPaymentStatus {
@@ -433,7 +407,7 @@ pub struct NexixpayPaymentsCaptureRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NexixpayPaymentsCancleRequest {
+pub struct NexixpayPaymentsCancelRequest {
     description: Option<String>,
     amount: StringMinorUnit,
     currency: Currency,
@@ -445,26 +419,25 @@ pub struct NexixpayOperationResponse {
     operation_id: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NexixpayRefundRequest {
     pub amount: StringMinorUnit,
     pub currency: Currency,
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     operation_id: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayErrorBody {
     pub code: Option<String>,
     pub description: Option<String>,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayErrorResponse {
     pub errors: Vec<NexixpayErrorBody>,
@@ -522,17 +495,12 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let complete_authorise_url = item
-            .data
-            .request
-            .complete_authorize_url
-            .clone()
-            .ok_or_else(missing_field_err("complete_authorise_url"))?;
+        let complete_authorize_url = item.data.request.get_complete_authorize_url()?;
         let operation_id: String = item.response.operation.operation_id;
         let redirection_form = nexixpay_threeds_link((
-            item.response.three_d_s_auth_url.expose().clone(),
+            item.response.three_d_s_auth_url.expose().to_string(),
             item.response.three_d_s_auth_request.clone(),
-            complete_authorise_url.clone(),
+            complete_authorize_url.clone(),
             operation_id.clone(),
         ))?;
         Ok(Self {
@@ -602,7 +570,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.operation_id,
-                refund_status: RefundStatus::from(NexixpayRefundResultStatus::Pending),
+                refund_status: RefundStatus::Pending, // Refund call do not return status in their response.
             }),
             ..item.data
         })
@@ -688,26 +656,23 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
         let order_id = item.router_data.connector_request_reference_id.clone();
         let amount = item.amount.clone();
         let billing_address = Address {
-            name: item.router_data.get_optional_billing_full_name().clone(),
-            street: item.router_data.get_optional_billing_line1(),
-            additional_info: None,
-            city: item.router_data.get_optional_billing_city(),
-            post_code: item.router_data.get_optional_billing_zip(),
-            province: None,
-            country: item.router_data.get_optional_billing_country(),
+            name: item.router_data.get_billing_full_name()?,
+            street: item.router_data.get_billing_line1()?,
+            city: item.router_data.get_billing_city()?,
+            post_code: item.router_data.get_billing_zip()?,
+            country: item.router_data.get_billing_country()?,
         };
         let customer_info = CustomerInfo {
-            card_holder_name: None,
+            card_holder_name: item.router_data.get_billing_full_name()?,
             billing_address: billing_address.clone(),
-            shipping_address: billing_address,
+            shipping_address: Some(billing_address),
         };
         let order_data = Order {
             order_id,
             amount,
             currency: item.router_data.request.currency,
-            description: None,
-            custom_field: None,
-            customer_info: Some(customer_info),
+            description: item.router_data.description.clone(),
+            customer_info,
         };
         let connector_metadata = item.router_data.request.connector_meta.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -715,7 +680,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             },
         )?;
         let three_d_s_complete_auth_request_data =
-            serde_json::from_value::<ThreeDSCompleteAuthRequestData>(connector_metadata)
+            serde_json::from_value::<NexixpayConnectorMetaData>(connector_metadata)
                 .change_context(errors::ConnectorError::ParsingFailed)?;
         let three_d_s_auth_data = ThreeDSAuthData {
             three_d_s_auth_response: three_d_s_complete_auth_request_data.three_d_s_auth_response,
@@ -726,17 +691,16 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
         let card: Result<NexixpayCard, error_stack::Report<errors::ConnectorError>> =
             match payment_method_data {
                 PaymentMethodData::Card(req_card) => Ok(NexixpayCard {
-                    pan: req_card.clone().card_number,
-                    expiry_date: req_card.clone().get_expiry_date_as_mmyy()?,
-                    cvv: None,
+                    pan: req_card.card_number.clone(),
+                    expiry_date: req_card.get_expiry_date_as_mmyy()?,
                 }),
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
+                _ => {
+                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+                }
             };
         Ok(Self {
             order: order_data,
-            card: card?.clone(),
+            card: card?,
             operation_id,
             capture_type,
             three_d_s_auth_data,
@@ -795,7 +759,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexixpayOperationResponse, T, PaymentsR
         item: ResponseRouterData<F, NexixpayOperationResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: item.data.status,
+            status: AttemptStatus::Pending, // Capture and cancel calls do not return status in their response.
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.operation_id.clone()),
                 redirection_data: None,
@@ -811,7 +775,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexixpayOperationResponse, T, PaymentsR
     }
 }
 
-impl TryFrom<NexixpayRouterData<&PaymentsCancelRouterData>> for NexixpayPaymentsCancleRequest {
+impl TryFrom<NexixpayRouterData<&PaymentsCancelRouterData>> for NexixpayPaymentsCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: NexixpayRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
         let description = item.router_data.request.cancellation_reason.clone();
