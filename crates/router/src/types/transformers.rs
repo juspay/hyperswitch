@@ -1071,13 +1071,13 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_wallets_details: item
                 .connector_wallets_details
                 .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
-                        data.expose(),
-                        "ConnectorWalletDetails",
-                    )
-                    .attach_printable("Unable to deserialize connector_wallets_details")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
         };
@@ -1111,13 +1111,13 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_wallets_details: item
                 .connector_wallets_details
                 .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
-                        data.expose(),
-                        "ConnectorWalletDetails",
-                    )
-                    .attach_printable("Unable to deserialize connector_wallets_details")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
         };
@@ -1218,13 +1218,13 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_wallets_details: item
                 .connector_wallets_details
                 .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
-                        data.expose(),
-                        "ConnectorWalletDetails",
-                    )
-                    .attach_printable("Unable to deserialize connector_wallets_details")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
         };
@@ -1274,13 +1274,13 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_wallets_details: item
                 .connector_wallets_details
                 .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<api_models::admin::ConnectorWalletDetails>(
-                        data.expose(),
-                        "ConnectorWalletDetails",
-                    )
-                    .attach_printable("Unable to deserialize connector_wallets_details")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
         };

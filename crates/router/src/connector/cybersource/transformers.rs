@@ -436,8 +436,7 @@ pub struct FluidData {
 
 pub const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
 
-pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str =
-    "RklEPUNPTU1PTi5TQU1TVU5HLklOQVBQLlBBWU1FTlQ=";
+pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAPP.PAYMENT";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1539,7 +1538,9 @@ impl
                         consts::BASE64_ENGINE
                             .encode(samsung_pay_data.payment_credential.token_data.data.peek()),
                     ),
-                    descriptor: Some(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY.to_string()),
+                    descriptor: Some(
+                        consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
+                    ),
                 },
                 tokenized_card: SamsungPayTokenizedCard {
                     transaction_type: TransactionType::SamsungPay,

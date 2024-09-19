@@ -503,7 +503,7 @@ fn create_samsung_pay_session_token(
     let samsung_pay_wallet_details = router_data
         .connector_wallets_details
         .clone()
-        .parse_value::<payment_types::SamsungSessionTokenData>("SamsungSessionTokenData")
+        .parse_value::<payment_types::SamsungPaySessionTokenData>("SamsungPaySessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorWalletDetails)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "connector_wallets_details".to_string(),
@@ -532,17 +532,18 @@ fn create_samsung_pay_session_token(
                     version: "2".to_string(),
                     service_id: samsung_pay_wallet_details.data.service_id,
                     order_number: router_data.payment_id.clone(),
-                    merchant_payment_information: payment_types::MerchantPaymentInformation {
-                        name: samsung_pay_wallet_details.data.merchant_display_name,
-                        url: merchant_domain,
-                        country_code: samsung_pay_wallet_details.data.merchant_business_country,
-                    },
-                    amount: payment_types::AmountDetails {
-                        amount_format: payment_types::AmountFormat::FormatTotalPriceOnly,
+                    merchant_payment_information:
+                        payment_types::SamsungPayMerchantPaymentInformation {
+                            name: samsung_pay_wallet_details.data.merchant_display_name,
+                            url: merchant_domain,
+                            country_code: samsung_pay_wallet_details.data.merchant_business_country,
+                        },
+                    amount: payment_types::SamsungPayAmountDetails {
+                        amount_format: payment_types::SamsungPayAmountFormat::FormatTotalPriceOnly,
                         currency_code: router_data.request.currency,
                         total_amount: samsung_pay_amount,
                     },
-                    protocol: payment_types::ProtocolType::Protocol3ds,
+                    protocol: payment_types::SamsungPayProtocolType::Protocol3ds,
                     allowed_brands: samsung_pay_wallet_details.data.allowed_brands,
                 },
             )),

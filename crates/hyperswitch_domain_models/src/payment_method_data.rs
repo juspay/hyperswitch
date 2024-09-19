@@ -144,27 +144,20 @@ pub struct SamsungPayWalletData {
 #[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletCredentials {
     pub method: Option<String>,
-    /// Value if credential is enabled for recurring payment
     pub recurring_payment: Option<bool>,
-    /// Brand of the payment card
     pub card_brand: String,
-    /// Last 4 digits of the card number
     #[serde(rename = "card_last4digits")]
     pub card_last_four_digits: String,
-    /// Samsung Pay token data
-    #[serde(rename = "3DS")]
+    #[serde(rename = "3_d_s")]
     pub token_data: SamsungPayTokenData,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SamsungPayTokenData {
-    /// 3DS type used by Samsung Pay
     #[serde(rename = "type")]
     pub three_ds_type: Option<String>,
-    /// 3DS version used by Samsung Pay
     pub version: String,
-    /// Samsung Pay encrypted payment credential data
     pub data: Secret<String>,
 }
 

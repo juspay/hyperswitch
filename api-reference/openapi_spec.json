@@ -5505,27 +5505,6 @@
       "AliPayRedirection": {
         "type": "object"
       },
-      "AmountDetails": {
-        "type": "object",
-        "required": [
-          "option",
-          "currency_code",
-          "total"
-        ],
-        "properties": {
-          "option": {
-            "$ref": "#/components/schemas/AmountFormat"
-          },
-          "currency_code": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "total": {
-            "type": "string",
-            "description": "The total amount of the transaction",
-            "example": "38.02"
-          }
-        }
-      },
       "AmountFilter": {
         "type": "object",
         "properties": {
@@ -5542,13 +5521,6 @@
             "nullable": true
           }
         }
-      },
-      "AmountFormat": {
-        "type": "string",
-        "enum": [
-          "FORMAT_TOTAL_PRICE_ONLY",
-          "FORMAT_TOTAL_ESTIMATED_AMOUNT"
-        ]
       },
       "AmountInfo": {
         "type": "object",
@@ -9005,7 +8977,7 @@
           },
           "apple_pay": {
             "type": "object",
-            "description": "This field is for our legacy that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow",
+            "description": "This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow",
             "nullable": true
           },
           "samsung_pay": {
@@ -13709,27 +13681,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "MerchantPaymentInformation": {
-        "type": "object",
-        "required": [
-          "name",
-          "url",
-          "country_code"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Merchant name, this will be displayed on the Samsung Pay screen"
-          },
-          "url": {
-            "type": "string",
-            "description": "Merchant domain that process payments"
-          },
-          "country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
-          }
-        }
       },
       "MerchantRecipientData": {
         "oneOf": [
@@ -21121,12 +21072,6 @@
           }
         }
       },
-      "ProtocolType": {
-        "type": "string",
-        "enum": [
-          "PROTOCOL3DS"
-        ]
-      },
       "RealTimePaymentData": {
         "oneOf": [
           {
@@ -22264,6 +22209,61 @@
           }
         }
       },
+      "SamsungPayAmountDetails": {
+        "type": "object",
+        "required": [
+          "option",
+          "currency_code",
+          "total"
+        ],
+        "properties": {
+          "option": {
+            "$ref": "#/components/schemas/SamsungPayAmountFormat"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total": {
+            "type": "string",
+            "description": "The total amount of the transaction",
+            "example": "38.02"
+          }
+        }
+      },
+      "SamsungPayAmountFormat": {
+        "type": "string",
+        "enum": [
+          "FORMAT_TOTAL_PRICE_ONLY",
+          "FORMAT_TOTAL_ESTIMATED_AMOUNT"
+        ]
+      },
+      "SamsungPayMerchantPaymentInformation": {
+        "type": "object",
+        "required": [
+          "name",
+          "url",
+          "country_code"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Merchant name, this will be displayed on the Samsung Pay screen"
+          },
+          "url": {
+            "type": "string",
+            "description": "Merchant domain that process payments"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          }
+        }
+      },
+      "SamsungPayProtocolType": {
+        "type": "string",
+        "enum": [
+          "PROTOCOL3DS"
+        ]
+      },
       "SamsungPaySessionTokenResponse": {
         "type": "object",
         "required": [
@@ -22289,13 +22289,13 @@
             "description": "Order number of the transaction"
           },
           "merchant": {
-            "$ref": "#/components/schemas/MerchantPaymentInformation"
+            "$ref": "#/components/schemas/SamsungPayMerchantPaymentInformation"
           },
           "amount": {
-            "$ref": "#/components/schemas/AmountDetails"
+            "$ref": "#/components/schemas/SamsungPayAmountDetails"
           },
           "protocol": {
-            "$ref": "#/components/schemas/ProtocolType"
+            "$ref": "#/components/schemas/SamsungPayProtocolType"
           },
           "allowed_brands": {
             "type": "array",
@@ -22333,11 +22333,12 @@
         "required": [
           "card_brand",
           "card_last4digits",
-          "3DS"
+          "3_d_s"
         ],
         "properties": {
           "method": {
             "type": "string",
+            "description": "Specifies authentication method used",
             "nullable": true
           },
           "recurring_payment": {
@@ -22353,7 +22354,7 @@
             "type": "string",
             "description": "Last 4 digits of the card number"
           },
-          "3DS": {
+          "3_d_s": {
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }

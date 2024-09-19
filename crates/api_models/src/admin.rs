@@ -1541,7 +1541,7 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub apple_pay_combined: Option<pii::SecretSerdeValue>,
-    /// This field is for our legacy that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow
+    /// This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub apple_pay: Option<pii::SecretSerdeValue>,

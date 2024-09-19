@@ -2793,6 +2793,7 @@ pub struct SamsungPayWalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletCredentials {
+    /// Specifies authentication method used
     pub method: Option<String>,
     /// Value if credential is enabled for recurring payment
     pub recurring_payment: Option<bool>,
@@ -2802,7 +2803,7 @@ pub struct SamsungPayWalletCredentials {
     #[serde(rename = "card_last4digits")]
     pub card_last_four_digits: String,
     /// Samsung Pay token data
-    #[serde(rename = "3DS")]
+    #[serde(rename = "3_d_s")]
     pub token_data: SamsungPayTokenData,
 }
 
@@ -4775,13 +4776,13 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SamsungSessionTokenData {
+pub struct SamsungPaySessionTokenData {
     #[serde(rename = "samsung_pay")]
-    pub data: SamsungMetaData,
+    pub data: SamsungPayMetadata,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SamsungMetaData {
+pub struct SamsungPayMetadata {
     pub service_id: String,
     pub merchant_display_name: String,
     pub merchant_business_country: api_enums::CountryAlpha2,
@@ -5023,24 +5024,24 @@ pub struct SamsungPaySessionTokenResponse {
     pub order_number: String,
     /// Filed containing merchant information
     #[serde(rename = "merchant")]
-    pub merchant_payment_information: MerchantPaymentInformation,
+    pub merchant_payment_information: SamsungPayMerchantPaymentInformation,
     /// Filed containing the payment amount
-    pub amount: AmountDetails,
+    pub amount: SamsungPayAmountDetails,
     /// Payment protocol type
-    pub protocol: ProtocolType,
+    pub protocol: SamsungPayProtocolType,
     /// List of supported card brands
     pub allowed_brands: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProtocolType {
+pub enum SamsungPayProtocolType {
     Protocol3ds,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct MerchantPaymentInformation {
+pub struct SamsungPayMerchantPaymentInformation {
     /// Merchant name, this will be displayed on the Samsung Pay screen
     pub name: String,
     /// Merchant domain that process payments
@@ -5052,10 +5053,10 @@ pub struct MerchantPaymentInformation {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct AmountDetails {
+pub struct SamsungPayAmountDetails {
     #[serde(rename = "option")]
     /// Amount format to be displayed
-    pub amount_format: AmountFormat,
+    pub amount_format: SamsungPayAmountFormat,
     /// The currency code
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
@@ -5067,7 +5068,7 @@ pub struct AmountDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum AmountFormat {
+pub enum SamsungPayAmountFormat {
     /// Display the total amount only
     FormatTotalPriceOnly,
     /// Display "Total (Estimated amount)" and total amount
