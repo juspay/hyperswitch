@@ -22888,6 +22888,7 @@
       },
       "TimeRange": {
         "type": "object",
+        "description": "A type representing a range of time for filtering, including a mandatory start time and an optional end time.",
         "required": [
           "start_time"
         ],

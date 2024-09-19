@@ -3108,6 +3108,7 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method_type,
             constraints.authentication_type,
             constraints.merchant_connector_id,
+            constraints.time_range,
             pi_fetch_constraints.get_profile_id_list(),
             merchant.storage_scheme,
         )
@@ -3128,7 +3129,7 @@ pub async fn get_filters_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
     merchant_key_store: domain::MerchantKeyStore,
-    time_range: api::TimeRange,
+    time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
     let db = state.store.as_ref();
     let pi = db
@@ -3249,7 +3250,7 @@ pub async fn get_aggregates_for_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
     profile_id_list: Option<Vec<id_type::ProfileId>>,
-    time_range: api::TimeRange,
+    time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api::PaymentsAggregateResponse> {
     let db = state.store.as_ref();
     let intent_status_with_count = db

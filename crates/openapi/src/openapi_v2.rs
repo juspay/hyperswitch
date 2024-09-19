@@ -119,6 +119,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     components(schemas(
         common_utils::types::MinorUnit,
+        common_utils::types::TimeRange,
         common_utils::link_utils::GenericLinkUiConfig,
         common_utils::link_utils::EnabledPaymentMethod,
         api_models::refunds::RefundRequest,
@@ -392,7 +393,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::refunds::RefundAggregateResponse,
-        api_models::payments::TimeRange,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,

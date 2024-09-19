@@ -6,7 +6,7 @@ pub struct RefundListConstraints {
     pub profile_id: Option<Vec<common_utils::id_type::ProfileId>>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
-    pub time_range: Option<api_models::payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
     pub connector: Option<Vec<String>>,
     pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,

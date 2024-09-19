@@ -996,7 +996,7 @@ pub async fn payouts_list_available_filters_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-    time_range: api::TimeRange,
+    time_range: common_utils::types::TimeRange,
     _locale: &str,
 ) -> RouterResponse<api::PayoutListFilters> {
     let db = state.store.as_ref();
