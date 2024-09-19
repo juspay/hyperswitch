@@ -93,7 +93,7 @@ pub async fn customers_delete() {}
 ///
 /// Lists all the customers for a particular merchant id.
 #[utoipa::path(
-    post,
+    get,
     path = "/customers/list",
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
@@ -106,6 +106,8 @@ pub async fn customers_delete() {}
 #[cfg(feature = "v1")]
 pub async fn customers_list() {}
 
+/// Customers - Create
+///
 /// Creates a customer object and stores the customer details to be reused for future payments.
 /// Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
@@ -199,7 +201,7 @@ pub async fn customers_delete() {}
 ///
 /// Lists all the customers for a particular merchant id.
 #[utoipa::path(
-    post,
+    get,
     path = "/v2/customers/list",
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
