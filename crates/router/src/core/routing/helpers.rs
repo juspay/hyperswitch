@@ -2,8 +2,7 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-use std::sync::Arc;
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use api_models::routing as routing_types;
 use common_utils::{
