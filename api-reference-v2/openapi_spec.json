@@ -11912,7 +11912,7 @@
             ],
             "properties": {
               "wallet": {
-                "type": "object"
+                "$ref": "#/components/schemas/WalletResponse"
               }
             }
           },
@@ -19124,6 +19124,28 @@
           }
         ]
       },
+      "WalletAdditionalDataForCard": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network",
+          "type"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          }
+        }
+      },
       "WalletData": {
         "oneOf": [
           {
@@ -19423,6 +19445,47 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          }
+        ]
+      },
+      "WalletResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletResponseData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "WalletResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }
           }
