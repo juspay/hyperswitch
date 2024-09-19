@@ -116,6 +116,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_update,
         routes::customers::customers_delete,
         routes::customers::customers_list,
+
+        //Routes for payments
+        routes::payments::payments_create_intent,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -301,6 +304,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsCaptureRequest,
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
+        api_models::payments::PaymentsCreateIntentRequest,
+        api_models::payments::PaymentsCreateIntentResponse,
         api_models::payments::SessionToken,
         api_models::payments::ApplePaySessionResponse,
         api_models::payments::ThirdPartySdkSessionResponse,
@@ -431,6 +436,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PayoutStatus,
         api_models::enums::PayoutType,
         api_models::enums::TransactionType,
+        api_models::enums::PresenceOfCustomerDuringPayment,
+        api_models::enums::MitExemptionRequest,
+        api_models::enums::EnablePaymentLinkRequest,
+        api_models::enums::RequestIncrementalAuthorization,
+        api_models::enums::External3dsAuthenticationRequest,
+        api_models::enums::ExternalTaxCalculationRequest,
         api_models::payments::FrmMessage,
         api_models::webhooks::OutgoingWebhook,
         api_models::webhooks::OutgoingWebhookContent,

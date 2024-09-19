@@ -35,6 +35,12 @@
       ]
     },
     {
+      "group": "Payments",
+      "pages": [
+        "api-reference/payments/payments--create-intent"
+      ]
+    },
+    {
       "group": "Organization",
       "pages": [
         "api-reference/organization/organization--create",

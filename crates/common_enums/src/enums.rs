@@ -1913,6 +1913,7 @@ pub enum CountryAlpha2 {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -3215,37 +3216,51 @@ pub enum DeleteStatus {
 }
 
 /// Whether 3ds authentication is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
     Enable,
     /// Skip 3ds authentication
+    #[default]
     Skip,
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
     Enable,
     /// Skip enabling payment link
+    #[default]
     Skip,
 }
 
 /// Whether mit exemption is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
     Apply,
     /// Skip applying MIT exemption
+    #[default]
     Skip,
 }
 
 /// Whether customer is present / absent during the payment
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
+    #[default]
     Present,
     /// Customer is absent during the payment
     Absent,
+}
+
+/// Whether external tax calculation is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum ExternalTaxCalculationRequest {
+    /// Request for tax calculation
+    Enable,
+    /// Skip tax calculation
+    #[default]
+    Skip,
 }

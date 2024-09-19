@@ -114,6 +114,286 @@ pub struct CustomerDetailsResponse {
     pub phone_country_code: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsCreateIntentRequest {
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
+    #[schema(value_type = u64, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize")]
+    pub amount: Amount,
+
+    /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
+    #[schema(example = "USD", value_type = Currency)]
+    pub currency: api_enums::Currency,
+
+    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentId>,
+
+    /// Details of the routing configuration for that payment
+    #[schema(value_type = Option<String>)]
+    pub routing_algorithm_id: Option<String>,
+
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// The billing details of the payment. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// The shipping address for the payment
+    pub shipping: Option<Address>,
+
+    /// The identifier for the customer
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
+    #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
+    #[serde(default)]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+
+    /// A description for the payment
+    #[schema(example = "It's my first payment request")]
+    pub description: Option<String>,
+
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<Url>,
+
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    /// Apply MIT exemption for a payment
+    #[schema(value_type = MitExemptionRequest)]
+    #[serde(default)]
+    pub apply_mit_exemption: common_enums::MitExemptionRequest,
+
+    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
+    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    pub statement_descriptor: Option<String>,
+
+    /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "Apple iPhone 16",
+        "quantity": 1,
+        "amount" : 69000
+        "product_img_link" : "https://dummy-img-link.com"
+    }]"#)]
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+
+    /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
+    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<serde_json::Value>,
+
+    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    pub connector_metadata: Option<ConnectorMetadata>,
+
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<FeatureMetadata>,
+
+    /// Whether to generate the payment link for this payment or not (if applicable)
+    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    #[serde(default)]
+    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
+
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
+    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
+
+    /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
+    pub payment_link_config_id: Option<String>,
+
+    #[schema(value_type = Option<RequestSurchargeDetails>)]
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
+    #[schema(value_type = RequestIncrementalAuthorization)]
+    #[serde(default)]
+    pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Additional data related to some frm(Fraud Risk Management) connectors
+    #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
+
+    /// Whether to perform external authentication (if applicable)
+    #[schema(value_type = External3dsAuthenticationRequest)]
+    #[serde(default)]
+    pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+
+    /// The shipping cost for the payment. This is required for tax calculation in some regions.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub shipping_cost: Option<MinorUnit>,
+
+    /// Whether to calculate tax for this payment intent
+    #[schema(value_type = ExternalTaxCalculationRequest)]
+    #[serde(default)]
+    pub request_external_tax_calculation: common_enums::ExternalTaxCalculationRequest,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsCreateIntentResponse {
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
+    #[schema(value_type = u64, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize")]
+    pub amount: Amount,
+
+    /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
+    #[schema(example = "USD", value_type = Currency)]
+    pub currency: api_enums::Currency,
+
+    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+
+    /// It's a token used for client side verification.
+    #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Option<Secret<String>>,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentId>,
+
+    /// Details of the routing configuration for that payment
+    #[schema(value_type = Option<String>)]
+    pub routing_algorithm_id: Option<String>,
+
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// The billing details of the payment. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// The shipping address for the payment
+    pub shipping: Option<Address>,
+
+    /// The identifier for the customer
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
+    #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
+    #[serde(default)]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+
+    /// A description for the payment
+    #[schema(example = "It's my first payment request")]
+    pub description: Option<String>,
+
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<Url>,
+
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    /// Apply MIT exemption for a payment
+    #[schema(value_type = MitExemptionRequest)]
+    #[serde(default)]
+    pub apply_mit_exemption: common_enums::MitExemptionRequest,
+
+    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
+    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    pub statement_descriptor: Option<String>,
+
+    /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "Apple iPhone 16",
+        "quantity": 1,
+        "amount" : 69000
+        "product_img_link" : "https://dummy-img-link.com"
+    }]"#)]
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+
+    /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
+    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<serde_json::Value>,
+
+    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    pub connector_metadata: Option<ConnectorMetadata>,
+
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<FeatureMetadata>,
+
+    /// Whether to generate the payment link for this payment or not (if applicable)
+    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    #[serde(default)]
+    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
+
+    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
+    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
+
+    /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
+    pub payment_link_config_id: Option<String>,
+
+    #[schema(value_type = Option<RequestSurchargeDetails>)]
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
+    #[schema(value_type = RequestIncrementalAuthorization)]
+    #[serde(default)]
+    pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Additional data related to some frm(Fraud Risk Management) connectors
+    #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
+
+    /// Whether to perform external authentication (if applicable)
+    #[schema(value_type = External3dsAuthenticationRequest)]
+    #[serde(default)]
+    pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+
+    /// The shipping cost for the payment. This is required for tax calculation in some regions.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub shipping_cost: Option<MinorUnit>,
+
+    /// Whether to calculate tax for this payment intent
+    #[schema(value_type = ExternalTaxCalculationRequest)]
+    #[serde(default)]
+    pub request_external_tax_calculation: common_enums::ExternalTaxCalculationRequest,
+}
+
 #[derive(
     Default,
     Debug,
