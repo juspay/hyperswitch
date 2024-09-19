@@ -604,6 +604,12 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.store;
 
+        let metadata = self.get_metadata_as_secret().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            },
+        )?;
+
         let merchant_details = self.get_merchant_details_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
@@ -651,7 +657,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         })
                         .await?,
                     publishable_key,
-                    metadata: self.metadata,
+                    metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
@@ -3681,39 +3687,7 @@ pub async fn create_profile(
     ))
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub async fn list_profile(
-    state: SessionState,
-    merchant_id: id_type::MerchantId,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
-) -> RouterResponse<Vec<api_models::admin::ProfileResponse>> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &(&state).into(),
-            &merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    let profiles = db
-        .list_profile_by_merchant_id(&(&state).into(), &key_store, &merchant_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
-        .clone();
-    let profiles = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, profiles);
-    let mut business_profiles = Vec::new();
-    for profile in profiles {
-        let business_profile = api_models::admin::ProfileResponse::foreign_try_from(profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?;
-        business_profiles.push(business_profile);
-    }
-
-    Ok(service_api::ApplicationResponse::Json(business_profiles))
-}
-
-#[cfg(all(feature = "olap", feature = "v2"))]
+#[cfg(feature = "olap")]
 pub async fn list_profile(
     state: SessionState,
     merchant_id: id_type::MerchantId,
@@ -3998,47 +3972,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub async fn update_profile(
-    state: SessionState,
-    profile_id: &id_type::ProfileId,
-    key_store: domain::MerchantKeyStore,
-    request: api::ProfileUpdate,
-) -> RouterResponse<api::ProfileResponse> {
-    let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
-
-    let profile_update = request
-        .get_update_profile_object(&state, &key_store)
-        .await?;
-
-    let updated_business_profile = db
-        .update_profile_by_profile_id(
-            key_manager_state,
-            &key_store,
-            business_profile,
-            profile_update,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
-
-    Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::ProfileResponse::foreign_try_from(updated_business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?,
-    ))
-}
-
-#[cfg(all(feature = "olap", feature = "v2"))]
 #[cfg(feature = "olap")]
 pub async fn update_profile(
     state: SessionState,

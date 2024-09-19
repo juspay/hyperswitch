@@ -209,7 +209,16 @@ impl MerchantAccountCreate {
             .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
             .transpose()
     }
-
+    
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+    
     pub fn get_primary_details_as_value(
         &self,
     ) -> CustomResult<serde_json::Value, errors::ParsingError> {

@@ -21,7 +21,7 @@ pub enum ApiIdentifier {
     CardsInfo,
     Files,
     Cache,
-    Business,
+    Profile,
     Verification,
     ApiKeys,
     PaymentLink,
@@ -190,7 +190,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ProfileDelete
             | Flow::ProfileList
             | Flow::ToggleExtendedCardInfo
-            | Flow::ToggleConnectorAgnosticMit => Self::Business,
+            | Flow::ToggleConnectorAgnosticMit => Self::Profile,
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
