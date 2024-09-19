@@ -21,6 +21,7 @@ payouts = ["common_enums/payouts"]
 v1 = []
 v2 = []
 customer_v2 = []
+payment_methods_v2 = []
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }

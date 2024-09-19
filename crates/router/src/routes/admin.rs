@@ -361,7 +361,7 @@ pub async fn connector_retrieve(
     })
     .into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -384,7 +384,7 @@ pub async fn connector_retrieve(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Connector - Retrieve

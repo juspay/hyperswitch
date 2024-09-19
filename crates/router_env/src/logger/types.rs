@@ -290,6 +290,8 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Delete Dispute Evidence flow
     DeleteDisputeEvidence,
+    /// Disputes aggregate flow
+    DisputesAggregate,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow

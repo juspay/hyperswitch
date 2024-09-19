@@ -497,6 +497,7 @@ pub(crate) async fn fetch_raw_secrets(
         user_auth_methods,
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
+        grpc_client: conf.grpc_client,
         recipient_emails: conf.recipient_emails,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,

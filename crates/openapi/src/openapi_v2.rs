@@ -109,6 +109,13 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::api_keys::api_key_retrieve,
         routes::api_keys::api_key_update,
         routes::api_keys::api_key_revoke,
+
+        //Routes for customers
+        routes::customers::customers_create,
+        routes::customers::customers_retrieve,
+        routes::customers::customers_update,
+        routes::customers::customers_delete,
+        routes::customers::customers_list,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
