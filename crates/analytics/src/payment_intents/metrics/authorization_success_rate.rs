@@ -13,10 +13,7 @@ use time::PrimitiveDateTime;
 use super::PaymentIntentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{
-        Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
-        Window,
-    },
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 

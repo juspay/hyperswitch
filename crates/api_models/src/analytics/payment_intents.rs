@@ -7,8 +7,7 @@ use common_utils::id_type;
 
 use super::{NameDescription, TimeRange};
 use crate::enums::{
-    AuthenticationType, Connector, Currency, IntentStatus, PaymentMethod,
-    PaymentMethodType,
+    AuthenticationType, Connector, Currency, IntentStatus, PaymentMethod, PaymentMethodType,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -164,7 +163,7 @@ impl PaymentIntentMetricsBucketIdentifier {
         merchant_id: Option<String>,
         card_last_4: Option<String>,
         card_issuer: Option<String>,
-        error_reason: Option<String>,   
+        error_reason: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {

@@ -1,6 +1,6 @@
 use api_models::analytics::{payment_intents::PaymentIntentDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums::{Currency, IntentStatus, AuthenticationType};
+use diesel_models::enums::{AuthenticationType, Currency, IntentStatus};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
