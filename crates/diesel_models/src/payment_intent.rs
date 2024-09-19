@@ -63,7 +63,7 @@ pub struct PaymentIntent {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub frm_merchant_decision: Option<common_enums::MerchantDecision>,
-    pub statement_descriptor: Option<String>,
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
     pub customer_present: Option<bool>,
@@ -259,7 +259,7 @@ pub struct PaymentIntentNew {
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub frm_merchant_decision: Option<common_enums::MerchantDecision>,
-    pub statement_descriptor: Option<String>,
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
     pub id: common_utils::id_type::GlobalPaymentId,

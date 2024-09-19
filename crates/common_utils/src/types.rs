@@ -33,7 +33,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 
 use crate::{
-    consts::{self, MAX_DESCRIPTION_LENGTH},
+    consts::{self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH},
     errors::{CustomResult, ParsingError, PercentageError},
     fp_utils::when,
 };
@@ -681,10 +681,9 @@ mod client_secret_type {
                         )
                     })?;
 
-                    let payment_id = id_type::GlobalPaymentId::try_from(std::borrow::Cow::Owned(
-                        payment_id.to_owned(),
-                    ))
-                    .map_err(serde::de::Error::custom)?;
+                    let payment_id =
+                        id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                            .map_err(serde::de::Error::custom)?;
 
                     Ok(ClientSecret {
                         payment_id,
@@ -956,7 +955,7 @@ pub struct ChargeRefunds {
 
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 
-/// A common type of id that can be used for reference ids with length constraint
+/// A common type of domain type that can be used for fields that contain a string with restriction of length
 #[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u8>(String);
@@ -1053,6 +1052,11 @@ impl Description {
     }
 }
 
+/// Domain type for Statement Descriptor
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
+
 impl<DB> Queryable<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1077,6 +1081,39 @@ where
 }
 
 impl<DB> ToSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<MAX_DESCRIPTION_LENGTH, 1>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
     LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,

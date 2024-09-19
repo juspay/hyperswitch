@@ -188,7 +188,7 @@ pub struct PaymentIntent {
     /// The metadata for the payment intent. This is the metadata that will be passed to the connectors.
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The statement descriptor for the order, this will be displayed in the user's bank statement.
-    pub statement_descriptor: Option<String>,
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
     /// The time at which the order was created
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
