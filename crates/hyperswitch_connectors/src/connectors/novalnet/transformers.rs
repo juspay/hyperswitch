@@ -756,9 +756,7 @@ impl NovalnetResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
         if let Some(data) = transaction_data {
             match &data.payment_data {
-                NovalnetResponsePaymentData::PaymentCard(card_data) => {
-                    card_data.token.clone()
-                }
+                NovalnetResponsePaymentData::PaymentCard(card_data) => card_data.token.clone(),
             }
         } else {
             None
