@@ -582,6 +582,251 @@ impl StringMajorUnit {
     }
 }
 
+#[derive(
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::Text)]
+/// This domain type can be used for any url
+pub struct Url(url::Url);
+
+impl<DB> ToSql<sql_types::Text, DB> for Url
+where
+    DB: Backend,
+    str: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        let url_string = self.0.as_str();
+        url_string.to_sql(out)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Url
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(value)?;
+        let url = url::Url::parse(&val)?;
+        Ok(Self(url))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub use client_secret_type::ClientSecret;
+#[cfg(feature = "v2")]
+mod client_secret_type {
+    use std::fmt;
+
+    use masking::PeekInterface;
+
+    use crate::id_type;
+
+    use super::*;
+
+    /// A domain type that can be used to represent a client secret
+    /// Client secret is generated for a payment and is used to authenticate the client side api calls
+    #[derive(Debug, PartialEq, Clone, AsExpression)]
+    #[diesel(sql_type = sql_types::Text)]
+    pub struct ClientSecret {
+        /// The payment id of the payment
+        pub payment_id: id_type::PaymentGlobalId,
+        /// The secret string
+        pub secret: masking::Secret<String>,
+    }
+
+    impl ClientSecret {
+        pub(crate) fn get_string_repr(&self) -> String {
+            format!(
+                "{}_secret_{}",
+                self.payment_id.get_string_repr(),
+                self.secret.peek()
+            )
+        }
+    }
+
+    impl<'de> Deserialize<'de> for ClientSecret {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct ClientSecretVisitor;
+
+            impl<'de> Visitor<'de> for ClientSecretVisitor {
+                type Value = ClientSecret;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
+                }
+
+                fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
+                where
+                    E: serde::de::Error,
+                {
+                    let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
+                        E::invalid_value(
+                            serde::de::Unexpected::Str(value),
+                            &"a string with '_secret_'",
+                        )
+                    })?;
+
+                    let payment_id = id_type::PaymentGlobalId::try_from(std::borrow::Cow::Owned(
+                        payment_id.to_owned(),
+                    ))
+                    .map_err(serde::de::Error::custom)?;
+
+                    Ok(ClientSecret {
+                        payment_id,
+                        secret: masking::Secret::new(secret.to_owned()),
+                    })
+                }
+            }
+
+            deserializer.deserialize_str(ClientSecretVisitor)
+        }
+    }
+
+    impl Serialize for ClientSecret {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::ser::Serializer,
+        {
+            serializer.serialize_str(self.get_string_repr().as_str())
+        }
+    }
+
+    impl ToSql<sql_types::Text, diesel::pg::Pg> for ClientSecret
+    where
+        String: ToSql<sql_types::Text, diesel::pg::Pg>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            let string_repr = self.get_string_repr();
+            <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(
+                &string_repr,
+                &mut out.reborrow(),
+            )
+        }
+    }
+
+    impl<DB> FromSql<sql_types::Text, DB> for ClientSecret
+    where
+        DB: Backend,
+        String: FromSql<sql_types::Text, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+            let string_repr = String::from_sql(value)?;
+            Ok(serde_json::from_str(&string_repr)?)
+        }
+    }
+
+    impl<DB> Queryable<sql_types::Text, DB> for ClientSecret
+    where
+        DB: Backend,
+        Self: FromSql<sql_types::Text, DB>,
+    {
+        type Row = Self;
+
+        fn build(row: Self::Row) -> deserialize::Result<Self> {
+            Ok(row)
+        }
+    }
+
+    // TODO: fix tests
+    // #[cfg(test)]
+    // mod client_secret_tests {
+    //     #![allow(clippy::expect_used)]
+    //     #![allow(clippy::unwrap_used)]
+
+    //     use serde_json;
+
+    //     use super::*;
+
+    //     #[test]
+    //     fn test_serialize_client_secret() {
+    //         let client_secret1 = ClientSecret {
+    //             payment_id: id_type::PaymentGlobalId::try_from(std::borrow::Cow::Borrowed(
+    //                 "pay_3TgelAms4RQec8xSStjF",
+    //             ))
+    //             .unwrap(),
+    //             secret: masking::Secret::new("fc34taHLw1ekPgNh92qr".into()),
+    //         };
+    //         let client_secret2 = ClientSecret {
+    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    //                 "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
+    //             ))
+    //             .unwrap(),
+    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
+    //         };
+
+    //         let expected_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+    //         let expected_str2 =
+    //             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+
+    //         let actual_str1 =
+    //             serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
+    //         let actual_str2 =
+    //             serde_json::to_string(&client_secret2).expect("Failed to serialize client_secret2");
+
+    //         assert_eq!(expected_str1, actual_str1);
+    //         assert_eq!(expected_str2, actual_str2);
+    //     }
+
+    //     #[test]
+    //     fn test_deserialize_client_secret() {
+    //         let client_secret_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+    //         let client_secret_str2 =
+    //             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+    //         let client_secret_str3 =
+    //             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr""#;
+
+    //         let expected1 = ClientSecret {
+    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    //                 "pay_3TgelAms4RQec8xSStjF",
+    //             ))
+    //             .unwrap(),
+    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
+    //         };
+    //         let expected2 = ClientSecret {
+    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    //                 "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
+    //             ))
+    //             .unwrap(),
+    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
+    //         };
+    //         let expected3 = ClientSecret {
+    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    //                 "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
+    //             ))
+    //             .unwrap(),
+    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
+    //         };
+
+    //         let actual1: ClientSecret = serde_json::from_str(client_secret_str1)
+    //             .expect("Failed to deserialize client_secret_str1");
+    //         let actual2: ClientSecret = serde_json::from_str(client_secret_str2)
+    //             .expect("Failed to deserialize client_secret_str2");
+    //         let actual3: ClientSecret = serde_json::from_str(client_secret_str3)
+    //             .expect("Failed to deserialize client_secret_str3");
+
+    //         assert_eq!(expected1, actual1);
+    //         assert_eq!(expected2, actual2);
+    //         assert_eq!(expected3, actual3);
+    //     }
+    // }
+}
+
 #[cfg(test)]
 mod amount_conversion_tests {
     #![allow(clippy::unwrap_used)]
@@ -717,15 +962,10 @@ crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 pub struct Description(String);
 
 impl Description {
+    // TODO: add length restriction
     /// Create a new Description Domain type
     pub fn new(value: String) -> Self {
         Self(value)
-    }
-}
-
-impl From<Description> for String {
-    fn from(description: Description) -> Self {
-        description.0
     }
 }
 
