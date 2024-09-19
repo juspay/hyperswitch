@@ -1,17 +1,30 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::payment_methods::CustomerPaymentMethodsListResponse;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::payment_methods::CustomerPaymentMethodsListResponse;
 use crate::{
     payment_methods::{
-        CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
-        DefaultPaymentMethod, PaymentMethodDeleteResponse, PaymentMethodListRequest,
-        PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        CustomerDefaultPaymentMethodResponse, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
+        PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
+        PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
-        PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
-        PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+        ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
+        PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
+        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
+        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsRejectRequest,
+        PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse,
         PaymentsStartRequest, RedirectionResponse,
     },
 };
@@ -41,6 +54,24 @@ impl ApiEventMetric for PaymentsCaptureRequest {
         })
     }
 }
+
+impl ApiEventMetric for PaymentsCompleteAuthorizeRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsDynamicTaxCalculationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {}
 
 impl ApiEventMetric for PaymentsCancelRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -79,9 +110,9 @@ impl ApiEventMetric for PaymentsRequest {
 
 impl ApiEventMetric for PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        self.payment_id
-            .clone()
-            .map(|payment_id| ApiEventsType::Payment { payment_id })
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
     }
 }
 
@@ -89,7 +120,7 @@ impl ApiEventMetric for PaymentMethodResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),
-            payment_method: Some(self.payment_method),
+            payment_method: self.payment_method,
             payment_method_type: self.payment_method_type,
         })
     }
@@ -131,6 +162,9 @@ impl ApiEventMetric for PaymentMethodListRequest {
     }
 }
 
+impl ApiEventMetric for ListCountriesCurrenciesRequest {}
+
+impl ApiEventMetric for ListCountriesCurrenciesResponse {}
 impl ApiEventMetric for PaymentMethodListResponse {}
 
 impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
@@ -143,6 +177,32 @@ impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
     }
 }
 
+impl ApiEventMetric for PaymentMethodCollectLinkRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        self.pm_collect_link_id
+            .as_ref()
+            .map(|id| ApiEventsType::PaymentMethodCollectLink {
+                link_id: id.clone(),
+            })
+    }
+}
+
+impl ApiEventMetric for PaymentMethodCollectLinkRenderRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodCollectLink {
+            link_id: self.pm_collect_link_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentMethodCollectLinkResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodCollectLink {
+            link_id: self.pm_collect_link_id.clone(),
+        })
+    }
+}
+
 impl ApiEventMetric for PaymentListFilterConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
@@ -150,6 +210,11 @@ impl ApiEventMetric for PaymentListFilterConstraints {
 }
 
 impl ApiEventMetric for PaymentListFilters {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+impl ApiEventMetric for PaymentListFiltersV2 {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }
@@ -172,6 +237,11 @@ impl ApiEventMetric for PaymentListResponseV2 {
         Some(ApiEventsType::ResourceListAPI)
     }
 }
+impl ApiEventMetric for PaymentsAggregateResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
 
 impl ApiEventMetric for RedirectionResponse {}
 
@@ -186,6 +256,32 @@ impl ApiEventMetric for PaymentsIncrementalAuthorizationRequest {
 impl ApiEventMetric for PaymentsExternalAuthenticationResponse {}
 
 impl ApiEventMetric for PaymentsExternalAuthenticationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for ExtendedCardInfoResponse {}
+
+impl ApiEventMetric for PaymentsManualUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsManualUpdateResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

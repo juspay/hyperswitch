@@ -1,7 +1,6 @@
-use api_models::payments;
-use common_utils::date_time;
+use common_utils::{date_time, types::MinorUnit};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
@@ -13,35 +12,20 @@ use crate::{
     },
     consts,
     core::errors,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, domain, storage::enums as storage_enums},
 };
 
 pub struct PlacetopayRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for PlacetopayRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for PlacetopayRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -73,7 +57,7 @@ pub struct PlacetopayAuthType {
 pub struct PlacetopayAuth {
     login: Secret<String>,
     tran_key: Secret<String>,
-    nonce: String,
+    nonce: Secret<String>,
     seed: String,
 }
 
@@ -89,7 +73,7 @@ pub struct PlacetopayPayment {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
     currency: storage_enums::Currency,
-    total: i64,
+    total: MinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -126,7 +110,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
             },
         };
         match item.router_data.request.payment_method_data.clone() {
-            payments::PaymentMethodData::Card(req_card) => {
+            domain::PaymentMethodData::Card(req_card) => {
                 let card = PlacetopayCard {
                     number: req_card.card_number.clone(),
                     expiration: req_card
@@ -144,19 +128,22 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                 })
             }
-            payments::PaymentMethodData::Wallet(_)
-            | payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::PayLater(_)
-            | payments::PaymentMethodData::BankRedirect(_)
-            | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
-            | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_)
-            | payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Placetopay"),
                 )
@@ -171,7 +158,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
         let nonce_bytes = utils::generate_random_bytes(16);
-        let now = error_stack::IntoReport::into_report(date_time::date_as_yyyymmddthhmmssmmmz())
+        let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let seed = format!("{}+00:00", now.split_at(now.len() - 5).0);
         let mut context = digest::Context::new(&digest::SHA256);
@@ -179,7 +166,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
         context.update(seed.as_bytes());
         context.update(placetopay_auth.tran_key.peek().as_bytes());
         let encoded_digest = base64::Engine::encode(&consts::BASE64_ENGINE, context.finish());
-        let nonce = base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes);
+        let nonce = Secret::new(base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes));
         Ok(Self {
             login: placetopay_auth.login,
             tran_key: encoded_digest.into(),
@@ -285,6 +272,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             ..item.data
         })
@@ -305,14 +293,13 @@ pub struct PlacetopayRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        if item.request.refund_amount == item.request.payment_amount {
+        if item.request.minor_refund_amount == item.request.minor_payment_amount {
             let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
 
             let internal_reference = item
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             let action = PlacetopayNextAction::Reverse;
             let authorization = match item.request.connector_metadata.clone() {
@@ -417,7 +404,6 @@ impl TryFrom<&types::RefundsRouterData<api::RSync>> for PlacetopayRsyncRequest {
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             auth,
@@ -479,7 +465,6 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PlacetopayPsyncRequest {
             .request
             .get_connector_transaction_id()?
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             auth,
@@ -515,7 +500,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PlacetopayNextActionRequest 
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Checkout;
         Ok(Self {
@@ -535,7 +519,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PlacetopayNextActionRequest {
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let action = PlacetopayNextAction::Void;
         Ok(Self {

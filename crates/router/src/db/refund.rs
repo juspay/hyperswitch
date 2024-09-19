@@ -1,8 +1,10 @@
 #[cfg(feature = "olap")]
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "olap")]
+use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
-use error_stack::{IntoReport, ResultExt};
+use hyperswitch_domain_models::refunds;
 
 use super::MockDb;
 use crate::{
@@ -18,27 +20,27 @@ pub trait RefundInterface {
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>;
 
     async fn find_refund_by_merchant_id_refund_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
         storage_scheme: enums::MerchantStorageScheme,
@@ -53,7 +55,7 @@ pub trait RefundInterface {
 
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>;
@@ -67,8 +69,8 @@ pub trait RefundInterface {
     #[cfg(feature = "olap")]
     async fn filter_refund_by_constraints(
         &self,
-        merchant_id: &str,
-        refund_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -77,23 +79,31 @@ pub trait RefundInterface {
     #[cfg(feature = "olap")]
     async fn filter_refund_by_meta_constraints(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &api_models::payments::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
 
     #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
     async fn get_total_count_of_refunds(
         &self,
-        merchant_id: &str,
-        refund_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::report;
     use router_env::{instrument, tracing};
 
     use super::RefundInterface;
@@ -110,7 +120,7 @@ mod storage {
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -120,8 +130,7 @@ mod storage {
                 merchant_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -131,13 +140,15 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn).await.map_err(Into::into).into_report()
+            new.insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             connector_transaction_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
@@ -148,8 +159,7 @@ mod storage {
                 connector_transaction_id,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -162,28 +172,26 @@ mod storage {
             let conn = connection::pg_connection_write(self).await?;
             this.update(&conn, refund)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             refund_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             connector_refund_id: &str,
             connector: &str,
             _storage_scheme: enums::MerchantStorageScheme,
@@ -196,30 +204,28 @@ mod storage {
                 connector,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
-            payment_id: &str,
-            merchant_id: &str,
+            payment_id: &common_utils::id_type::PaymentId,
+            merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
-            merchant_id: &str,
-            refund_details: &api_models::refunds::RefundListRequest,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
@@ -233,15 +239,14 @@ mod storage {
                 offset,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
@@ -252,15 +257,29 @@ mod storage {
                 refund_details,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error|report!(errors::StorageError::from(error)))
         }
+
+        #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
+        async fn get_refund_status_with_count(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            time_range: &api_models::payments::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, time_range)
+            .await
+            .map_err(|error|report!(errors::StorageError::from(error)))
+        }
+
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
-            merchant_id: &str,
-            refund_details: &api_models::refunds::RefundListRequest,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -270,19 +289,21 @@ mod storage {
                 refund_details,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
     }
 }
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{date_time, ext_traits::Encode, fallback_reverse_lookup_not_found};
-    use error_stack::{IntoReport, ResultExt};
+    use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
+    use error_stack::{report, ResultExt};
+    use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
+    use storage_impl::redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    };
 
     use super::RefundInterface;
     use crate::{
@@ -299,7 +320,7 @@ mod storage {
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let database_call = || async {
@@ -310,20 +331,30 @@ mod storage {
                     merchant_id,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("ref_inter_ref_{merchant_id}_{internal_reference_id}");
+                    let lookup_id = format!(
+                        "ref_inter_ref_{}_{internal_reference_id}",
+                        merchant_id.get_string_repr()
+                    );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -347,17 +378,30 @@ mod storage {
             new: storage_types::RefundNew,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn).await.map_err(Into::into).into_report()
+                    new.insert(&conn)
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
+                    let merchant_id = new.merchant_id.clone();
+                    let payment_id = new.payment_id.clone();
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &merchant_id,
+                        payment_id: &payment_id,
+                    };
+                    let key_str = key.to_string();
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
                     let created_refund = storage_types::Refund {
-                        id: 0i32,
                         refund_id: new.refund_id.clone(),
                         merchant_id: new.merchant_id.clone(),
                         attempt_id: new.attempt_id.clone(),
@@ -377,13 +421,15 @@ mod storage {
                         refund_error_code: None,
                         metadata: new.metadata.clone(),
                         refund_arn: new.refund_arn.clone(),
-                        created_at: new.created_at.unwrap_or_else(date_time::now),
-                        updated_at: new.created_at.unwrap_or_else(date_time::now),
+                        created_at: new.created_at,
+                        modified_at: new.created_at,
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
+                        charges: new.charges.clone(),
+                        organization_id: new.organization_id.clone(),
                     };
 
                     let field = format!(
@@ -402,9 +448,10 @@ mod storage {
                             sk_id: field.clone(),
                             lookup_id: format!(
                                 "ref_ref_id_{}_{}",
-                                created_refund.merchant_id, created_refund.refund_id
+                                created_refund.merchant_id.get_string_repr(),
+                                created_refund.refund_id
                             ),
-                            pk_id: key.clone(),
+                            pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         },
@@ -413,9 +460,10 @@ mod storage {
                             sk_id: field.clone(),
                             lookup_id: format!(
                                 "ref_inter_ref_{}_{}",
-                                created_refund.merchant_id, created_refund.internal_reference_id
+                                created_refund.merchant_id.get_string_repr(),
+                                created_refund.internal_reference_id
                             ),
-                            pk_id: key.clone(),
+                            pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         },
@@ -426,11 +474,11 @@ mod storage {
                             sk_id: field.clone(),
                             lookup_id: format!(
                                 "ref_connector_{}_{}_{}",
-                                created_refund.merchant_id,
+                                created_refund.merchant_id.get_string_repr(),
                                 connector_refund_id,
                                 created_refund.connector
                             ),
-                            pk_id: key.clone(),
+                            pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         })
@@ -448,17 +496,17 @@ mod storage {
                             &created_refund,
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
-                    .map_err(|err| err.to_redis_failed_response(&key))?
+                    .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "refund",
                             key: Some(created_refund.refund_id),
-                        })
-                        .into_report(),
+                        }
+                        .into()),
                         Ok(HsetnxReply::KeySet) => Ok(created_refund),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
@@ -469,7 +517,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             connector_transaction_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
@@ -481,21 +529,30 @@ mod storage {
                     connector_transaction_id,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id =
-                        format!("pa_conn_trans_{merchant_id}_{connector_transaction_id}");
+                    let lookup_id = format!(
+                        "pa_conn_trans_{}_{connector_transaction_id}",
+                        merchant_id.get_string_repr()
+                    );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
@@ -523,17 +580,28 @@ mod storage {
             refund: storage_types::RefundUpdate,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let merchant_id = this.merchant_id.clone();
+            let payment_id = this.payment_id.clone();
+            let key = PartitionKey::MerchantIdPaymentId {
+                merchant_id: &merchant_id,
+                payment_id: &payment_id,
+            };
+            let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, Some(&this.updated_by)),
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
                     this.update(&conn, refund)
                         .await
-                        .map_err(Into::into)
-                        .into_report()
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
-                    let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
+                    let key_str = key.to_string();
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
                     let redis_value = updated_refund
@@ -555,10 +623,10 @@ mod storage {
                             (&field, redis_value),
                             redis_entry,
                         ),
-                        &key,
+                        key,
                     )
                     .await
-                    .map_err(|err| err.to_redis_failed_response(&key))?
+                    .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
 
@@ -570,7 +638,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             refund_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
@@ -578,20 +646,28 @@ mod storage {
                 let conn = connection::pg_connection_read(self).await?;
                 storage_types::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
                     .await
-                    .map_err(Into::into)
-                    .into_report()
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!("ref_ref_id_{merchant_id}_{refund_id}");
+                    let lookup_id =
+                        format!("ref_ref_id_{}_{refund_id}", merchant_id.get_string_repr());
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -612,7 +688,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             connector_refund_id: &str,
             connector: &str,
             storage_scheme: enums::MerchantStorageScheme,
@@ -626,21 +702,30 @@ mod storage {
                     connector,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id =
-                        format!("ref_connector_{merchant_id}_{connector_refund_id}_{connector}");
+                    let lookup_id = format!(
+                        "ref_connector_{}_{connector_refund_id}_{connector}",
+                        merchant_id.get_string_repr()
+                    );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
                         database_call().await
                     );
 
-                    let key = &lookup.pk_id;
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -661,8 +746,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
-            payment_id: &str,
-            merchant_id: &str,
+            payment_id: &common_utils::id_type::PaymentId,
+            merchant_id: &common_utils::id_type::MerchantId,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
             let database_call = || async {
@@ -673,13 +758,21 @@ mod storage {
                     merchant_id,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, storage_types::Refund>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id,
+                        payment_id,
+                    };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -701,8 +794,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
-            merchant_id: &str,
-            refund_details: &api_models::refunds::RefundListRequest,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
@@ -716,31 +809,43 @@ mod storage {
                 offset,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
-            merchant_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
                         .await
-                        .map_err(Into::into)
-                        .into_report()
+                        .map_err(|error|report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
+        async fn get_refund_status_with_count(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            constraints: &api_models::payments::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, constraints)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "olap")]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
-            merchant_id: &str,
-            refund_details: &api_models::refunds::RefundListRequest,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -750,8 +855,7 @@ mod storage {
                 refund_details,
             )
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
     }
 }
@@ -761,14 +865,14 @@ impl RefundInterface for MockDb {
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError> {
         let refunds = self.refunds.lock().await;
         refunds
             .iter()
             .find(|refund| {
-                refund.merchant_id == merchant_id
+                refund.merchant_id == *merchant_id
                     && refund.internal_reference_id == internal_reference_id
             })
             .cloned()
@@ -786,11 +890,6 @@ impl RefundInterface for MockDb {
         let current_time = common_utils::date_time::now();
 
         let refund = storage_types::Refund {
-            id: refunds
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,
             payment_id: new.payment_id,
@@ -810,20 +909,22 @@ impl RefundInterface for MockDb {
             refund_error_code: None,
             metadata: new.metadata,
             refund_arn: new.refund_arn.clone(),
-            created_at: new.created_at.unwrap_or(current_time),
-            updated_at: current_time,
+            created_at: new.created_at,
+            modified_at: current_time,
             description: new.description,
             refund_reason: new.refund_reason.clone(),
             profile_id: new.profile_id,
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
+            charges: new.charges,
+            organization_id: new.organization_id,
         };
         refunds.push(refund.clone());
         Ok(refund)
     }
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
@@ -832,7 +933,7 @@ impl RefundInterface for MockDb {
         Ok(refunds
             .iter()
             .take_while(|refund| {
-                refund.merchant_id == merchant_id
+                refund.merchant_id == *merchant_id
                     && refund.connector_transaction_id == connector_transaction_id
             })
             .cloned()
@@ -863,7 +964,7 @@ impl RefundInterface for MockDb {
 
     async fn find_refund_by_merchant_id_refund_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError> {
@@ -871,7 +972,7 @@ impl RefundInterface for MockDb {
 
         refunds
             .iter()
-            .find(|refund| refund.merchant_id == merchant_id && refund.refund_id == refund_id)
+            .find(|refund| refund.merchant_id == *merchant_id && refund.refund_id == refund_id)
             .cloned()
             .ok_or_else(|| {
                 errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
@@ -880,7 +981,7 @@ impl RefundInterface for MockDb {
 
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -890,7 +991,7 @@ impl RefundInterface for MockDb {
         refunds
             .iter()
             .find(|refund| {
-                refund.merchant_id == merchant_id
+                refund.merchant_id == *merchant_id
                     && refund.connector_refund_id == Some(connector_refund_id.to_string())
                     && refund.connector == connector
             })
@@ -902,15 +1003,15 @@ impl RefundInterface for MockDb {
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
         let refunds = self.refunds.lock().await;
 
         Ok(refunds
             .iter()
-            .filter(|refund| refund.merchant_id == merchant_id && refund.payment_id == payment_id)
+            .filter(|refund| refund.merchant_id == *merchant_id && refund.payment_id == *payment_id)
             .cloned()
             .collect::<Vec<_>>())
     }
@@ -918,21 +1019,31 @@ impl RefundInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_refund_by_constraints(
         &self,
-        merchant_id: &str,
-        refund_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
+        let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
+        let mut unique_profile_ids = HashSet::new();
 
         // Fill the hash sets with data from refund_details
         if let Some(connectors) = &refund_details.connector {
             connectors.iter().for_each(|connector| {
                 unique_connectors.insert(connector);
             });
+        }
+
+        if let Some(merchant_connector_ids) = &refund_details.merchant_connector_id {
+            merchant_connector_ids
+                .iter()
+                .for_each(|unique_merchant_connector_id| {
+                    unique_merchant_connector_ids.insert(unique_merchant_connector_id);
+                });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -947,10 +1058,14 @@ impl RefundInterface for MockDb {
             });
         }
 
+        if let Some(profile_id_list) = &refund_details.profile_id {
+            unique_profile_ids = profile_id_list.iter().collect();
+        }
+
         let refunds = self.refunds.lock().await;
         let filtered_refunds = refunds
             .iter()
-            .filter(|refund| refund.merchant_id == merchant_id)
+            .filter(|refund| refund.merchant_id == *merchant_id)
             .filter(|refund| {
                 refund_details
                     .payment_id
@@ -963,7 +1078,11 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
-            .filter(|refund| refund_details.profile_id == refund.profile_id)
+            .filter(|refund| {
+                refund.profile_id.as_ref().is_some_and(|profile_id| {
+                    unique_profile_ids.is_empty() || unique_profile_ids.contains(profile_id)
+                })
+            })
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
@@ -978,7 +1097,25 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
+                refund_details
+                    .amount_filter
+                    .as_ref()
+                    .map_or(true, |amount| {
+                        refund.refund_amount
+                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                            && refund.refund_amount
+                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
+                    })
+            })
+            .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_merchant_connector_ids.is_empty()
+                    || refund
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
@@ -997,7 +1134,7 @@ impl RefundInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn filter_refund_by_meta_constraints(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &api_models::payments::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
@@ -1042,21 +1179,66 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+    async fn get_refund_status_with_count(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(api_models::enums::RefundStatus, i64)>, errors::StorageError> {
+        let refunds = self.refunds.lock().await;
+
+        let start_time = time_range.start_time;
+        let end_time = time_range
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now);
+
+        let filtered_refunds = refunds
+            .iter()
+            .filter(|refund| refund.created_at >= start_time && refund.created_at <= end_time)
+            .cloned()
+            .collect::<Vec<diesel_models::refund::Refund>>();
+
+        let mut refund_status_counts: HashMap<api_models::enums::RefundStatus, i64> =
+            HashMap::new();
+
+        for refund in filtered_refunds {
+            *refund_status_counts
+                .entry(refund.refund_status)
+                .or_insert(0) += 1;
+        }
+
+        let result: Vec<(api_models::enums::RefundStatus, i64)> =
+            refund_status_counts.into_iter().collect();
+
+        Ok(result)
+    }
+
+    #[cfg(feature = "olap")]
     async fn get_total_count_of_refunds(
         &self,
-        merchant_id: &str,
-        refund_details: &api_models::refunds::RefundListRequest,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
+        let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
+        let mut unique_profile_ids = HashSet::new();
 
         // Fill the hash sets with data from refund_details
         if let Some(connectors) = &refund_details.connector {
             connectors.iter().for_each(|connector| {
                 unique_connectors.insert(connector);
             });
+        }
+
+        if let Some(merchant_connector_ids) = &refund_details.merchant_connector_id {
+            merchant_connector_ids
+                .iter()
+                .for_each(|unique_merchant_connector_id| {
+                    unique_merchant_connector_ids.insert(unique_merchant_connector_id);
+                });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -1071,10 +1253,14 @@ impl RefundInterface for MockDb {
             });
         }
 
+        if let Some(profile_id_list) = &refund_details.profile_id {
+            unique_profile_ids = profile_id_list.iter().collect();
+        }
+
         let refunds = self.refunds.lock().await;
         let filtered_refunds = refunds
             .iter()
-            .filter(|refund| refund.merchant_id == merchant_id)
+            .filter(|refund| refund.merchant_id == *merchant_id)
             .filter(|refund| {
                 refund_details
                     .payment_id
@@ -1087,7 +1273,11 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
-            .filter(|refund| refund_details.profile_id == refund.profile_id)
+            .filter(|refund| {
+                refund.profile_id.as_ref().is_some_and(|profile_id| {
+                    unique_profile_ids.is_empty() || unique_profile_ids.contains(profile_id)
+                })
+            })
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
@@ -1102,7 +1292,25 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
+                refund_details
+                    .amount_filter
+                    .as_ref()
+                    .map_or(true, |amount| {
+                        refund.refund_amount
+                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                            && refund.refund_amount
+                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
+                    })
+            })
+            .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_merchant_connector_ids.is_empty()
+                    || refund
+                        .merchant_connector_id
+                        .as_ref()
+                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)

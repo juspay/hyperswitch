@@ -16,20 +16,13 @@ pub struct OpennodeRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for OpennodeRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for OpennodeRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         (_currency_unit, _currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             i64,
             T,
         ),
@@ -151,6 +144,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.data.order_id,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {

@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user_role::{self as user_role_api, role as role_api};
+use common_enums::{EntityType, TokenPurpose};
 use router_env::Flow;
 
 use super::AppState;
@@ -18,49 +19,35 @@ use crate::{
 pub async fn get_authorization_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    query: web::Query<role_api::GetGroupsQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::GetAuthorizationInfo;
-    let respond_with_groups = query.into_inner().groups.unwrap_or(false);
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         (),
-        |state, _: (), _| async move {
-            // TODO: Permissions to be deprecated once groups are stable
-            if respond_with_groups {
-                user_role_core::get_authorization_info_with_groups(state).await
-            } else {
-                user_role_core::get_authorization_info_with_modules(state).await
-            }
+        |state, _: (), _, _| async move {
+            user_role_core::get_authorization_info_with_groups(state).await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-pub async fn get_role_from_token(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    query: web::Query<role_api::GetGroupsQueryParam>,
-) -> HttpResponse {
+pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetRoleFromToken;
-    let respond_with_groups = query.into_inner().groups.unwrap_or(false);
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         (),
-        |state, user, _| async move {
-            // TODO: Permissions to be deprecated once groups are stable
-            if respond_with_groups {
-                role_core::get_role_from_token_with_groups(state, user).await
-            } else {
-                role_core::get_role_from_token_with_permissions(state, user).await
-            }
+        |state, user, _, _| async move {
+            role_core::get_role_from_token_with_groups(state, user).await
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
@@ -80,33 +67,29 @@ pub async fn create_role(
         &req,
         json_payload.into_inner(),
         role_core::create_role,
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth {
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-pub async fn list_all_roles(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    query: web::Query<role_api::GetGroupsQueryParam>,
-) -> HttpResponse {
+pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListRoles;
-    let respond_with_groups = query.into_inner().groups.unwrap_or(false);
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         (),
-        |state, user, _| async move {
-            // TODO: Permissions to be deprecated once groups are stable
-            if respond_with_groups {
-                role_core::list_invitable_roles_with_groups(state, user).await
-            } else {
-                role_core::list_invitable_roles_with_permissions(state, user).await
-            }
+        |state, user, _, _| async move {
+            role_core::list_invitable_roles_with_groups(state, user).await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -116,27 +99,23 @@ pub async fn get_role(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    query: web::Query<role_api::GetGroupsQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::GetRole;
     let request_payload = user_role_api::role::GetRoleRequest {
         role_id: path.into_inner(),
     };
-    let respond_with_groups = query.into_inner().groups.unwrap_or(false);
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         request_payload,
-        |state, user, payload| async move {
-            // TODO: Permissions to be deprecated once groups are stable
-            if respond_with_groups {
-                role_core::get_role_with_groups(state, user, payload).await
-            } else {
-                role_core::get_role_with_permissions(state, user, payload).await
-            }
+        |state, user, payload, _| async move {
+            role_core::get_role_with_groups(state, user, payload).await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Profile,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -156,8 +135,11 @@ pub async fn update_role(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, user, req| role_core::update_role(state, user, req, &role_id),
-        &auth::JWTAuth(Permission::UsersWrite),
+        |state, user, req, _| role_core::update_role(state, user, req, &role_id),
+        &auth::JWTAuth {
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -176,26 +158,10 @@ pub async fn update_user_role(
         &req,
         payload,
         user_role_core::update_user_role,
-        &auth::JWTAuth(Permission::UsersWrite),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn transfer_org_ownership(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<user_role_api::TransferOrgOwnershipRequest>,
-) -> HttpResponse {
-    let flow = Flow::TransferOrgOwnership;
-    let payload = json_payload.into_inner();
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload,
-        user_role_core::transfer_org_ownership,
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth {
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Profile,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -213,8 +179,69 @@ pub async fn accept_invitation(
         state.clone(),
         &req,
         payload,
-        user_role_core::accept_invitation,
-        &auth::UserWithoutMerchantJWTAuth,
+        |state, user, req_body, _| user_role_core::accept_invitation(state, user, req_body),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn accept_invitations_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::AcceptInvitationsV2Request>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInvitationsV2;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user, req_body, _| user_role_core::accept_invitations_v2(state, user, req_body),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn merchant_select(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::MerchantSelectRequest>,
+) -> HttpResponse {
+    let flow = Flow::MerchantSelect;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user, req_body, _| async move {
+            user_role_core::merchant_select_token_only_flow(state, user, req_body).await
+        },
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn accept_invitations_pre_auth(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::AcceptInvitationsPreAuthRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInvitationsPreAuth;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user, req_body, _| async move {
+            user_role_core::accept_invitations_pre_auth(state, user, req_body).await
+        },
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -232,7 +259,146 @@ pub async fn delete_user_role(
         &req,
         payload.into_inner(),
         user_role_core::delete_user_role,
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth {
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Profile,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn get_role_information(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetRolesInfo;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |_, _: (), _, _| async move {
+            user_role_core::get_authorization_info_with_group_tag().await
+        },
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Profile
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ListUsersInLineage;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| {
+            user_role_core::list_users_in_lineage(state, user_from_token)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_roles_with_info(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ListRolesV2;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| role_core::list_roles_with_info(state, user_from_token),
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Profile,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_invitable_roles_at_entity_level(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<role_api::ListRolesAtEntityLevelRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListInvitableRolesAtEntityLevel;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        query.into_inner(),
+        |state, user_from_token, req, _| {
+            role_core::list_roles_at_entity_level(
+                state,
+                user_from_token,
+                req,
+                role_api::RoleCheckType::Invite,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Profile,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_updatable_roles_at_entity_level(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<role_api::ListRolesAtEntityLevelRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListUpdatableRolesAtEntityLevel;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        query.into_inner(),
+        |state, user_from_token, req, _| {
+            role_core::list_roles_at_entity_level(
+                state,
+                user_from_token,
+                req,
+                role_api::RoleCheckType::Update,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Profile,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_invitations_for_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ListInvitationsForUser;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_id_from_token, _, _| {
+            user_role_core::list_invitations_for_user(state, user_id_from_token)
+        },
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,
     ))
     .await

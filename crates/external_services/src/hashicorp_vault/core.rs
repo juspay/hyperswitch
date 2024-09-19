@@ -163,7 +163,8 @@ pub trait FromEncoded: Sized {
     /// # Example
     ///
     /// ```rust
-    /// # use your_module::{FromEncoded, masking::Secret, Vec};
+    /// use external_services::hashicorp_vault::core::FromEncoded;
+    /// use masking::Secret;
     /// let secret_instance = Secret::<String>::from_encoded("encoded_secret_string".to_string());
     /// let vec_instance = Vec::<u8>::from_encoded("68656c6c6f".to_string());
     /// ```

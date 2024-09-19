@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
@@ -38,33 +40,59 @@ pub enum IncomingWebhookEvent {
     MandateActive,
     MandateRevoked,
     EndpointVerification,
+    ExternalAuthenticationARes,
+    FrmApproved,
+    FrmRejected,
+    #[cfg(feature = "payouts")]
+    PayoutSuccess,
+    #[cfg(feature = "payouts")]
+    PayoutFailure,
+    #[cfg(feature = "payouts")]
+    PayoutProcessing,
+    #[cfg(feature = "payouts")]
+    PayoutCancelled,
+    #[cfg(feature = "payouts")]
+    PayoutCreated,
+    #[cfg(feature = "payouts")]
+    PayoutExpired,
+    #[cfg(feature = "payouts")]
+    PayoutReversed,
 }
 
 pub enum WebhookFlow {
     Payment,
+    #[cfg(feature = "payouts")]
+    Payout,
     Refund,
     Dispute,
     Subscription,
     ReturnResponse,
     BankTransfer,
     Mandate,
+    ExternalAuthentication,
+    FraudCheck,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// This enum tells about the affect a webhook had on an object
 pub enum WebhookResponseTracker {
     Payment {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         status: common_enums::IntentStatus,
     },
+    #[cfg(feature = "payouts")]
+    Payout {
+        payout_id: String,
+        status: common_enums::PayoutStatus,
+    },
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
         status: common_enums::RefundStatus,
     },
     Dispute {
         dispute_id: String,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         status: common_enums::DisputeStatus,
     },
     Mandate {
@@ -75,12 +103,14 @@ pub enum WebhookResponseTracker {
 }
 
 impl WebhookResponseTracker {
-    pub fn get_payment_id(&self) -> Option<String> {
+    pub fn get_payment_id(&self) -> Option<common_utils::id_type::PaymentId> {
         match self {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
-            | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
             Self::NoEffect | Self::Mandate { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
         }
     }
 }
@@ -116,6 +146,18 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
             IncomingWebhookEvent::SourceChargeable
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
+            IncomingWebhookEvent::ExternalAuthenticationARes => Self::ExternalAuthentication,
+            IncomingWebhookEvent::FrmApproved | IncomingWebhookEvent::FrmRejected => {
+                Self::FraudCheck
+            }
+            #[cfg(feature = "payouts")]
+            IncomingWebhookEvent::PayoutSuccess
+            | IncomingWebhookEvent::PayoutFailure
+            | IncomingWebhookEvent::PayoutProcessing
+            | IncomingWebhookEvent::PayoutCancelled
+            | IncomingWebhookEvent::PayoutCreated
+            | IncomingWebhookEvent::PayoutExpired
+            | IncomingWebhookEvent::PayoutReversed => Self::Payout,
         }
     }
 }
@@ -135,10 +177,26 @@ pub enum MandateIdType {
 }
 
 #[derive(Clone)]
+pub enum AuthenticationIdType {
+    AuthenticationId(String),
+    ConnectorAuthenticationId(String),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone)]
+pub enum PayoutIdType {
+    PayoutAttemptId(String),
+    ConnectorPayoutId(String),
+}
+
+#[derive(Clone)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
     MandateId(MandateIdType),
+    ExternalAuthenticationID(AuthenticationIdType),
+    #[cfg(feature = "payouts")]
+    PayoutId(PayoutIdType),
 }
 
 pub struct IncomingWebhookDetails {
@@ -149,7 +207,8 @@ pub struct IncomingWebhookDetails {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The unique event id for each webhook
     pub event_id: String,
@@ -177,6 +236,9 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
     #[schema(value_type = MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
+    PayoutDetails(payouts::PayoutCreateResponse),
 }
 
 #[derive(Debug, Clone, Serialize)]

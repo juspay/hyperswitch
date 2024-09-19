@@ -2,26 +2,105 @@ use std::num::{ParseFloatError, TryFromIntError};
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
-        DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
-        DbRefundStatus as RefundStatus,
+        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
+        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDeleteStatus as DeleteStatus, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbFraudCheckStatus as FraudCheckStatus,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApplicationError {
+    #[error("Application configuration error")]
+    ConfigurationError,
+
+    #[error("Invalid configuration value provided: {0}")]
+    InvalidConfigurationValueError(String),
+
+    #[error("Metrics error")]
+    MetricsError,
+
+    #[error("I/O: {0}")]
+    IoError(std::io::Error),
+
+    #[error("Error while constructing api client: {0}")]
+    ApiClientError(ApiClientError),
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+pub enum ApiClientError {
+    #[error("Header map construction failed")]
+    HeaderMapConstructionFailed,
+    #[error("Invalid proxy configuration")]
+    InvalidProxyConfiguration,
+    #[error("Client construction failed")]
+    ClientConstructionFailed,
+    #[error("Certificate decode failed")]
+    CertificateDecodeFailed,
+    #[error("Request body serialization failed")]
+    BodySerializationFailed,
+    #[error("Unexpected state reached/Invariants conflicted")]
+    UnexpectedState,
+
+    #[error("URL encoding of request payload failed")]
+    UrlEncodingFailed,
+    #[error("Failed to send request to connector {0}")]
+    RequestNotSent(String),
+    #[error("Failed to decode response")]
+    ResponseDecodingFailed,
+
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
+
+    #[error("connection closed before a message could complete")]
+    ConnectionClosedIncompleteMessage,
+
+    #[error("Server responded with Internal Server Error")]
+    InternalServerErrorReceived,
+    #[error("Server responded with Bad Gateway")]
+    BadGatewayReceived,
+    #[error("Server responded with Service Unavailable")]
+    ServiceUnavailableReceived,
+    #[error("Server responded with Gateway Timeout")]
+    GatewayTimeoutReceived,
+    #[error("Server responded with unexpected response")]
+    UnexpectedServerResponse,
+}
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
+        self == &Self::ConnectionClosedIncompleteMessage
+    }
+}
+
+impl From<std::io::Error> for ApplicationError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
+/// The status of the attempt
 #[derive(
     Clone,
     Copy,
     Debug,
     Default,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -73,7 +152,7 @@ pub enum AttemptStatus {
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -81,6 +160,8 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    // Nexixpay,
+    Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -114,8 +195,10 @@ pub enum RoutableConnectors {
     Airwallex,
     Authorizedotnet,
     Bankofamerica,
+    Billwerk,
     Bitpay,
     Bambora,
+    Bamboraapac,
     Bluesnap,
     Boku,
     Braintree,
@@ -124,45 +207,62 @@ pub enum RoutableConnectors {
     Coinbase,
     Cryptopay,
     Cybersource,
+    Datatrans,
+    Deutschebank,
     Dlocal,
+    Ebanx,
     Fiserv,
+    Fiservemea,
+    Fiuu,
     Forte,
     Globalpay,
     Globepay,
     Gocardless,
     Helcim,
     Iatapay,
+    Itaubank,
     Klarna,
+    Mifinity,
     Mollie,
     Multisafepay,
     Nexinets,
     Nmi,
     Noon,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Paybox,
     Payme,
+    Payone,
     Paypal,
     Payu,
     Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
+    Razorpay,
     Riskified,
     Shift4,
     Signifyd,
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Trustpay,
+    // Thunes
     // Tsys,
     Tsys,
     Volt,
+    Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
     Zen,
+    Plaid,
+    Zsl,
 }
 
 impl AttemptStatus {
@@ -196,6 +296,7 @@ impl AttemptStatus {
     }
 }
 
+/// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
 #[derive(
     Clone,
     Copy,
@@ -207,7 +308,7 @@ impl AttemptStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -221,6 +322,30 @@ pub enum AuthenticationType {
     /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
     #[default]
     NoThreeDs,
+}
+
+/// The status of the capture
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckStatus {
+    Fraud,
+    ManualReview,
+    #[default]
+    Pending,
+    Legit,
+    TransactionFailure,
 }
 
 #[derive(
@@ -278,6 +403,26 @@ pub enum AuthorizationStatus {
     Unresolved,
 }
 
+// #[derive(
+//     Clone,
+//     Debug,
+//     Eq,
+//     PartialEq,
+//     serde::Deserialize,
+//     serde::Serialize,
+//     strum::Display,
+//     strum::EnumString,
+//     ToSchema,
+//     Hash,
+// )]
+// #[router_derive::diesel_enum(storage_type = "text")]
+// #[serde(rename_all = "snake_case")]
+// #[strum(serialize_all = "snake_case")]
+// pub enum SessionUpdateStatus {
+//     Success,
+//     Failure,
+// }
+
 #[derive(
     Clone,
     Debug,
@@ -299,6 +444,7 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
+/// Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors
 #[derive(
     Clone,
     Copy,
@@ -310,7 +456,7 @@ pub enum BlocklistDataKind {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -367,6 +513,27 @@ pub enum ConnectorType {
     PaymentMethodAuth,
     /// 3DS Authentication Service Providers
     AuthenticationProcessor,
+    /// Tax Calculation Processor
+    TaxProcessor,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentAction {
+    PSync,
+    CompleteAuthorize,
+    PaymentAuthenticateCompleteAuthorize,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum CallConnectorAction {
+    Trigger,
+    Avoid,
+    StatusUpdate {
+        status: AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
+    HandleResponse(Vec<u8>),
 }
 
 /// The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.
@@ -384,7 +551,7 @@ pub enum ConnectorType {
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -1030,6 +1197,40 @@ impl Currency {
             | Self::ZMW => false,
         }
     }
+
+    pub fn number_of_digits_after_decimal_point(self) -> u8 {
+        if self.is_zero_decimal_currency() {
+            0
+        } else if self.is_three_decimal_currency() {
+            3
+        } else {
+            2
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventClass {
+    Payments,
+    Refunds,
+    Disputes,
+    Mandates,
+    #[cfg(feature = "payouts")]
+    Payouts,
 }
 
 #[derive(
@@ -1068,6 +1269,34 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    PayoutSuccess,
+    PayoutFailed,
+    PayoutInitiated,
+    PayoutProcessing,
+    PayoutCancelled,
+    PayoutExpired,
+    PayoutReversed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookDeliveryAttempt {
+    InitialAttempt,
+    AutomaticRetry,
+    ManualRetry,
 }
 
 // TODO: This decision about using KV mode or not,
@@ -1093,6 +1322,7 @@ pub enum MerchantStorageScheme {
     RedisKv,
 }
 
+/// The status of the current payment that was made
 #[derive(
     Clone,
     Copy,
@@ -1105,6 +1335,7 @@ pub enum MerchantStorageScheme {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -1125,6 +1356,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
+/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 #[derive(
     Clone,
     Copy,
@@ -1136,7 +1368,7 @@ pub enum IntentStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1179,6 +1411,7 @@ pub enum PaymentMethodIssuerCode {
     JpBacs,
 }
 
+/// Payment Method Status
 #[derive(
     Clone,
     Copy,
@@ -1203,14 +1436,15 @@ pub enum PaymentMethodStatus {
     /// Indicates that the payment method is awaiting some data or action before it can be marked
     /// as 'active'.
     Processing,
+    /// Indicates that the payment method is awaiting some data before changing state to active
+    AwaitingData,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
     fn from(attempt_status: AttemptStatus) -> Self {
         match attempt_status {
-            AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
-            AttemptStatus::Failure => Self::Inactive,
-            AttemptStatus::Voided
+            AttemptStatus::Failure
+            | AttemptStatus::Voided
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
@@ -1230,7 +1464,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => Self::Processing,
+            | AttemptStatus::DeviceDataCollectionPending => Self::Inactive,
+            AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
 }
@@ -1282,7 +1517,7 @@ pub enum PaymentExperience {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1320,8 +1555,10 @@ pub enum PaymentMethodType {
     Dana,
     DanamonVa,
     Debit,
+    DuitNow,
     Efecty,
     Eps,
+    Fps,
     Evoucher,
     Giropay,
     Givex,
@@ -1333,6 +1570,7 @@ pub enum PaymentMethodType {
     Indomaret,
     Klarna,
     KakaoPay,
+    LocalBankRedirect,
     MandiriVa,
     Knet,
     MbWay,
@@ -1355,6 +1593,7 @@ pub enum PaymentMethodType {
     Pix,
     PaySafeCard,
     Przelewy24,
+    PromptPay,
     Pse,
     RedCompra,
     RedPagos,
@@ -1366,7 +1605,10 @@ pub enum PaymentMethodType {
     Trustly,
     Twint,
     UpiCollect,
+    UpiIntent,
     Vipps,
+    VietQr,
+    Venmo,
     Walley,
     WeChatPay,
     SevenEleven,
@@ -1375,6 +1617,10 @@ pub enum PaymentMethodType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    LocalBankTransfer,
+    Mifinity,
+    #[serde(rename = "open_banking_pis")]
+    OpenBankingPIS,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
@@ -1389,7 +1635,7 @@ pub enum PaymentMethodType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
@@ -1408,12 +1654,14 @@ pub enum PaymentMethod {
     Crypto,
     BankDebit,
     Reward,
+    RealTimePayment,
     Upi,
     Voucher,
     GiftCard,
+    OpenBanking,
 }
 
-/// To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
@@ -1448,18 +1696,47 @@ pub enum PaymentType {
     PartialEq,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     serde::Serialize,
     serde::Deserialize,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
+    #[serde(alias = "Failure")]
     Failure,
+    #[serde(alias = "ManualReview")]
     ManualReview,
     #[default]
+    #[serde(alias = "Pending")]
     Pending,
+    #[serde(alias = "Success")]
     Success,
+    #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmTransactionType {
+    #[default]
+    PreFrm,
+    PostFrm,
 }
 
 /// The status of the mandate, which indicates whether it can be used to initiate a payment.
@@ -1497,26 +1774,38 @@ pub enum MandateStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
+    #[serde(alias = "VISA")]
     Visa,
+    #[serde(alias = "MASTERCARD")]
     Mastercard,
+    #[serde(alias = "AMERICANEXPRESS")]
+    #[serde(alias = "AMEX")]
     AmericanExpress,
     JCB,
+    #[serde(alias = "DINERSCLUB")]
     DinersClub,
+    #[serde(alias = "DISCOVER")]
     Discover,
+    #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
+    #[serde(alias = "UNIONPAY")]
     UnionPay,
+    #[serde(alias = "INTERAC")]
     Interac,
+    #[serde(alias = "RUPAY")]
     RuPay,
+    #[serde(alias = "MAESTRO")]
     Maestro,
 }
 
+/// Stage of the dispute
 #[derive(
     Clone,
     Copy,
@@ -1541,6 +1830,7 @@ pub enum DisputeStage {
     PreArbitration,
 }
 
+/// Status of the dispute
 #[derive(
     Clone,
     Debug,
@@ -1553,6 +1843,7 @@ pub enum DisputeStage {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -1581,6 +1872,7 @@ pub enum DisputeStatus {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
     Copy
@@ -1662,7 +1954,7 @@ pub enum CountryAlpha3 {
     Eq,
     Hash,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     Deserialize,
@@ -1942,7 +2234,9 @@ pub enum FileUploadProvider {
     Checkout,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
 pub enum UsStatesAbbreviation {
     AL,
     AK,
@@ -2005,7 +2299,9 @@ pub enum UsStatesAbbreviation {
     WY,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
 pub enum CanadaStatesAbbreviation {
     AB,
     BC,
@@ -2028,6 +2324,7 @@ pub enum CanadaStatesAbbreviation {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     ToSchema,
     serde::Deserialize,
@@ -2042,26 +2339,35 @@ pub enum PayoutStatus {
     Success,
     Failed,
     Cancelled,
+    Initiated,
+    Expired,
+    Reversed,
     Pending,
     Ineligible,
     #[default]
     RequiresCreation,
+    RequiresConfirmation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
+    RequiresVendorAccountCreation,
 }
 
+/// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
 #[derive(
     Clone,
     Copy,
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
-    ToSchema,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -2073,6 +2379,7 @@ pub enum PayoutType {
     Wallet,
 }
 
+/// Type of entity to whom the payout is being carried out to, select from the given list of options
 #[derive(
     Clone,
     Copy,
@@ -2106,6 +2413,32 @@ pub enum PayoutEntityType {
     Personal,
 }
 
+/// The send method which will be required for processing payouts, check options for better understanding.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutSendPriority {
+    Instant,
+    Fast,
+    Regular,
+    Wire,
+    CrossBorder,
+    Internal,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2131,6 +2464,24 @@ pub enum PaymentSource {
     Sdk,
     Webhook,
     ExternalAuthenticator,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+pub enum BrowserName {
+    #[default]
+    Safari,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum ClientPlatform {
+    #[default]
+    Web,
+    Ios,
+    #[serde(other)]
+    Unknown,
 }
 
 impl PaymentSource {
@@ -2181,14 +2532,13 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
-    FrmAutoRefund,
+    FrmAuthorizeTransaction, // When manual capture payment which was marked fraud and held, when approved needs to be authorized.
 }
 
 #[derive(
     Clone,
     Debug,
     Eq,
-    Default,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -2202,16 +2552,40 @@ pub enum FrmSuggestion {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ReconStatus {
-    #[default]
     NotRequested,
     Requested,
     Active,
     Disabled,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ApplePayFlow {
-    Simplified,
-    Manual,
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationConnectors {
+    Threedsecureio,
+    Netcetera,
+    Gpayments,
+}
+
+impl AuthenticationConnectors {
+    pub fn is_separate_version_call_required(&self) -> bool {
+        match self {
+            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Gpayments => true,
+        }
+    }
 }
 
 #[derive(
@@ -2363,6 +2737,48 @@ pub enum RoleScope {
     Organization,
 }
 
+/// Indicates the transaction status
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Eq,
+    PartialEq,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum TransactionStatus {
+    /// Authentication/ Account Verification Successful
+    #[serde(rename = "Y")]
+    Success,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    #[default]
+    #[serde(rename = "N")]
+    Failure,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in Authentication Response(ARes) or Result Request (RReq)
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    #[serde(rename = "A")]
+    NotVerified,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    #[serde(rename = "R")]
+    Rejected,
+    /// Challenge Required; Additional authentication is required using the Challenge Request (CReq) / Challenge Response (CRes)
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    #[serde(rename = "I")]
+    InformationOnly,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -2392,4 +2808,408 @@ pub enum PermissionGroup {
     MerchantDetailsView,
     MerchantDetailsManage,
     OrganizationManage,
+    ReconOps,
+}
+
+/// Name of banks supported by Hyperswitch
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankNames {
+    AmericanExpress,
+    AffinBank,
+    AgroBank,
+    AllianceBank,
+    AmBank,
+    BankOfAmerica,
+    BankOfChina,
+    BankIslam,
+    BankMuamalat,
+    BankRakyat,
+    BankSimpananNasional,
+    Barclays,
+    BlikPSP,
+    CapitalOne,
+    Chase,
+    Citi,
+    CimbBank,
+    Discover,
+    NavyFederalCreditUnion,
+    PentagonFederalCreditUnion,
+    SynchronyBank,
+    WellsFargo,
+    AbnAmro,
+    AsnBank,
+    Bunq,
+    Handelsbanken,
+    HongLeongBank,
+    HsbcBank,
+    Ing,
+    Knab,
+    KuwaitFinanceHouse,
+    Moneyou,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+    ArzteUndApothekerBank,
+    AustrianAnadiBankAg,
+    BankAustria,
+    Bank99Ag,
+    BankhausCarlSpangler,
+    BankhausSchelhammerUndSchatteraAg,
+    BankMillennium,
+    BankPEKAOSA,
+    BawagPskAg,
+    BksBankAg,
+    BrullKallmusBankAg,
+    BtvVierLanderBank,
+    CapitalBankGraweGruppeAg,
+    CeskaSporitelna,
+    Dolomitenbank,
+    EasybankAg,
+    EPlatbyVUB,
+    ErsteBankUndSparkassen,
+    FrieslandBank,
+    HypoAlpeadriabankInternationalAg,
+    HypoNoeLbFurNiederosterreichUWien,
+    HypoOberosterreichSalzburgSteiermark,
+    HypoTirolBankAg,
+    HypoVorarlbergBankAg,
+    HypoBankBurgenlandAktiengesellschaft,
+    KomercniBanka,
+    MBank,
+    MarchfelderBank,
+    Maybank,
+    OberbankAg,
+    OsterreichischeArzteUndApothekerbank,
+    OcbcBank,
+    PayWithING,
+    PlaceZIPKO,
+    PlatnoscOnlineKartaPlatnicza,
+    PosojilnicaBankEGen,
+    PostovaBanka,
+    PublicBank,
+    RaiffeisenBankengruppeOsterreich,
+    RhbBank,
+    SchelhammerCapitalBankAg,
+    StandardCharteredBank,
+    SchoellerbankAg,
+    SpardaBankWien,
+    SporoPay,
+    SantanderPrzelew24,
+    TatraPay,
+    Viamo,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
+    UobBank,
+    PayWithAliorBank,
+    BankiSpoldzielcze,
+    PayWithInteligo,
+    BNPParibasPoland,
+    BankNowySA,
+    CreditAgricole,
+    PayWithBOS,
+    PayWithCitiHandlowy,
+    PayWithPlusBank,
+    ToyotaBank,
+    VeloBank,
+    ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
+    Yoursafe,
+    N26,
+    NationaleNederlanden,
+}
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankType {
+    Checking,
+    Savings,
+}
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankHolderType {
+    Personal,
+    Business,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    strum::Display,
+    serde::Serialize,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum GenericLinkType {
+    #[default]
+    PaymentMethodCollect,
+    PayoutLink,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Deserialize, serde::Serialize)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TokenPurpose {
+    AuthSelect,
+    #[serde(rename = "sso")]
+    #[strum(serialize = "sso")]
+    SSO,
+    #[serde(rename = "totp")]
+    #[strum(serialize = "totp")]
+    TOTP,
+    VerifyEmail,
+    AcceptInvitationFromEmail,
+    ForceSetPassword,
+    ResetPassword,
+    AcceptInvite,
+    UserInfo,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum UserAuthType {
+    OpenIdConnect,
+    MagicLink,
+    #[default]
+    Password,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum Owner {
+    Organization,
+    Tenant,
+    Internal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ApiVersion {
+    V1,
+    V2,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum EntityType {
+    Internal = 3,
+    Organization = 2,
+    Merchant = 1,
+    Profile = 0,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutRetryType {
+    SingleConnector,
+    MultiConnector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OrderFulfillmentTimeOrigin {
+    Create,
+    Confirm,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UIWidgetFormLayout {
+    Tabs,
+    Journey,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum DeleteStatus {
+    Active,
+    Redacted,
 }

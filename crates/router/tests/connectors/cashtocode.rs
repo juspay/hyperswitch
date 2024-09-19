@@ -1,5 +1,6 @@
 use api_models::payments::{Address, AddressDetails};
-use router::types::{self, storage::enums};
+use common_utils::id_type;
+use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -12,12 +13,12 @@ impl ConnectorActions for CashtocodeTest {}
 impl utils::Connector for CashtocodeTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Cashtocode;
-        types::api::ConnectorData {
-            connector: Box::new(&Cashtocode),
-            connector_name: types::Connector::Cashtocode,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Cashtocode::new()),
+            types::Connector::Cashtocode,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -39,8 +40,9 @@ static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 impl CashtocodeTest {
     fn get_payment_authorize_data(
         payment_method_type: Option<enums::PaymentMethodType>,
-        payment_method_data: types::api::PaymentMethodData,
+        payment_method_data: domain::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
+        let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from("John Doe"));
         Some(types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::EUR,
@@ -66,12 +68,13 @@ impl CashtocodeTest {
             router_return_url: Some(String::from("https://google.com")),
             webhook_url: None,
             complete_authorize_url: None,
-            customer_id: Some("John Doe".to_owned()),
+            customer_id: if let Ok(id) = cust_id { Some(id) } else { None },
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            ..utils::PaymentAuthorizeType::default().0
         })
     }
 
@@ -88,6 +91,7 @@ impl CashtocodeTest {
                     email: None,
                 }),
                 None,
+                None,
             )),
             return_url: Some("https://google.com".to_owned()),
             ..Default::default()
@@ -102,7 +106,7 @@ async fn should_fetch_pay_url_classic() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::ClassicReward),
-                api_models::payments::PaymentMethodData::Reward,
+                domain::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
@@ -120,7 +124,7 @@ async fn should_fetch_pay_url_evoucher() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::Evoucher),
-                api_models::payments::PaymentMethodData::Reward,
+                domain::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::analytics::{
     payments::{
@@ -10,19 +10,21 @@ use api_models::analytics::{
     MetricsResponse, PaymentFiltersResponse,
 };
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
 use super::{
     distribution::PaymentDistributionRow,
-    filters::{get_payment_filter_for_dimension, FilterRow},
+    filters::{get_payment_filter_for_dimension, PaymentFilterRow},
     metrics::PaymentMetricRow,
     PaymentMetricsAccumulator,
 };
 use crate::{
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
     payments::{PaymentDistributionAccumulator, PaymentMetricAccumulator},
@@ -33,7 +35,7 @@ use crate::{
 pub enum TaskType {
     MetricTask(
         PaymentMetrics,
-        CustomResult<Vec<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>, AnalyticsError>,
+        CustomResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>, AnalyticsError>,
     ),
     DistributionTask(
         PaymentDistributions,
@@ -44,7 +46,7 @@ pub enum TaskType {
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &str,
+    auth: &AuthInfo,
     req: GetPaymentMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -63,14 +65,14 @@ pub async fn get_metrics(
 
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_payment_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -91,14 +93,14 @@ pub async fn get_metrics(
             payment_distribution = distribution.distribution_for.as_ref()
         );
 
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_payment_distribution(
                         &distribution,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -115,16 +117,15 @@ pub async fn get_metrics(
         .join_next()
         .await
         .transpose()
-        .into_report()
         .change_context(AnalyticsError::UnknownError)?
     {
         match task_type {
             TaskType::MetricTask(metric, data) => {
                 let data = data?;
-                let attributes = &[
-                    metrics::request::add_attributes("metric_type", metric.to_string()),
-                    metrics::request::add_attributes("source", pool.to_string()),
-                ];
+                let attributes = &add_attributes([
+                    ("metric_type", metric.to_string()),
+                    ("source", pool.to_string()),
+                ]);
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
@@ -173,10 +174,10 @@ pub async fn get_metrics(
             }
             TaskType::DistributionTask(distribution, data) => {
                 let data = data?;
-                let attributes = &[
-                    metrics::request::add_attributes("distribution_type", distribution.to_string()),
-                    metrics::request::add_attributes("source", pool.to_string()),
-                ];
+                let attributes = &add_attributes([
+                    ("distribution_type", distribution.to_string()),
+                    ("source", pool.to_string()),
+                ]);
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
@@ -222,31 +223,31 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentFiltersRequest,
-    merchant_id: &String,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<PaymentFiltersResponse> {
     let mut res = PaymentFiltersResponse::default();
 
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_poll,
                 )
@@ -262,14 +263,14 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_poll,
                 )
@@ -285,13 +286,16 @@ pub async fn get_filters(
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
-        .filter_map(|fil: FilterRow| match dim {
+        .filter_map(|fil: PaymentFilterRow| match dim {
             PaymentDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
             PaymentDimensions::PaymentStatus => fil.status.map(|i| i.as_ref().to_string()),
             PaymentDimensions::Connector => fil.connector,
             PaymentDimensions::AuthType => fil.authentication_type.map(|i| i.as_ref().to_string()),
             PaymentDimensions::PaymentMethod => fil.payment_method,
             PaymentDimensions::PaymentMethodType => fil.payment_method_type,
+            PaymentDimensions::ClientSource => fil.client_source,
+            PaymentDimensions::ClientVersion => fil.client_version,
+            PaymentDimensions::ProfileId => fil.profile_id,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

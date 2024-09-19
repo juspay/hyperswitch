@@ -59,3 +59,19 @@ pub async fn revoke_mandate() {}
     security(("api_key" = []))
 )]
 pub async fn retrieve_mandates_list() {}
+
+/// Mandates - Customer Mandates List
+///
+/// Lists all the mandates for a particular customer id.
+#[utoipa::path(
+    post,
+    path = "/customers/{customer_id}/mandates",
+    responses(
+        (status = 200, description = "List of retrieved mandates for a customer", body = Vec<MandateResponse>),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Mandates",
+    operation_id = "List Mandates for a Customer",
+    security(("api_key" = []))
+)]
+pub async fn customers_mandates_list() {}

@@ -2,8 +2,9 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
+use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,8 +16,9 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
+        domain,
         storage::enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::OptionExt,
 };
@@ -45,22 +47,10 @@ pub struct AuthorizedotnetRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for AuthorizedotnetRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AuthorizedotnetRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
@@ -137,117 +127,58 @@ pub enum WalletMethod {
     Applepay,
 }
 
-fn get_pm_and_subsequent_auth_detail(
-    item: &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
-) -> Result<
-    (
-        PaymentDetails,
-        Option<ProcessingOptions>,
-        Option<SubsequentAuthInformation>,
-    ),
-    error_stack::Report<errors::ConnectorError>,
-> {
-    match item
-        .router_data
-        .request
-        .mandate_id
-        .to_owned()
-        .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
-    {
-        Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
-            let processing_options = Some(ProcessingOptions {
-                is_subsequent_auth: true,
-            });
-            let subseuent_auth_info = Some(SubsequentAuthInformation {
-                original_network_trans_id: Secret::new(network_trans_id),
-                reason: Reason::Resubmission,
-            });
-            match item.router_data.request.payment_method_data {
-                api::PaymentMethodData::Card(ref ccard) => {
-                    let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
-                        card_number: (*ccard.card_number).clone(),
-                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                        card_code: None,
-                    });
-                    Ok((payment_details, processing_options, subseuent_auth_info))
-                }
-                api::PaymentMethodData::CardRedirect(_)
-                | api::PaymentMethodData::Wallet(_)
-                | api::PaymentMethodData::PayLater(_)
-                | api::PaymentMethodData::BankRedirect(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::BankTransfer(_)
-                | api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::MandatePayment
-                | api::PaymentMethodData::Reward
-                | api::PaymentMethodData::Upi(_)
-                | api::PaymentMethodData::Voucher(_)
-                | api::PaymentMethodData::GiftCard(_)
-                | api::PaymentMethodData::CardToken(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                    ))?
-                }
-            }
-        }
-        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
-            match item.router_data.request.payment_method_data {
-                api::PaymentMethodData::Card(ref ccard) => {
-                    Ok((
-                        PaymentDetails::CreditCard(CreditCardDetails {
-                            card_number: (*ccard.card_number).clone(),
-                            // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
-                            expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                            card_code: Some(ccard.card_cvc.clone()),
-                        }),
-                        Some(ProcessingOptions {
-                            is_subsequent_auth: true,
-                        }),
-                        None,
-                    ))
-                }
-                api::PaymentMethodData::Wallet(ref wallet_data) => Ok((
-                    get_wallet_data(
-                        wallet_data,
-                        &item.router_data.request.complete_authorize_url,
-                    )?,
-                    None,
-                    None,
-                )),
-                api::PaymentMethodData::CardRedirect(_)
-                | api::PaymentMethodData::PayLater(_)
-                | api::PaymentMethodData::BankRedirect(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::BankTransfer(_)
-                | api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::MandatePayment
-                | api::PaymentMethodData::Reward
-                | api::PaymentMethodData::Upi(_)
-                | api::PaymentMethodData::Voucher(_)
-                | api::PaymentMethodData::GiftCard(_)
-                | api::PaymentMethodData::CardToken(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                    ))?
-                }
-            }
-        }
-    }
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct TransactionRequest {
     transaction_type: TransactionType,
     amount: f64,
-    currency_code: String,
-    payment: PaymentDetails,
+    currency_code: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payment: Option<PaymentDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    profile: Option<ProfileDetails>,
     order: Order,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer: Option<CustomerDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+enum ProfileDetails {
+    CreateProfileDetails(CreateProfileDetails),
+    CustomerProfileDetails(CustomerProfileDetails),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProfileDetails {
+    create_profile: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct CustomerProfileDetails {
+    customer_profile_id: Secret<String>,
+    payment_profile: PaymentProfileDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct PaymentProfileDetails {
+    payment_profile_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomerDetails {
+    id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -326,6 +257,191 @@ pub struct AuthorizedotnetPaymentCancelOrCaptureRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 // The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
+pub struct CreateCustomerProfileRequest {
+    create_customer_profile_request: AuthorizedotnetZeroMandateRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetZeroMandateRequest {
+    merchant_authentication: AuthorizedotnetAuthType,
+    profile: Profile,
+    validation_mode: ValidationMode,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Profile {
+    description: String,
+    payment_profiles: PaymentProfiles,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentProfiles {
+    customer_type: CustomerType,
+    payment: PaymentDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CustomerType {
+    Individual,
+    Business,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ValidationMode {
+    // testMode performs a Luhn mod-10 check on the card number, without further validation at connector.
+    TestMode,
+    // liveMode submits a zero-dollar or one-cent transaction (depending on card type and processor support) to confirm that the card number belongs to an active credit or debit account.
+    LiveMode,
+}
+
+impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(ccard) => {
+                let merchant_authentication =
+                    AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+                let validation_mode = match item.test_mode {
+                    Some(true) | None => ValidationMode::TestMode,
+                    Some(false) => ValidationMode::LiveMode,
+                };
+                Ok(Self {
+                    create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
+                        merchant_authentication,
+                        profile: Profile {
+                            // The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                            description: item.payment_id.clone(),
+                            payment_profiles: PaymentProfiles {
+                                customer_type: CustomerType::Individual,
+                                payment: PaymentDetails::CreditCard(CreditCardDetails {
+                                    card_number: (*ccard.card_number).clone(),
+                                    expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                                    card_code: Some(ccard.card_cvc.clone()),
+                                }),
+                            },
+                        },
+                        validation_mode,
+                    },
+                })
+            }
+            domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetSetupMandateResponse {
+    customer_profile_id: Option<String>,
+    customer_payment_profile_id_list: Vec<String>,
+    validation_direct_response_list: Option<Vec<Secret<String>>>,
+    pub messages: ResponseMessages,
+}
+
+// zero dollar response
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            AuthorizedotnetSetupMandateResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            AuthorizedotnetSetupMandateResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response.messages.result_code {
+            ResultCode::Ok => Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: item.response.customer_profile_id.map(
+                        |customer_profile_id| types::MandateReference {
+                            connector_mandate_id: item
+                                .response
+                                .customer_payment_profile_id_list
+                                .first()
+                                .map(|payment_profile_id| {
+                                    format!("{customer_profile_id}-{payment_profile_id}")
+                                }),
+                            payment_method_id: None,
+                        },
+                    ),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            }),
+            ResultCode::Error => {
+                let error_code = match item.response.messages.message.first() {
+                    Some(first_error_message) => first_error_message.code.clone(),
+                    None => crate::consts::NO_ERROR_CODE.to_string(),
+                };
+                let error_reason = item
+                    .response
+                    .messages
+                    .message
+                    .iter()
+                    .map(|error: &ResponseMessage| error.text.clone())
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                let response = Err(types::ErrorResponse {
+                    code: error_code,
+                    message: item.response.messages.result_code.to_string(),
+                    reason: Some(error_reason),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::Failure,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+// The connector enforces field ordering, it expects fields to be in the same order as in their API documentation
 pub struct CreateTransactionRequest {
     create_transaction_request: AuthorizedotnetPaymentsRequest,
 }
@@ -364,53 +480,337 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let (payment_details, processing_options, subsequent_auth_information) =
-            get_pm_and_subsequent_auth_detail(item)?;
-        let authorization_indicator_type = match item.router_data.request.capture_method {
-            Some(capture_method) => Some(AuthorizationIndicator {
-                authorization_indicator: capture_method.try_into()?,
-            }),
-            None => None,
-        };
-        let bill_to = item
-            .router_data
-            .get_optional_billing()
-            .and_then(|billing_address| billing_address.address.as_ref())
-            .map(|address| BillTo {
-                first_name: address.first_name.clone(),
-                last_name: address.last_name.clone(),
-                address: address.line1.clone(),
-                city: address.city.clone(),
-                state: address.state.clone(),
-                zip: address.zip.clone(),
-                country: address.country,
-            });
-        let transaction_request = TransactionRequest {
-            transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
-            amount: item.amount,
-            currency_code: item.router_data.request.currency.to_string(),
-            payment: payment_details,
-            order: Order {
-                description: item.router_data.connector_request_reference_id.clone(),
-            },
-            bill_to,
-            processing_options,
-            subsequent_auth_information,
-            authorization_indicator_type,
-        };
-
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
+
         let ref_id = if item.router_data.connector_request_reference_id.len() <= 20 {
             Some(item.router_data.connector_request_reference_id.clone())
         } else {
             None
+        };
+
+        let transaction_request = match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
+        {
+            Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
+                TransactionRequest::try_from((item, network_trans_id))?
+            }
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_id,
+            )) => TransactionRequest::try_from((item, connector_mandate_id))?,
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?
+            }
+            None => {
+                match &item.router_data.request.payment_method_data {
+                    domain::PaymentMethodData::Card(ccard) => {
+                        TransactionRequest::try_from((item, ccard))
+                    }
+                    domain::PaymentMethodData::Wallet(wallet_data) => {
+                        TransactionRequest::try_from((item, wallet_data))
+                    }
+                    domain::PaymentMethodData::CardRedirect(_)
+                    | domain::PaymentMethodData::PayLater(_)
+                    | domain::PaymentMethodData::BankRedirect(_)
+                    | domain::PaymentMethodData::BankDebit(_)
+                    | domain::PaymentMethodData::BankTransfer(_)
+                    | domain::PaymentMethodData::Crypto(_)
+                    | domain::PaymentMethodData::MandatePayment
+                    | domain::PaymentMethodData::Reward
+                    | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::Upi(_)
+                    | domain::PaymentMethodData::Voucher(_)
+                    | domain::PaymentMethodData::GiftCard(_)
+                    | domain::PaymentMethodData::OpenBanking(_)
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_) => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message(
+                                "authorizedotnet",
+                            ),
+                        ))?
+                    }
+                }
+            }?,
         };
         Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
                 ref_id,
                 transaction_request,
+            },
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        String,
+    )> for TransactionRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, network_trans_id): (
+            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+            String,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
+            amount: item.amount,
+            currency_code: item.router_data.request.currency,
+            payment: Some(match item.router_data.request.payment_method_data {
+                domain::PaymentMethodData::Card(ref ccard) => {
+                    PaymentDetails::CreditCard(CreditCardDetails {
+                        card_number: (*ccard.card_number).clone(),
+                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                        card_code: None,
+                    })
+                }
+                domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                    ))?
+                }
+            }),
+            profile: None,
+            order: Order {
+                description: item.router_data.connector_request_reference_id.clone(),
+            },
+            customer: None,
+            bill_to: item
+                .router_data
+                .get_optional_billing()
+                .and_then(|billing_address| billing_address.address.as_ref())
+                .map(|address| BillTo {
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
+                    address: address.line1.clone(),
+                    city: address.city.clone(),
+                    state: address.state.clone(),
+                    zip: address.zip.clone(),
+                    country: address.country,
+                }),
+            processing_options: Some(ProcessingOptions {
+                is_subsequent_auth: true,
+            }),
+            subsequent_auth_information: Some(SubsequentAuthInformation {
+                original_network_trans_id: Secret::new(network_trans_id),
+                reason: Reason::Resubmission,
+            }),
+            authorization_indicator_type: match item.router_data.request.capture_method {
+                Some(capture_method) => Some(AuthorizationIndicator {
+                    authorization_indicator: capture_method.try_into()?,
+                }),
+                None => None,
+            },
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        api_models::payments::ConnectorMandateReferenceId,
+    )> for TransactionRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, connector_mandate_id): (
+            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+            api_models::payments::ConnectorMandateReferenceId,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let mandate_id = connector_mandate_id
+            .connector_mandate_id
+            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+        Ok(Self {
+            transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
+            amount: item.amount,
+            currency_code: item.router_data.request.currency,
+            payment: None,
+            profile: mandate_id
+                .split_once('-')
+                .map(|(customer_profile_id, payment_profile_id)| {
+                    ProfileDetails::CustomerProfileDetails(CustomerProfileDetails {
+                        customer_profile_id: Secret::from(customer_profile_id.to_string()),
+                        payment_profile: PaymentProfileDetails {
+                            payment_profile_id: Secret::from(payment_profile_id.to_string()),
+                        },
+                    })
+                }),
+            order: Order {
+                description: item.router_data.connector_request_reference_id.clone(),
+            },
+            customer: None,
+            bill_to: None,
+            processing_options: Some(ProcessingOptions {
+                is_subsequent_auth: true,
+            }),
+            subsequent_auth_information: None,
+            authorization_indicator_type: match item.router_data.request.capture_method {
+                Some(capture_method) => Some(AuthorizationIndicator {
+                    authorization_indicator: capture_method.try_into()?,
+                }),
+                None => None,
+            },
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        &domain::Card,
+    )> for TransactionRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, ccard): (
+            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+            &domain::Card,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (profile, customer) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .map_or(false, |future_usage| {
+                matches!(future_usage, common_enums::FutureUsage::OffSession)
+            })
+            && (item.router_data.request.customer_acceptance.is_some()
+                || item
+                    .router_data
+                    .request
+                    .setup_mandate_details
+                    .clone()
+                    .map_or(false, |mandate_details| {
+                        mandate_details.customer_acceptance.is_some()
+                    })) {
+            (
+                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                    create_profile: true,
+                })),
+                Some(CustomerDetails {
+                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                    id: if item.router_data.payment_id.len() <= 20 {
+                        item.router_data.payment_id.clone()
+                    } else {
+                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                    },
+                }),
+            )
+        } else {
+            (None, None)
+        };
+        Ok(Self {
+            transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
+            amount: item.amount,
+            currency_code: item.router_data.request.currency,
+            payment: Some(PaymentDetails::CreditCard(CreditCardDetails {
+                card_number: (*ccard.card_number).clone(),
+                expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                card_code: Some(ccard.card_cvc.clone()),
+            })),
+            profile,
+            order: Order {
+                description: item.router_data.connector_request_reference_id.clone(),
+            },
+            customer,
+            bill_to: item
+                .router_data
+                .get_optional_billing()
+                .and_then(|billing_address| billing_address.address.as_ref())
+                .map(|address| BillTo {
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
+                    address: address.line1.clone(),
+                    city: address.city.clone(),
+                    state: address.state.clone(),
+                    zip: address.zip.clone(),
+                    country: address.country,
+                }),
+            processing_options: None,
+            subsequent_auth_information: None,
+            authorization_indicator_type: match item.router_data.request.capture_method {
+                Some(capture_method) => Some(AuthorizationIndicator {
+                    authorization_indicator: capture_method.try_into()?,
+                }),
+                None => None,
+            },
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+        &domain::WalletData,
+    )> for TransactionRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, wallet_data): (
+            &AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>,
+            &domain::WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
+            amount: item.amount,
+            currency_code: item.router_data.request.currency,
+            payment: Some(get_wallet_data(
+                wallet_data,
+                &item.router_data.request.complete_authorize_url,
+            )?),
+            profile: None,
+            order: Order {
+                description: item.router_data.connector_request_reference_id.clone(),
+            },
+            customer: None,
+            bill_to: item
+                .router_data
+                .get_optional_billing()
+                .and_then(|billing_address| billing_address.address.as_ref())
+                .map(|address| BillTo {
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
+                    address: address.line1.clone(),
+                    city: address.city.clone(),
+                    state: address.state.clone(),
+                    zip: address.zip.clone(),
+                    country: address.country,
+                }),
+            processing_options: None,
+            subsequent_auth_information: None,
+            authorization_indicator_type: match item.router_data.request.capture_method {
+                Some(capture_method) => Some(AuthorizationIndicator {
+                    authorization_indicator: capture_method.try_into()?,
+                }),
+                None => None,
             },
         })
     }
@@ -517,7 +917,7 @@ pub struct ResponseMessage {
     pub text: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize, strum::Display)]
 enum ResultCode {
     #[default]
     Ok,
@@ -585,6 +985,15 @@ pub struct SecureAcceptance {
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
+    pub profile_response: Option<AuthorizedotnetNonZeroMandateResponse>,
+    pub messages: ResponseMessages,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetNonZeroMandateResponse {
+    customer_profile_id: Option<String>,
+    customer_payment_profile_id_list: Option<Vec<String>>,
     pub messages: ResponseMessages,
 }
 
@@ -631,7 +1040,7 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
 }
 
 impl<F, T>
-    TryFrom<(
+    ForeignTryFrom<(
         types::ResponseRouterData<
             F,
             AuthorizedotnetPaymentsResponse,
@@ -642,7 +1051,7 @@ impl<F, T>
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+    fn foreign_try_from(
         (item, is_auto_capture): (
             types::ResponseRouterData<
                 F,
@@ -663,7 +1072,7 @@ impl<F, T>
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
-                        reason: None,
+                        reason: Some(error.error_text.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -685,6 +1094,24 @@ impl<F, T>
                     .and_then(|x| x.secure_acceptance_url.to_owned());
                 let redirection_data =
                     url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
+                let mandate_reference = item.response.profile_response.map(|profile_response| {
+                    let payment_profile_id = profile_response
+                        .customer_payment_profile_id_list
+                        .and_then(|customer_payment_profile_id_list| {
+                            customer_payment_profile_id_list.first().cloned()
+                        });
+                    types::MandateReference {
+                        connector_mandate_id: profile_response.customer_profile_id.and_then(
+                            |customer_profile_id| {
+                                payment_profile_id.map(|payment_profile_id| {
+                                    format!("{customer_profile_id}-{payment_profile_id}")
+                                })
+                            },
+                        ),
+                        payment_method_id: None,
+                    }
+                });
+
                 Ok(Self {
                     status,
                     response: match error {
@@ -694,7 +1121,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             redirection_data,
-                            mandate_reference: None,
+                            mandate_reference,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -704,6 +1131,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         }),
                     },
                     ..item.data
@@ -741,7 +1169,7 @@ impl<F, T>
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
-                        reason: None,
+                        reason: Some(error.error_text.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -776,6 +1204,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            charge_id: None,
                         }),
                     },
                     ..item.data
@@ -887,7 +1316,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
             errors.first().map(|error| types::ErrorResponse {
                 code: error.error_code.clone(),
                 message: error.error_text.clone(),
-                reason: None,
+                reason: Some(error.error_text.clone()),
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1100,6 +1529,7 @@ impl<F, Req>
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                     status: payment_status,
                     ..item.data
@@ -1168,7 +1598,7 @@ fn get_err_response(
     Ok(types::ErrorResponse {
         code: response_message.code.clone(),
         message: response_message.text.clone(),
-        reason: None,
+        reason: Some(response_message.text.clone()),
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
@@ -1282,55 +1712,50 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
 }
 
 fn get_wallet_data(
-    wallet_data: &api_models::payments::WalletData,
+    wallet_data: &domain::WalletData,
     return_url: &Option<String>,
 ) -> CustomResult<PaymentDetails, errors::ConnectorError> {
     match wallet_data {
-        api_models::payments::WalletData::GooglePay(_) => {
-            Ok(PaymentDetails::OpaqueData(WalletDetails {
-                data_descriptor: WalletMethod::Googlepay,
-                data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
-            }))
-        }
-        api_models::payments::WalletData::ApplePay(applepay_token) => {
+        domain::WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
+            data_descriptor: WalletMethod::Googlepay,
+            data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
+        })),
+        domain::WalletData::ApplePay(applepay_token) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,
                 data_value: Secret::new(applepay_token.payment_data.clone()),
             }))
         }
-        api_models::payments::WalletData::PaypalRedirect(_) => {
-            Ok(PaymentDetails::PayPal(PayPalDetails {
-                success_url: return_url.to_owned(),
-                cancel_url: return_url.to_owned(),
-            }))
-        }
-        api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
-        | api_models::payments::WalletData::AliPayHkRedirect(_)
-        | api_models::payments::WalletData::MomoRedirect(_)
-        | api_models::payments::WalletData::KakaoPayRedirect(_)
-        | api_models::payments::WalletData::GoPayRedirect(_)
-        | api_models::payments::WalletData::GcashRedirect(_)
-        | api_models::payments::WalletData::ApplePayRedirect(_)
-        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-        | api_models::payments::WalletData::DanaRedirect {}
-        | api_models::payments::WalletData::GooglePayRedirect(_)
-        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-        | api_models::payments::WalletData::MbWayRedirect(_)
-        | api_models::payments::WalletData::MobilePayRedirect(_)
-        | api_models::payments::WalletData::PaypalSdk(_)
-        | api_models::payments::WalletData::SamsungPay(_)
-        | api_models::payments::WalletData::TwintRedirect {}
-        | api_models::payments::WalletData::VippsRedirect {}
-        | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
-        | api_models::payments::WalletData::WeChatPayQr(_)
-        | api_models::payments::WalletData::CashappQr(_)
-        | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-            ))?
-        }
+        domain::WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
+            success_url: return_url.to_owned(),
+            cancel_url: return_url.to_owned(),
+        })),
+        domain::WalletData::AliPayQr(_)
+        | domain::WalletData::AliPayRedirect(_)
+        | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::MomoRedirect(_)
+        | domain::WalletData::KakaoPayRedirect(_)
+        | domain::WalletData::GoPayRedirect(_)
+        | domain::WalletData::GcashRedirect(_)
+        | domain::WalletData::ApplePayRedirect(_)
+        | domain::WalletData::ApplePayThirdPartySdk(_)
+        | domain::WalletData::DanaRedirect {}
+        | domain::WalletData::GooglePayRedirect(_)
+        | domain::WalletData::GooglePayThirdPartySdk(_)
+        | domain::WalletData::MbWayRedirect(_)
+        | domain::WalletData::MobilePayRedirect(_)
+        | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::SamsungPay(_)
+        | domain::WalletData::TwintRedirect {}
+        | domain::WalletData::VippsRedirect {}
+        | domain::WalletData::TouchNGoRedirect(_)
+        | domain::WalletData::WeChatPayRedirect(_)
+        | domain::WalletData::WeChatPayQr(_)
+        | domain::WalletData::CashappQr(_)
+        | domain::WalletData::SwishQr(_)
+        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+        ))?,
     }
 }
 
@@ -1395,7 +1820,6 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let payer_id: Secret<String> =
             serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
-                .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {

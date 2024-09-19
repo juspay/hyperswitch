@@ -1,5 +1,5 @@
 use api_models::connector_onboarding as api;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::core::errors::{ApiErrorResponse, RouterResult};
 
@@ -148,13 +148,13 @@ impl PartnerReferralRequest {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct SellerStatusResponse {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub links: Vec<HateoasLink>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 pub struct SellerStatusDetailsResponse {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub primary_email_confirmed: bool,
     pub payments_receivable: bool,
     pub products: Vec<SellerStatusProducts>,
@@ -181,7 +181,6 @@ impl SellerStatusResponse {
             .and_then(|link| link.href.strip_prefix('/'))
             .map(|link| format!("{}{}", paypal_base_url, link))
             .ok_or(ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Merchant details not received in onboarding status")
     }
 }
@@ -228,8 +227,8 @@ impl SellerStatusDetailsResponse {
             .and_then(|ppcp_custom| ppcp_custom.vetting_status.clone())
     }
 
-    fn get_payer_id(&self) -> String {
-        self.merchant_id.to_string()
+    fn get_payer_id(&self) -> common_utils::id_type::MerchantId {
+        self.merchant_id.to_owned()
     }
 }
 
@@ -240,7 +239,6 @@ impl PartnerReferralResponse {
             .into_iter()
             .find(|hateoas_link| hateoas_link.rel == "action_url")
             .ok_or(ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Failed to get action_url from paypal response")?
             .href)
     }

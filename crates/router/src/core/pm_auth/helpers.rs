@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use pm_auth::types::{self as pm_auth_types, api::BoxedPaymentAuthConnector};
 
 use crate::{
@@ -27,7 +27,6 @@ pub fn get_connector_auth_type(
         })?;
 
     pm_auth_types::ConnectorAuthType::foreign_try_from(auth_type)
-        .into_report()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while converting ConnectorAuthType")
 }

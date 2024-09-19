@@ -19,7 +19,7 @@ impl AuthorizationNew {
 impl Authorization {
     pub async fn update_by_merchant_id_authorization_id(
         conn: &PgPooledConn,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: AuthorizationUpdate,
     ) -> StorageResult<Self> {
@@ -58,8 +58,8 @@ impl Authorization {
 
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,

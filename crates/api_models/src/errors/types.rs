@@ -70,13 +70,15 @@ impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
 #[derive(Debug, serde::Serialize, Default, Clone)]
 pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connector: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]

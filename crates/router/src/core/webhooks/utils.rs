@@ -13,8 +13,6 @@ use crate::{
     types::{self, api, domain, PaymentAddress},
 };
 
-const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_payment_id_in_source_verification_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_attempt_id_in_source_verification_flow";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
@@ -26,10 +24,10 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
 pub async fn is_webhook_event_disabled(
     db: &dyn StorageInterface,
     connector_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_disabled_events_{merchant_id}_{connector_id}");
+    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
     let merchant_webhook_disable_config_result: CustomResult<
         api::MerchantWebhookConfig,
         redis_interface::errors::RedisError,
@@ -73,21 +71,24 @@ pub async fn construct_webhook_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
-        payment_id: IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("source_verification_flow")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
-        payment_method_id: None,
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
+        connector_wallets_details: None,
         amount_captured: None,
+        minor_amount_captured: None,
         request: types::VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
@@ -117,6 +118,32 @@ pub async fn construct_webhook_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
     };
     Ok(router_data)
+}
+
+#[inline]
+pub(crate) fn get_idempotent_event_id(
+    primary_object_id: &str,
+    event_type: types::storage::enums::EventType,
+    delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
+) -> String {
+    use crate::types::storage::enums::WebhookDeliveryAttempt;
+
+    const EVENT_ID_SUFFIX_LENGTH: usize = 8;
+
+    let common_prefix = format!("{primary_object_id}_{event_type}");
+    match delivery_attempt {
+        WebhookDeliveryAttempt::InitialAttempt => common_prefix,
+        WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
+            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
+        }
+    }
+}
+
+#[inline]
+pub(crate) fn generate_event_id() -> String {
+    common_utils::generate_time_ordered_id("evt")
 }

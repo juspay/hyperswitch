@@ -1,4 +1,6 @@
-use router_env::{instrument, tracing};
+use common_utils::pii;
+use masking::{ExposeOptionInterface, PeekInterface};
+use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
     core::{
@@ -6,20 +8,19 @@ use crate::{
         payments,
     },
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, SessionState},
     services,
     types::{self, api, domain, storage},
 };
 
 #[instrument(skip_all)]
 pub async fn create_connector_customer<F: Clone, T: Clone>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     customer_request_data: types::ConnectorCustomerData,
 ) -> RouterResult<Option<String>> {
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         api::CreateConnectorCustomer,
         types::ConnectorCustomerData,
         types::PaymentsResponseData,
@@ -54,10 +55,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes(
-            "connector",
-            connector.connector_name.to_string(),
-        )],
+        &add_attributes([("connector", connector.connector_name.to_string())]),
     );
 
     let connector_customer_id = match resp.response {
@@ -83,12 +81,12 @@ pub fn get_connector_customer_details_if_present<'a>(
     customer
         .connector_customer
         .as_ref()
-        .and_then(|connector_customer_value| connector_customer_value.get(connector_name))
+        .and_then(|connector_customer_value| connector_customer_value.peek().get(connector_name))
         .and_then(|connector_customer| connector_customer.as_str())
 }
 
 pub fn should_call_connector_create_customer<'a>(
-    state: &AppState,
+    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
@@ -118,9 +116,8 @@ pub async fn update_connector_customer_in_customers(
     connector_customer_id: &Option<String>,
 ) -> Option<storage::CustomerUpdate> {
     let connector_customer_map = customer
-        .and_then(|customer| customer.connector_customer.as_ref())
-        .and_then(|connector_customer| connector_customer.as_object())
-        .map(ToOwned::to_owned)
+        .and_then(|customer| customer.connector_customer.clone().expose_option())
+        .and_then(|connector_customer| connector_customer.as_object().cloned())
         .unwrap_or_default();
 
     let updated_connector_customer_map =
@@ -136,7 +133,7 @@ pub async fn update_connector_customer_in_customers(
         .map(serde_json::Value::Object)
         .map(
             |connector_customer_value| storage::CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(connector_customer_value),
+                connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
             },
         )
 }

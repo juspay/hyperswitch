@@ -16,8 +16,8 @@ pub trait CaptureInterface {
 
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         authorized_attempt_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
@@ -32,7 +32,7 @@ pub trait CaptureInterface {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::report;
     use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
@@ -56,8 +56,7 @@ mod storage {
                 capture
                     .insert(&conn)
                     .await
-                    .map_err(Into::into)
-                    .into_report()
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -73,8 +72,7 @@ mod storage {
                 let conn = connection::pg_connection_write(self).await?;
                 this.update_with_capture_id(&conn, capture)
                     .await
-                    .map_err(Into::into)
-                    .into_report()
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -82,8 +80,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
-            merchant_id: &str,
-            payment_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
             authorized_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
@@ -96,8 +94,7 @@ mod storage {
                     &conn,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -106,7 +103,7 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use error_stack::IntoReport;
+    use error_stack::report;
     use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
@@ -130,8 +127,7 @@ mod storage {
                 capture
                     .insert(&conn)
                     .await
-                    .map_err(Into::into)
-                    .into_report()
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -147,8 +143,7 @@ mod storage {
                 let conn = connection::pg_connection_write(self).await?;
                 this.update_with_capture_id(&conn, capture)
                     .await
-                    .map_err(Into::into)
-                    .into_report()
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -156,8 +151,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
-            merchant_id: &str,
-            payment_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
             authorized_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
@@ -170,8 +165,7 @@ mod storage {
                     &conn,
                 )
                 .await
-                .map_err(Into::into)
-                .into_report()
+                .map_err(|error| report!(errors::StorageError::from(error)))
             };
             db_call().await
         }
@@ -221,8 +215,8 @@ impl CaptureInterface for MockDb {
     }
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
-        _merchant_id: &str,
-        _payment_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _payment_id: &common_utils::id_type::PaymentId,
         _authorized_attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError> {

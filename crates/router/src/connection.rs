@@ -1,6 +1,6 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use storage_impl::errors as storage_errors;
 
 use crate::errors;
@@ -45,7 +45,6 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
 
@@ -60,6 +59,5 @@ pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }

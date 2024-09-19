@@ -1,39 +1,46 @@
-use std::sync::Arc;
-
 use api_models::{
     payment_methods::SurchargeDetailsResponse,
     payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
-use common_utils::{ext_traits::StringExt, static_cache::StaticCache, types as common_utils_types};
-use error_stack::{self, IntoReport, ResultExt};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use common_utils::{ext_traits::StringExt, types as common_utils_types};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::{
+    ext_traits::{OptionExt, StringExt},
+    types as common_utils_types,
+};
+use error_stack::{self, ResultExt};
 use euclid::{
     backend,
     backend::{inputs as dsl_inputs, EuclidBackend},
 };
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
+use serde::{Deserialize, Serialize};
+use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
 
-use crate::{
-    core::payments::{types, PaymentData},
-    db::StorageInterface,
-    types::{
-        storage::{self as oss_storage, payment_attempt::PaymentAttemptExt},
-        transformers::ForeignTryFrom,
-    },
-};
-static CONF_CACHE: StaticCache<VirInterpreterBackendCacheWrapper> = StaticCache::new();
 use crate::{
     core::{
-        errors::ConditionalConfigError as ConfigError,
+        errors::{self, ConditionalConfigError as ConfigError},
         payments::{
             conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
+            types,
         },
     },
-    AppState,
+    db::StorageInterface,
+    types::{
+        storage::{self, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
+    },
+    SessionState,
 };
 
-struct VirInterpreterBackendCacheWrapper {
-    cached_alogorith: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VirInterpreterBackendCacheWrapper {
+    cached_algorithm: backend::VirInterpreterBackend<SurchargeDecisionConfigs>,
     merchant_surcharge_configs: surcharge_decision_configs::MerchantSurchargeConfigs,
 }
 
@@ -41,13 +48,12 @@ impl TryFrom<SurchargeDecisionManagerRecord> for VirInterpreterBackendCacheWrapp
     type Error = error_stack::Report<ConfigError>;
 
     fn try_from(value: SurchargeDecisionManagerRecord) -> Result<Self, Self::Error> {
-        let cached_alogorith = backend::VirInterpreterBackend::with_program(value.algorithm)
-            .into_report()
+        let cached_algorithm = backend::VirInterpreterBackend::with_program(value.algorithm)
             .change_context(ConfigError::DslBackendInitError)
             .attach_printable("Error initializing DSL interpreter backend")?;
         let merchant_surcharge_configs = value.merchant_surcharge_configs;
         Ok(Self {
-            cached_alogorith,
+            cached_algorithm,
             merchant_surcharge_configs,
         })
     }
@@ -55,7 +61,7 @@ impl TryFrom<SurchargeDecisionManagerRecord> for VirInterpreterBackendCacheWrapp
 
 enum SurchargeSource {
     /// Surcharge will be generated through the surcharge rules
-    Generate(Arc<VirInterpreterBackendCacheWrapper>),
+    Generate(VirInterpreterBackendCacheWrapper),
     /// Surcharge is predefined by the merchant through payment create request
     Predetermined(payments::RequestSurchargeDetails),
 }
@@ -64,14 +70,14 @@ impl SurchargeSource {
     pub fn generate_surcharge_details_and_populate_surcharge_metadata(
         &self,
         backend_input: &backend::BackendInput,
-        payment_attempt: &oss_storage::PaymentAttempt,
+        payment_attempt: &storage::PaymentAttempt,
         surcharge_metadata_and_key: (&mut types::SurchargeMetadata, types::SurchargeKey),
     ) -> ConditionalConfigResult<Option<types::SurchargeDetails>> {
         match self {
             Self::Generate(interpreter) => {
                 let surcharge_output = execute_dsl_and_get_conditional_config(
                     backend_input.clone(),
-                    &interpreter.cached_alogorith,
+                    &interpreter.cached_algorithm,
                 )?;
                 Ok(surcharge_output
                     .surcharge_details
@@ -82,11 +88,10 @@ impl SurchargeSource {
                         )
                     })
                     .transpose()?
-                    .map(|surcharge_details| {
+                    .inspect(|surcharge_details| {
                         let (surcharge_metadata, surcharge_key) = surcharge_metadata_and_key;
                         surcharge_metadata
                             .insert_surcharge_details(surcharge_key, surcharge_details.clone());
-                        surcharge_details
                     }))
             }
             Self::Predetermined(request_surcharge_details) => Ok(Some(
@@ -97,10 +102,10 @@ impl SurchargeSource {
 }
 
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    payment_attempt: &oss_storage::PaymentAttempt,
-    payment_intent: &oss_storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
     billing_address: Option<payments::Address>,
     response_payment_method_types: &mut [api_models::payment_methods::ResponsePaymentMethodsEnabled],
 ) -> ConditionalConfigResult<(
@@ -118,20 +123,13 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             surcharge_decision_configs::MerchantSurchargeConfigs::default(),
         ),
         (None, Some(algorithm_id)) => {
-            let key = ensure_algorithm_cached(
+            let cached_algo = ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
-                algorithm_ref.timestamp,
                 algorithm_id.as_str(),
             )
             .await?;
-            let cached_algo = CONF_CACHE
-                .retrieve(&key)
-                .into_report()
-                .change_context(ConfigError::CacheMiss)
-                .attach_printable(
-                    "Unable to retrieve cached routing algorithm even after refresh",
-                )?;
+
             let merchant_surcharge_config = cached_algo.merchant_surcharge_configs.clone();
             (
                 SurchargeSource::Generate(cached_algo),
@@ -145,6 +143,11 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
             ))
         }
     };
+    let surcharge_source_log_message = match &surcharge_source {
+        SurchargeSource::Generate(_) => "Surcharge was calculated through surcharge rules",
+        SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
+    };
+    logger::debug!(payment_method_list_surcharge_source = surcharge_source_log_message);
 
     let mut backend_input =
         make_dsl_input_for_surcharge(payment_attempt, payment_intent, billing_address)
@@ -182,7 +185,6 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                                 &surcharge_details,
                                 payment_attempt,
                             ))
-                            .into_report()
                             .change_context(ConfigError::DslExecutionError)
                             .attach_printable("Error while constructing Surcharge response type")
                         })
@@ -208,7 +210,6 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
                             &surcharge_details,
                             payment_attempt,
                         ))
-                        .into_report()
                         .change_context(ConfigError::DslExecutionError)
                         .attach_printable("Error while constructing Surcharge response type")
                     })
@@ -219,56 +220,44 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
     Ok((surcharge_metadata, merchant_surcharge_configs))
 }
 
-pub async fn perform_surcharge_decision_management_for_session_flow<O>(
-    state: &AppState,
+pub async fn perform_surcharge_decision_management_for_session_flow(
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    payment_data: &mut PaymentData<O>,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    billing_address: Option<payments::Address>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
-) -> ConditionalConfigResult<types::SurchargeMetadata>
-where
-    O: Send + Clone,
-{
-    let mut surcharge_metadata =
-        types::SurchargeMetadata::new(payment_data.payment_attempt.attempt_id.clone());
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
+    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
     let surcharge_source = match (
-        payment_data.payment_attempt.get_surcharge_details(),
+        payment_attempt.get_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
     ) {
         (Some(request_surcharge_details), _) => {
             SurchargeSource::Predetermined(request_surcharge_details)
         }
         (None, Some(algorithm_id)) => {
-            let key = ensure_algorithm_cached(
+            let cached_algo = ensure_algorithm_cached(
                 &*state.store,
-                &payment_data.payment_attempt.merchant_id,
-                algorithm_ref.timestamp,
+                &payment_attempt.merchant_id,
                 algorithm_id.as_str(),
             )
             .await?;
-            let cached_algo = CONF_CACHE
-                .retrieve(&key)
-                .into_report()
-                .change_context(ConfigError::CacheMiss)
-                .attach_printable(
-                    "Unable to retrieve cached routing algorithm even after refresh",
-                )?;
+
             SurchargeSource::Generate(cached_algo)
         }
         (None, None) => return Ok(surcharge_metadata),
     };
-    let mut backend_input = make_dsl_input_for_surcharge(
-        &payment_data.payment_attempt,
-        &payment_data.payment_intent,
-        payment_data.address.get_payment_method_billing().cloned(),
-    )
-    .change_context(ConfigError::InputConstructionError)?;
+    let mut backend_input =
+        make_dsl_input_for_surcharge(payment_attempt, payment_intent, billing_address)
+            .change_context(ConfigError::InputConstructionError)?;
     for payment_method_type in payment_method_type_list {
         backend_input.payment_method.payment_method_type = Some(*payment_method_type);
         // in case of session flow, payment_method will always be wallet
         backend_input.payment_method.payment_method = Some(payment_method_type.to_owned().into());
         surcharge_source.generate_surcharge_details_and_populate_surcharge_metadata(
             &backend_input,
-            &payment_data.payment_attempt,
+            payment_attempt,
             (
                 &mut surcharge_metadata,
                 types::SurchargeKey::PaymentMethodData(
@@ -281,11 +270,16 @@ where
     }
     Ok(surcharge_metadata)
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn perform_surcharge_decision_management_for_saved_cards(
-    state: &AppState,
+    state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    payment_attempt: &oss_storage::PaymentAttempt,
-    payment_intent: &oss_storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
     customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
     let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
@@ -297,32 +291,33 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
             SurchargeSource::Predetermined(request_surcharge_details)
         }
         (None, Some(algorithm_id)) => {
-            let key = ensure_algorithm_cached(
+            let cached_algo = ensure_algorithm_cached(
                 &*state.store,
                 &payment_attempt.merchant_id,
-                algorithm_ref.timestamp,
                 algorithm_id.as_str(),
             )
             .await?;
-            let cached_algo = CONF_CACHE
-                .retrieve(&key)
-                .into_report()
-                .change_context(ConfigError::CacheMiss)
-                .attach_printable(
-                    "Unable to retrieve cached routing algorithm even after refresh",
-                )?;
+
             SurchargeSource::Generate(cached_algo)
         }
         (None, None) => return Ok(surcharge_metadata),
     };
+    let surcharge_source_log_message = match &surcharge_source {
+        SurchargeSource::Generate(_) => "Surcharge was calculated through surcharge rules",
+        SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
+    };
+    logger::debug!(customer_saved_card_list_surcharge_source = surcharge_source_log_message);
     let mut backend_input = make_dsl_input_for_surcharge(payment_attempt, payment_intent, None)
         .change_context(ConfigError::InputConstructionError)?;
 
     for customer_payment_method in customer_payment_method_list.iter_mut() {
+        let payment_token = customer_payment_method.payment_token.clone();
+
         backend_input.payment_method.payment_method = Some(customer_payment_method.payment_method);
         backend_input.payment_method.payment_method_type =
             customer_payment_method.payment_method_type;
-        backend_input.payment_method.card_network = customer_payment_method
+
+        let card_network = customer_payment_method
             .card
             .as_ref()
             .and_then(|card| card.scheme.as_ref())
@@ -333,19 +328,95 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
                     .change_context(ConfigError::DslExecutionError)
             })
             .transpose()?;
+
+        backend_input.payment_method.card_network = card_network;
+
         let surcharge_details = surcharge_source
             .generate_surcharge_details_and_populate_surcharge_metadata(
                 &backend_input,
                 payment_attempt,
                 (
                     &mut surcharge_metadata,
-                    types::SurchargeKey::Token(customer_payment_method.payment_token.clone()),
+                    types::SurchargeKey::Token(payment_token),
                 ),
             )?;
         customer_payment_method.surcharge_details = surcharge_details
             .map(|surcharge_details| {
                 SurchargeDetailsResponse::foreign_try_from((&surcharge_details, payment_attempt))
-                    .into_report()
+                    .change_context(ConfigError::DslParsingError)
+            })
+            .transpose()?;
+    }
+    Ok(surcharge_metadata)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn perform_surcharge_decision_management_for_saved_cards(
+    state: &SessionState,
+    algorithm_ref: routing::RoutingAlgorithmRef,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
+    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
+    let surcharge_source = match (
+        payment_attempt.get_surcharge_details(),
+        algorithm_ref.surcharge_config_algo_id,
+    ) {
+        (Some(request_surcharge_details), _) => {
+            SurchargeSource::Predetermined(request_surcharge_details)
+        }
+        (None, Some(algorithm_id)) => {
+            let cached_algo = ensure_algorithm_cached(
+                &*state.store,
+                &payment_attempt.merchant_id,
+                algorithm_id.as_str(),
+            )
+            .await?;
+
+            SurchargeSource::Generate(cached_algo)
+        }
+        (None, None) => return Ok(surcharge_metadata),
+    };
+    let surcharge_source_log_message = match &surcharge_source {
+        SurchargeSource::Generate(_) => "Surcharge was calculated through surcharge rules",
+        SurchargeSource::Predetermined(_) => "Surcharge was sent in payment create request",
+    };
+    logger::debug!(customer_saved_card_list_surcharge_source = surcharge_source_log_message);
+    let mut backend_input = make_dsl_input_for_surcharge(payment_attempt, payment_intent, None)
+        .change_context(ConfigError::InputConstructionError)?;
+
+    for customer_payment_method in customer_payment_method_list.iter_mut() {
+        let payment_token = customer_payment_method
+            .payment_token
+            .clone()
+            .get_required_value("payment_token")
+            .change_context(ConfigError::InputConstructionError)?;
+
+        backend_input.payment_method.payment_method = Some(customer_payment_method.payment_method);
+        backend_input.payment_method.payment_method_type =
+            customer_payment_method.payment_method_type;
+
+        let card_network = match customer_payment_method.payment_method_data.as_ref() {
+            Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => {
+                card.card_network.clone()
+            }
+            _ => None,
+        };
+        backend_input.payment_method.card_network = card_network;
+
+        let surcharge_details = surcharge_source
+            .generate_surcharge_details_and_populate_surcharge_metadata(
+                &backend_input,
+                payment_attempt,
+                (
+                    &mut surcharge_metadata,
+                    types::SurchargeKey::Token(payment_token),
+                ),
+            )?;
+        customer_payment_method.surcharge_details = surcharge_details
+            .map(|surcharge_details| {
+                SurchargeDetailsResponse::foreign_try_from((&surcharge_details, payment_attempt))
                     .change_context(ConfigError::DslParsingError)
             })
             .transpose()?;
@@ -355,7 +426,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
 
 fn get_surcharge_details_from_surcharge_output(
     surcharge_details: surcharge_decision_configs::SurchargeDetailsOutput,
-    payment_attempt: &oss_storage::PaymentAttempt,
+    payment_attempt: &storage::PaymentAttempt,
 ) -> ConditionalConfigResult<types::SurchargeDetails> {
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
@@ -374,7 +445,7 @@ fn get_surcharge_details_from_surcharge_output(
                 .attach_printable("Failed to Calculate tax amount")
         })
         .transpose()?
-        .unwrap_or(0);
+        .unwrap_or_default();
     Ok(types::SurchargeDetails {
         original_amount: payment_attempt.amount,
         surcharge: match surcharge_details.surcharge {
@@ -395,52 +466,32 @@ fn get_surcharge_details_from_surcharge_output(
 #[instrument(skip_all)]
 pub async fn ensure_algorithm_cached(
     store: &dyn StorageInterface,
-    merchant_id: &str,
-    timestamp: i64,
+    merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &str,
-) -> ConditionalConfigResult<String> {
-    let key = format!("surcharge_dsl_{merchant_id}");
-    let present = CONF_CACHE
-        .present(&key)
-        .into_report()
-        .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error checking presence of DSL")?;
-    let expired = CONF_CACHE
-        .expired(&key, timestamp)
-        .into_report()
-        .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error checking presence of DSL")?;
+) -> ConditionalConfigResult<VirInterpreterBackendCacheWrapper> {
+    let key = merchant_id.get_surcharge_dsk_key();
 
-    if !present || expired {
-        refresh_surcharge_algorithm_cache(store, key.clone(), algorithm_id, timestamp).await?
-    }
-    Ok(key)
-}
-
-#[instrument(skip_all)]
-pub async fn refresh_surcharge_algorithm_cache(
-    store: &dyn StorageInterface,
-    key: String,
-    algorithm_id: &str,
-    timestamp: i64,
-) -> ConditionalConfigResult<()> {
-    let config = store
-        .find_config_by_key(algorithm_id)
-        .await
-        .change_context(ConfigError::DslMissingInDb)
-        .attach_printable("Error parsing DSL from config")?;
-    let record: SurchargeDecisionManagerRecord = config
-        .config
-        .parse_struct("Program")
-        .change_context(ConfigError::DslParsingError)
-        .attach_printable("Error parsing routing algorithm from configs")?;
-    let value_to_cache = VirInterpreterBackendCacheWrapper::try_from(record)?;
-    CONF_CACHE
-        .save(key, value_to_cache, timestamp)
-        .into_report()
-        .change_context(ConfigError::DslCachePoisoned)
-        .attach_printable("Error saving DSL to cache")?;
-    Ok(())
+    let value_to_cache = || async {
+        let config: diesel_models::Config = store.find_config_by_key(algorithm_id).await?;
+        let record: SurchargeDecisionManagerRecord = config
+            .config
+            .parse_struct("Program")
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Error parsing routing algorithm from configs")?;
+        VirInterpreterBackendCacheWrapper::try_from(record)
+            .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
+            .attach_printable("Error initializing DSL interpreter backend")
+    };
+    let interpreter = cache::get_or_populate_in_memory(
+        store.get_cache_store().as_ref(),
+        &key,
+        value_to_cache,
+        &SURCHARGE_CACHE,
+    )
+    .await
+    .change_context(ConfigError::CacheMiss)
+    .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
+    Ok(interpreter)
 }
 
 pub fn execute_dsl_and_get_conditional_config(
@@ -450,7 +501,6 @@ pub fn execute_dsl_and_get_conditional_config(
     let routing_output = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection)
-        .into_report()
         .change_context(ConfigError::DslExecutionError)?;
     Ok(routing_output)
 }

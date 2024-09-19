@@ -1,15 +1,14 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
 use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
     request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as bluesnap;
 
@@ -34,6 +33,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -41,8 +41,18 @@ use crate::{
 
 pub const BLUESNAP_TRANSACTION_NOT_FOUND: &str = "is not authorized to view merchant-transaction:";
 
-#[derive(Debug, Clone)]
-pub struct Bluesnap;
+#[derive(Clone)]
+pub struct Bluesnap {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Bluesnap {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bluesnap
 where
@@ -74,7 +84,6 @@ impl ConnectorCommon for Bluesnap {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.bluesnap.base_url.as_ref()
     }
@@ -83,8 +92,7 @@ impl ConnectorCommon for Bluesnap {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: bluesnap::BluesnapAuthType = auth_type
-            .try_into()
+        let auth = bluesnap::BluesnapAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1.peek(), auth.api_key.peek()));
@@ -112,7 +120,7 @@ impl ConnectorCommon for Bluesnap {
             bluesnap::BluesnapErrors::Payment(error_response) => {
                 let error_list = error_response.message.clone();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
-                    Self.clone(),
+                    self.clone(),
                     error_list.into_iter().map(|errors| errors.into()).collect(),
                 );
                 let reason = error_response
@@ -188,20 +196,22 @@ impl ConnectorValidation for Bluesnap {
 
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        is_three_ds: bool,
+        status: enums::AttemptStatus,
+        connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // If 3DS payment was triggered, connector will have context about payment in CompleteAuthorizeFlow and thus can't make force_sync
-        if data.is_three_ds() && data.status == enums::AttemptStatus::AuthenticationPending {
+        if is_three_ds && status == enums::AttemptStatus::AuthenticationPending {
             return Err(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {
                     id: "connector_transaction_id".to_string(),
-                },
-            )
-            .into_report();
+                }
+                .into(),
+            );
         }
         // if connector_transaction_id is present, psync can be made
         if data
-            .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .is_ok()
@@ -210,7 +220,7 @@ impl ConnectorValidation for Bluesnap {
         }
         // if merchant_id is present, psync can be made along with attempt_id
         let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
+            connector_utils::to_connector_meta_from_secret(connector_meta_data.clone());
 
         meta_data.map(|_| ())
     }
@@ -466,12 +476,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data =
+            bluesnap::BluesnapRouterData::try_from((amount_to_capture, req))?;
         let connector_req = bluesnap::BluesnapCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -595,11 +606,20 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
 
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let req_amount = data.request.minor_amount;
+        let req_currency = data.request.currency;
+
+        let apple_pay_amount =
+            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            apple_pay_amount,
+        ))
     }
 
     fn get_error_response(
@@ -653,12 +673,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
         match req.is_three_ds() && req.request.is_card() {
             true => {
                 let connector_req =
@@ -729,6 +749,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                     ..data.clone()
                 })
@@ -792,12 +813,12 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
         let connector_req =
             bluesnap::BluesnapCompletePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -889,12 +910,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bluesnap::BluesnapRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = bluesnap::BluesnapRouterData::try_from((refund_amount, req))?;
         let connector_req = bluesnap::BluesnapRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1051,13 +1072,12 @@ impl api::IncomingWebhook for Bluesnap {
             connector_utils::get_header_key_value("bls-signature", request.headers)?;
 
         hex::decode(security_header)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp =
@@ -1071,7 +1091,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook_body: bluesnap::BluesnapWebhookBody =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         match webhook_body.transaction_type {
             bluesnap::BluesnapWebhookEvents::Decline
@@ -1103,7 +1122,7 @@ impl api::IncomingWebhook for Bluesnap {
                 ))
             }
             bluesnap::BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+                Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
             }
         }
     }
@@ -1114,7 +1133,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let details: bluesnap::BluesnapWebhookObjectEventType =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         api::IncomingWebhookEvent::try_from(details)
     }
@@ -1125,7 +1143,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: connector_utils::to_currency_lower_unit(
@@ -1150,7 +1167,6 @@ impl api::IncomingWebhook for Bluesnap {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let resource: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
-                .into_report()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(resource))
@@ -1165,7 +1181,10 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
             services::PaymentAction::CompleteAuthorize => {
                 let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
@@ -1326,12 +1345,15 @@ impl ConnectorErrorTypeMapping for Bluesnap {
 
 fn get_url_with_merchant_transaction_id(
     base_url: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     merchant_transaction_id: String,
 ) -> CustomResult<String, errors::ConnectorError> {
     Ok(format!(
         "{}{}{},{}",
-        base_url, "services/2/transactions/", merchant_transaction_id, merchant_id
+        base_url,
+        "services/2/transactions/",
+        merchant_transaction_id,
+        merchant_id.get_string_repr()
     ))
 }
 

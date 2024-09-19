@@ -180,3 +180,45 @@ impl super::settings::LockSettings {
         })
     }
 }
+
+impl super::settings::GenericLinkEnvConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.expiry == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "link's expiry should not be 0".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::NetworkTokenizationService {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.token_service_api_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "token_service_api_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.public_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "public_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.key_id.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "key_id must not be empty".into(),
+            ))
+        })?;
+
+        when(self.private_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "private_key must not be empty".into(),
+            ))
+        })
+    }
+}

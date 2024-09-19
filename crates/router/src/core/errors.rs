@@ -1,4 +1,3 @@
-pub mod api_error_response;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
@@ -10,8 +9,12 @@ use std::fmt::Display;
 
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
-pub use data_models::errors::StorageError as DataStorageError;
 use diesel_models::errors as storage_errors;
+pub use hyperswitch_domain_models::errors::{
+    api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage},
+    StorageError as DataStorageError,
+};
+pub use hyperswitch_interfaces::errors::ConnectorError;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
@@ -19,7 +22,6 @@ use storage_impl::errors as storage_impl_errors;
 pub use user::*;
 
 pub use self::{
-    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
@@ -30,7 +32,7 @@ use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
 
-pub type ApplicationResult<T> = Result<T, ApplicationError>;
+pub type ApplicationResult<T> = error_stack::Result<T, ApplicationError>;
 pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
 pub type CustomerResponse<T> =
@@ -68,6 +70,22 @@ macro_rules! capture_method_not_supported {
     };
 }
 
+#[macro_export]
+macro_rules! unimplemented_payment_method {
+    ($payment_method:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} through {}",
+            $payment_method, $connector
+        ))
+    };
+    ($payment_method:expr, $flow:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} {} through {}",
+            $payment_method, $flow, $connector
+        ))
+    };
+}
+
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
         #[derive(Debug)]
@@ -89,119 +107,9 @@ impl From<ring::error::Unspecified> for EncryptionError {
 
 pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     ApiErrorResponse::NotImplemented {
-        message: api_error_response::NotImplementedMessage::Default,
+        message: NotImplementedMessage::Default,
     }
     .error_response()
-}
-
-#[derive(Debug, thiserror::Error, PartialEq)]
-pub enum ConnectorError {
-    #[error("Error while obtaining URL for the integration")]
-    FailedToObtainIntegrationUrl,
-    #[error("Failed to encode connector request")]
-    RequestEncodingFailed,
-    #[error("Request encoding failed : {0}")]
-    RequestEncodingFailedWithReason(String),
-    #[error("Parsing failed")]
-    ParsingFailed,
-    #[error("Failed to deserialize connector response")]
-    ResponseDeserializationFailed,
-    #[error("Failed to execute a processing step: {0:?}")]
-    ProcessingStepFailed(Option<bytes::Bytes>),
-    #[error("The connector returned an unexpected response: {0:?}")]
-    UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to parse custom routing rules from merchant account")]
-    RoutingRulesParsingError,
-    #[error("Failed to obtain preferred connector from merchant account")]
-    FailedToObtainPreferredConnector,
-    #[error("An invalid connector name was provided")]
-    InvalidConnectorName,
-    #[error("An invalid Wallet was used")]
-    InvalidWallet,
-    #[error("Failed to handle connector response")]
-    ResponseHandlingFailed,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
-    #[error("Missing required fields: {field_names:?}")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
-    #[error("Failed to obtain authentication type")]
-    FailedToObtainAuthType,
-    #[error("Failed to obtain certificate")]
-    FailedToObtainCertificate,
-    #[error("Connector meta data not found")]
-    NoConnectorMetaData,
-    #[error("Failed to obtain certificate key")]
-    FailedToObtainCertificateKey,
-    #[error("This step has not been implemented for: {0}")]
-    NotImplemented(String),
-    #[error("{message} is not supported by {connector}")]
-    NotSupported {
-        message: String,
-        connector: &'static str,
-    },
-    #[error("{flow} flow not supported by {connector} connector")]
-    FlowNotSupported { flow: String, connector: String },
-    #[error("Capture method not supported")]
-    CaptureMethodNotSupported,
-    #[error("Missing connector mandate ID")]
-    MissingConnectorMandateID,
-    #[error("Missing connector transaction ID")]
-    MissingConnectorTransactionID,
-    #[error("Missing connector refund ID")]
-    MissingConnectorRefundID,
-    #[error("Missing apple pay tokenization data")]
-    MissingApplePayTokenData,
-    #[error("Webhooks not implemented for this connector")]
-    WebhooksNotImplemented,
-    #[error("Failed to decode webhook event body")]
-    WebhookBodyDecodingFailed,
-    #[error("Signature not found for incoming webhook")]
-    WebhookSignatureNotFound,
-    #[error("Failed to verify webhook source")]
-    WebhookSourceVerificationFailed,
-    #[error("Could not find merchant secret in DB for incoming webhook source verification")]
-    WebhookVerificationSecretNotFound,
-    #[error("Merchant secret found for incoming webhook source verification is invalid")]
-    WebhookVerificationSecretInvalid,
-    #[error("Incoming webhook object reference ID not found")]
-    WebhookReferenceIdNotFound,
-    #[error("Incoming webhook event type not found")]
-    WebhookEventTypeNotFound,
-    #[error("Incoming webhook event resource object not found")]
-    WebhookResourceObjectNotFound,
-    #[error("Could not respond to the incoming webhook event")]
-    WebhookResponseEncodingFailed,
-    #[error("Invalid Date/time format")]
-    InvalidDateFormat,
-    #[error("Date Formatting Failed")]
-    DateFormattingFailed,
-    #[error("Invalid Data format")]
-    InvalidDataFormat { field_name: &'static str },
-    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
-    MismatchedPaymentData,
-    #[error("Failed to parse Wallet token")]
-    InvalidWalletToken,
-    #[error("Missing Connector Related Transaction ID")]
-    MissingConnectorRelatedTransactionID { id: String },
-    #[error("File Validation failed")]
-    FileValidationFailed { reason: String },
-    #[error("Missing 3DS redirection payload: {field_name}")]
-    MissingConnectorRedirectionPayload { field_name: &'static str },
-    #[error("Failed at connector's end with code '{code}'")]
-    FailedAtConnector { message: String, code: String },
-    #[error("Payment Method Type not found")]
-    MissingPaymentMethodType,
-    #[error("Balance in the payment method is low")]
-    InSufficientBalanceInPaymentMethod,
-    #[error("Server responded with Request Timeout")]
-    RequestTimeoutReceived,
-    #[error("The given currency method is not configured with the given connector")]
-    CurrencyNotSupported {
-        message: String,
-        connector: &'static str,
-    },
-    #[error("Invalid Configuration")]
-    InvalidConnectorConfig { config: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -216,6 +124,8 @@ pub enum VaultError {
     SaveCardFailed,
     #[error("Failed to fetch card details from card vault")]
     FetchCardFailed,
+    #[error("Failed to delete card in card vault")]
+    DeleteCardFailed,
     #[error("Failed to encode card vault request")]
     RequestEncodingFailed,
     #[error("Failed to deserialize card vault response")]
@@ -238,6 +148,14 @@ pub enum VaultError {
     SavePaymentMethodFailed,
     #[error("Failed to generate fingerprint")]
     GenerateFingerprintFailed,
+    #[error("Failed to encrypt vault request")]
+    RequestEncryptionFailed,
+    #[error("Failed to decrypt vault response")]
+    ResponseDecryptionFailed,
+    #[error("Failed to call vault")]
+    VaultAPIError,
+    #[error("Failed while calling locker API")]
+    ApiError,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -276,6 +194,8 @@ pub enum WebhooksFlowError {
     OutgoingWebhookProcessTrackerTaskUpdateFailed,
     #[error("Failed to schedule retry attempt for outgoing webhook")]
     OutgoingWebhookRetrySchedulingFailed,
+    #[error("Outgoing webhook response encoding failed")]
+    OutgoingWebhookResponseEncodingFailed,
 }
 
 impl WebhooksFlowError {
@@ -283,7 +203,8 @@ impl WebhooksFlowError {
         match self {
             Self::MerchantConfigNotFound
             | Self::MerchantWebhookDetailsNotFound
-            | Self::MerchantWebhookUrlNotConfigured => false,
+            | Self::MerchantWebhookUrlNotConfigured
+            | Self::OutgoingWebhookResponseEncodingFailed => false,
 
             Self::WebhookEventUpdationFailed
             | Self::OutgoingWebhookSigningFailed
@@ -311,12 +232,6 @@ pub enum ApplePayDecryptionError {
     KeyDeserializationFailed,
     #[error("Failed to Derive a shared secret key")]
     DerivingSharedSecretKeyFailed,
-}
-
-impl ConnectorError {
-    pub fn is_connector_timeout(&self) -> bool {
-        self == &Self::RequestTimeoutReceived
-    }
 }
 
 #[cfg(feature = "detailed_errors")]
@@ -423,4 +338,20 @@ pub enum ConditionalConfigError {
     DslExecutionError,
     #[error("Error constructing the Input")]
     InputConstructionError,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum NetworkTokenizationError {
+    #[error("Failed to save network token in vault")]
+    SaveNetworkTokenFailed,
+    #[error("Failed to fetch network token details from vault")]
+    FetchNetworkTokenFailed,
+    #[error("Failed to encode network token vault request")]
+    RequestEncodingFailed,
+    #[error("Failed to deserialize network token service response")]
+    ResponseDeserializationFailed,
+    #[error("Failed to delete network token")]
+    DeleteNetworkTokenFailed,
+    #[error("Network token service not configured")]
+    NetworkTokenizationServiceNotConfigured,
 }

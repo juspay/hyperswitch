@@ -1,7 +1,4 @@
-use data_models::{
-    errors::StorageError,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntentNew, PaymentIntent},
-};
+use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::{
     errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
@@ -9,6 +6,13 @@ use diesel_models::{
     user::sample_data::PaymentAttemptBatchNew,
 };
 use error_stack::{Report, ResultExt};
+use futures::{future::try_join_all, FutureExt};
+use hyperswitch_domain_models::{
+    behaviour::Conversion,
+    errors::StorageError,
+    merchant_key_store::MerchantKeyStore,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use storage_impl::DataModelExt;
 
 use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
@@ -17,7 +21,9 @@ use crate::{connection::pg_connection_write, core::errors::CustomResult, service
 pub trait BatchSampleDataInterface {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        batch: Vec<PaymentIntentNew>,
+        state: &KeyManagerState,
+        batch: Vec<PaymentIntent>,
+        key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError>;
 
     async fn insert_payment_attempts_batch_for_sample_data(
@@ -32,17 +38,19 @@ pub trait BatchSampleDataInterface {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError>;
 
     async fn delete_payment_attempts_for_sample_data(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError>;
 
     async fn delete_refunds_for_sample_data(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError>;
 }
 
@@ -50,20 +58,35 @@ pub trait BatchSampleDataInterface {
 impl BatchSampleDataInterface for Store {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        batch: Vec<PaymentIntentNew>,
+        state: &KeyManagerState,
+        batch: Vec<PaymentIntent>,
+        key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         let conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        let new_intents = batch.into_iter().map(|i| i.to_storage_model()).collect();
+        let new_intents = try_join_all(batch.into_iter().map(|payment_intent| async {
+            payment_intent
+                .construct_new()
+                .await
+                .change_context(StorageError::EncryptionError)
+        }))
+        .await?;
         sample_data_queries::insert_payment_intents(&conn, new_intents)
             .await
             .map_err(diesel_error_to_data_error)
             .map(|v| {
-                v.into_iter()
-                    .map(PaymentIntent::from_storage_model)
-                    .collect()
-            })
+                try_join_all(v.into_iter().map(|payment_intent| {
+                    PaymentIntent::convert_back(
+                        state,
+                        payment_intent,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                }))
+                .map(|join_result| join_result.change_context(StorageError::DecryptionError))
+            })?
+            .await
     }
 
     async fn insert_payment_attempts_batch_for_sample_data(
@@ -96,7 +119,9 @@ impl BatchSampleDataInterface for Store {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         let conn = pg_connection_write(self)
             .await
@@ -105,15 +130,22 @@ impl BatchSampleDataInterface for Store {
             .await
             .map_err(diesel_error_to_data_error)
             .map(|v| {
-                v.into_iter()
-                    .map(PaymentIntent::from_storage_model)
-                    .collect()
-            })
+                try_join_all(v.into_iter().map(|payment_intent| {
+                    PaymentIntent::convert_back(
+                        state,
+                        payment_intent,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                }))
+                .map(|join_result| join_result.change_context(StorageError::DecryptionError))
+            })?
+            .await
     }
 
     async fn delete_payment_attempts_for_sample_data(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
         let conn = pg_connection_write(self)
             .await
@@ -129,7 +161,7 @@ impl BatchSampleDataInterface for Store {
     }
     async fn delete_refunds_for_sample_data(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError> {
         let conn = pg_connection_write(self)
             .await
@@ -144,7 +176,9 @@ impl BatchSampleDataInterface for Store {
 impl BatchSampleDataInterface for storage_impl::MockDb {
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
-        _batch: Vec<PaymentIntentNew>,
+        _state: &KeyManagerState,
+        _batch: Vec<PaymentIntent>,
+        _key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         Err(StorageError::MockDbError)?
     }
@@ -165,19 +199,21 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
 
     async fn delete_payment_intents_for_sample_data(
         &self,
-        _merchant_id: &str,
+        _state: &KeyManagerState,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         Err(StorageError::MockDbError)?
     }
     async fn delete_payment_attempts_for_sample_data(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
         Err(StorageError::MockDbError)?
     }
     async fn delete_refunds_for_sample_data(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError> {
         Err(StorageError::MockDbError)?
     }

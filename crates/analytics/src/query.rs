@@ -4,25 +4,31 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
+        frm::{FrmDimensions, FrmTransactionType},
+        payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
-        PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
+        PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
 };
-use common_utils::errors::{CustomResult, ParsingError};
-use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    id_type::{MerchantId, OrganizationId, ProfileId},
+};
+use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
+use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
-use crate::types::QueryExecutionError;
+use crate::{enums::AuthInfo, types::QueryExecutionError};
 pub type QueryResult<T> = error_stack::Result<T, QueryBuildingError>;
 pub trait QueryFilter<T>
 where
@@ -179,7 +185,6 @@ impl SeriesBucket for Granularity {
                 time::Time::MIDNIGHT.replace_hour(clip_start(value.hour(), i))
             }
         }
-        .into_report()
         .change_context(PostProcessingError::BucketClipping)?;
 
         Ok(value.replace_time(clipped_time))
@@ -206,7 +211,6 @@ impl SeriesBucket for Granularity {
                 time::Time::MIDNIGHT.replace_hour(clip_end(value.hour(), i))
             }
         }
-        .into_report()
         .change_context(PostProcessingError::BucketClipping)
         .attach_printable_lazy(|| format!("Bucket Clip Error: {value}"))?;
 
@@ -249,6 +253,15 @@ pub enum Aggregate<R> {
         field: R,
         alias: Option<&'static str>,
     },
+    Percentile {
+        field: R,
+        alias: Option<&'static str>,
+        percentile: Option<&'static u8>,
+    },
+    DistinctCount {
+        field: R,
+        alias: Option<&'static str>,
+    },
 }
 
 // Window functions in query
@@ -288,12 +301,12 @@ pub enum Order {
     Descending,
 }
 
-impl ToString for Order {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Ascending => "asc",
-            Self::Descending => "desc",
-        })
+impl std::fmt::Display for Order {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ascending => write!(f, "asc"),
+            Self::Descending => write!(f, "desc"),
+        }
     }
 }
 
@@ -313,6 +326,7 @@ impl ToString for Order {
 //     "count",
 //     Order::Descending,
 // )
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TopN {
     pub columns: String,
@@ -343,6 +357,36 @@ pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
 }
 
+impl<T: AnalyticsDataSource> ToSql<T> for &MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &OrganizationId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for ProfileId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::PaymentId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
 /// Implement `ToSql` on arrays of types that impl `ToString`.
 macro_rules! impl_to_sql_for_to_string {
     ($($type:ty),+) => {
@@ -360,19 +404,26 @@ impl_to_sql_for_to_string!(
     String,
     &str,
     &PaymentDimensions,
+    &PaymentIntentDimensions,
     &RefundDimensions,
+    &FrmDimensions,
     PaymentDimensions,
+    PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
     Connector,
     AttemptStatus,
+    IntentStatus,
     RefundStatus,
+    FraudCheckStatus,
     storage_enums::RefundStatus,
     Currency,
     RefundType,
+    FrmTransactionType,
     Flow,
     &String,
     &bool,
@@ -381,15 +432,22 @@ impl_to_sql_for_to_string!(
     Order
 );
 
-impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
-
-impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
-
-impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
+impl_to_sql_for_to_string!(
+    &SdkEventDimensions,
+    SdkEventDimensions,
+    SdkEventNames,
+    AuthEventFlows,
+    &ApiEventDimensions,
+    ApiEventDimensions,
+    &DisputeDimensions,
+    DisputeDimensions,
+    DisputeStage
+);
 
 #[derive(Debug)]
 pub enum FilterTypes {
     Equal,
+    NotEqual,
     EqualBool,
     In,
     Gte,
@@ -404,6 +462,7 @@ pub fn filter_type_to_sql(l: &String, op: &FilterTypes, r: &String) -> String {
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
         FilterTypes::Equal => format!("{l} = '{r}'"),
+        FilterTypes::NotEqual => format!("{l} != '{r}'"),
         FilterTypes::In => format!("{l} IN ({r})"),
         FilterTypes::Gte => format!("{l} >= '{r}'"),
         FilterTypes::Gt => format!("{l} > {r}"),
@@ -505,6 +564,14 @@ where
         value: impl ToSql<T>,
     ) -> QueryResult<()> {
         self.add_custom_filter_clause(key, value, FilterTypes::EqualBool)
+    }
+
+    pub fn add_negative_filter_clause(
+        &mut self,
+        key: impl ToSql<T>,
+        value: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        self.add_custom_filter_clause(key, value, FilterTypes::NotEqual)
     }
 
     pub fn add_custom_filter_clause(
@@ -644,8 +711,7 @@ where
         if self.columns.is_empty() {
             Err(QueryBuildingError::InvalidQuery(
                 "No select fields provided",
-            ))
-            .into_report()?;
+            ))?;
         }
         let mut query = String::from("SELECT ");
 
@@ -705,17 +771,17 @@ where
             query.push_str(format!(") _ WHERE top_n <= {}", top_n.count).as_str());
         }
 
-        println!("{}", query);
+        logger::debug!(%query);
 
         Ok(query)
     }
 
-    pub async fn execute_query<R, P: AnalyticsDataSource>(
+    pub async fn execute_query<R, P>(
         &mut self,
         store: &P,
     ) -> CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>
     where
-        P: LoadRow<R>,
+        P: LoadRow<R> + AnalyticsDataSource,
         Aggregate<&'static str>: ToSql<T>,
         Window<&'static str>: ToSql<T>,
     {
@@ -723,7 +789,50 @@ where
             .build_query()
             .change_context(QueryBuildingError::SqlSerializeError)
             .attach_printable("Failed to execute query")?;
-        logger::debug!(?query);
+
         Ok(store.load_results(query.as_str()).await)
+    }
+}
+
+impl<T> QueryFilter<T> for AuthInfo
+where
+    T: AnalyticsDataSource,
+    AnalyticsCollection: ToSql<T>,
+{
+    fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
+        match self {
+            Self::OrgLevel { org_id } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+            }
+            Self::MerchantLevel {
+                org_id,
+                merchant_ids,
+            } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+                builder
+                    .add_filter_in_range_clause("merchant_id", merchant_ids)
+                    .attach_printable("Error adding merchant_id filter")?;
+            }
+            Self::ProfileLevel {
+                org_id,
+                merchant_id,
+                profile_ids,
+            } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+                builder
+                    .add_filter_clause("merchant_id", merchant_id)
+                    .attach_printable("Error adding merchant_id filter")?;
+                builder
+                    .add_filter_in_range_clause("profile_id", profile_ids)
+                    .attach_printable("Error adding profile_id filter")?;
+            }
+        }
+        Ok(())
     }
 }

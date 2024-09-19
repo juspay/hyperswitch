@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use common_utils::{
     errors::{CustomResult, ErrorSwitch, ParsingError},
     events::{ApiEventMetric, ApiEventsType},
-    impl_misc_api_event_type,
+    impl_api_event_type,
 };
 use error_stack::{report, Report, ResultExt};
 
@@ -15,6 +15,9 @@ use crate::errors::AnalyticsError;
 pub enum AnalyticsDomain {
     Payments,
     Refunds,
+    Frm,
+    PaymentIntents,
+    AuthEvents,
     SdkEvents,
     ApiEvents,
     Dispute,
@@ -24,12 +27,16 @@ pub enum AnalyticsDomain {
 pub enum AnalyticsCollection {
     Payment,
     Refund,
+    FraudCheck,
     SdkEvents,
+    SdkEventsAnalytics,
     ApiEvents,
     PaymentIntent,
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,
+    ApiEventsAnalytics,
+    ActivePaymentsAnalytics,
 }
 
 #[allow(dead_code)]
@@ -39,7 +46,7 @@ pub enum TableEngine {
     BasicTree,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Hash)]
 #[serde(transparent)]
 pub struct DBEnumWrapper<T: FromStr + Display>(pub T);
 
@@ -62,11 +69,6 @@ where
             .attach_printable_lazy(|| format!("raw_value: {s}"))
     }
 }
-
-// Analytics Framework
-
-pub trait RefundAnalytics {}
-pub trait SdkEventAnalytics {}
 
 #[async_trait::async_trait]
 pub trait AnalyticsDataSource
@@ -148,4 +150,4 @@ impl ErrorSwitch<AnalyticsError> for FiltersError {
     }
 }
 
-impl_misc_api_event_type!(AnalyticsDomain);
+impl_api_event_type!(Miscellaneous, (AnalyticsDomain));

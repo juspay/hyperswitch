@@ -103,6 +103,8 @@ pub struct LogTelemetry {
     pub use_xray_generator: bool,
     /// Route Based Tracing
     pub route_to_trace: Option<Vec<String>>,
+    /// Interval for collecting the metrics (such as gauge) in background thread
+    pub bg_metrics_collection_interval_in_secs: Option<u16>,
 }
 
 /// Telemetry / tracing.
@@ -149,6 +151,8 @@ impl Config {
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 
+        // The logger may not yet be initialized when constructing the application configuration
+        #[allow(clippy::print_stderr)]
         serde_path_to_error::deserialize(config).map_err(|error| {
             crate::error!(%error, "Unable to deserialize configuration");
             eprintln!("Unable to deserialize application configuration: {error}");

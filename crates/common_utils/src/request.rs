@@ -1,9 +1,5 @@
 use masking::{Maskable, Secret};
-#[cfg(feature = "logs")]
-use router_env::logger;
 use serde::{Deserialize, Serialize};
-
-use crate::errors;
 
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
@@ -39,8 +35,8 @@ pub struct Request {
     pub url: String,
     pub headers: Headers,
     pub method: Method,
-    pub certificate: Option<String>,
-    pub certificate_key: Option<String>,
+    pub certificate: Option<Secret<String>>,
+    pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
 }
 
@@ -51,6 +47,7 @@ impl std::fmt::Debug for RequestContent {
             Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
             Self::FormData(_) => "FormDataRequestBody",
             Self::Xml(_) => "XmlRequestBody",
+            Self::RawBytes(_) => "RawBytesRequestBody",
         })
     }
 }
@@ -60,6 +57,19 @@ pub enum RequestContent {
     FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize + Send>),
     FormData(reqwest::multipart::Form),
     Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
+    RawBytes(Vec<u8>),
+}
+
+impl RequestContent {
+    pub fn get_inner_value(&self) -> Secret<String> {
+        match self {
+            Self::Json(i) => serde_json::to_string(&i).unwrap_or_default().into(),
+            Self::FormUrlEncoded(i) => serde_urlencoded::to_string(i).unwrap_or_default().into(),
+            Self::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
+            Self::FormData(_) => String::new().into(),
+            Self::RawBytes(_) => String::new().into(),
+        }
+    }
 }
 
 impl Request {
@@ -86,11 +96,11 @@ impl Request {
         self.headers.insert((String::from(header), value));
     }
 
-    pub fn add_certificate(&mut self, certificate: Option<String>) {
+    pub fn add_certificate(&mut self, certificate: Option<Secret<String>>) {
         self.certificate = certificate;
     }
 
-    pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
+    pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
         self.certificate = certificate_key;
     }
 }
@@ -100,8 +110,8 @@ pub struct RequestBuilder {
     pub url: String,
     pub headers: Headers,
     pub method: Method,
-    pub certificate: Option<String>,
-    pub certificate_key: Option<String>,
+    pub certificate: Option<Secret<String>>,
+    pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
 }
 
@@ -142,17 +152,22 @@ impl RequestBuilder {
         self
     }
 
+    pub fn set_optional_body<T: Into<RequestContent>>(mut self, body: Option<T>) -> Self {
+        body.map(|body| self.body.replace(body.into()));
+        self
+    }
+
     pub fn set_body<T: Into<RequestContent>>(mut self, body: T) -> Self {
         self.body.replace(body.into());
         self
     }
 
-    pub fn add_certificate(mut self, certificate: Option<String>) -> Self {
+    pub fn add_certificate(mut self, certificate: Option<Secret<String>>) -> Self {
         self.certificate = certificate;
         self
     }
 
-    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> Self {
+    pub fn add_certificate_key(mut self, certificate_key: Option<Secret<String>>) -> Self {
         self.certificate_key = certificate_key;
         self
     }
@@ -172,34 +187,5 @@ impl RequestBuilder {
 impl Default for RequestBuilder {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RequestBody(Secret<String>);
-
-impl RequestBody {
-    pub fn log_and_get_request_body<T, F>(
-        body: T,
-        encoder: F,
-    ) -> errors::CustomResult<Self, errors::ParsingError>
-    where
-        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
-        T: std::fmt::Debug,
-    {
-        #[cfg(feature = "logs")]
-        logger::info!(connector_request_body=?body);
-        Ok(Self(Secret::new(encoder(body)?)))
-    }
-
-    pub fn get_inner_value(request_body: RequestContent) -> Secret<String> {
-        match request_body {
-            RequestContent::Json(i) => serde_json::to_string(&i).unwrap_or_default().into(),
-            RequestContent::FormUrlEncoded(i) => {
-                serde_urlencoded::to_string(&i).unwrap_or_default().into()
-            }
-            RequestContent::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
-            RequestContent::FormData(_) => String::new().into(),
-        }
     }
 }

@@ -1,14 +1,18 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::request::RequestContent;
-use error_stack::{IntoReport, ResultExt};
+use common_enums::AttemptStatus;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as multisafepay;
 
+use super::utils::{self as connector_utils};
 use crate::{
     configs::settings,
+    connector::utils::{is_mandate_supported, PaymentMethodDataType},
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -21,13 +25,24 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Multisafepay;
+#[derive(Clone)]
+pub struct Multisafepay {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Multisafepay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Multisafepay
 where
@@ -63,8 +78,7 @@ impl ConnectorCommon for Multisafepay {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: multisafepay::MultisafepayAuthType = auth_type
-            .try_into()
+        let auth = multisafepay::MultisafepayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -85,14 +99,16 @@ impl ConnectorCommon for Multisafepay {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code.to_string(),
-            message: response.error_info,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        let attempt_status = Option::<AttemptStatus>::from(response.clone());
+
+        Ok(ErrorResponse::foreign_from((
+            Some(response.error_code.to_string()),
+            Some(response.error_info.clone()),
+            Some(response.error_info),
+            res.status_code,
+            attempt_status,
+            None,
+        )))
     }
 }
 
@@ -112,6 +128,18 @@ impl ConnectorValidation for Multisafepay {
             )
             .into()),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+        ]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -292,12 +320,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = multisafepay::MultisafepayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = multisafepay::MultisafepayRouterData::from((amount, req));
         let connector_req =
             multisafepay::MultisafepayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -339,12 +367,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -397,13 +424,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(&connector_req)?;
+        )?;
+        let connector_router_data = multisafepay::MultisafepayRouterData::from((amount, req));
+        let connector_req =
+            multisafepay::MultisafepayRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -439,12 +467,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
@@ -515,12 +542,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
@@ -539,7 +565,7 @@ impl api::IncomingWebhook for Multisafepay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -553,6 +579,6 @@ impl api::IncomingWebhook for Multisafepay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

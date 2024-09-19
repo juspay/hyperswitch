@@ -1,11 +1,15 @@
 pub mod transformers;
-use std::fmt::Debug;
 
-use common_utils::{ext_traits::XmlExt, request::RequestContent};
+use common_utils::{
+    ext_traits::XmlExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
-use error_stack::{IntoReport, Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
 use ring::hmac;
+use router_env::metrics::add_attributes;
 use roxmltree;
 use time::OffsetDateTime;
 use transformers as boku;
@@ -31,8 +35,18 @@ use crate::{
     utils::{BytesExt, OptionExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Boku;
+#[derive(Clone)]
+pub struct Boku {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Boku {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Boku {}
 impl api::PaymentSession for Boku {}
@@ -230,7 +244,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = boku::BokuPaymentsRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = boku::BokuRouterData::from((amount, req));
+        let connector_req = boku::BokuPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
@@ -263,12 +284,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response_data = String::from_utf8(res.response.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let response = response_data
             .parse_xml::<boku::BokuResponse>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -350,12 +369,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response_data = String::from_utf8(res.response.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let response = response_data
             .parse_xml::<boku::BokuResponse>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -433,12 +450,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response_data = String::from_utf8(res.response.to_vec())
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let response = response_data
             .parse_xml::<boku::BokuResponse>()
-            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -494,7 +509,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = boku::BokuRefundRequest::try_from(req)?;
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = boku::BokuRouterData::from((refund_amount, req));
+        let connector_req = boku::BokuRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
@@ -634,21 +656,21 @@ impl api::IncomingWebhook for Boku {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
@@ -671,11 +693,10 @@ fn get_xml_deserialized(
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("connector", "boku")],
+        &add_attributes([("connector", "boku")]),
     );
 
     let response_data = String::from_utf8(res.response.to_vec())
-        .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     event_builder.map(|i| i.set_error_response_body(&response_data));

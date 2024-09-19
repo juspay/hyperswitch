@@ -16,7 +16,7 @@ async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/37"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/37"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-success"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -35,7 +35,7 @@ async fn should_make_giropay_payment(c: WebDriver) -> Result<(), WebDriverError>
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/39"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/39"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-success"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -54,7 +54,7 @@ async fn should_make_ideal_payment(c: WebDriver) -> Result<(), WebDriverError> {
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/42"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/42"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-success"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -73,7 +73,7 @@ async fn should_make_sofort_payment(c: WebDriver) -> Result<(), WebDriverError> 
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/43"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/43"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-success"))),
             Event::Assert(Assert::IsPresent("Google")),
@@ -92,7 +92,7 @@ async fn should_make_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/157"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/157"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-success"))),
             Event::Assert(Assert::IsPresent("Google")),

@@ -1,11 +1,11 @@
 use actix_web::HttpRequest;
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
-use common_utils::impl_misc_api_event_type;
+use common_utils::impl_api_event_type;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::Serialize;
 use time::OffsetDateTime;
 
-use super::{EventType, RawEvent};
+use super::EventType;
 #[cfg(feature = "dummy_connector")]
 use crate::routes::dummy_connector::types::{
     DummyConnectorPaymentCompleteRequest, DummyConnectorPaymentConfirmRequest,
@@ -15,16 +15,16 @@ use crate::routes::dummy_connector::types::{
 };
 use crate::{
     core::payments::PaymentsRedirectResponseData,
-    services::{authentication::AuthenticationType, ApplicationResponse, PaymentLinkFormData},
+    services::{authentication::AuthenticationType, kafka::KafkaMessage},
     types::api::{
-        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId,
+        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId, PollId,
     },
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
-    merchant_id: Option<String>,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
     api_flow: String,
     created_at_timestamp: i128,
     request_id: String,
@@ -47,7 +47,7 @@ pub struct ApiEvent {
 impl ApiEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        merchant_id: Option<String>,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
         api_flow: &impl FlowMetric,
         request_id: &RequestId,
         latency: u128,
@@ -88,46 +88,40 @@ impl ApiEvent {
     }
 }
 
-impl TryFrom<ApiEvent> for RawEvent {
-    type Error = serde_json::Error;
+impl KafkaMessage for ApiEvent {
+    fn event_type(&self) -> EventType {
+        EventType::ApiLogs
+    }
 
-    fn try_from(value: ApiEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::ApiLogs,
-            key: value.request_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.request_id.clone()
     }
 }
 
-impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        match self {
-            Self::Json(r) => r.get_api_event_type(),
-            Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
-            _ => None,
-        }
-    }
-}
-impl_misc_api_event_type!(
-    Config,
-    CreateFileRequest,
-    FileId,
-    AttachEvidenceRequest,
-    PaymentLinkFormData,
-    ConfigUpdate
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        Config,
+        CreateFileRequest,
+        FileId,
+        AttachEvidenceRequest,
+        ConfigUpdate
+    )
 );
 
 #[cfg(feature = "dummy_connector")]
-impl_misc_api_event_type!(
-    DummyConnectorPaymentCompleteRequest,
-    DummyConnectorPaymentRequest,
-    DummyConnectorPaymentResponse,
-    DummyConnectorPaymentRetrieveRequest,
-    DummyConnectorPaymentConfirmRequest,
-    DummyConnectorRefundRetrieveRequest,
-    DummyConnectorRefundResponse,
-    DummyConnectorRefundRequest
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        DummyConnectorPaymentCompleteRequest,
+        DummyConnectorPaymentRequest,
+        DummyConnectorPaymentResponse,
+        DummyConnectorPaymentRetrieveRequest,
+        DummyConnectorPaymentConfirmRequest,
+        DummyConnectorRefundRetrieveRequest,
+        DummyConnectorRefundResponse,
+        DummyConnectorRefundRequest
+    )
 );
 
 impl ApiEventMetric for PaymentsRedirectResponseData {
@@ -146,6 +140,14 @@ impl ApiEventMetric for DisputeId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Dispute {
             dispute_id: self.dispute_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PollId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Poll {
+            poll_id: self.poll_id.clone(),
         })
     }
 }

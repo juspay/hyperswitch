@@ -8,7 +8,7 @@ use aws_sdk_sesv2::{
 };
 use aws_sdk_sts::config::Credentials;
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use hyper::Uri;
 use masking::PeekInterface;
 use router_env::logger;
@@ -102,7 +102,6 @@ impl AwsSes {
             .role_session_name(&ses_config.sts_role_session_name)
             .send()
             .await
-            .into_report()
             .change_context(AwsSesError::AssumeRoleFailure {
                 region: conf.aws_region.to_owned(),
                 role_arn: ses_config.email_role_arn.to_owned(),
@@ -181,14 +180,12 @@ impl AwsSes {
         let proxy_uri = proxy_url
             .as_ref()
             .parse::<Uri>()
-            .into_report()
             .attach_printable("Unable to parse the proxy url {proxy_url}")
             .change_context(AwsSesError::BuildingProxyConnectorFailed)?;
 
         let proxy = hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, proxy_uri);
 
         hyper_proxy::ProxyConnector::from_proxy(hyper::client::HttpConnector::new(), proxy)
-            .into_report()
             .change_context(AwsSesError::BuildingProxyConnectorFailed)
     }
 }
@@ -247,7 +244,6 @@ impl EmailClient for AwsSes {
             .send()
             .await
             .map_err(AwsSesError::SendingFailure)
-            .into_report()
             .change_context(EmailError::EmailSendingFailure)?;
 
         Ok(())

@@ -1,0 +1,41 @@
+ALTER TABLE
+  PAYOUTS
+ADD
+  COLUMN profile_id VARCHAR(64);
+
+UPDATE
+  PAYOUTS AS PO
+SET
+  profile_id = POA.profile_id
+FROM
+  PAYOUT_ATTEMPT AS POA
+WHERE
+  PO.payout_id = POA.payout_id;
+
+ALTER TABLE
+  PAYOUTS
+ALTER COLUMN
+  profile_id
+SET
+  NOT NULL;
+
+ALTER TABLE
+  PAYOUTS
+ADD
+  COLUMN status "PayoutStatus";
+
+UPDATE
+  PAYOUTS AS PO
+SET
+  status = POA.status
+FROM
+  PAYOUT_ATTEMPT AS POA
+WHERE
+  PO.payout_id = POA.payout_id;
+
+ALTER TABLE
+  PAYOUTS
+ALTER COLUMN
+  status
+SET
+  NOT NULL;

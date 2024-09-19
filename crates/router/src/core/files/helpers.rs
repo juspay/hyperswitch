@@ -1,14 +1,15 @@
 use actix_multipart::Field;
 use common_utils::errors::CustomResult;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use futures::TryStreamExt;
+use hyperswitch_domain_models::router_response_types::disputes::FileInfo;
 
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
         payments, utils,
     },
-    routes::AppState,
+    routes::SessionState,
     services,
     types::{self, api, domain, transformers::ForeignTryFrom},
 };
@@ -31,7 +32,7 @@ pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
 }
 
 pub async fn validate_file_upload(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -43,7 +44,7 @@ pub async fn validate_file_upload(
                 .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
             let dispute = state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, dispute_id)
+                .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), dispute_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
                     dispute_id: dispute_id.to_string(),
@@ -81,13 +82,13 @@ pub async fn validate_file_upload(
 }
 
 pub async fn delete_file_using_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_key: String,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let file_metadata_object = state
         .store
-        .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
+        .find_file_metadata_by_merchant_id_file_id(merchant_account.get_id(), &file_key)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)?;
     let (provider, provider_file_id) = match (
@@ -97,7 +98,6 @@ pub async fn delete_file_using_file_id(
     ) {
         (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
         _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File not available")?,
     };
     match provider {
@@ -114,7 +114,7 @@ pub async fn delete_file_using_file_id(
 }
 
 pub async fn retrieve_file_from_connector(
-    state: &AppState,
+    state: &SessionState,
     file_metadata: diesel_models::file::FileMetadata,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -123,7 +123,6 @@ pub async fn retrieve_file_from_connector(
         file_metadata
             .file_upload_provider
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Missing file upload provider")?,
     )?
     .to_string();
@@ -133,8 +132,7 @@ pub async fn retrieve_file_from_connector(
         api::GetToken::Connector,
         file_metadata.merchant_connector_id.clone(),
     )?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
+    let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
         api::Retrieve,
         types::RetrieveFileRequestData,
         types::RetrieveFileResponse,
@@ -173,18 +171,22 @@ pub async fn retrieve_file_from_connector(
 }
 
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
-    state: &AppState,
+    state: &SessionState,
     file_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     is_connector_file_data_required: api::FileDataRequired,
-) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
+) -> CustomResult<FileInfo, errors::ApiErrorResponse> {
     match file_id {
-        None => Ok((None, None)),
+        None => Ok(FileInfo {
+            file_data: None,
+            provider_file_id: None,
+            file_type: None,
+        }),
         Some(file_key) => {
             let file_metadata_object = state
                 .store
-                .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
+                .find_file_metadata_by_merchant_id_file_id(merchant_account.get_id(), &file_key)
                 .await
                 .change_context(errors::ApiErrorResponse::FileNotFound)?;
             let (provider, provider_file_id) = match (
@@ -194,26 +196,26 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
             ) {
                 (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
                 _ => Err(errors::ApiErrorResponse::FileNotAvailable)
-                    .into_report()
                     .attach_printable("File not available")?,
             };
             match provider {
-                diesel_models::enums::FileUploadProvider::Router => Ok((
-                    Some(
+                diesel_models::enums::FileUploadProvider::Router => Ok(FileInfo {
+                    file_data: Some(
                         state
                             .file_storage_client
                             .retrieve_file(&provider_file_id)
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                     ),
-                    Some(provider_file_id),
-                )),
+                    provider_file_id: Some(provider_file_id),
+                    file_type: Some(file_metadata_object.file_type),
+                }),
                 _ => {
                     let connector_file_data = match is_connector_file_data_required {
                         api::FileDataRequired::Required => Some(
                             retrieve_file_from_connector(
                                 state,
-                                file_metadata_object,
+                                file_metadata_object.clone(),
                                 merchant_account,
                                 key_store,
                             )
@@ -221,16 +223,21 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                         ),
                         api::FileDataRequired::NotRequired => None,
                     };
-                    Ok((connector_file_data, Some(provider_file_id)))
+                    Ok(FileInfo {
+                        file_data: connector_file_data,
+                        provider_file_id: Some(provider_file_id),
+                        file_type: Some(file_metadata_object.file_type),
+                    })
                 }
             }
         }
     }
 }
 
+#[cfg(feature = "v2")]
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_profile_id(
-    state: &AppState,
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     create_file_request: &api::CreateFileRequest,
@@ -239,8 +246,28 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
     (
         String,
         api_models::enums::FileUploadProvider,
-        Option<String>,
-        Option<String>,
+        Option<common_utils::id_type::ProfileId>,
+        Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ),
+    errors::ApiErrorResponse,
+> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+//Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
+pub async fn upload_and_get_provider_provider_file_id_profile_id(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    create_file_request: &api::CreateFileRequest,
+    file_key: String,
+) -> CustomResult<
+    (
+        String,
+        api_models::enums::FileUploadProvider,
+        Option<common_utils::id_type::ProfileId>,
+        Option<common_utils::id_type::MerchantConnectorAccountId>,
     ),
     errors::ApiErrorResponse,
 > {
@@ -252,7 +279,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
             let dispute = state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+                .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &dispute_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound { dispute_id })?;
             let connector_data = api::ConnectorData::get_connector_by_name(
@@ -265,24 +292,26 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 let payment_intent = state
                     .store
                     .find_payment_intent_by_payment_id_merchant_id(
+                        &state.into(),
                         &dispute.payment_id,
-                        &merchant_account.merchant_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-                let payment_attempt = state
-                    .store
-                    .find_payment_attempt_by_attempt_id_merchant_id(
-                        &dispute.attempt_id,
-                        &merchant_account.merchant_id,
+                        merchant_account.get_id(),
+                        key_store,
                         merchant_account.storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let payment_attempt = state
+                    .store
+                    .find_payment_attempt_by_attempt_id_merchant_id(
+                        &dispute.attempt_id,
+                        merchant_account.get_id(),
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                let connector_integration: services::BoxedFilesConnectorIntegrationInterface<
                     api::Upload,
                     types::UploadFileRequestData,
                     types::UploadFileResponse,

@@ -1,60 +1,35 @@
-use cards::CardNumber;
-use serde::{Deserialize, Serialize};
+use error_stack::{Report, ResultExt};
+pub use hyperswitch_domain_models::router_request_types::authentication::{
+    AcquirerDetails, ExternalThreeDSConnectorMetadata, PreAuthenticationData, ThreeDsMethodData,
+};
 
 use crate::{
-    core::payments,
-    types::{authentication::AuthNFlowType, storage},
+    core::errors,
+    types::{storage, transformers::ForeignTryFrom},
+    utils::OptionExt,
 };
-pub enum PreAuthenthenticationFlowInput<'a, F: Clone> {
-    PaymentAuthNFlow {
-        payment_data: &'a mut payments::PaymentData<F>,
-        should_continue_confirm_transaction: &'a mut bool,
-        card_number: CardNumber,
-    },
-    PaymentMethodAuthNFlow {
-        card_number: CardNumber,
-        other_fields: String, //should be expanded when implementation begins
-    },
-}
 
-pub enum PostAuthenthenticationFlowInput<'a, F: Clone> {
-    PaymentAuthNFlow {
-        payment_data: &'a mut payments::PaymentData<F>,
-        authentication_data: (storage::Authentication, AuthenticationData),
-        should_continue_confirm_transaction: &'a mut bool,
-    },
-    PaymentMethodAuthNFlow {
-        other_fields: String, //should be expanded when implementation begins
-    },
-}
+impl ForeignTryFrom<&storage::Authentication> for PreAuthenticationData {
+    type Error = Report<errors::ApiErrorResponse>;
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct AuthenticationData {
-    pub maximum_supported_version: (i64, i64, i64),
-    pub threeds_server_transaction_id: String,
-    pub cavv: Option<String>,
-    pub authn_flow_type: Option<AuthNFlowType>,
-    pub three_ds_method_data: ThreeDsMethodData,
-    pub message_version: String,
-    pub eci: Option<String>,
-    pub trans_status: api_models::payments::TransactionStatus,
-    pub acquirer_details: Option<AcquirerDetails>,
-}
-
-impl AuthenticationData {
-    pub fn is_separate_authn_required(&self) -> bool {
-        self.maximum_supported_version.0 == 2
+    fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
+        let error_message = errors::ApiErrorResponse::UnprocessableEntity { message: "Pre Authentication must be completed successfully before Authentication can be performed".to_string() };
+        let threeds_server_transaction_id = authentication
+            .threeds_server_transaction_id
+            .clone()
+            .get_required_value("threeds_server_transaction_id")
+            .change_context(error_message)?;
+        let message_version = authentication
+            .message_version
+            .clone()
+            .get_required_value("message_version")?;
+        Ok(Self {
+            threeds_server_transaction_id,
+            message_version,
+            acquirer_bin: authentication.acquirer_bin.clone(),
+            acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
+            acquirer_country_code: authentication.acquirer_country_code.clone(),
+            connector_metadata: authentication.connector_metadata.clone(),
+        })
     }
-}
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct ThreeDsMethodData {
-    pub three_ds_method_data_submission: bool,
-    pub three_ds_method_data: String,
-    pub three_ds_method_url: Option<String>,
-}
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct AcquirerDetails {
-    pub acquirer_bin: String,
-    pub acquirer_merchant_id: String,
 }

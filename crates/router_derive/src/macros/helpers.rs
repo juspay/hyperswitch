@@ -58,7 +58,7 @@ pub(super) fn get_struct_fields(
         Ok(named.to_owned())
     } else {
         Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
+            Span::call_site(),
             "This macro cannot be used on structs with no fields",
         ))
     }

@@ -1,5 +1,9 @@
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    ext_traits::ByteSliceExt,
+    types::MinorUnit,
+};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -13,36 +17,22 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    unimplemented_payment_method,
 };
 
 #[derive(Debug, Serialize)]
 pub struct CheckoutRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for CheckoutRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for CheckoutRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -89,60 +79,62 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
-                api_models::payments::WalletData::GooglePay(_data) => {
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                domain::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?;
                     Ok(Self::Googlepay(json_wallet_data))
                 }
-                api_models::payments::WalletData::ApplePay(_data) => {
+                domain::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
-                        wallet_data.get_wallet_token_as_json()?;
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_)
-                | api_models::payments::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    )
-                    .into())
-                }
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )
+                .into()),
             },
-            api_models::payments::PaymentMethodData::Card(_)
-            | api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api_models::payments::PaymentMethodData::CardToken(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -233,7 +225,7 @@ pub struct ReturnUrl {
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub processing_channel_id: Secret<String>,
     #[serde(rename = "3ds")]
@@ -291,7 +283,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
         item: &CheckoutRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let source_var = match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
+            domain::PaymentMethodData::Card(ccard) => {
                 let a = PaymentSource::Card(CardSource {
                     source_type: CheckoutSourceTypes::Card,
                     number: ccard.card_number.clone(),
@@ -301,25 +293,23 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 });
                 Ok(a)
             }
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(_) => {
-                    Ok(PaymentSource::Wallets(WalletSource {
-                        source_type: CheckoutSourceTypes::Token,
-                        token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token.into(),
-                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
-                            }
-                        },
-                    }))
-                }
-                api_models::payments::WalletData::ApplePay(_) => {
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
+                    source_type: CheckoutSourceTypes::Token,
+                    token: match item.router_data.get_payment_method_token()? {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
+                        )?,
+                    },
+                })),
+                domain::WalletData::ApplePay(_) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
                     match payment_method_token {
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token.into(),
+                                token: apple_pay_payment_token,
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -339,50 +329,54 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         }
                     }
                 }
-                api_models::payments::WalletData::AliPayQr(_)
-                | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_)
-                | api_models::payments::WalletData::MomoRedirect(_)
-                | api_models::payments::WalletData::KakaoPayRedirect(_)
-                | api_models::payments::WalletData::GoPayRedirect(_)
-                | api_models::payments::WalletData::GcashRedirect(_)
-                | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
-                | api_models::payments::WalletData::DanaRedirect {}
-                | api_models::payments::WalletData::GooglePayRedirect(_)
-                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
-                | api_models::payments::WalletData::MbWayRedirect(_)
-                | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
-                | api_models::payments::WalletData::PaypalSdk(_)
-                | api_models::payments::WalletData::SamsungPay(_)
-                | api_models::payments::WalletData::TwintRedirect {}
-                | api_models::payments::WalletData::VippsRedirect {}
-                | api_models::payments::WalletData::TouchNGoRedirect(_)
-                | api_models::payments::WalletData::WeChatPayRedirect(_)
-                | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_)
-                | api_models::payments::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("checkout"),
-                    ))
-                }
+                domain::WalletData::AliPayQr(_)
+                | domain::WalletData::AliPayRedirect(_)
+                | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::MomoRedirect(_)
+                | domain::WalletData::KakaoPayRedirect(_)
+                | domain::WalletData::GoPayRedirect(_)
+                | domain::WalletData::GcashRedirect(_)
+                | domain::WalletData::ApplePayRedirect(_)
+                | domain::WalletData::ApplePayThirdPartySdk(_)
+                | domain::WalletData::DanaRedirect {}
+                | domain::WalletData::GooglePayRedirect(_)
+                | domain::WalletData::GooglePayThirdPartySdk(_)
+                | domain::WalletData::MbWayRedirect(_)
+                | domain::WalletData::MobilePayRedirect(_)
+                | domain::WalletData::PaypalRedirect(_)
+                | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::SamsungPay(_)
+                | domain::WalletData::TwintRedirect {}
+                | domain::WalletData::VippsRedirect {}
+                | domain::WalletData::TouchNGoRedirect(_)
+                | domain::WalletData::WeChatPayRedirect(_)
+                | domain::WalletData::CashappQr(_)
+                | domain::WalletData::SwishQr(_)
+                | domain::WalletData::WeChatPayQr(_)
+                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )),
             },
 
-            api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::BankTransfer(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
-            | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("checkout"),
-            )),
+            domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                ))
+            }
         }?;
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
@@ -392,9 +386,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 enabled: true,
                 force_3ds: true,
                 eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
+                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
                 xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.map(|auth| auth.message_version.clone()),
+                version: authentication_data.map(|auth| auth.message_version.to_string()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
@@ -429,7 +423,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let metadata = item.router_data.request.metadata.clone();
+        let metadata = item.router_data.request.metadata.clone().map(Into::into);
         Ok(Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -602,7 +596,7 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
-    amount: Option<i32>,
+    amount: Option<MinorUnit>,
     currency: Option<String>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
@@ -692,6 +686,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status,
@@ -744,6 +739,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
+            charge_id: None,
         };
         Ok(Self {
             status,
@@ -764,11 +760,11 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
         let capture_sync_response_list = match item.response {
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
                 // for webhook consumption flow
-                utils::construct_captures_response_hashmap(vec![payments_response])
+                utils::construct_captures_response_hashmap(vec![payments_response])?
             }
             PaymentsResponseEnum::ActionResponse(action_list) => {
                 // for captures sync
-                utils::construct_captures_response_hashmap(action_list)
+                utils::construct_captures_response_hashmap(action_list)?
             }
         };
         Ok(Self {
@@ -819,6 +815,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status: response.into(),
             ..item.data
@@ -843,7 +840,7 @@ pub enum CaptureType {
 
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
     pub reference: Option<String>,
@@ -919,6 +916,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             status,
             amount_captured,
@@ -929,7 +927,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundRequest {
-    amount: Option<i64>,
+    amount: Option<MinorUnit>,
     reference: String,
 }
 
@@ -1027,7 +1025,7 @@ pub enum ActionType {
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(rename = "type")]
     pub action_type: ActionType,
     pub approved: Option<bool>,
@@ -1065,8 +1063,8 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
         self.action_type == ActionType::Capture
     }
 
-    fn get_amount_captured(&self) -> Option<i64> {
-        Some(self.amount)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(Some(self.amount))
     }
 }
 
@@ -1086,8 +1084,8 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
     }
-    fn get_amount_captured(&self) -> Option<i64> {
-        self.amount.map(Into::into)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.amount)
     }
 }
 
@@ -1218,7 +1216,7 @@ pub struct CheckoutWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub balances: Option<Balances>,
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
@@ -1236,7 +1234,7 @@ pub struct CheckoutWebhookBody {
     pub links: Links,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutDisputeWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
@@ -1345,13 +1343,12 @@ pub fn construct_file_upload_request(
             request.file_key,
             request
                 .file_type
-                .to_string()
+                .as_ref()
                 .split('/')
                 .last()
                 .unwrap_or_default()
         ))
         .mime_str(request.file_type.as_ref())
-        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failure in constructing file data")?;
     multipart = multipart.part("file", file_data);
@@ -1382,7 +1379,7 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
         let details: CheckoutWebhookBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let data = details.data;
         let psync_struct = Self {
             id: data.payment_id.unwrap_or(data.id),
@@ -1400,6 +1397,28 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
         };
 
         Ok(psync_struct)
+    }
+}
+
+impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for RefundResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(request: &api::IncomingWebhookRequestDetails<'_>) -> Result<Self, Self::Error> {
+        let details: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let data = details.data;
+        let refund_struct = Self {
+            action_id: data
+                .action_id
+                .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?,
+            reference: data
+                .reference
+                .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?,
+        };
+
+        Ok(refund_struct)
     }
 }
 

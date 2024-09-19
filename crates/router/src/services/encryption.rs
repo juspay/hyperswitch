@@ -1,6 +1,6 @@
 use std::str;
 
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use josekit::{jwe, jws};
 use serde::{Deserialize, Serialize};
 
@@ -26,23 +26,32 @@ pub struct JweBody {
     pub encrypted_key: String,
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone, strum::AsRefStr, strum::Display)]
+pub enum EncryptionAlgorithm {
+    A128GCM,
+    A256GCM,
+}
+
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,
+    algorithm: EncryptionAlgorithm,
+    key_id: Option<&str>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
-    let enc = "A256GCM";
     let mut src_header = jwe::JweHeader::new();
-    src_header.set_content_encryption(enc);
+    let enc_str = algorithm.as_ref();
+    src_header.set_content_encryption(enc_str);
     src_header.set_token_type("JWT");
+    if let Some(key_id) = key_id {
+        src_header.set_key_id(key_id);
+    }
     let encrypter = alg
         .encrypter_from_pem(public_key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting JweEncryptor")?;
 
     jwe::serialize_compact(payload, &src_header, &encrypter)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting jwt string")
 }
@@ -67,17 +76,14 @@ pub async fn decrypt_jwe(
 
     let decrypter = alg
         .decrypter_from_pem(private_key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting JweDecryptor")?;
 
     let (dst_payload, _dst_header) = jwe::deserialize_compact(jwt, &decrypter)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jwe")?;
 
     String::from_utf8(dst_payload)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Could not decode JWE payload from UTF-8")
 }
@@ -92,11 +98,9 @@ pub async fn jws_sign_payload(
     src_header.set_key_id(kid);
     let signer = alg
         .signer_from_pem(private_key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting signer")?;
     let jwt = jws::serialize_compact(payload, &src_header, &signer)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting signed jwt string")?;
     Ok(jwt)
@@ -110,15 +114,12 @@ pub fn verify_sign(
     let input = jws_body.as_bytes();
     let verifier = alg
         .verifier_from_pem(key)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting verifier")?;
     let (dst_payload, _dst_header) = jws::deserialize_compact(input, &verifier)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jws")?;
     let resp = String::from_utf8(dst_payload)
-        .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Could not convert to UTF-8")?;
     Ok(resp)
@@ -218,9 +219,14 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
 
     #[actix_rt::test]
     async fn test_jwe() {
-        let jwt = encrypt_jwe("request_payload".as_bytes(), ENCRYPTION_KEY)
-            .await
-            .unwrap();
+        let jwt = encrypt_jwe(
+            "request_payload".as_bytes(),
+            ENCRYPTION_KEY,
+            EncryptionAlgorithm::A256GCM,
+            None,
+        )
+        .await
+        .unwrap();
         let alg = jwe::RSA_OAEP_256;
         let payload = decrypt_jwe(&jwt, KeyIdCheck::SkipKeyIdCheck, DECRYPTION_KEY, alg)
             .await

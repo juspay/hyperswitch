@@ -1,74 +1,59 @@
-use common_enums::DecoupledAuthenticationType;
-use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
 
-use super::types::{AuthenticationData, ThreeDsMethodData};
 use crate::{
     consts,
     core::{
-        errors::{ApiErrorResponse, ConnectorErrorExt, StorageErrorExt},
+        errors::{self, ConnectorErrorExt, StorageErrorExt},
         payments,
     },
     errors::RouterResult,
-    routes::AppState,
+    routes::SessionState,
     services::{self, execute_connector_processing_step},
     types::{
-        api::{self, ConnectorCallType},
-        authentication::{AuthNFlowType, AuthenticationResponseData},
-        storage,
-        transformers::ForeignFrom,
-        RouterData,
+        api, authentication::AuthenticationResponseData, domain, storage,
+        transformers::ForeignFrom, RouterData,
     },
     utils::OptionExt,
 };
 
-pub fn get_connector_name_if_separate_authn_supported(
-    connector_call_type: &ConnectorCallType,
-) -> Option<String> {
+pub fn get_connector_data_if_separate_authn_supported(
+    connector_call_type: &api::ConnectorCallType,
+) -> Option<api::ConnectorData> {
     match connector_call_type {
-        ConnectorCallType::PreDetermined(connector_data) => {
+        api::ConnectorCallType::PreDetermined(connector_data) => {
             if connector_data
                 .connector_name
                 .is_separate_authentication_supported()
             {
-                Some(connector_data.connector_name.to_string())
+                Some(connector_data.clone())
             } else {
                 None
             }
         }
-        ConnectorCallType::Retryable(connectors) => connectors.first().and_then(|connector_data| {
-            if connector_data
-                .connector_name
-                .is_separate_authentication_supported()
-            {
-                Some(connector_data.connector_name.to_string())
-            } else {
-                None
-            }
-        }),
-        ConnectorCallType::SessionMultiple(_) => None,
+        api::ConnectorCallType::Retryable(connectors) => {
+            connectors.first().and_then(|connector_data| {
+                if connector_data
+                    .connector_name
+                    .is_separate_authentication_supported()
+                {
+                    Some(connector_data.clone())
+                } else {
+                    None
+                }
+            })
+        }
+        api::ConnectorCallType::SessionMultiple(_) => None,
     }
 }
 
 pub async fn update_trackers<F: Clone, Req>(
-    state: &AppState,
+    state: &SessionState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
-    token: Option<String>,
     acquirer_details: Option<super::types::AcquirerDetails>,
-) -> RouterResult<(storage::Authentication, Option<AuthenticationData>)> {
-    let authentication_data_option = authentication
-        .authentication_data
-        .as_ref()
-        .map(|authentication_data| {
-            authentication_data
-                .to_owned()
-                .parse_value::<AuthenticationData>("AuthenticationData")
-                .change_context(ApiErrorResponse::InternalServerError)
-        })
-        .transpose()?;
-
-    let (authentication_update, updated_authentication_data) = match router_data.response {
+) -> RouterResult<storage::Authentication> {
+    let authentication_update = match router_data.response {
         Ok(response) => match response {
             AuthenticationResponseData::PreAuthNResponse {
                 threeds_server_transaction_id,
@@ -78,132 +63,103 @@ pub async fn update_trackers<F: Clone, Req>(
                 three_ds_method_url,
                 message_version,
                 connector_metadata,
-            } => {
-                let three_ds_method_data = ThreeDsMethodData {
-                    three_ds_method_data,
-                    three_ds_method_data_submission: three_ds_method_url.is_some(),
-                    three_ds_method_url,
-                };
-                let authentication_data = AuthenticationData {
-                    maximum_supported_version: maximum_supported_3ds_version,
-                    threeds_server_transaction_id,
-                    three_ds_method_data,
-                    message_version,
-                    acquirer_details,
-                    ..Default::default()
-                };
-                (
-                    storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                        authentication_data: Some(
-                            Encode::encode_to_value(&authentication_data)
-                                .change_context(ApiErrorResponse::InternalServerError)?,
-                        ),
-                        connector_authentication_id: Some(connector_authentication_id),
-                        payment_method_id: token.map(|token| format!("eph_{}", token)),
-                        authentication_type: None,
-                        authentication_status: Some(common_enums::AuthenticationStatus::Started),
-                        authentication_lifecycle_status: None,
-                        connector_metadata,
-                    },
-                    Some(authentication_data),
-                )
-            }
+                directory_server_id,
+            } => storage::AuthenticationUpdate::PreAuthenticationUpdate {
+                threeds_server_transaction_id,
+                maximum_supported_3ds_version,
+                connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                message_version,
+                connector_metadata,
+                authentication_status: common_enums::AuthenticationStatus::Pending,
+                acquirer_bin: acquirer_details
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                acquirer_merchant_id: acquirer_details
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                acquirer_country_code: acquirer_details
+                    .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
+                directory_server_id,
+            },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
-                authentication_value: cavv,
+                authentication_value,
                 trans_status,
+                connector_metadata,
+                ds_trans_id,
             } => {
-                let authentication_data = authentication_data_option
-                    .get_required_value("authentication_data")
-                    .attach_printable(
-                        "AuthenticationData is required to make Authentication call",
-                    )?;
-                let authentication_data = AuthenticationData {
-                    authn_flow_type: Some(authn_flow_type.clone()),
-                    cavv,
-                    trans_status: trans_status.clone(),
-                    ..authentication_data
-                };
-                (
-                    storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                        authentication_data: Some(
-                            Encode::encode_to_value(&authentication_data)
-                                .change_context(ApiErrorResponse::InternalServerError)?,
-                        ),
-                        connector_authentication_id: None,
-                        payment_method_id: None,
-                        authentication_type: Some(match authn_flow_type {
-                            AuthNFlowType::Challenge { .. } => {
-                                DecoupledAuthenticationType::Challenge
-                            }
-                            AuthNFlowType::Frictionless => {
-                                DecoupledAuthenticationType::Frictionless
-                            }
-                        }),
-                        authentication_status: Some(
-                            common_enums::AuthenticationStatus::foreign_from(trans_status),
-                        ),
-                        authentication_lifecycle_status: None,
-                        connector_metadata: None,
-                    },
-                    Some(authentication_data),
-                )
+                let authentication_status =
+                    common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+                storage::AuthenticationUpdate::AuthenticationUpdate {
+                    authentication_value,
+                    trans_status,
+                    acs_url: authn_flow_type.get_acs_url(),
+                    challenge_request: authn_flow_type.get_challenge_request(),
+                    acs_reference_number: authn_flow_type.get_acs_reference_number(),
+                    acs_trans_id: authn_flow_type.get_acs_trans_id(),
+                    acs_signed_content: authn_flow_type.get_acs_signed_content(),
+                    authentication_type: authn_flow_type.get_decoupled_authentication_type(),
+                    authentication_status,
+                    connector_metadata,
+                    ds_trans_id,
+                }
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
-            } => {
-                let authentication_data = authentication_data_option
-                    .get_required_value("authentication_data")
-                    .attach_printable(
-                        "AuthenticationData is required to make Post Authentication call",
-                    )?;
-                let authentication_data = AuthenticationData {
-                    cavv: authentication_value,
-                    eci,
-                    trans_status: trans_status.clone(),
-                    ..authentication_data
-                };
-                (
-                    storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                        authentication_data: Some(
-                            Encode::encode_to_value(&authentication_data)
-                                .change_context(ApiErrorResponse::InternalServerError)?,
-                        ),
-                        connector_authentication_id: None,
-                        payment_method_id: None,
-                        authentication_type: None,
-                        authentication_status: Some(
-                            common_enums::AuthenticationStatus::foreign_from(trans_status),
-                        ),
-                        authentication_lifecycle_status: None,
-                        connector_metadata: None,
-                    },
-                    Some(authentication_data),
-                )
-            }
-        },
-        Err(error) => (
-            storage::AuthenticationUpdate::ErrorUpdate {
-                connector_authentication_id: error.connector_transaction_id,
-                authentication_status: common_enums::AuthenticationStatus::Failed,
-                error_message: Some(error.message),
-                error_code: Some(error.code),
+            } => storage::AuthenticationUpdate::PostAuthenticationUpdate {
+                authentication_status: common_enums::AuthenticationStatus::foreign_from(
+                    trans_status.clone(),
+                ),
+                trans_status,
+                authentication_value,
+                eci,
             },
-            authentication_data_option,
-        ),
+            AuthenticationResponseData::PreAuthVersionCallResponse {
+                maximum_supported_3ds_version,
+            } => storage::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+                message_version: maximum_supported_3ds_version.clone(),
+                maximum_supported_3ds_version,
+            },
+            AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                connector_metadata,
+            } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                connector_metadata,
+                acquirer_bin: acquirer_details
+                    .as_ref()
+                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                acquirer_merchant_id: acquirer_details
+                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+            },
+        },
+        Err(error) => storage::AuthenticationUpdate::ErrorUpdate {
+            connector_authentication_id: error.connector_transaction_id,
+            authentication_status: common_enums::AuthenticationStatus::Failed,
+            error_message: error
+                .reason
+                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
+                .or(Some(error.message)),
+            error_code: Some(error.code),
+        },
     };
-    let authentication_result = state
+    state
         .store
         .update_authentication_by_merchant_id_authentication_id(
             authentication,
             authentication_update,
         )
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while updating authentication");
-    authentication_result.map(|authentication| (authentication, updated_authentication_data))
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while updating authentication")
 }
 
 impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptStatus {
@@ -218,9 +174,13 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
 }
 
 pub async fn create_new_authentication(
-    state: &AppState,
-    merchant_id: String,
+    state: &SessionState,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
+    token: String,
+    profile_id: common_utils::id_type::ProfileId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -229,20 +189,41 @@ pub async fn create_new_authentication(
         merchant_id,
         authentication_connector,
         connector_authentication_id: None,
-        authentication_data: None,
-        payment_method_id: "".into(),
+        payment_method_id: format!("eph_{}", token),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
         error_message: None,
         error_code: None,
         connector_metadata: None,
+        maximum_supported_version: None,
+        threeds_server_transaction_id: None,
+        cavv: None,
+        authentication_flow_type: None,
+        message_version: None,
+        eci: None,
+        trans_status: None,
+        acquirer_bin: None,
+        acquirer_merchant_id: None,
+        three_ds_method_data: None,
+        three_ds_method_url: None,
+        acs_url: None,
+        challenge_request: None,
+        acs_reference_number: None,
+        acs_trans_id: None,
+        acs_signed_content: None,
+        profile_id,
+        payment_id,
+        merchant_connector_id,
+        ds_trans_id: None,
+        directory_server_id: None,
+        acquirer_country_code: None,
     };
     state
         .store
         .insert_authentication(new_authorization)
         .await
-        .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
                 authentication_id
@@ -251,7 +232,7 @@ pub async fn create_new_authentication(
 }
 
 pub async fn do_auth_connector_call<F, Req, Res>(
-    state: &AppState,
+    state: &SessionState,
     authentication_connector_name: String,
     router_data: RouterData<F, Req, Res>,
 ) -> RouterResult<RouterData<F, Req, Res>>
@@ -260,11 +241,16 @@ where
     Res: std::fmt::Debug + Clone + 'static,
     F: std::fmt::Debug + Clone + 'static,
     dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
+    dyn api::ConnectorV2 + Sync:
+        services::api::ConnectorIntegrationV2<F, ExternalAuthenticationFlowData, Req, Res>,
 {
     let connector_data =
         api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;
-    let connector_integration: services::BoxedConnectorIntegration<'_, F, Req, Res> =
-        connector_data.connector.get_connector_integration();
+    let connector_integration: services::BoxedExternalAuthenticationConnectorIntegrationInterface<
+        F,
+        Req,
+        Res,
+    > = connector_data.connector.get_connector_integration();
     let router_data = execute_connector_processing_step(
         state,
         connector_integration,
@@ -275,4 +261,47 @@ where
     .await
     .to_payment_failed_response()?;
     Ok(router_data)
+}
+
+pub async fn get_authentication_connector_data(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &domain::BusinessProfile,
+) -> RouterResult<(
+    common_enums::AuthenticationConnectors,
+    payments::helpers::MerchantConnectorAccountType,
+)> {
+    let authentication_details = business_profile
+        .authentication_connector_details
+        .clone()
+        .get_required_value("authentication_details")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "authentication_connector_details is not available in business profile".into(),
+        })
+        .attach_printable("authentication_connector_details not configured by the merchant")?;
+    let authentication_connector = authentication_details
+        .authentication_connectors
+        .first()
+        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+            message: format!(
+                "No authentication_connector found for profile_id {:?}",
+                business_profile.get_id()
+            ),
+        })
+        .attach_printable(
+            "No authentication_connector found from merchant_account.authentication_details",
+        )?
+        .to_owned();
+    let profile_id = business_profile.get_id();
+    let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
+        state,
+        &business_profile.merchant_id,
+        None,
+        key_store,
+        profile_id,
+        authentication_connector.to_string().as_str(),
+        None,
+    )
+    .await?;
+    Ok((authentication_connector, authentication_connector_mca))
 }

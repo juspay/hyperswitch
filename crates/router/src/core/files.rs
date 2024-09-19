@@ -1,18 +1,18 @@
 pub mod helpers;
 
 use api_models::files;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::errors::{self, RouterResponse};
 use crate::{
     consts,
-    routes::AppState,
-    services::{self, ApplicationResponse},
+    routes::SessionState,
+    services::ApplicationResponse,
     types::{api, domain},
 };
 
 pub async fn files_create_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     create_file_request: api::CreateFileRequest,
@@ -24,10 +24,14 @@ pub async fn files_create_core(
     )
     .await?;
     let file_id = common_utils::generate_id(consts::ID_LENGTH, "file");
-    let file_key = format!("{}/{}", merchant_account.merchant_id, file_id);
+    let file_key = format!(
+        "{}/{}",
+        merchant_account.get_id().get_string_repr(),
+        file_id
+    );
     let file_new = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         file_name: create_file_request.file_name.clone(),
         file_size: create_file_request.file_size,
         file_type: create_file_request.file_type.to_string(),
@@ -72,13 +76,13 @@ pub async fn files_create_core(
         .attach_printable_lazy(|| {
             format!("Unable to update file_metadata with file_id: {}", file_id)
         })?;
-    Ok(services::api::ApplicationResponse::Json(
-        files::CreateFileResponse { file_id },
-    ))
+    Ok(ApplicationResponse::Json(files::CreateFileResponse {
+        file_id,
+    }))
 }
 
 pub async fn files_delete_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: api::FileId,
 ) -> RouterResponse<serde_json::Value> {
@@ -86,7 +90,7 @@ pub async fn files_delete_core(
     state
         .store
         .as_ref()
-        .delete_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &req.file_id)
+        .delete_file_metadata_by_merchant_id_file_id(merchant_account.get_id(), &req.file_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete file_metadata")?;
@@ -94,7 +98,7 @@ pub async fn files_delete_core(
 }
 
 pub async fn files_retrieve_core(
-    state: AppState,
+    state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: api::FileId,
@@ -102,29 +106,27 @@ pub async fn files_retrieve_core(
     let file_metadata_object = state
         .store
         .as_ref()
-        .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &req.file_id)
+        .find_file_metadata_by_merchant_id_file_id(merchant_account.get_id(), &req.file_id)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)
         .attach_printable("Unable to retrieve file_metadata")?;
-    let (received_data, _provider_file_id) =
-        helpers::retrieve_file_and_provider_file_id_from_file_id(
-            &state,
-            Some(req.file_id),
-            &merchant_account,
-            &key_store,
-            api::FileDataRequired::Required,
-        )
-        .await?;
+    let file_info = helpers::retrieve_file_and_provider_file_id_from_file_id(
+        &state,
+        Some(req.file_id),
+        &merchant_account,
+        &key_store,
+        api::FileDataRequired::Required,
+    )
+    .await?;
     let content_type = file_metadata_object
         .file_type
         .parse::<mime::Mime>()
-        .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse file content type")?;
     Ok(ApplicationResponse::FileData((
-        received_data
+        file_info
+            .file_data
             .ok_or(errors::ApiErrorResponse::FileNotAvailable)
-            .into_report()
             .attach_printable("File data not found")?,
         content_type,
     )))

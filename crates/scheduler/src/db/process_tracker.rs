@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 pub use diesel_models as storage;
 use diesel_models::enums as storage_enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, ResultExt};
 use storage_impl::{connection, errors, mock_db::MockDb};
 use time::PrimitiveDateTime;
 
@@ -52,7 +52,7 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError>;
 
     async fn find_processes_by_time_status(
@@ -73,8 +73,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::ProcessTracker::find_process_by_id(&conn, id)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn reinitialize_limbo_processes(
@@ -85,8 +84,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_processes_by_time_status(
@@ -105,8 +103,7 @@ impl ProcessTrackerInterface for Store {
             limit,
         )
         .await
-        .map_err(Into::into)
-        .into_report()
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn insert_process(
@@ -116,8 +113,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         new.insert_process(&conn)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn update_process(
@@ -128,8 +124,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         this.update(&conn, process)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn reset_process(
@@ -171,13 +166,13 @@ impl ProcessTrackerInterface for Store {
     async fn finish_process_with_business_status(
         &self,
         this: storage::ProcessTracker,
-        business_status: String,
+        business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         self.update_process(
             this,
             storage::ProcessTrackerUpdate::StatusUpdate {
                 status: storage_enums::ProcessTrackerStatus::Finish,
-                business_status: Some(business_status),
+                business_status: Some(String::from(business_status)),
             },
         )
         .await
@@ -194,8 +189,7 @@ impl ProcessTrackerInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update)
             .await
-            .map_err(Into::into)
-            .into_report()
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -290,7 +284,7 @@ impl ProcessTrackerInterface for MockDb {
     async fn finish_process_with_business_status(
         &self,
         _this: storage::ProcessTracker,
-        _business_status: String,
+        _business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

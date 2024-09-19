@@ -97,3 +97,11 @@ pm.test(
       .true;
   },
 );
+
+// Response body should not have "payment_method_data.billing"
+pm.test(
+  "[POST]::/payments - Content check if 'payment_method_data.billing' should be null",
+  function () {
+    pm.expect(jsonData?.payment_method_data?.billing).to.be.null;
+  },
+);

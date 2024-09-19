@@ -21,7 +21,7 @@ pub struct LocalPrice {
 #[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
     pub customer_id: Option<String>,
-    pub customer_name: Option<String>,
+    pub customer_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -149,6 +149,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.data.id.clone()),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
@@ -335,7 +336,7 @@ pub enum WebhookEventType {
 pub struct CoinbasePaymentResponseData {
     pub id: String,
     pub code: String,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub utxo: bool,
     pub pricing: HashMap<String, OverpaymentAbsoluteThreshold>,
     pub fee_rate: f64,
@@ -355,7 +356,7 @@ pub struct CoinbasePaymentResponseData {
     pub fees_settled: bool,
     pub pricing_type: String,
     pub redirect_url: String,
-    pub support_email: String,
+    pub support_email: pii::Email,
     pub brand_logo_url: String,
     pub offchain_eligible: bool,
     pub organization_name: String,

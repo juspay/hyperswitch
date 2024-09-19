@@ -1,6 +1,5 @@
 //! Interactions with external systems.
 
-#![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 
 #[cfg(feature = "email")]
@@ -14,6 +13,9 @@ pub mod file_storage;
 pub mod hashicorp_vault;
 
 pub mod no_encryption;
+
+/// Building grpc clients to communicate with the server
+pub mod grpc_client;
 
 pub mod managers;
 
