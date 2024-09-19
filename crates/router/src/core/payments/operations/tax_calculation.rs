@@ -16,6 +16,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
         utils as core_utils,
     },
+    db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -288,7 +289,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                 None,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .to_payment_failed_response()
             .attach_printable("Tax connector Response Failed")?;
 
             let tax_response = response.response.map_err(|err| {

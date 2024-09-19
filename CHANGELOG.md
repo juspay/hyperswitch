@@ -4,6 +4,41 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.19.1
+
+### Refactors
+
+- **router:** Handle connector errors for tax calculation flow ([#5949](https://github.com/juspay/hyperswitch/pull/5949)) ([`776b548`](https://github.com/juspay/hyperswitch/commit/776b5482e9315e5040066ad9623509f3a0f10ce0))
+
+**Full Changelog:** [`2024.09.19.0...2024.09.19.1`](https://github.com/juspay/hyperswitch/compare/2024.09.19.0...2024.09.19.1)
+
+- - -
+
+## 2024.09.19.0
+
+### Features
+
+- **disputes:** Add support for disputes aggregate ([#5896](https://github.com/juspay/hyperswitch/pull/5896)) ([`0a0c93e`](https://github.com/juspay/hyperswitch/commit/0a0c93e102dc3183627db3b871370d7b5661f151))
+- **payment_methods_v2:** Payment method Create API ([#5812](https://github.com/juspay/hyperswitch/pull/5812)) ([`be902ff`](https://github.com/juspay/hyperswitch/commit/be902ffa5328d32efe70c40c36f86d8fbfa01c79))
+- **routing:** Build gRPC Client Interface to initiate communication with other gRPC services ([#5835](https://github.com/juspay/hyperswitch/pull/5835)) ([`99f5933`](https://github.com/juspay/hyperswitch/commit/99f593389451c13e81ba6d019e9f3ca4361942ed))
+
+### Bug Fixes
+
+- **merchant_account_v2:** Remove compatible_connector field in metadata ([#5935](https://github.com/juspay/hyperswitch/pull/5935)) ([`8c99db7`](https://github.com/juspay/hyperswitch/commit/8c99db72adbd2b5f03c37fa5b1fa82b9c77ce2c5))
+
+### Documentation
+
+- Add openapi docs for customers v2 ([#5926](https://github.com/juspay/hyperswitch/pull/5926)) ([`2bc8756`](https://github.com/juspay/hyperswitch/commit/2bc8756e061e9e0e705ce2c6b533c3583f3efa8b))
+- Api-reference changes for customers and admin list apis for v2 ([#5936](https://github.com/juspay/hyperswitch/pull/5936)) ([`ed13146`](https://github.com/juspay/hyperswitch/commit/ed13146b8088e1fcd6df8b820fa8c7b4a9e400a3))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`407c70c`](https://github.com/juspay/hyperswitch/commit/407c70cb151582ec3b2b661363811390dfeca8b2))
+
+**Full Changelog:** [`2024.09.18.0...2024.09.19.0`](https://github.com/juspay/hyperswitch/compare/2024.09.18.0...2024.09.19.0)
+
+- - -
+
 ## 2024.09.18.0
 
 ### Features
