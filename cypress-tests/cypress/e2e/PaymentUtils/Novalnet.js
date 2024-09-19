@@ -14,8 +14,6 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
