@@ -12353,6 +12353,15 @@ pub fn get_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
                 value: None,
             },
         ),
+        (
+            "billing.email".to_string(),
+            RequiredFieldInfo {
+                required_field: "payment_method_data.billing.email".to_string(),
+                display_name: "email".to_string(),
+                field_type: enums::FieldType::UserEmailAddress,
+                value: None,
+            },
+        ),
     ])
 }
 
@@ -12438,6 +12447,15 @@ pub fn get_shipping_required_fields() -> HashMap<String, RequiredFieldInfo> {
                 required_field: "shipping.phone.country_code".to_string(),
                 display_name: "dialing_code".to_string(),
                 field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                value: None,
+            },
+        ),
+        (
+            "shipping.email".to_string(),
+            RequiredFieldInfo {
+                required_field: "shipping.email".to_string(),
+                display_name: "email".to_string(),
+                field_type: enums::FieldType::UserEmailAddress,
                 value: None,
             },
         ),
