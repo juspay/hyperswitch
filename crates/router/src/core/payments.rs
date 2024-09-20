@@ -372,6 +372,7 @@ where
                             &connector,
                             &mut payment_data,
                             op_ref,
+                            Some(header_payload.clone()),
                         )
                         .await?;
                     }
@@ -496,6 +497,7 @@ where
                             &connector_data,
                             &mut payment_data,
                             op_ref,
+                            Some(header_payload.clone()),
                         )
                         .await?;
                     }
@@ -1642,6 +1644,7 @@ where
             customer,
             &merchant_connector_account,
             merchant_recipient_data,
+            None,
         )
         .await?;
 
@@ -1975,6 +1978,7 @@ where
                 customer,
                 &merchant_connector_account,
                 None,
+                None,
             )
             .await?;
 
@@ -2119,6 +2123,7 @@ where
                         key_store,
                         customer,
                         merchant_connector_account,
+                        None,
                         None,
                     )
                     .await?;
@@ -2304,6 +2309,7 @@ async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
     connector: &api::ConnectorData,
     payment_data: &mut D,
     _operation: &BoxedOperation<'_, F, Q, D>,
+    header_payload: Option<HeaderPayload>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -2324,6 +2330,7 @@ where
             customer,
             merchant_conn_account,
             None,
+            header_payload,
         )
         .await?;
 

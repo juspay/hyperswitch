@@ -215,6 +215,8 @@ pub async fn construct_payout_router_data<'a, F>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
 
     Ok(router_data)
@@ -389,6 +391,8 @@ pub async fn construct_refund_router_data<'a, F>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
 
     Ok(router_data)
@@ -697,6 +701,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         refund_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -790,6 +796,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -889,6 +897,8 @@ pub async fn construct_upload_file_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -1008,6 +1018,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         payment_method_status: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -1104,6 +1116,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -1194,6 +1208,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
