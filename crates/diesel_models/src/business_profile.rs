@@ -18,7 +18,7 @@ use crate::schema_v2::business_profile;
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
-pub struct BusinessProfile {
+pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -60,7 +60,7 @@ pub struct BusinessProfile {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
-pub struct BusinessProfileNew {
+pub struct ProfileNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -101,7 +101,7 @@ pub struct BusinessProfileNew {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
-pub struct BusinessProfileUpdateInternal {
+pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -137,8 +137,8 @@ pub struct BusinessProfileUpdateInternal {
 }
 
 #[cfg(feature = "v1")]
-impl BusinessProfileUpdateInternal {
-    pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
+impl ProfileUpdateInternal {
+    pub fn apply_changeset(self, source: Profile) -> Profile {
         let Self {
             profile_name,
             modified_at,
@@ -172,7 +172,7 @@ impl BusinessProfileUpdateInternal {
             dynamic_routing_algorithm,
             is_network_tokenization_enabled,
         } = self;
-        BusinessProfile {
+        Profile {
             profile_id: source.profile_id,
             merchant_id: source.merchant_id,
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -240,7 +240,7 @@ impl BusinessProfileUpdateInternal {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
-pub struct BusinessProfile {
+pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -281,7 +281,7 @@ pub struct BusinessProfile {
     pub is_network_tokenization_enabled: bool,
 }
 
-impl BusinessProfile {
+impl Profile {
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
@@ -296,7 +296,7 @@ impl BusinessProfile {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
-pub struct BusinessProfileNew {
+pub struct ProfileNew {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -339,7 +339,7 @@ pub struct BusinessProfileNew {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
-pub struct BusinessProfileUpdateInternal {
+pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -376,8 +376,8 @@ pub struct BusinessProfileUpdateInternal {
 }
 
 #[cfg(feature = "v2")]
-impl BusinessProfileUpdateInternal {
-    pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
+impl ProfileUpdateInternal {
+    pub fn apply_changeset(self, source: Profile) -> Profile {
         let Self {
             profile_name,
             modified_at,
@@ -412,7 +412,7 @@ impl BusinessProfileUpdateInternal {
             default_fallback_routing,
             is_network_tokenization_enabled,
         } = self;
-        BusinessProfile {
+        Profile {
             id: source.id,
             merchant_id: source.merchant_id,
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -471,58 +471,6 @@ impl BusinessProfileUpdateInternal {
             dynamic_routing_algorithm: None,
             is_network_tokenization_enabled: is_network_tokenization_enabled
                 .unwrap_or(source.is_network_tokenization_enabled),
-        }
-    }
-}
-
-// This is being used only in the `BusinessProfileInterface` implementation for `MockDb`.
-// This can be removed once the `BusinessProfileInterface` trait has been updated to use the domain
-// model instead.
-#[cfg(feature = "v2")]
-impl From<BusinessProfileNew> for BusinessProfile {
-    fn from(new: BusinessProfileNew) -> Self {
-        Self {
-            id: new.id,
-            merchant_id: new.merchant_id,
-            profile_name: new.profile_name,
-            created_at: new.created_at,
-            modified_at: new.modified_at,
-            return_url: new.return_url,
-            enable_payment_response_hash: new.enable_payment_response_hash,
-            payment_response_hash_key: new.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: new.redirect_to_merchant_with_http_post,
-            webhook_details: new.webhook_details,
-            metadata: new.metadata,
-            is_recon_enabled: new.is_recon_enabled,
-            applepay_verified_domains: new.applepay_verified_domains,
-            payment_link_config: new.payment_link_config,
-            session_expiry: new.session_expiry,
-            authentication_connector_details: new.authentication_connector_details,
-            payout_link_config: new.payout_link_config,
-            is_connector_agnostic_mit_enabled: new.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: new.is_extended_card_info_enabled,
-            extended_card_info_config: new.extended_card_info_config,
-            use_billing_as_payment_method_billing: new.use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector: new
-                .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: new
-                .collect_billing_details_from_wallet_connector,
-            outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
-            tax_connector_id: new.tax_connector_id,
-            is_tax_connector_enabled: new.is_tax_connector_enabled,
-            routing_algorithm_id: new.routing_algorithm_id,
-            always_collect_billing_details_from_wallet_connector: new
-                .always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector: new
-                .always_collect_shipping_details_from_wallet_connector,
-            order_fulfillment_time: new.order_fulfillment_time,
-            order_fulfillment_time_origin: new.order_fulfillment_time_origin,
-            frm_routing_algorithm_id: new.frm_routing_algorithm_id,
-            payout_routing_algorithm_id: new.payout_routing_algorithm_id,
-            default_fallback_routing: new.default_fallback_routing,
-            version: new.version,
-            dynamic_routing_algorithm: None,
-            is_network_tokenization_enabled: new.is_network_tokenization_enabled,
         }
     }
 }

@@ -30,13 +30,15 @@ use rust_decimal::{
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use thiserror::Error;
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
     consts::{self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH},
-    errors::{CustomResult, ParsingError, PercentageError},
+    errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
 };
+
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
 pub struct Percentage<const PRECISION: u8> {
@@ -744,88 +746,105 @@ mod client_secret_type {
         }
     }
 
-    // TODO: fix tests
-    // #[cfg(test)]
-    // mod client_secret_tests {
-    //     #![allow(clippy::expect_used)]
-    //     #![allow(clippy::unwrap_used)]
+    #[cfg(test)]
+    mod client_secret_tests {
+        #![allow(clippy::expect_used)]
+        #![allow(clippy::unwrap_used)]
 
-    //     use serde_json;
+        use serde_json;
 
-    //     use super::*;
+        use super::*;
+        use crate::id_type::GlobalPaymentId;
 
-    //     #[test]
-    //     fn test_serialize_client_secret() {
-    //         let client_secret1 = ClientSecret {
-    //             payment_id: id_type::PaymentGlobalId::try_from(std::borrow::Cow::Borrowed(
-    //                 "pay_3TgelAms4RQec8xSStjF",
-    //             ))
-    //             .unwrap(),
-    //             secret: masking::Secret::new("fc34taHLw1ekPgNh92qr".into()),
-    //         };
-    //         let client_secret2 = ClientSecret {
-    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
-    //                 "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
-    //             ))
-    //             .unwrap(),
-    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
-    //         };
+        #[test]
+        fn test_serialize_client_secret() {
+            let global_payment_id = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+            let secret = "fc34taHLw1ekPgNh92qr".to_string();
 
-    //         let expected_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
-    //         let expected_str2 =
-    //             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+            let expected_client_secret_string = format!("\"{global_payment_id}_secret_{secret}\"");
 
-    //         let actual_str1 =
-    //             serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
-    //         let actual_str2 =
-    //             serde_json::to_string(&client_secret2).expect("Failed to serialize client_secret2");
+            let client_secret1 = ClientSecret {
+                payment_id: GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id)).unwrap(),
+                secret: masking::Secret::new(secret),
+            };
 
-    //         assert_eq!(expected_str1, actual_str1);
-    //         assert_eq!(expected_str2, actual_str2);
-    //     }
+            let parsed_client_secret =
+                serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
 
-    //     #[test]
-    //     fn test_deserialize_client_secret() {
-    //         let client_secret_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
-    //         let client_secret_str2 =
-    //             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
-    //         let client_secret_str3 =
-    //             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr""#;
+            assert_eq!(expected_client_secret_string, parsed_client_secret);
+        }
 
-    //         let expected1 = ClientSecret {
-    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
-    //                 "pay_3TgelAms4RQec8xSStjF",
-    //             ))
-    //             .unwrap(),
-    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
-    //         };
-    //         let expected2 = ClientSecret {
-    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
-    //                 "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
-    //             ))
-    //             .unwrap(),
-    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
-    //         };
-    //         let expected3 = ClientSecret {
-    //             payment_id: id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
-    //                 "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
-    //             ))
-    //             .unwrap(),
-    //             secret: "fc34taHLw1ekPgNh92qr".to_string(),
-    //         };
+        #[test]
+        fn test_deserialize_client_secret() {
+            // This is a valid global id
+            let global_payment_id_str = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+            let secret = "fc34taHLw1ekPgNh92qr".to_string();
 
-    //         let actual1: ClientSecret = serde_json::from_str(client_secret_str1)
-    //             .expect("Failed to deserialize client_secret_str1");
-    //         let actual2: ClientSecret = serde_json::from_str(client_secret_str2)
-    //             .expect("Failed to deserialize client_secret_str2");
-    //         let actual3: ClientSecret = serde_json::from_str(client_secret_str3)
-    //             .expect("Failed to deserialize client_secret_str3");
+            let valid_payment_global_id =
+                GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id_str))
+                    .expect("Failed to create valid global payment id");
 
-    //         assert_eq!(expected1, actual1);
-    //         assert_eq!(expected2, actual2);
-    //         assert_eq!(expected3, actual3);
-    //     }
-    // }
+            // This is an invalid global id because of the cell id being in invalid length
+            let invalid_global_payment_id = "123_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+
+            // Create a client secret string which is valid
+            let valid_client_secret = format!(r#""{global_payment_id_str}_secret_{secret}""#);
+
+            dbg!(&valid_client_secret);
+
+            // Create a client secret string which is invalid
+            let invalid_client_secret_because_of_invalid_payment_id =
+                format!(r#""{invalid_global_payment_id}_secret_{secret}""#);
+
+            // Create a client secret string which is invalid because of invalid secret
+            let invalid_client_secret_because_of_invalid_secret =
+                format!(r#""{invalid_global_payment_id}""#);
+
+            let valid_client_secret = serde_json::from_str::<ClientSecret>(&valid_client_secret)
+                .expect("Failed to deserialize client_secret_str1");
+
+            let invalid_deser1 = serde_json::from_str::<ClientSecret>(
+                &invalid_client_secret_because_of_invalid_payment_id,
+            );
+
+            dbg!(&invalid_deser1);
+
+            let invalid_deser2 = serde_json::from_str::<ClientSecret>(
+                &invalid_client_secret_because_of_invalid_secret,
+            );
+
+            dbg!(&invalid_deser2);
+
+            assert_eq!(valid_client_secret.payment_id, valid_payment_global_id);
+
+            assert_eq!(valid_client_secret.secret.peek(), &secret);
+
+            assert_eq!(
+                invalid_deser1.err().unwrap().to_string(),
+                "Incorrect value provided for field: payment_id at line 1 column 70"
+            );
+
+            assert_eq!(
+                invalid_deser2.err().unwrap().to_string(),
+                "invalid value: string \"123_pay_1a961ed9093c48b09781bf8ab17ba6bd\", expected a string with '_secret_' at line 1 column 42"
+            );
+        }
+    }
+}
+
+/// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
+pub struct TimeRange {
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "crate::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "crate::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
+    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[cfg(test)]
@@ -1117,6 +1136,110 @@ impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
     LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified code
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedCode(pub String);
+
+impl TryFrom<String> for UnifiedCode {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 255 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_code's length should not exceed 255 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified messages
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedMessage(pub String);
+
+impl TryFrom<String> for UnifiedMessage {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 1024 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_message's length should not exceed 1024 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)

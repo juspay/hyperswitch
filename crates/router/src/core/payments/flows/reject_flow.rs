@@ -63,7 +63,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
-        _business_profile: &domain::BusinessProfile,
+        _business_profile: &domain::Profile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {

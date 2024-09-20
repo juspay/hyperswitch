@@ -1,8 +1,6 @@
-use common_utils::hashing::HashedString;
+use common_utils::{hashing::HashedString, types::TimeRange};
 use masking::WithType;
 use serde_json::Value;
-
-use crate::payments::TimeRange;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {

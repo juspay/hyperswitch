@@ -77,7 +77,7 @@ pub async fn save_payment_method<FData>(
     currency: Option<storage_enums::Currency>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -754,7 +754,7 @@ pub async fn save_payment_method<FData>(
     _currency: Option<storage_enums::Currency>,
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
-    _business_profile: &domain::BusinessProfile,
+    _business_profile: &domain::Profile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,

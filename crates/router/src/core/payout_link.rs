@@ -17,7 +17,10 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
-    core::{payments::helpers, payouts::validator},
+    core::{
+        payments::helpers as payment_helpers,
+        payouts::{helpers as payout_helpers, validator},
+    },
     errors,
     routes::{app::StorageInterface, SessionState},
     services,
@@ -271,6 +274,14 @@ pub async fn initiate_payout_link(
 
         // Send back status page
         (_, link_utils::PayoutLinkStatus::Submitted) => {
+            let translated_unified_message =
+                payout_helpers::get_translated_unified_code_and_message(
+                    &state,
+                    payout_attempt.unified_code.as_ref(),
+                    payout_attempt.unified_message.as_ref(),
+                    &locale,
+                )
+                .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
@@ -284,8 +295,8 @@ pub async fn initiate_payout_link(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse payout status link's return URL")?,
                 status: payout.status,
-                error_code: payout_attempt.error_code,
-                error_message: payout_attempt.error_message,
+                error_code: payout_attempt.unified_code,
+                error_message: translated_unified_message,
                 ui_config: ui_config_data,
                 test_mode: link_data.test_mode.unwrap_or(false),
             };
@@ -338,7 +349,7 @@ pub async fn filter_payout_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // Filter MCAs based on profile_id and connector_type
-    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
+    let filtered_mcas = payment_helpers::filter_mca_based_on_profile_and_connector_type(
         all_mcas,
         &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,

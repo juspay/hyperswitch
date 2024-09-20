@@ -89,7 +89,7 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain::{self, BusinessProfile},
+        domain::{self, Profile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::ForeignTryFrom,
     },
@@ -3341,6 +3341,7 @@ pub async fn list_payment_methods(
         billing_address_for_calculating_required_fields,
         customer.as_ref(),
     ))?;
+
     let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 
@@ -3836,11 +3837,15 @@ pub async fn list_payment_methods(
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
     payment_method: &api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
-    business_profile: Option<&BusinessProfile>,
+    business_profile: Option<&Profile>,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
 ) -> HashMap<String, RequiredFieldInfo> {
     match (payment_method, payment_experience_optional) {
-        (api_enums::PaymentMethod::Wallet, Some(api_enums::PaymentExperience::InvokeSdkClient)) => {
+        (api_enums::PaymentMethod::Wallet, Some(api_enums::PaymentExperience::InvokeSdkClient))
+        | (
+            api_enums::PaymentMethod::PayLater,
+            Some(api_enums::PaymentExperience::InvokeSdkClient),
+        ) => {
             let always_send_billing_details = business_profile.and_then(|business_profile| {
                 business_profile.always_collect_billing_details_from_wallet_connector
             });
@@ -3908,7 +3913,7 @@ pub async fn call_surcharge_decision_management(
     state: routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &BusinessProfile,
+    business_profile: &Profile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     billing_address: Option<domain::Address>,
@@ -3967,7 +3972,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &BusinessProfile,
+    business_profile: &Profile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
@@ -4713,7 +4718,7 @@ async fn perform_surcharge_ops(
     state: &routes::SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    business_profile: Option<BusinessProfile>,
+    business_profile: Option<Profile>,
     response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     let payment_attempt = payment_intent
@@ -4758,7 +4763,7 @@ pub async fn perform_surcharge_ops(
     _state: &routes::SessionState,
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
-    _business_profile: Option<BusinessProfile>,
+    _business_profile: Option<Profile>,
     _response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     todo!()

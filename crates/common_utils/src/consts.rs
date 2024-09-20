@@ -152,3 +152,5 @@ pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 
 /// Max length allowed for Statement Descriptor
 pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 255;
+/// Payout flow identifier used for performing GSM operations
+pub const PAYOUT_FLOW_STR: &str = "payout_flow";

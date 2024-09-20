@@ -19,7 +19,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::SessionState,
     types::{
-        domain::BusinessProfile,
+        domain::Profile,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
@@ -291,7 +291,7 @@ impl SurchargeMetadata {
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
         state: &SessionState,
-        business_profile: &BusinessProfile,
+        business_profile: &Profile,
     ) -> RouterResult<()> {
         if !self.is_empty_result() {
             let redis_conn = state

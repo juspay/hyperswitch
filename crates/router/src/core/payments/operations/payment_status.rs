@@ -93,7 +93,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: &domain::BusinessProfile,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentStatusOperation<'a, F, api::PaymentsRequest>,
         Option<domain::PaymentMethodData>,
@@ -408,7 +408,7 @@ async fn get_tracker_for_sync<
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 

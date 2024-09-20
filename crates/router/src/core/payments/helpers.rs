@@ -1810,7 +1810,7 @@ pub async fn retrieve_card_with_permanent_token(
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -2122,7 +2122,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     _merchant_key_store: &domain::MerchantKeyStore,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
-    _business_profile: Option<&domain::BusinessProfile>,
+    _business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, D>,
     Option<domain::PaymentMethodData>,
@@ -2142,7 +2142,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, D>,
     Option<domain::PaymentMethodData>,
@@ -2251,7 +2251,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: Option<&domain::Profile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2294,7 +2294,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &domain::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
     todo!()
 }
@@ -2307,7 +2307,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &domain::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2725,7 +2725,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -2746,7 +2746,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -2855,7 +2855,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4316,9 +4316,23 @@ pub async fn get_additional_payment_data(
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
+                    google_pay: None,
                 })
             }
-            _ => Some(api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None }),
+            domain::WalletData::GooglePay(google_pay_pm_data) => {
+                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: None,
+                    google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
+                        last4: google_pay_pm_data.info.card_details.clone(),
+                        card_network: google_pay_pm_data.info.card_network.clone(),
+                        card_type: google_pay_pm_data.pm_type.clone(),
+                    }),
+                })
+            }
+            _ => Some(api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay: None,
+                google_pay: None,
+            }),
         },
         domain::PaymentMethodData::PayLater(_) => {
             Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })
@@ -4587,7 +4601,7 @@ pub async fn get_apple_pay_retryable_connectors<F, D>(
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
@@ -4673,7 +4687,7 @@ where
         .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         #[cfg(feature = "v2")]
-        let fallback_connetors_list = core_admin::BusinessProfileWrapper::new(business_profile)
+        let fallback_connetors_list = core_admin::ProfileWrapper::new(business_profile)
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get merchant default fallback connectors config")?;
@@ -5228,7 +5242,7 @@ pub async fn get_payment_method_details_from_payment_token(
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
         let redis_conn = state
@@ -5384,7 +5398,7 @@ pub enum PaymentExternalAuthenticationFlow {
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,

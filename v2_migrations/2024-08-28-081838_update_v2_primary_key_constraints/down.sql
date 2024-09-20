@@ -56,6 +56,8 @@ ADD PRIMARY KEY (merchant_connector_id);
 ALTER TABLE merchant_connector_account
 ALTER COLUMN profile_id DROP NOT NULL;
 
+DROP INDEX IF EXISTS merchant_connector_account_profile_id_index;
+
 ------------------------ Customers -----------------------
 -- Run this query only when V1 is deprecated
 ALTER TABLE customers DROP CONSTRAINT customers_pkey;

@@ -94,7 +94,7 @@ pub trait PaymentIntentInterface {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
@@ -108,7 +108,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
-        constraints: &api_models::payments::TimeRange,
+        constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
     #[cfg(all(
@@ -1354,8 +1354,8 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
     }
 }
 
-impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
-    fn from(value: api_models::payments::TimeRange) -> Self {
+impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
+    fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
             offset: 0,
             starting_at: Some(value.start_time),
