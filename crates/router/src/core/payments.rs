@@ -4131,6 +4131,9 @@ where
                                             payment_method_info.get_id().clone(),
                                         ),
                                         update_history: None,
+                                        mandate_metadata: mandate_reference_record
+                                            .mandate_metadata
+                                            .clone(),
                                     },
                                 ));
                             payment_data.set_recurring_mandate_payment_data(
@@ -4141,6 +4144,8 @@ where
                                         .original_payment_authorized_amount,
                                     original_payment_authorized_currency: mandate_reference_record
                                         .original_payment_authorized_currency,
+                                    mandate_metadata: mandate_reference_record
+                                        .mandate_metadata.clone(),
                                 });
 
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));

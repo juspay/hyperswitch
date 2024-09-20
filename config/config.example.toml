@@ -534,6 +534,7 @@ credit = { currency = "USD,GBP,EUR" }
 debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
+samsung_pay = { currency = "USD,GBP,EUR" }
 
 [pm_filters.stax]
 credit = { currency = "USD" }
@@ -748,3 +749,7 @@ check_token_status_url= ""    # base url to check token status from token servic
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource" # Supported connectors for network tokenization
+
+[grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
+host = "localhost" # Client Host
+port = 7000        # Client Port

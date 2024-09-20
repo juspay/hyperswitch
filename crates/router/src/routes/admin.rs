@@ -14,7 +14,7 @@ use crate::{
 pub async fn organization_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<admin::OrganizationRequest>,
+    json_payload: web::Json<admin::OrganizationCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::OrganizationCreate;
     Box::pin(api::server_wrap(
@@ -35,7 +35,7 @@ pub async fn organization_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     org_id: web::Path<common_utils::id_type::OrganizationId>,
-    json_payload: web::Json<admin::OrganizationRequest>,
+    json_payload: web::Json<admin::OrganizationUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::OrganizationUpdate;
     let organization_id = org_id.into_inner();

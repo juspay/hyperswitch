@@ -787,6 +787,7 @@ impl<F>
                             MandateReference {
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
+                                mandate_metadata: None,
                             }
                         }),
                         connector_metadata: None,

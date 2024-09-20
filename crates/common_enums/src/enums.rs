@@ -3235,7 +3235,6 @@ pub enum EnablePaymentLinkRequest {
     Skip,
 }
 
-/// Whether mit exemption is requested or not
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
