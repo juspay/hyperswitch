@@ -190,26 +190,28 @@ pub async fn api_key_update(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    key_id: web::Path<String>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
-    let (merchant_id, key_id) = path.into_inner();
+    let api_key_id = key_id.into_inner();
     let mut payload = json_payload.into_inner();
-    payload.key_id = key_id;
-    payload.merchant_id.clone_from(&merchant_id);
+    payload.key_id = api_key_id;
 
     api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, _, payload, _| api_keys::update_api_key(state, payload),
+        |state, authentication_data, mut payload, _|
+        {
+            payload.merchant_id  = authentication_data.merchant_account.get_id().to_owned();
+            api_keys::update_api_key(state, payload)
+        },
         auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::ApiKeyWrite,
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::ApiKeyRead,
                 minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
@@ -353,10 +355,10 @@ pub async fn api_key_list(
         state,
         &req,
         (limit, offset),
-        |state, auth, (limit, offset), _| async move {
+        |state, authentication_data, (limit, offset), _| async move {
             api_keys::list_api_keys(
                 state,
-                auth.merchant_account.get_id().to_owned(),
+                authentication_data.merchant_account.get_id().to_owned(),
                 limit,
                 offset,
             )
