@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models::{payments::MandateReferenceId, webhooks::IncomingWebhookEvent};
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
@@ -245,7 +246,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 )
                 .into()),
             },
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
@@ -472,15 +473,15 @@ pub struct NovalnetResponseBilling {
     pub house_no: Option<Secret<String>>,
     pub street: Secret<String>,
     pub zip: Secret<String>,
-    pub state: Secret<String>,
+    pub state: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseMerchant {
-    pub project: i64,
-    pub project_name: String,
-    pub project_url: String,
-    pub vendor: i64,
+    pub project: Option<i64>,
+    pub project_name: Option<String>,
+    pub project_url: Option<String>,
+    pub vendor: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -1112,7 +1113,7 @@ pub struct NovalnetErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum EventType {
+pub enum WebhookEventType {
     Payment,
     TransactionCapture,
     TransactionCancel,
@@ -1127,7 +1128,7 @@ pub struct NovalnetWebhookEvent {
     pub tid: i64,
     pub parent_tid: Option<i64>,
     #[serde(rename = "type")]
-    pub event_type: EventType,
+    pub event_type: WebhookEventType,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1137,4 +1138,57 @@ pub struct NovalnetWebhookNotificationResponse {
     pub merchant: NovalnetResponseMerchant,
     pub result: ResultData,
     pub transaction: NovalnetResponseTransactionData,
+}
+
+pub fn is_transaction_event(event_code: &WebhookEventType) -> bool {
+    matches!(
+        event_code,
+        WebhookEventType::TransactionUpdate | WebhookEventType::Payment
+    )
+}
+
+pub fn is_capture_or_cancel_event(event_code: &WebhookEventType) -> bool {
+    matches!(
+        event_code,
+        WebhookEventType::TransactionCapture | WebhookEventType::TransactionCancel
+    )
+}
+
+pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
+    matches!(event_code, WebhookEventType::TransactionRefund)
+}
+
+pub fn is_chargeback_event(event_code: &WebhookEventType) -> bool {
+    matches!(event_code, WebhookEventType::Chargeback)
+}
+
+pub fn get_incoming_webhook_event(
+    status: WebhookEventType,
+    transaction_status: NovalnetTransactionStatus,
+) -> IncomingWebhookEvent {
+    match status {
+        WebhookEventType::Payment | WebhookEventType::TransactionUpdate => match transaction_status
+        {
+            NovalnetTransactionStatus::Confirmed => IncomingWebhookEvent::PaymentIntentSuccess,
+            NovalnetTransactionStatus::Pending => IncomingWebhookEvent::PaymentIntentProcessing,
+            _ => IncomingWebhookEvent::PaymentIntentFailure,
+        },
+        WebhookEventType::TransactionCapture => match transaction_status {
+            NovalnetTransactionStatus::Confirmed => {
+                IncomingWebhookEvent::PaymentIntentCaptureSuccess
+            }
+            _ => IncomingWebhookEvent::PaymentIntentCaptureFailure,
+        },
+        WebhookEventType::TransactionCancel => match transaction_status {
+            NovalnetTransactionStatus::Confirmed => {
+                IncomingWebhookEvent::PaymentIntentCancelFailure
+            }
+            _ => IncomingWebhookEvent::PaymentIntentCancelled,
+        },
+        WebhookEventType::TransactionRefund => match transaction_status {
+            NovalnetTransactionStatus::Confirmed => IncomingWebhookEvent::RefundSuccess,
+            _ => IncomingWebhookEvent::RefundFailure,
+        },
+        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
+    }
 }
