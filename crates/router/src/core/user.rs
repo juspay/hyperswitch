@@ -1853,11 +1853,9 @@ pub async fn verify_token(
     state: SessionState,
     user: auth::UserFromToken,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
-    let user_in_db = state
-        .global_store
-        .find_user_by_id(&user.user_id)
+    let user_in_db = user
+        .get_user_from_db(&state)
         .await
-        .change_context(UserErrors::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed to fetch the user from DB for user_id - {}",
@@ -1867,7 +1865,7 @@ pub async fn verify_token(
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
         merchant_id: user.merchant_id.to_owned(),
-        user_email: user_in_db.email,
+        user_email: user_in_db.0.email,
     }))
 }
 
@@ -2756,7 +2754,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     let profiles = match role_info.get_entity_type() {
         EntityType::Organization | EntityType::Merchant | EntityType::Internal => state
             .store
-            .list_business_profile_by_merchant_id(
+            .list_profile_by_merchant_id(
                 key_manager_state,
                 &key_store,
                 &user_from_token.merchant_id,
@@ -2936,7 +2934,7 @@ pub async fn switch_merchant_for_user_in_org(
 
             let profile_id = state
                 .store
-                .list_business_profile_by_merchant_id(
+                .list_profile_by_merchant_id(
                     key_manager_state,
                     &merchant_key_store,
                     &request.merchant_id,
@@ -2989,11 +2987,7 @@ pub async fn switch_merchant_for_user_in_org(
 
             let profile_id = state
                 .store
-                .list_business_profile_by_merchant_id(
-                    key_manager_state,
-                    &merchant_key_store,
-                    &merchant_id,
-                )
+                .list_profile_by_merchant_id(key_manager_state, &merchant_key_store, &merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to list business profiles by merchant_id")?
@@ -3049,7 +3043,7 @@ pub async fn switch_merchant_for_user_in_org(
 
                 state
                     .store
-                    .list_business_profile_by_merchant_id(
+                    .list_profile_by_merchant_id(
                         key_manager_state,
                         &merchant_key_store,
                         &request.merchant_id,

@@ -1,5 +1,6 @@
 use actix_web::{
     body::{BoxBody, MessageBody},
+    http::header::HeaderMap,
     web, HttpRequest, HttpResponse, Responder,
 };
 use common_enums::EntityType;
@@ -7,8 +8,6 @@ use common_utils::consts;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-#[cfg(feature = "olap")]
-use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
     headers::ACCEPT_LANGUAGE,
@@ -20,6 +19,14 @@ use crate::{
     types::api::payouts as payout_types,
 };
 
+fn get_locale_from_header(headers: &HeaderMap) -> String {
+    get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
+        .ok()
+        .flatten()
+        .map(|val| val.to_string())
+        .unwrap_or(consts::DEFAULT_LOCALE.to_string())
+}
+
 /// Payouts - Create
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
 pub async fn payouts_create(
@@ -28,11 +35,8 @@ pub async fn payouts_create(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), req.headers())
-        .ok()
-        .flatten()
-        .map(|val| val.to_string())
-        .unwrap_or(consts::DEFAULT_LOCALE.to_string());
+    let locale = get_locale_from_header(req.headers());
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -60,6 +64,8 @@ pub async fn payouts_retrieve(
         merchant_id: query_params.merchant_id.to_owned(),
     };
     let flow = Flow::PayoutsRetrieve;
+    let locale = get_locale_from_header(req.headers());
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -72,6 +78,7 @@ pub async fn payouts_retrieve(
                 auth.profile_id,
                 auth.key_store,
                 req,
+                &locale,
             )
         },
         auth::auth_type(
@@ -95,6 +102,7 @@ pub async fn payouts_update(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
+    let locale = get_locale_from_header(req.headers());
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
@@ -104,7 +112,7 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth, req, _| {
-            payouts_update_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_update_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -130,6 +138,7 @@ pub async fn payouts_confirm(
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -137,7 +146,7 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -156,6 +165,7 @@ pub async fn payouts_cancel(
     let flow = Flow::PayoutsCancel;
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -163,7 +173,7 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -181,6 +191,7 @@ pub async fn payouts_fulfill(
     let flow = Flow::PayoutsFulfill;
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -188,7 +199,7 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -206,6 +217,7 @@ pub async fn payouts_list(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -213,7 +225,14 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
+            payouts_list_core(
+                state,
+                auth.merchant_account,
+                None,
+                auth.key_store,
+                req,
+                &locale,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -238,6 +257,7 @@ pub async fn payouts_list_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -251,6 +271,7 @@ pub async fn payouts_list_profile(
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
+                &locale,
             )
         },
         auth::auth_type(
@@ -276,6 +297,7 @@ pub async fn payouts_list_by_filter(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -283,7 +305,14 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
+            payouts_filtered_list_core(
+                state,
+                auth.merchant_account,
+                None,
+                auth.key_store,
+                req,
+                &locale,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -308,6 +337,7 @@ pub async fn payouts_list_by_filter_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -321,6 +351,7 @@ pub async fn payouts_list_by_filter_profile(
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
+                &locale,
             )
         },
         auth::auth_type(
@@ -342,10 +373,11 @@ pub async fn payouts_list_by_filter_profile(
 pub async fn payouts_list_available_filters_for_merchant(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_types::TimeRange>,
+    json_payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -353,7 +385,7 @@ pub async fn payouts_list_available_filters_for_merchant(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_list_available_filters_core(state, auth.merchant_account, None, req)
+            payouts_list_available_filters_core(state, auth.merchant_account, None, req, &locale)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -374,10 +406,11 @@ pub async fn payouts_list_available_filters_for_merchant(
 pub async fn payouts_list_available_filters_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_types::TimeRange>,
+    json_payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
+    let locale = get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -390,6 +423,7 @@ pub async fn payouts_list_available_filters_for_profile(
                 auth.merchant_account,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
+                &locale,
             )
         },
         auth::auth_type(

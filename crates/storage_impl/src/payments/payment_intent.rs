@@ -378,7 +378,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
@@ -402,7 +402,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         self.router_store
             .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
@@ -747,7 +747,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
@@ -773,7 +773,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -207,4 +209,10 @@ pub struct DeleteEvidenceRequest {
     pub dispute_id: String,
     /// Evidence Type to be deleted
     pub evidence_type: EvidenceType,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct DisputesAggregateResponse {
+    /// Different status of disputes with their count
+    pub status_with_count: HashMap<DisputeStatus, i64>,
 }

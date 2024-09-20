@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::collections::HashSet;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -9,6 +11,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -41,7 +44,9 @@ use masking::{ExposeInterface, Mask};
 use transformers as novalnet;
 
 use crate::{
-    constants::headers, types::ResponseRouterData, utils, utils::PaymentsAuthorizeRequestData,
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -182,6 +187,15 @@ impl ConnectorValidation for Novalnet {
         }
 
         Err(errors::ConnectorError::MissingConnectorTransactionID.into())
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
+            HashSet::from([PaymentMethodDataType::Card]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

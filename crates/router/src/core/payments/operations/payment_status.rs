@@ -93,7 +93,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: &domain::BusinessProfile,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentStatusOperation<'a, F, api::PaymentsRequest>,
         Option<domain::PaymentMethodData>,
@@ -214,6 +214,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn get_tracker_for_sync<
+    'a,
+    F: Send + Clone,
+    Op: Operation<F, api::PaymentsRetrieveRequest, Data = PaymentData<F>> + 'a + Send + Sync,
+>(
+    _payment_id: &api::PaymentIdType,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _state: &SessionState,
+    _request: &api::PaymentsRetrieveRequest,
+    _operation: Op,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
+{
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -386,7 +408,7 @@ async fn get_tracker_for_sync<
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 

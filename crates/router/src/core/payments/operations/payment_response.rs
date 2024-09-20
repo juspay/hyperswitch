@@ -88,6 +88,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         Ok(payment_data)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -95,7 +96,26 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        todo!()
+    }
+
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -474,7 +494,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -769,7 +789,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -863,7 +883,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1606,6 +1626,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn update_payment_method_status_and_ntid<F: Clone>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+    payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+) -> RouterResult<()> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,

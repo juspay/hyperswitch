@@ -90,7 +90,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
+                .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?

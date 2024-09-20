@@ -148,6 +148,12 @@ pub enum VaultError {
     SavePaymentMethodFailed,
     #[error("Failed to generate fingerprint")]
     GenerateFingerprintFailed,
+    #[error("Failed to encrypt vault request")]
+    RequestEncryptionFailed,
+    #[error("Failed to decrypt vault response")]
+    ResponseDecryptionFailed,
+    #[error("Failed to call vault")]
+    VaultAPIError,
     #[error("Failed while calling locker API")]
     ApiError,
 }

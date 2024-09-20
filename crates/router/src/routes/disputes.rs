@@ -408,3 +408,68 @@ pub async fn delete_dispute_evidence(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
+pub async fn get_disputes_aggregate(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_param: web::Query<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::DisputesAggregate;
+    let query_param = query_param.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_param,
+        |state, auth, req, _| {
+            disputes::get_aggregates_for_disputes(state, auth.merchant_account, None, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
+pub async fn get_disputes_aggregate_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_param: web::Query<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::DisputesAggregate;
+    let query_param = query_param.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_param,
+        |state, auth, req, _| {
+            disputes::get_aggregates_for_disputes(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
