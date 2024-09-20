@@ -255,7 +255,7 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Merchant retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant account retrieve call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -304,7 +304,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+          `Merchant account update call failed with status ${response.status} and message ${response.body.message}`
         );
       }
     });
@@ -351,7 +351,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+          `Business profile create call failed with status ${response.status} and message ${response.body.message}`
         );
       }
     });
@@ -392,7 +392,7 @@ Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+        `Business profile retrieve call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -438,7 +438,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+          `Business profile update call failed with status ${response.status} and message ${response.body.message}`
         );
       }
     });
@@ -527,7 +527,7 @@ Cypress.Commands.add(
           } else {
             // to be updated
             throw new Error(
-              `MCA create call failed with status ${response.status} and message ${response.body.message}`
+              `Merchant connector account create call failed with status ${response.status} and message ${response.body.message}`
             );
           }
         });
@@ -575,7 +575,7 @@ Cypress.Commands.add("mcaRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `MCA create call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant connector account retrieve call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -640,7 +640,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `MCA create call failed with status ${response.status} and message ${response.body.message}`
+          `Merchant connector account update call failed with status ${response.status} and message ${response.body.message}`
         );
       }
     });
@@ -747,7 +747,7 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Key create call failed with status ${response.status} and message ${response.body.message}`
+        `API Key retrieve call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -803,7 +803,7 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Key create call failed with status ${response.status} and message ${response.body.message}`
+        `API Key update call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
