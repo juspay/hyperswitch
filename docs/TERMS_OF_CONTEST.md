@@ -2,7 +2,7 @@
 
 Juspay Technologies Private Limited (Juspay) is the problem statement issuer for the contest and this contest is subject to the below stated terms and conditions. **Hyperswitch** is Juspay's open source full stack payment infrastructure solution to embrace diversity, reduce payment friction and manage compliance.
 
-By participating in this contest, Participant  agree to the following terms and conditions:
+By participating in this contest, Participants agree to the following terms and conditions:
 
 1.  Eligibility: Participants must comply with all applicable laws and regulations. Juspay solely reserves the right to disqualify any participant or withhold prizes if participation or prize distribution if in Juspay's opinion the participant by its acts or omission violates or may violate any applicable laws. The discretionary rights for the same at all times shall remain with Juspay.
 
