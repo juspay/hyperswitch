@@ -345,23 +345,16 @@ pub async fn api_key_list(
     query: web::Query<api_types::ListApiKeyConstraints>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyList;
-    let list_api_key_constraints = query.into_inner();
-    let limit = list_api_key_constraints.limit;
-    let offset = list_api_key_constraints.skip;
+    let payload = query.into_inner();
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (limit, offset),
+        (payload.limit, payload.skip),
         |state, authentication_data, (limit, offset), _| async move {
-            api_keys::list_api_keys(
-                state,
-                authentication_data.merchant_account.get_id().to_owned(),
-                limit,
-                offset,
-            )
-            .await
+            let merchant_id = authentication_data.merchant_account.get_id().to_owned();
+            api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
