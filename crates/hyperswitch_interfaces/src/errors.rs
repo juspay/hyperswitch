@@ -41,6 +41,8 @@ pub enum ConnectorError {
     FailedToObtainCertificate,
     #[error("Connector meta data not found")]
     NoConnectorMetaData,
+    #[error("Connector wallet details not found")]
+    NoConnectorWalletDetails,
     #[error("Failed to obtain certificate key")]
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
