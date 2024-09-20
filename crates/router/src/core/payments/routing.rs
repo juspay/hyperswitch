@@ -283,7 +283,7 @@ pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: Option<&common_utils::id_type::RoutingId>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     transaction_data: &routing::TransactionData<'_>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let algorithm_id = if let Some(id) = algorithm_id {
@@ -298,7 +298,7 @@ pub async fn perform_static_routing_v1(
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
         #[cfg(feature = "v2")]
-        let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
+        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
@@ -721,7 +721,7 @@ pub async fn perform_fallback_routing(
     key_store: &domain::MerchantKeyStore,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     #[cfg(feature = "v1")]
     let fallback_config = routing::helpers::get_merchant_default_config(
@@ -744,7 +744,7 @@ pub async fn perform_fallback_routing(
     .await
     .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
     #[cfg(feature = "v2")]
-    let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
+    let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
         .get_default_fallback_list_of_connector_under_profile()
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
     let backend_input = match transaction_data {
@@ -771,7 +771,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut final_selection = perform_eligibility_analysis(
         state,
@@ -984,7 +984,7 @@ pub async fn perform_session_flow_routing(
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-    _business_profile: &domain::BusinessProfile,
+    _business_profile: &domain::Profile,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
@@ -1067,13 +1067,13 @@ async fn perform_session_routing_for_pm_type(
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
 
-    let profile_wrapper = admin::BusinessProfileWrapper::new(business_profile.clone());
+    let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
     let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),

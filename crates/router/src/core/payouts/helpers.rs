@@ -8,7 +8,7 @@ use common_utils::{
     fp_utils, id_type, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
-        MinorUnit,
+        MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -792,7 +792,7 @@ pub async fn decide_payout_connector(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
@@ -948,12 +948,13 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,
-    flow: String,
+    flow: &str,
 ) -> Option<storage::gsm::GatewayStatusMap> {
+    let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
-                connector_name.clone().unwrap_or_default(),
-                flow.clone(),
+                connector_name.clone(),
+                flow.to_string(),
                 "sub_flow".to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
@@ -963,7 +964,7 @@ pub async fn get_gsm_record(
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
                         "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
-                        connector_name.unwrap_or_default(),
+                        connector_name,
                         flow,
                         error_code,
                         error_message
@@ -1268,4 +1269,30 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
     }
+}
+
+pub async fn get_translated_unified_code_and_message(
+    state: &SessionState,
+    unified_code: Option<&UnifiedCode>,
+    unified_message: Option<&UnifiedMessage>,
+    locale: &str,
+) -> CustomResult<Option<UnifiedMessage>, errors::ApiErrorResponse> {
+    Ok(unified_code
+        .zip(unified_message)
+        .async_and_then(|(code, message)| async {
+            payment_helpers::get_unified_translation(
+                state,
+                code.0.clone(),
+                message.0.clone(),
+                locale.to_string(),
+            )
+            .await
+            .map(UnifiedMessage::try_from)
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "unified_message",
+        })?
+        .or_else(|| unified_message.cloned()))
 }

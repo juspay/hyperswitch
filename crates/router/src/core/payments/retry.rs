@@ -43,7 +43,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -286,7 +286,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,

@@ -39,8 +39,6 @@ use crate::{
     verifications::*,
 };
 
-impl ApiEventMetric for TimeRange {}
-
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Analytics)
@@ -77,9 +75,9 @@ impl_api_event_type!(
         MandateId,
         DisputeListConstraints,
         RetrieveApiKeyResponse,
-        BusinessProfileResponse,
-        BusinessProfileUpdate,
-        BusinessProfileCreate,
+        ProfileResponse,
+        ProfileUpdate,
+        ProfileCreate,
         RevokeApiKeyResponse,
         ToggleKVResponse,
         ToggleKVRequest,

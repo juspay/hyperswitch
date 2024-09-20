@@ -1078,7 +1078,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1097,7 +1097,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: D,
     customer: Option<domain::Customer>,

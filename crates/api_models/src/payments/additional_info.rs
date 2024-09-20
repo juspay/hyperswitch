@@ -205,9 +205,19 @@ pub enum UpiAdditionalData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
 pub struct UpiCollectAdditionalData {
     /// Masked VPA ID
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     pub vpa_id: Option<MaskedUpiVpaId>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WalletAdditionalDataForCard {
+    /// Last 4 digits of the card number
+    pub last4: String,
+    /// The information of the payment method
+    pub card_network: String,
+    /// The type of payment method
+    #[serde(rename = "type")]
+    pub card_type: String,
 }
