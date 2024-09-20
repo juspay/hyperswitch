@@ -958,7 +958,7 @@ impl Default for CellInformation {
         // around the time of deserializing application settings.
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
-        let cell_id = common_utils::id_type::CellId::from_str("default_cell_id")
+        let cell_id = common_utils::id_type::CellId::from_str("defid")
             .expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
