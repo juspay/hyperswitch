@@ -112,12 +112,12 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let params = success_rate_based_config
             .params
             .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_vec, params| {
-                    if !acc_vec.is_empty() {
-                        acc_vec.push(':')
+                vec.into_iter().fold(String::new(), |mut acc_str, params| {
+                    if !acc_str.is_empty() {
+                        acc_str.push(':')
                     }
-                    acc_vec.push_str(params.to_string().as_str());
-                    acc_vec
+                    acc_str.push_str(params.to_string().as_str());
+                    acc_str
                 })
             })
             .get_required_value("params")
@@ -177,12 +177,12 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         let params = success_rate_based_config
             .params
             .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_vec, params| {
-                    if !acc_vec.is_empty() {
-                        acc_vec.push(':')
+                vec.into_iter().fold(String::new(), |mut acc_str, params| {
+                    if !acc_str.is_empty() {
+                        acc_str.push(':')
                     }
-                    acc_vec.push_str(params.to_string().as_str());
-                    acc_vec
+                    acc_str.push_str(params.to_string().as_str());
+                    acc_str
                 })
             })
             .get_required_value("params")

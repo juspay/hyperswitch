@@ -27,9 +27,6 @@ pub enum GlobalPaymentMethodIdError {
 }
 
 impl GlobalPaymentMethodId {
-    fn get_global_id(&self) -> &GlobalId {
-        &self.0
-    }
     /// Create a new GlobalPaymentMethodId from celll id information
     pub fn generate(cell_id: &str) -> error_stack::Result<Self, GlobalPaymentMethodIdError> {
         let cell_id = CellId::from_str(cell_id)
@@ -39,18 +36,18 @@ impl GlobalPaymentMethodId {
         Ok(Self(global_id))
     }
 
-    pub fn get_string_repr(&self) -> String {
-        todo!()
+    pub fn get_string_repr(&self) -> &str {
+        self.0.get_string_repr()
     }
 
     pub fn generate_from_string(value: String) -> CustomResult<Self, GlobalPaymentMethodIdError> {
-        let id = GlobalId::from_string(value)
+        let id = GlobalId::from_string(value.into())
             .change_context(GlobalPaymentMethodIdError::ConstructionError)?;
         Ok(Self(id))
     }
 }
 
-impl<DB> diesel::Queryable<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
+impl<DB> diesel::Queryable<sql_types::Text, DB> for GlobalPaymentMethodId
 where
     DB: diesel::backend::Backend,
     Self: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
@@ -70,8 +67,7 @@ where
         &'b self,
         out: &mut diesel::serialize::Output<'b, '_, DB>,
     ) -> diesel::serialize::Result {
-        let id = self.get_global_id();
-        id.to_sql(out)
+        self.0.to_sql(out)
     }
 }
 

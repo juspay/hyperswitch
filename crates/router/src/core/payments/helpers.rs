@@ -802,6 +802,7 @@ pub async fn get_token_for_recurring_mandate(
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
+                mandate_metadata: None,
             }),
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
@@ -816,6 +817,7 @@ pub async fn get_token_for_recurring_mandate(
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
+                mandate_metadata: None,
             }),
             payment_method_type: payment_method.payment_method_type,
             mandate_connector: Some(mandate_connector_details),
@@ -1140,6 +1142,7 @@ pub fn validate_customer_id_mandatory_cases(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn create_startpay_url(
     base_url: &str,
     payment_attempt: &PaymentAttempt,
@@ -2285,6 +2288,20 @@ pub async fn store_in_vault_and_generate_ppmt(
     Ok(parent_payment_method_token)
 }
 
+#[cfg(feature = "v2")]
+pub async fn store_payment_method_data_in_vault(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_method: enums::PaymentMethod,
+    payment_method_data: &domain::PaymentMethodData,
+    merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&domain::Profile>,
+) -> RouterResult<Option<String>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn store_payment_method_data_in_vault(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
@@ -2995,6 +3012,7 @@ pub fn generate_mandate(
     }
 }
 
+#[cfg(feature = "v1")]
 // A function to manually authenticate the client secret with intent fulfillment time
 pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
@@ -3020,6 +3038,34 @@ pub fn authenticate_client_secret(
         }
         // If there is no client in payment intent, then it has expired
         (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
+        _ => Ok(()),
+    }
+}
+
+#[cfg(feature = "v2")]
+// A function to manually authenticate the client secret with intent fulfillment time
+pub fn authenticate_client_secret(
+    request_client_secret: Option<&common_utils::types::ClientSecret>,
+    payment_intent: &PaymentIntent,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (request_client_secret, &payment_intent.client_secret) {
+        (Some(req_cs), pi_cs) => {
+            if req_cs != pi_cs {
+                Err(errors::ApiErrorResponse::ClientSecretInvalid)
+            } else {
+                let current_timestamp = common_utils::date_time::now();
+
+                let session_expiry = payment_intent.session_expiry.unwrap_or(
+                    payment_intent
+                        .created_at
+                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
+                );
+
+                fp_utils::when(current_timestamp > session_expiry, || {
+                    Err(errors::ApiErrorResponse::ClientSecretExpired)
+                })
+            }
+        }
         _ => Ok(()),
     }
 }
@@ -3077,6 +3123,18 @@ pub(crate) fn validate_pm_or_token_given(
     )
 }
 
+#[cfg(feature = "v2")]
+// A function to perform database lookup and then verify the client secret
+pub async fn verify_payment_intent_time_and_client_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    client_secret: Option<String>,
+) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
@@ -3963,9 +4021,8 @@ impl AttemptType {
                         storage_scheme,
                     )
                     .await
-                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: fetched_payment_intent.get_id().to_owned(),
-                    })?;
+                    .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to insert payment attempt")?;
 
                 let updated_payment_intent = db
                     .update_payment_intent(
@@ -4467,30 +4524,34 @@ pub fn is_apple_pay_simplified_flow(
     ))
 }
 
-pub async fn get_encrypted_apple_pay_connector_wallets_details(
+// This function will return the encrypted connector wallets details with Apple Pay certificates
+// Currently apple pay certifiactes are stored in the metadata which is not encrypted.
+// In future we want those certificates to be encrypted and stored in the connector_wallets_details.
+// As part of migration fallback this function checks apple pay details are present in connector_wallets_details
+// If yes, it will encrypt connector_wallets_details and store it in the database.
+// If no, it will check if apple pay details are present in metadata and merge it with connector_wallets_details, encrypt and store it.
+pub async fn get_encrypted_connector_wallets_details_with_apple_pay_certificates(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     connector_metadata: &Option<masking::Secret<tera::Value>>,
+    connector_wallets_details_optional: &Option<api_models::admin::ConnectorWalletDetails>,
 ) -> RouterResult<Option<Encryptable<masking::Secret<serde_json::Value>>>> {
-    let apple_pay_metadata = get_applepay_metadata(connector_metadata.clone())
-        .map_err(|error| {
-            logger::error!(
-                "Apple pay metadata parsing failed in get_encrypted_apple_pay_connector_wallets_details {:?}",
-                error
-            )
-        })
-        .ok();
+    let connector_wallet_details_with_apple_pay_metadata_optional =
+        get_apple_pay_metadata_if_needed(connector_metadata, connector_wallets_details_optional)
+            .await?;
 
-    let connector_apple_pay_details = apple_pay_metadata
-        .map(|metadata| {
-            serde_json::to_value(metadata)
+    let connector_wallets_details = connector_wallet_details_with_apple_pay_metadata_optional
+        .map(|details| {
+            serde_json::to_value(details)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize apple pay metadata as JSON")
+                .attach_printable("Failed to serialize Apple Pay metadata as JSON")
         })
         .transpose()?
         .map(masking::Secret::new);
+
     let key_manager_state: KeyManagerState = state.into();
-    let encrypted_connector_apple_pay_details = connector_apple_pay_details
+    let encrypted_connector_wallets_details = connector_wallets_details
+        .clone()
         .async_lift(|wallets_details| async {
             types::crypto_operation(
                 &key_manager_state,
@@ -4505,7 +4566,86 @@ pub async fn get_encrypted_apple_pay_connector_wallets_details(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encrypting connector wallets details")?;
-    Ok(encrypted_connector_apple_pay_details)
+
+    Ok(encrypted_connector_wallets_details)
+}
+
+async fn get_apple_pay_metadata_if_needed(
+    connector_metadata: &Option<masking::Secret<tera::Value>>,
+    connector_wallets_details_optional: &Option<api_models::admin::ConnectorWalletDetails>,
+) -> RouterResult<Option<api_models::admin::ConnectorWalletDetails>> {
+    if let Some(connector_wallets_details) = connector_wallets_details_optional {
+        if connector_wallets_details.apple_pay_combined.is_some()
+            || connector_wallets_details.apple_pay.is_some()
+        {
+            return Ok(Some(connector_wallets_details.clone()));
+        }
+        // Otherwise, merge Apple Pay metadata
+        return get_and_merge_apple_pay_metadata(
+            connector_metadata.clone(),
+            Some(connector_wallets_details.clone()),
+        )
+        .await;
+    }
+
+    // If connector_wallets_details_optional is None, attempt to get Apple Pay metadata
+    get_and_merge_apple_pay_metadata(connector_metadata.clone(), None).await
+}
+
+async fn get_and_merge_apple_pay_metadata(
+    connector_metadata: Option<masking::Secret<tera::Value>>,
+    connector_wallets_details_optional: Option<api_models::admin::ConnectorWalletDetails>,
+) -> RouterResult<Option<api_models::admin::ConnectorWalletDetails>> {
+    let apple_pay_metadata_optional = get_applepay_metadata(connector_metadata)
+        .map_err(|error| {
+            logger::error!(
+                "Apple Pay metadata parsing failed in get_encrypted_connector_wallets_details_with_apple_pay_certificates {:?}",
+                error
+            );
+        })
+        .ok();
+
+    if let Some(apple_pay_metadata) = apple_pay_metadata_optional {
+        let updated_wallet_details = match apple_pay_metadata {
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                apple_pay_combined_metadata,
+            ) => {
+                let combined_metadata_json = serde_json::to_value(apple_pay_combined_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Apple Pay combined metadata as JSON")?;
+
+                api_models::admin::ConnectorWalletDetails {
+                    apple_pay_combined: Some(masking::Secret::new(combined_metadata_json)),
+                    apple_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.apple_pay.clone()),
+                    samsung_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.samsung_pay.clone()),
+                }
+            }
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
+                let metadata_json = serde_json::to_value(apple_pay_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Apple Pay metadata as JSON")?;
+
+                api_models::admin::ConnectorWalletDetails {
+                    apple_pay: Some(masking::Secret::new(metadata_json)),
+                    apple_pay_combined: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.apple_pay_combined.clone()),
+                    samsung_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.samsung_pay.clone()),
+                }
+            }
+        };
+
+        return Ok(Some(updated_wallet_details));
+    }
+
+    // Return connector_wallets_details if no Apple Pay metadata was found
+    Ok(connector_wallets_details_optional)
 }
 
 pub fn get_applepay_metadata(
@@ -5339,6 +5479,7 @@ pub enum PaymentExternalAuthenticationFlow {
     },
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,

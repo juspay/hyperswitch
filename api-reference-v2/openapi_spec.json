@@ -32,7 +32,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationRequest"
+                "$ref": "#/components/schemas/OrganizationCreateRequest"
               },
               "examples": {
                 "Create an organization with organization_name": {
@@ -129,7 +129,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationRequest"
+                "$ref": "#/components/schemas/OrganizationUpdateRequest"
               },
               "examples": {
                 "Update organization_name of the organization": {
@@ -5168,6 +5168,27 @@
           }
         }
       },
+      "ConnectorWalletDetails": {
+        "type": "object",
+        "properties": {
+          "apple_pay_combined": {
+            "type": "object",
+            "description": "This field contains the Apple Pay certificates and credentials for iOS and Web Apple Pay flow",
+            "nullable": true
+          },
+          "apple_pay": {
+            "type": "object",
+            "description": "This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow",
+            "nullable": true
+          },
+          "samsung_pay": {
+            "type": "object",
+            "description": "This field contains the Samsung Pay certificates and credentials",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CountryAlpha2": {
         "type": "string",
         "enum": [
@@ -8901,6 +8922,14 @@
               }
             ],
             "nullable": true
+          },
+          "connector_wallets_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWalletDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -9097,6 +9126,14 @@
               }
             ],
             "nullable": true
+          },
+          "connector_wallets_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWalletDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -9238,6 +9275,14 @@
               }
             ],
             "nullable": true
+          },
+          "connector_wallets_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWalletDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -9360,6 +9405,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_wallets_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWalletDetails"
               }
             ],
             "nullable": true
@@ -10116,12 +10169,14 @@
           "confirm"
         ]
       },
-      "OrganizationRequest": {
+      "OrganizationCreateRequest": {
         "type": "object",
+        "required": [
+          "organization_name"
+        ],
         "properties": {
           "organization_name": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "organization_details": {
             "type": "object",
@@ -10131,7 +10186,8 @@
             "type": "object",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "OrganizationResponse": {
         "type": "object",
@@ -10168,6 +10224,24 @@
             "format": "date-time"
           }
         }
+      },
+      "OrganizationUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "OutgoingWebhook": {
         "type": "object",
@@ -17929,15 +18003,164 @@
           }
         }
       },
+      "SamsungPayAmountDetails": {
+        "type": "object",
+        "required": [
+          "option",
+          "currency_code",
+          "total"
+        ],
+        "properties": {
+          "option": {
+            "$ref": "#/components/schemas/SamsungPayAmountFormat"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total": {
+            "type": "string",
+            "description": "The total amount of the transaction",
+            "example": "38.02"
+          }
+        }
+      },
+      "SamsungPayAmountFormat": {
+        "type": "string",
+        "enum": [
+          "FORMAT_TOTAL_PRICE_ONLY",
+          "FORMAT_TOTAL_ESTIMATED_AMOUNT"
+        ]
+      },
+      "SamsungPayMerchantPaymentInformation": {
+        "type": "object",
+        "required": [
+          "name",
+          "url",
+          "country_code"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Merchant name, this will be displayed on the Samsung Pay screen"
+          },
+          "url": {
+            "type": "string",
+            "description": "Merchant domain that process payments"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          }
+        }
+      },
+      "SamsungPayProtocolType": {
+        "type": "string",
+        "enum": [
+          "PROTOCOL3DS"
+        ]
+      },
+      "SamsungPaySessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "version",
+          "service_id",
+          "order_number",
+          "merchant",
+          "amount",
+          "protocol",
+          "allowed_brands"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Samsung Pay API version"
+          },
+          "service_id": {
+            "type": "string",
+            "description": "Samsung Pay service ID to which session call needs to be made"
+          },
+          "order_number": {
+            "type": "string",
+            "description": "Order number of the transaction"
+          },
+          "merchant": {
+            "$ref": "#/components/schemas/SamsungPayMerchantPaymentInformation"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/SamsungPayAmountDetails"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/SamsungPayProtocolType"
+          },
+          "allowed_brands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of supported card brands"
+          }
+        }
+      },
+      "SamsungPayTokenData": {
+        "type": "object",
+        "required": [
+          "version",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "3DS type used by Samsung Pay",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "3DS version used by Samsung Pay"
+          },
+          "data": {
+            "type": "string",
+            "description": "Samsung Pay encrypted payment credential data"
+          }
+        }
+      },
+      "SamsungPayWalletCredentials": {
+        "type": "object",
+        "required": [
+          "card_brand",
+          "card_last4digits",
+          "3_d_s"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "Specifies authentication method used",
+            "nullable": true
+          },
+          "recurring_payment": {
+            "type": "boolean",
+            "description": "Value if credential is enabled for recurring payment",
+            "nullable": true
+          },
+          "card_brand": {
+            "type": "string",
+            "description": "Brand of the payment card"
+          },
+          "card_last4digits": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "3_d_s": {
+            "$ref": "#/components/schemas/SamsungPayTokenData"
+          }
+        }
+      },
       "SamsungPayWalletData": {
         "type": "object",
         "required": [
-          "token"
+          "payment_credential"
         ],
         "properties": {
-          "token": {
-            "type": "string",
-            "description": "The encrypted payment token from Samsung"
+          "payment_credential": {
+            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
           }
         }
       },
@@ -18139,6 +18362,27 @@
                     "type": "string",
                     "enum": [
                       "google_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SamsungPaySessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "samsung_pay"
                     ]
                   }
                 }

@@ -50,7 +50,10 @@ use transformers as deutschebank;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentsCompleteAuthorizeRequestData, RefundsRequestData},
+    utils::{
+        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        RefundsRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -182,6 +185,16 @@ impl ConnectorValidation for Deutschebank {
             ),
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd =
+            std::collections::HashSet::from([utils::PaymentMethodDataType::SepaBankDebit]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Deutschebank {
@@ -302,13 +315,26 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/services/v2.1/managedmandate",
-            self.base_url(connectors)
-        ))
+        if req.request.connector_mandate_id().is_none() {
+            Ok(format!(
+                "{}/services/v2.1/managedmandate",
+                self.base_url(connectors)
+            ))
+        } else {
+            let event_id = req.connector_request_reference_id.clone();
+            let tx_action = if req.request.is_auto_capture()? {
+                "authorization"
+            } else {
+                "preauthorization"
+            };
+            Ok(format!(
+                "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
+                self.base_url(connectors)
+            ))
+        }
     }
 
     fn get_request_body(
@@ -356,17 +382,31 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: deutschebank::DeutschebankMandatePostResponse = res
-            .response
-            .parse_struct("Deutschebank PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        if data.request.connector_mandate_id().is_none() {
+            let response: deutschebank::DeutschebankMandatePostResponse = res
+                .response
+                .parse_struct("DeutschebankMandatePostResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: deutschebank::DeutschebankPaymentsResponse = res
+                .response
+                .parse_struct("DeutschebankPaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(

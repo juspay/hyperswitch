@@ -24,4 +24,10 @@ ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
     DROP COLUMN prerouting_algorithm,
     DROP COLUMN surcharge_amount,
     DROP COLUMN tax_on_surcharge,
-    DROP COLUMN frm_merchant_decision;
+    DROP COLUMN frm_merchant_decision,
+    DROP COLUMN statement_descriptor,
+    DROP COLUMN enable_payment_link,
+    DROP COLUMN apply_mit_exemption,
+    DROP COLUMN customer_present,
+    DROP COLUMN routing_algorithm_id,
+    DROP COLUMN payment_link_config;

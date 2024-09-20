@@ -1,4 +1,6 @@
 #![allow(unused)]
+pub mod payment;
+pub mod payment_methods;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -34,6 +36,7 @@ impl GlobalEntity {
     }
 }
 
+/// Cell identifier for an instance / deployment of application
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
 
@@ -109,7 +112,9 @@ impl GlobalId {
         Self(LengthId::new_unchecked(alphanumeric_id))
     }
 
-    pub fn from_string(input_string: String) -> Result<Self, GlobalIdError> {
+    pub(crate) fn from_string(
+        input_string: std::borrow::Cow<'static, str>,
+    ) -> Result<Self, GlobalIdError> {
         let length_id = LengthId::from(input_string.into())?;
         let input_string = &length_id.0 .0;
         let (cell_id, remaining) = input_string
@@ -119,6 +124,10 @@ impl GlobalId {
         CellId::from_str(cell_id)?;
 
         Ok(Self(length_id))
+    }
+
+    pub(crate) fn get_string_repr(&self) -> &str {
+        &self.0 .0 .0
     }
 }
 
@@ -156,7 +165,7 @@ impl<'de> serde::Deserialize<'de> for GlobalId {
         D: serde::Deserializer<'de>,
     {
         let deserialized_string = String::deserialize(deserializer)?;
-        Self::from_string(deserialized_string).map_err(serde::de::Error::custom)
+        Self::from_string(deserialized_string.into()).map_err(serde::de::Error::custom)
     }
 }
 
@@ -189,7 +198,7 @@ mod global_id_tests {
     #[test]
     fn test_global_id_from_string() {
         let input_string = "12345_cus_abcdefghijklmnopqrstuvwxyz1234567890";
-        let global_id = GlobalId::from_string(input_string.to_string()).unwrap();
+        let global_id = GlobalId::from_string(input_string.into()).unwrap();
         assert_eq!(global_id.0 .0 .0, input_string);
     }
 

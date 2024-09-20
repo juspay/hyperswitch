@@ -3341,6 +3341,7 @@ pub async fn list_payment_methods(
         billing_address_for_calculating_required_fields,
         customer.as_ref(),
     ))?;
+
     let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 

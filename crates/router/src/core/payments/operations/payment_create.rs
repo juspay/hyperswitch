@@ -398,7 +398,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
                                     payment_method_id: connector_id.payment_method_id,
-                                    update_history: None
+                                    update_history: None,
+                                    mandate_metadata: None,
                                 }
                                 ))
                             }
@@ -437,6 +438,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                         ),
                                         payment_method_id: None,
                                         update_history: None,
+                                        mandate_metadata: None,
                                     },
                                 ),
                             ),
