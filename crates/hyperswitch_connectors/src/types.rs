@@ -2,8 +2,8 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{AccessTokenAuth, Capture, PSync, Void},
     router_request_types::{
-        AccessTokenRequestData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, PayoutsData,
-        RefundsData,
+        AccessTokenRequestData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
+        PayoutsData, RefundsData,
     },
     router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };

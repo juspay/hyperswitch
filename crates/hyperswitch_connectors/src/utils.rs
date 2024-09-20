@@ -23,8 +23,8 @@ use hyperswitch_domain_models::{
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         self, AuthenticationData, BrowserInformation, CompleteAuthorizeData, CustomerDetails,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};

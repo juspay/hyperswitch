@@ -8,7 +8,7 @@ use crate::{
         AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsSyncData, PaymentsTaxCalculationData, PayoutsData,
-        RefundsData, SetupMandateRequestData, 
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         PaymentsResponseData, PayoutsResponseData, RefundsResponseData, TaxCalculationResponseData,
