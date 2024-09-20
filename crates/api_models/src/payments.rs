@@ -5064,10 +5064,10 @@ pub struct SamsungPaySessionTokenResponse {
     pub service_id: String,
     /// Order number of the transaction
     pub order_number: String,
-    /// Filed containing merchant information
+    /// Field containing merchant information
     #[serde(rename = "merchant")]
     pub merchant_payment_information: SamsungPayMerchantPaymentInformation,
-    /// Filed containing the payment amount
+    /// Field containing the payment amount
     pub amount: SamsungPayAmountDetails,
     /// Payment protocol type
     pub protocol: SamsungPayProtocolType,

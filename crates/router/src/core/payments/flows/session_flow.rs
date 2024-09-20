@@ -523,7 +523,7 @@ fn create_samsung_pay_session_token(
     let merchant_domain = header_payload
         .x_merchant_domain
         .get_required_value("samsung pay domain")
-        .attach_printable("Failed to get domain for samsung session call")?;
+        .attach_printable("Failed to get domain for samsung pay session call")?;
 
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
