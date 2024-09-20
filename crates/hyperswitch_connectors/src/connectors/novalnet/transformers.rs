@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{payments::MandateReferenceId, webhooks::IncomingWebhookEvent};
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
@@ -246,7 +246,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 )
                 .into()),
             },
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
