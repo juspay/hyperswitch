@@ -6,7 +6,7 @@ pm.test("[POST]::/payments - Status code is 2xx", function () {
 // Validate if response header has matching content-type
 pm.test("[POST]::/payments - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
-    "application/json",
+    "application/json"
   );
 });
 
@@ -26,11 +26,11 @@ if (jsonData?.payment_id) {
   pm.collectionVariables.set("payment_id", jsonData.payment_id);
   console.log(
     "- use {{payment_id}} as collection variable for value",
-    jsonData.payment_id,
+    jsonData.payment_id
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.",
+    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined."
   );
 }
 
@@ -39,11 +39,11 @@ if (jsonData?.mandate_id) {
   pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
   console.log(
     "- use {{mandate_id}} as collection variable for value",
-    jsonData.mandate_id,
+    jsonData.mandate_id
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
+    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined."
   );
 }
 
@@ -52,20 +52,20 @@ if (jsonData?.client_secret) {
   pm.collectionVariables.set("client_secret", jsonData.client_secret);
   console.log(
     "- use {{client_secret}} as collection variable for value",
-    jsonData.client_secret,
+    jsonData.client_secret
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.",
+    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined."
   );
 }
 
-// Response body should have value "processing" for "status"
+// Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'processing'",
+    "[POST]::/payments - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
-    },
+      pm.expect(jsonData.status).to.eql("succeeded");
+    }
   );
 }

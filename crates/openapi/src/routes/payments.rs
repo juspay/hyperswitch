@@ -459,7 +459,7 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_list() {}
 
-/// Business Profile level Payments - List
+/// Profile level Payments - List
 ///
 /// To list the payments
 #[utoipa::path(

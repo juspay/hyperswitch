@@ -33,7 +33,7 @@ pub async fn get_profile_id_for_mandate(
         let profile_id =
             pi.profile_id
                 .clone()
-                .ok_or(errors::ApiErrorResponse::BusinessProfileNotFound {
+                .ok_or(errors::ApiErrorResponse::ProfileNotFound {
                     id: pi
                         .profile_id
                         .map(|profile_id| profile_id.get_string_repr().to_owned())

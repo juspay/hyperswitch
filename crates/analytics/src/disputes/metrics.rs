@@ -4,15 +4,11 @@ mod total_dispute_lost_amount;
 
 use std::collections::HashSet;
 
-use api_models::{
-    analytics::{
-        disputes::{
-            DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier,
-        },
-        Granularity,
-    },
-    payments::TimeRange,
+use api_models::analytics::{
+    disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
+    Granularity,
 };
+use common_utils::types::TimeRange;
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 

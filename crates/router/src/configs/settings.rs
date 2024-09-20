@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::{ext_traits::ConfigExt, pii::Email};
+use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -122,7 +122,6 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    pub recipient_emails: RecipientMails,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
@@ -939,11 +938,6 @@ pub struct ServerTls {
     pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
     pub certificate: PathBuf,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct RecipientMails {
-    pub recon: Email,
 }
 
 fn deserialize_hashmap_inner<K, V>(
