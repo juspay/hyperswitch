@@ -189,6 +189,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::FlowNotSupported { .. }
             | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID
+            | errors::ConnectorError::MissingConnectorMandateMetadata
             | errors::ConnectorError::MissingConnectorTransactionID
             | errors::ConnectorError::MissingConnectorRefundID
             | errors::ConnectorError::MissingApplePayTokenData
@@ -288,6 +289,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::FailedToObtainCertificateKey |
                 errors::ConnectorError::CaptureMethodNotSupported |
                 errors::ConnectorError::MissingConnectorMandateID |
+                errors::ConnectorError::MissingConnectorMandateMetadata |
                 errors::ConnectorError::MissingConnectorTransactionID |
                 errors::ConnectorError::MissingConnectorRefundID |
                 errors::ConnectorError::MissingApplePayTokenData |
@@ -376,6 +378,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::FlowNotSupported { .. }
                 | errors::ConnectorError::CaptureMethodNotSupported
                 | errors::ConnectorError::MissingConnectorMandateID
+                | errors::ConnectorError::MissingConnectorMandateMetadata
                 | errors::ConnectorError::MissingConnectorTransactionID
                 | errors::ConnectorError::MissingConnectorRefundID
                 | errors::ConnectorError::MissingApplePayTokenData

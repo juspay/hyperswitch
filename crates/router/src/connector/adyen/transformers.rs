@@ -3294,6 +3294,7 @@ pub fn get_adyen_response(
         .map(|mandate_id| types::MandateReference {
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
+            mandate_metadata: None,
         });
     let network_txn_id = response.additional_data.and_then(|additional_data| {
         additional_data

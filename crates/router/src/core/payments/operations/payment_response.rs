@@ -1504,21 +1504,24 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let flow_name = core_utils::get_flow_name::<F>()?;
     if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
-        let connector_mandate_id = match router_data.response.clone() {
+        let (connector_mandate_id, mandate_metadata) = match router_data.response.clone() {
             Ok(resp) => match resp {
                 types::PaymentsResponseData::TransactionResponse {
                     ref mandate_reference,
                     ..
                 } => {
                     if let Some(mandate_ref) = mandate_reference {
-                        mandate_ref.connector_mandate_id.clone()
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                        )
                     } else {
-                        None
+                        (None, None)
                     }
                 }
-                _ => None,
+                _ => (None, None),
             },
-            Err(_) => None,
+            Err(_) => (None, None),
         };
         if let Some(payment_method) = payment_data.payment_method_info.clone() {
             let connector_mandate_details =
@@ -1529,6 +1532,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
+                    mandate_metadata,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
                 state,

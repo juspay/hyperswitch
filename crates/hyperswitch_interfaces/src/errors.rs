@@ -56,6 +56,8 @@ pub enum ConnectorError {
     CaptureMethodNotSupported,
     #[error("Missing connector mandate ID")]
     MissingConnectorMandateID,
+    #[error("Missing connector mandate metadata")]
+    MissingConnectorMandateMetadata,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
