@@ -30,6 +30,7 @@ use rust_decimal::{
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use thiserror::Error;
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
@@ -37,8 +38,6 @@ use crate::{
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
 };
-
-use time::PrimitiveDateTime;
 
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
