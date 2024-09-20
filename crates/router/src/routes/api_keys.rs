@@ -283,6 +283,7 @@ pub async fn api_key_revoke(
     .await
 }
 
+#[cfg(feature = "v1")]
 /// API Key - List
 ///
 /// List all API Keys associated with your merchant account.
@@ -326,6 +327,44 @@ pub async fn api_key_list(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
+                required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
+pub async fn api_key_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_types::ListApiKeyConstraints>,
+) -> impl Responder {
+    let flow = Flow::ApiKeyList;
+    let list_api_key_constraints = query.into_inner();
+    let limit = list_api_key_constraints.limit;
+    let offset = list_api_key_constraints.skip;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (limit, offset),
+        |state, auth, (limit, offset), _| async move {
+            api_keys::list_api_keys(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                limit,
+                offset,
+            )
+            .await
+        },
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::ApiKeyRead,
                 minimum_entity_level: EntityType::Merchant,
             },
