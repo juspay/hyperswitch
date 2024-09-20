@@ -475,6 +475,12 @@ Cypress.Commands.add(
     mcaCreateBody.connector_type = connectorType;
     mcaCreateBody.payment_methods_enabled = paymentMethodsEnabled;
 
+    if (connectorName === undefined) {
+      throw new Error(
+        `Connector name is a mandatory field to create merchant connector account but is undefined.`
+      );
+    }
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
