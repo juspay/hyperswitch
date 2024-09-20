@@ -318,7 +318,7 @@ pub async fn refunds_list_profile(
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<api_models::payments::TimeRange>,
+    payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
     Box::pin(api::server_wrap(
@@ -426,7 +426,7 @@ pub async fn get_refunds_filters_profile(
 pub async fn get_refunds_aggregates(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_params: web::Query<api_models::payments::TimeRange>,
+    query_params: web::Query<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsAggregate;
     let query_params = query_params.into_inner();

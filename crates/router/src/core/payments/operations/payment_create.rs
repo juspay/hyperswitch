@@ -133,11 +133,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 &profile_id,
             )
             .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.get_string_repr().to_owned(),
-                },
-            )?
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?
         };
         let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
@@ -595,7 +593,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -702,7 +700,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentCreateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -978,6 +976,35 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
 }
 
 impl PaymentCreate {
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[instrument(skip_all)]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn make_payment_attempt(
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        organization_id: &common_utils::id_type::OrganizationId,
+        money: (api::Amount, enums::Currency),
+        payment_method: Option<enums::PaymentMethod>,
+        payment_method_type: Option<enums::PaymentMethodType>,
+        request: &api::PaymentsRequest,
+        browser_info: Option<serde_json::Value>,
+        state: &SessionState,
+        payment_method_billing_address_id: Option<String>,
+        payment_method_info: &Option<domain::PaymentMethod>,
+        _key_store: &domain::MerchantKeyStore,
+        profile_id: common_utils::id_type::ProfileId,
+        customer_acceptance: &Option<payments::CustomerAcceptance>,
+    ) -> RouterResult<(
+        storage::PaymentAttemptNew,
+        Option<api_models::payments::AdditionalPaymentData>,
+    )> {
+        todo!()
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(

@@ -1,7 +1,7 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
-use crate::id_type;
+use crate::{id_type, types::TimeRange};
 
 pub trait ApiEventMetric {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -27,6 +27,8 @@ pub enum ApiEventsType {
         payment_method: Option<PaymentMethod>,
         payment_method_type: Option<PaymentMethodType>,
     },
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    PaymentMethodCreate,
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     Customer {
         id: String,
@@ -137,3 +139,5 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
         T::get_api_event_type(self)
     }
 }
+
+impl ApiEventMetric for TimeRange {}

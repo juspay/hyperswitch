@@ -32,7 +32,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationRequest"
+                "$ref": "#/components/schemas/OrganizationCreateRequest"
               },
               "examples": {
                 "Create an organization with organization_name": {
@@ -129,7 +129,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationRequest"
+                "$ref": "#/components/schemas/OrganizationUpdateRequest"
               },
               "examples": {
                 "Update organization_name of the organization": {
@@ -235,7 +235,7 @@
                     "connector_type": "payment_processor"
                   }
                 },
-                "Create a merchant connector account under a specific business profile": {
+                "Create a merchant connector account under a specific profile": {
                   "value": {
                     "connector_account_details": {
                       "api_key": "{{adyen-api-key}}",
@@ -624,9 +624,9 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Business Profile - List",
-        "description": "List business profiles for an Merchant",
-        "operationId": "List Business Profiles",
+        "summary": "Profile - List",
+        "description": "List profiles for an Merchant",
+        "operationId": "List Profiles",
         "parameters": [
           {
             "name": "account_id",
@@ -640,13 +640,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Business profile list retrieved successfully",
+            "description": "profile list retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/BusinessProfileResponse"
+                    "$ref": "#/components/schemas/ProfileResponse"
                   }
                 }
               }
@@ -666,19 +666,19 @@
     "/v2/profiles": {
       "post": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Create",
-        "description": "Creates a new *business profile* for a merchant",
-        "operationId": "Create A Business Profile",
+        "summary": "Profile - Create",
+        "description": "Creates a new *profile* for a merchant",
+        "operationId": "Create A Profile",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BusinessProfileCreate"
+                "$ref": "#/components/schemas/ProfileCreate"
               },
               "examples": {
-                "Create a business profile with profile name": {
+                "Create a profile with profile name": {
                   "value": {
                     "profile_name": "shoe_business"
                   }
@@ -690,11 +690,11 @@
         },
         "responses": {
           "200": {
-            "description": "Business Account Created",
+            "description": "Account Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                  "$ref": "#/components/schemas/ProfileResponse"
                 }
               }
             }
@@ -713,16 +713,16 @@
     "/v2/profiles/{profile_id}": {
       "get": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Retrieve",
-        "description": "Retrieve existing *business profile*",
-        "operationId": "Retrieve a Business Profile",
+        "summary": "Profile - Retrieve",
+        "description": "Retrieve existing *profile*",
+        "operationId": "Retrieve a Profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -731,11 +731,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Business Profile Updated",
+            "description": "Profile Updated",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                  "$ref": "#/components/schemas/ProfileResponse"
                 }
               }
             }
@@ -752,16 +752,16 @@
       },
       "put": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Update",
-        "description": "Update the *business profile*",
-        "operationId": "Update a Business Profile",
+        "summary": "Profile - Update",
+        "description": "Update the *profile*",
+        "operationId": "Update a Profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -772,10 +772,10 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BusinessProfileCreate"
+                "$ref": "#/components/schemas/ProfileCreate"
               },
               "examples": {
-                "Update business profile with profile name fields": {
+                "Update profile with profile name fields": {
                   "value": {
                     "profile_name": "shoe_business"
                   }
@@ -787,11 +787,11 @@
         },
         "responses": {
           "200": {
-            "description": "Business Profile Updated",
+            "description": "Profile Updated",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                  "$ref": "#/components/schemas/ProfileResponse"
                 }
               }
             }
@@ -857,16 +857,16 @@
     "/v2/profiles/{profile_id}/activate_routing_algorithm": {
       "patch": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Activate routing algorithm",
-        "description": "Activates a routing algorithm under a business profile",
-        "operationId": "Activates a routing algorithm under a business profile",
+        "summary": "Profile - Activate routing algorithm",
+        "description": "Activates a routing algorithm under a profile",
+        "operationId": "Activates a routing algorithm under a profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -924,16 +924,16 @@
     "/v2/profiles/{profile_id}/deactivate_routing_algorithm": {
       "patch": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Deactivate routing algorithm",
-        "description": "Deactivates a routing algorithm under a business profile",
-        "operationId": " Deactivates a routing algorithm under a business profile",
+        "summary": "Profile - Deactivate routing algorithm",
+        "description": "Deactivates a routing algorithm under a profile",
+        "operationId": " Deactivates a routing algorithm under a profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -975,18 +975,18 @@
       }
     },
     "/v2/profiles/{profile_id}/fallback_routing": {
-      "post": {
+      "patch": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Update Default Fallback Routing Algorithm",
-        "description": "Update the default fallback routing algorithm for the business profile",
-        "operationId": "Update the default fallback routing algorithm for the business profile",
+        "summary": "Profile - Update Default Fallback Routing Algorithm",
+        "description": "Update the default fallback routing algorithm for the profile",
+        "operationId": "Update the default fallback routing algorithm for the profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -1041,16 +1041,16 @@
       },
       "get": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Retrieve Default Fallback Routing Algorithm",
-        "description": "Retrieve the default fallback routing algorithm for the business profile",
-        "operationId": "Retrieve the default fallback routing algorithm for the business profile",
+        "summary": "Profile - Retrieve Default Fallback Routing Algorithm",
+        "description": "Retrieve the default fallback routing algorithm for the profile",
+        "operationId": "Retrieve the default fallback routing algorithm for the profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -1088,16 +1088,16 @@
     "/v2/profiles/{profile_id}/routing_algorithm": {
       "get": {
         "tags": [
-          "Business Profile"
+          "Profile"
         ],
-        "summary": "Business Profile - Retrieve Active Routing Algorithm",
-        "description": "Retrieve active routing algorithm under the business profile",
-        "operationId": "Retrieve the active routing algorithm under the business profile",
+        "summary": "Profile - Retrieve Active Routing Algorithm",
+        "description": "Retrieve active routing algorithm under the profile",
+        "operationId": "Retrieve the active routing algorithm under the profile",
         "parameters": [
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the business profile",
+            "description": "The unique identifier for the profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -1429,6 +1429,227 @@
         "security": [
           {
             "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Create",
+        "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Create a customer with name and email": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/{id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve",
+        "description": "Retrieves a customer's details.",
+        "operationId": "Retrieve a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Update",
+        "description": "Updates the customer's details in a customer object.",
+        "operationId": "Update a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              },
+              "examples": {
+                "Update name and email of a customer": {
+                  "value": {
+                    "email": "guest@example.com",
+                    "name": "John Doe"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer was Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Delete",
+        "description": "Delete a customer record.",
+        "operationId": "Delete a Customer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer was Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/list": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - List",
+        "description": "Lists all the customers for a particular merchant id.",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
           }
         ]
       }
@@ -4143,359 +4364,6 @@
             }
           }
         ]
-      },
-      "BusinessProfileCreate": {
-        "type": "object",
-        "required": [
-          "profile_name"
-        ],
-        "properties": {
-          "profile_name": {
-            "type": "string",
-            "description": "The name of business profile",
-            "maxLength": 64
-          },
-          "return_url": {
-            "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
-            "example": "https://www.example.com/success",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "enable_payment_response_hash": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if payment response hash needs to be enabled",
-            "default": true,
-            "example": true,
-            "nullable": true
-          },
-          "payment_response_hash_key": {
-            "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
-          },
-          "redirect_to_merchant_with_http_post": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
-            "default": false,
-            "example": true,
-            "nullable": true
-          },
-          "webhook_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          },
-          "order_fulfillment_time": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
-          },
-          "order_fulfillment_time_origin": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
-              }
-            ],
-            "nullable": true
-          },
-          "applepay_verified_domains": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Verified Apple Pay domains for a particular profile",
-            "nullable": true
-          },
-          "session_expiry": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Client Secret Default expiry for all payments created under this business profile",
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
-          },
-          "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BusinessPaymentLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "authentication_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "use_billing_as_payment_method_billing": {
-            "type": "boolean",
-            "description": "Whether to use the billing details passed when creating the intent as payment method billing",
-            "nullable": true
-          },
-          "collect_shipping_details_from_wallet_connector_if_required": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "collect_billing_details_from_wallet_connector_if_required": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "always_collect_shipping_details_from_wallet_connector": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "always_collect_billing_details_from_wallet_connector": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "is_connector_agnostic_mit_enabled": {
-            "type": "boolean",
-            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
-            "nullable": true
-          },
-          "payout_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "outgoing_webhook_custom_http_headers": {
-            "type": "object",
-            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
-            "nullable": true
-          },
-          "tax_connector_id": {
-            "type": "string",
-            "description": "Merchant Connector id to be stored for tax_calculator connector",
-            "nullable": true
-          },
-          "is_tax_connector_enabled": {
-            "type": "boolean",
-            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
-          },
-          "is_network_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
-          }
-        },
-        "additionalProperties": false
-      },
-      "BusinessProfileResponse": {
-        "type": "object",
-        "required": [
-          "merchant_id",
-          "id",
-          "profile_name",
-          "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post",
-          "is_tax_connector_enabled",
-          "is_network_tokenization_enabled"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64
-          },
-          "id": {
-            "type": "string",
-            "description": "The identifier for business profile. This must be used for creating merchant accounts, payments and payouts",
-            "example": "pro_abcdefghijklmnopqrstuvwxyz",
-            "maxLength": 64
-          },
-          "profile_name": {
-            "type": "string",
-            "description": "Name of the business profile",
-            "maxLength": 64
-          },
-          "return_url": {
-            "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
-            "example": "https://www.example.com/success",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "enable_payment_response_hash": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if payment response hash needs to be enabled",
-            "default": true,
-            "example": true
-          },
-          "payment_response_hash_key": {
-            "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
-          },
-          "redirect_to_merchant_with_http_post": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "webhook_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          },
-          "applepay_verified_domains": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Verified Apple Pay domains for a particular profile",
-            "nullable": true
-          },
-          "session_expiry": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Client Secret Default expiry for all payments created under this business profile",
-            "example": 900,
-            "nullable": true
-          },
-          "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BusinessPaymentLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "authentication_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "use_billing_as_payment_method_billing": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "extended_card_info_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "collect_shipping_details_from_wallet_connector_if_required": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "collect_billing_details_from_wallet_connector_if_required": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "always_collect_shipping_details_from_wallet_connector": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "always_collect_billing_details_from_wallet_connector": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
-            "default": false,
-            "example": false,
-            "nullable": true
-          },
-          "is_connector_agnostic_mit_enabled": {
-            "type": "boolean",
-            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
-            "nullable": true
-          },
-          "payout_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "outgoing_webhook_custom_http_headers": {
-            "type": "object",
-            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
-            "nullable": true
-          },
-          "order_fulfillment_time": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
-          },
-          "order_fulfillment_time_origin": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
-              }
-            ],
-            "nullable": true
-          },
-          "tax_connector_id": {
-            "type": "string",
-            "description": "Merchant Connector id to be stored for tax_calculator connector",
-            "nullable": true
-          },
-          "is_tax_connector_enabled": {
-            "type": "boolean",
-            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
-          },
-          "is_network_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
-            "default": false,
-            "example": false
-          }
-        }
       },
       "CaptureMethod": {
         "type": "string",
@@ -8929,7 +8797,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "description": "Identifier for the profile, if not provided default will be chosen from merchant account",
             "maxLength": 64
           },
           "connector_account_details": {
@@ -9128,7 +8996,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "A unique label to identify the connector account created under a business profile",
+            "description": "A unique label to identify the connector account created under a profile",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -9139,7 +9007,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "description": "Identifier for the profile, if not provided default will be chosen from merchant account",
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -9252,7 +9120,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "A unique label to identify the connector account created under a business profile",
+            "description": "A unique label to identify the connector account created under a profile",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -9263,7 +9131,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "description": "Identifier for the profile, if not provided default will be chosen from merchant account",
             "maxLength": 64
           },
           "connector_account_details": {
@@ -10248,12 +10116,14 @@
           "confirm"
         ]
       },
-      "OrganizationRequest": {
+      "OrganizationCreateRequest": {
         "type": "object",
+        "required": [
+          "organization_name"
+        ],
         "properties": {
           "organization_name": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "organization_details": {
             "type": "object",
@@ -10263,7 +10133,8 @@
             "type": "object",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "OrganizationResponse": {
         "type": "object",
@@ -10300,6 +10171,24 @@
             "format": "date-time"
           }
         }
+      },
+      "OrganizationUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "OutgoingWebhook": {
         "type": "object",
@@ -11691,7 +11580,7 @@
             ],
             "properties": {
               "wallet": {
-                "type": "object"
+                "$ref": "#/components/schemas/WalletResponse"
               }
             }
           },
@@ -15385,13 +15274,17 @@
           },
           "unified_code": {
             "type": "string",
-            "description": "error code unified across the connectors is received here if there was an error while calling connector",
-            "nullable": true
+            "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "UE_000",
+            "nullable": true,
+            "maxLength": 255
           },
           "unified_message": {
             "type": "string",
-            "description": "error message unified across the connectors is received here if there was an error while calling connector",
-            "nullable": true
+            "description": "(This field is not live yet)\nError message unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "Invalid card details",
+            "nullable": true,
+            "maxLength": 1024
           }
         }
       },
@@ -15905,6 +15798,20 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "UE_000",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "(This field is not live yet)\nError message unified across the connectors is received here in case of errors while calling the underlying connector",
+            "example": "Invalid card details",
+            "nullable": true,
+            "maxLength": 1024
           }
         },
         "additionalProperties": false
@@ -16505,6 +16412,171 @@
           "accommodation"
         ]
       },
+      "ProfileCreate": {
+        "type": "object",
+        "required": [
+          "profile_name"
+        ],
+        "properties": {
+          "profile_name": {
+            "type": "string",
+            "description": "The name of profile",
+            "maxLength": 64
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://www.example.com/success",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": true,
+            "example": true,
+            "nullable": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
+            "nullable": true
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "order_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "order_fulfillment_time_origin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
+              }
+            ],
+            "nullable": true
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Verified Apple Pay domains for a particular profile",
+            "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Client Secret Default expiry for all payments created under this profile",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPaymentLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "use_billing_as_payment_method_billing": {
+            "type": "boolean",
+            "description": "Whether to use the billing details passed when creating the intent as payment method billing",
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector_if_required": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "collect_billing_details_from_wallet_connector_if_required": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "is_connector_agnostic_mit_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
+            "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+          }
+        },
+        "additionalProperties": false
+      },
       "ProfileDefaultRoutingConfig": {
         "type": "object",
         "required": [
@@ -16520,6 +16592,194 @@
             "items": {
               "$ref": "#/components/schemas/RoutableConnectorChoice"
             }
+          }
+        }
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "id",
+          "profile_name",
+          "enable_payment_response_hash",
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled",
+          "is_network_tokenization_enabled"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64
+          },
+          "id": {
+            "type": "string",
+            "description": "The identifier for profile. This must be used for creating merchant accounts, payments and payouts",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz",
+            "maxLength": 64
+          },
+          "profile_name": {
+            "type": "string",
+            "description": "Name of the profile",
+            "maxLength": 64
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://www.example.com/success",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": true,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
+            "nullable": true
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Verified Apple Pay domains for a particular profile",
+            "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Client Secret Default expiry for all payments created under this profile",
+            "example": 900,
+            "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPaymentLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "use_billing_as_payment_method_billing": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "extended_card_info_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtendedCardInfoConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "collect_shipping_details_from_wallet_connector_if_required": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "collect_billing_details_from_wallet_connector_if_required": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "is_connector_agnostic_mit_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the MIT (merchant initiated transaction) payments can be made connector\nagnostic, i.e., MITs may be processed through different connector than CIT (customer\ninitiated transaction) based on the routing rules.\nIf set to `false`, MIT will go through the same connector as the CIT.",
+            "nullable": true
+          },
+          "payout_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
+            "nullable": true
+          },
+          "order_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "order_fulfillment_time_origin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -18330,6 +18590,7 @@
       },
       "TimeRange": {
         "type": "object",
+        "description": "A type representing a range of time for filtering, including a mandatory start time and an optional end time.",
         "required": [
           "start_time"
         ],
@@ -18903,6 +19164,28 @@
           }
         ]
       },
+      "WalletAdditionalDataForCard": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network",
+          "type"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          }
+        }
+      },
       "WalletData": {
         "oneOf": [
           {
@@ -19207,6 +19490,47 @@
           }
         ]
       },
+      "WalletResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletResponseData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "WalletResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          }
+        ]
+      },
       "WeChatPay": {
         "type": "object"
       },
@@ -19309,8 +19633,8 @@
       "description": "Create and manage merchant accounts"
     },
     {
-      "name": "Business Profile",
-      "description": "Create and manage business profiles"
+      "name": "Profile",
+      "description": "Create and manage profiles"
     },
     {
       "name": "Merchant Connector Account",

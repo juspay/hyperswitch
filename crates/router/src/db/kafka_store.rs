@@ -50,7 +50,7 @@ use crate::{
         api_keys::ApiKeyInterface,
         authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
-        business_profile::BusinessProfileInterface,
+        business_profile::ProfileInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
         configs::ConfigInterface,
@@ -627,6 +627,17 @@ impl DisputeInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
             .find_disputes_by_merchant_id_payment_id(merchant_id, payment_id)
+            .await
+    }
+
+    async fn get_dispute_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+        self.diesel_store
+            .get_dispute_status_with_count(merchant_id, profile_id_list, time_range)
             .await
     }
 }
@@ -1594,6 +1605,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
@@ -1606,6 +1618,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
+                time_range,
                 profile_id_list,
                 storage_scheme,
             )
@@ -1739,7 +1752,7 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentIntent>, errors::DataStorageError> {
@@ -1759,7 +1772,7 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
         self.diesel_store
             .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
@@ -1821,11 +1834,28 @@ impl PaymentIntentInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for KafkaStore {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method(state, key_store, payment_method_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
@@ -2205,7 +2235,7 @@ impl PayoutsInterface for KafkaStore {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
         self.diesel_store
@@ -2504,7 +2534,7 @@ impl RefundInterface for KafkaStore {
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        refund_details: &api_models::payments::TimeRange,
+        refund_details: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         self.diesel_store
@@ -2517,7 +2547,7 @@ impl RefundInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
-        constraints: &api_models::payments::TimeRange,
+        constraints: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
         self.diesel_store
@@ -2596,13 +2626,13 @@ impl MerchantKeyStoreInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl BusinessProfileInterface for KafkaStore {
+impl ProfileInterface for KafkaStore {
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        business_profile: domain::BusinessProfile,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        business_profile: domain::Profile,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .insert_business_profile(key_manager_state, merchant_key_store, business_profile)
             .await
@@ -2613,7 +2643,7 @@ impl BusinessProfileInterface for KafkaStore {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
@@ -2625,7 +2655,7 @@ impl BusinessProfileInterface for KafkaStore {
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_merchant_id_profile_id(
                 key_manager_state,
@@ -2636,15 +2666,15 @@ impl BusinessProfileInterface for KafkaStore {
             .await
     }
 
-    async fn update_business_profile_by_profile_id(
+    async fn update_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        current_state: domain::BusinessProfile,
-        business_profile_update: domain::BusinessProfileUpdate,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        current_state: domain::Profile,
+        business_profile_update: domain::ProfileUpdate,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
-            .update_business_profile_by_profile_id(
+            .update_profile_by_profile_id(
                 key_manager_state,
                 merchant_key_store,
                 current_state,
@@ -2653,28 +2683,24 @@ impl BusinessProfileInterface for KafkaStore {
             .await
     }
 
-    async fn delete_business_profile_by_profile_id_merchant_id(
+    async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &id_type::ProfileId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_business_profile_by_profile_id_merchant_id(profile_id, merchant_id)
+            .delete_profile_by_profile_id_merchant_id(profile_id, merchant_id)
             .await
     }
 
-    async fn list_business_profile_by_merchant_id(
+    async fn list_profile_by_merchant_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Vec<domain::BusinessProfile>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::Profile>, errors::StorageError> {
         self.diesel_store
-            .list_business_profile_by_merchant_id(
-                key_manager_state,
-                merchant_key_store,
-                merchant_id,
-            )
+            .list_profile_by_merchant_id(key_manager_state, merchant_key_store, merchant_id)
             .await
     }
 
@@ -2684,7 +2710,7 @@ impl BusinessProfileInterface for KafkaStore {
         merchant_key_store: &domain::MerchantKeyStore,
         profile_name: &str,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_profile_name_merchant_id(
                 key_manager_state,

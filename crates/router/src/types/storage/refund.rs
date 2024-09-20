@@ -29,7 +29,7 @@ pub trait RefundDbExt: Sized {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_list_details: &api_models::payments::TimeRange,
+        refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
@@ -42,7 +42,7 @@ pub trait RefundDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
 }
 
@@ -159,7 +159,7 @@ impl RefundDbExt for Refund {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_list_details: &api_models::payments::TimeRange,
+        refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         let start_time = refund_list_details.start_time;
 
@@ -301,7 +301,7 @@ impl RefundDbExt for Refund {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
         let mut query = <Self as HasTable>::table()
             .group_by(dsl::refund_status)
