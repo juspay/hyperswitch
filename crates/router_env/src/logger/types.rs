@@ -308,16 +308,16 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
-    /// Create a business profile
-    BusinessProfileCreate,
-    /// Update a business profile
-    BusinessProfileUpdate,
-    /// Retrieve a business profile
-    BusinessProfileRetrieve,
-    /// Delete a business profile
-    BusinessProfileDelete,
-    /// List all the business profiles for a merchant
-    BusinessProfileList,
+    /// Create a profile
+    ProfileCreate,
+    /// Update a profile
+    ProfileUpdate,
+    /// Retrieve a profile
+    ProfileRetrieve,
+    /// Delete a profile
+    ProfileDelete,
+    /// List all the profiles for a merchant
+    ProfileList,
     /// Different verification flows
     Verification,
     /// Rust locker migration

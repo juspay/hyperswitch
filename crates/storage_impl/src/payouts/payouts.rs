@@ -368,7 +368,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         self.router_store
@@ -772,7 +772,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         let payout_filters = (*time_range).into();

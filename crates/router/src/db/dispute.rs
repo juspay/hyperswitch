@@ -53,7 +53,7 @@ pub trait DisputeInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::StorageError>;
 }
 
@@ -142,7 +142,7 @@ impl DisputeInterface for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::get_dispute_status_with_count(
@@ -412,7 +412,7 @@ impl DisputeInterface for MockDb {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 

@@ -51,8 +51,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(all(feature = "oltp", feature = "v1"))]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, user,
-    user_role,
+    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
+    user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -1244,8 +1244,7 @@ impl MerchantAccount {
                             .route(web::put().to(admin::update_merchant_account)),
                     )
                     .service(
-                        web::resource("/profiles")
-                            .route(web::get().to(admin::business_profiles_list)),
+                        web::resource("/profiles").route(web::get().to(profiles::profiles_list)),
                     ),
             )
     }
@@ -1606,19 +1605,19 @@ impl PayoutLink {
     }
 }
 
-pub struct BusinessProfile;
+pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
-impl BusinessProfile {
+impl Profile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(admin::business_profile_create)))
+            .service(web::resource("").route(web::post().to(profiles::profile_create)))
             .service(
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::get().to(admin::business_profile_retrieve))
-                            .route(web::put().to(admin::business_profile_update)),
+                            .route(web::get().to(profiles::profile_retrieve))
+                            .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
                         web::resource("/connector_accounts")
@@ -1627,7 +1626,7 @@ impl BusinessProfile {
                     .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
-                            .route(web::post().to(routing::routing_update_default_config)),
+                            .route(web::patch().to(routing::routing_update_default_config)),
                     )
                     .service(
                         web::resource("/activate_routing_algorithm").route(web::patch().to(
@@ -1669,14 +1668,14 @@ impl BusinessProfile {
     }
 }
 #[cfg(all(feature = "olap", feature = "v1"))]
-impl BusinessProfile {
+impl Profile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("")
-                    .route(web::post().to(admin::business_profile_create))
-                    .route(web::get().to(admin::business_profiles_list)),
+                    .route(web::post().to(profiles::profile_create))
+                    .route(web::get().to(profiles::profiles_list)),
             )
             .service(
                 web::scope("/{profile_id}")
@@ -1699,32 +1698,31 @@ impl BusinessProfile {
                     )
                     .service(
                         web::resource("")
-                            .route(web::get().to(admin::business_profile_retrieve))
-                            .route(web::post().to(admin::business_profile_update))
-                            .route(web::delete().to(admin::business_profile_delete)),
+                            .route(web::get().to(profiles::profile_retrieve))
+                            .route(web::post().to(profiles::profile_update))
+                            .route(web::delete().to(profiles::profile_delete)),
                     )
                     .service(
                         web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(admin::toggle_extended_card_info)),
+                            .route(web::post().to(profiles::toggle_extended_card_info)),
                     )
                     .service(
                         web::resource("/toggle_connector_agnostic_mit")
-                            .route(web::post().to(admin::toggle_connector_agnostic_mit)),
+                            .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
                     ),
             )
     }
 }
 
-pub struct BusinessProfileNew;
+pub struct ProfileNew;
 
 #[cfg(feature = "olap")]
-impl BusinessProfileNew {
+impl ProfileNew {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/profile")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("")
-                    .route(web::get().to(admin::business_profiles_list_at_profile_level)),
+                web::resource("").route(web::get().to(profiles::profiles_list_at_profile_level)),
             )
             .service(
                 web::resource("/connectors").route(web::get().to(admin::connector_list_profile)),

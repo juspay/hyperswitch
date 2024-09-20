@@ -20,7 +20,7 @@ pub trait DisputeDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::DatabaseError>;
 }
 
@@ -117,7 +117,7 @@ impl DisputeDbExt for Dispute {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::DatabaseError> {
         let mut query = <Self as HasTable>::table()
             .group_by(dsl::dispute_status)

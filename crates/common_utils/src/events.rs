@@ -1,7 +1,7 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
-use crate::id_type;
+use crate::{id_type, types::TimeRange};
 
 pub trait ApiEventMetric {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -139,3 +139,5 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
         T::get_api_event_type(self)
     }
 }
+
+impl ApiEventMetric for TimeRange {}
