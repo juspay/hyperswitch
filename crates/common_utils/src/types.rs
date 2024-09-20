@@ -753,9 +753,8 @@ mod client_secret_type {
 
         use serde_json;
 
-        use crate::id_type::GlobalPaymentId;
-
         use super::*;
+        use crate::id_type::GlobalPaymentId;
 
         #[test]
         fn test_serialize_client_secret() {
