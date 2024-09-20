@@ -32,14 +32,14 @@ use crate::{
     disputes::*,
     files::*,
     mandates::*,
-    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
+    organization::{
+        OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
+    },
     payment_methods::*,
     payments::*,
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
-
-impl ApiEventMetric for TimeRange {}
 
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -77,9 +77,9 @@ impl_api_event_type!(
         MandateId,
         DisputeListConstraints,
         RetrieveApiKeyResponse,
-        BusinessProfileResponse,
-        BusinessProfileUpdate,
-        BusinessProfileCreate,
+        ProfileResponse,
+        ProfileUpdate,
+        ProfileCreate,
         RevokeApiKeyResponse,
         ToggleKVResponse,
         ToggleKVRequest,
@@ -131,7 +131,8 @@ impl_api_event_type!(
         DisputeFiltersResponse,
         GetDisputeMetricRequest,
         OrganizationResponse,
-        OrganizationRequest,
+        OrganizationCreateRequest,
+        OrganizationUpdateRequest,
         OrganizationId,
         CustomerListRequest
     )

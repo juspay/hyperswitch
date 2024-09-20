@@ -1459,10 +1459,38 @@ impl
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "customer_details",
             })?;
+
+        let mut billing_address = billing.map(api_types::Address::from);
+
+        // This change is to fix a merchant integration
+        // If billing.email is not passed by the merchant, and if the customer email is present, then use the `customer.email` as the billing email
+        if let Some(billing_address) = &mut billing_address {
+            billing_address.email = billing_address.email.clone().or_else(|| {
+                customer
+                    .and_then(|cust| {
+                        cust.email
+                            .as_ref()
+                            .map(|email| pii::Email::from(email.clone()))
+                    })
+                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email))
+            });
+        } else {
+            billing_address = Some(payments::Address {
+                email: customer
+                    .and_then(|cust| {
+                        cust.email
+                            .as_ref()
+                            .map(|email| pii::Email::from(email.clone()))
+                    })
+                    .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
+                ..Default::default()
+            });
+        }
+
         Ok(Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
-            billing: billing.map(api_types::Address::from),
+            billing: billing_address,
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
             email: customer
                 .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
@@ -1533,17 +1561,17 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
     }
 }
 
-impl ForeignFrom<api_models::organization::OrganizationRequest>
+impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     for diesel_models::organization::OrganizationNew
 {
-    fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
+    fn foreign_from(item: api_models::organization::OrganizationCreateRequest) -> Self {
         let org_new = api_models::organization::OrganizationNew::new(None);
-        let api_models::organization::OrganizationRequest {
+        let api_models::organization::OrganizationCreateRequest {
             organization_name,
             organization_details,
             metadata,
         } = item;
-        let mut org_new_db = Self::new(org_new.org_id, organization_name);
+        let mut org_new_db = Self::new(org_new.org_id, Some(organization_name));
         org_new_db.organization_details = organization_details;
         org_new_db.metadata = metadata;
         org_new_db

@@ -140,7 +140,7 @@ pub async fn form_payment_link_data(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -762,7 +762,7 @@ pub async fn get_payment_link_status(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 

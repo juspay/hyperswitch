@@ -516,7 +516,7 @@ pub async fn get_aggregates_for_disputes(
     state: SessionState,
     merchant: domain::MerchantAccount,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-    time_range: api::TimeRange,
+    time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<dispute_models::DisputesAggregateResponse> {
     let db = state.store.as_ref();
     let dispute_status_with_count = db

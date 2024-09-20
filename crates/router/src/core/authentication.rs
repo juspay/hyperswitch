@@ -80,7 +80,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     authentication_id: String,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -121,7 +121,7 @@ pub async fn perform_pre_authentication(
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
