@@ -9700,7 +9700,6 @@
       },
       "MitExemptionRequest": {
         "type": "string",
-        "description": "Whether mit exemption is requested or not",
         "enum": [
           "Apply",
           "Skip"
