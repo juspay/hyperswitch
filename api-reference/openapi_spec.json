@@ -1121,7 +1121,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationRequest"
+                "$ref": "#/components/schemas/OrganizationCreateRequest"
               },
               "examples": {
                 "Create an organization with organization_name": {
@@ -1218,7 +1218,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationRequest"
+                "$ref": "#/components/schemas/OrganizationUpdateRequest"
               },
               "examples": {
                 "Update organization_name of the organization": {
@@ -13913,12 +13913,14 @@
           }
         }
       },
-      "OrganizationRequest": {
+      "OrganizationCreateRequest": {
         "type": "object",
+        "required": [
+          "organization_name"
+        ],
         "properties": {
           "organization_name": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "organization_details": {
             "type": "object",
@@ -13928,7 +13930,8 @@
             "type": "object",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "OrganizationResponse": {
         "type": "object",
@@ -13965,6 +13968,24 @@
             "format": "date-time"
           }
         }
+      },
+      "OrganizationUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "OutgoingWebhook": {
         "type": "object",

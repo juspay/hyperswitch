@@ -16,6 +16,9 @@ ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey;
 ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_pkey_id PRIMARY KEY (id);
 
+ALTER TABLE ORGANIZATION
+ADD CONSTRAINT organization_organization_name_key UNIQUE (organization_name);
+
 ------------------------ Merchant Account -----------------------
 -- The new primary key for v2 merchant account will be `id`
 ALTER TABLE merchant_account DROP CONSTRAINT merchant_account_pkey;
