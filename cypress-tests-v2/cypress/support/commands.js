@@ -1175,12 +1175,56 @@ Cypress.Commands.add("userInfo", (globalState) => {
 });
 
 // List API calls
-Cypress.Commands.add("listMcaCall", (globalState) => {
+Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const organization_id = globalState.get("organizationId");
+  const url = `${base_url}/v2/organization/${organization_id}/merchant_accounts`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "api-key": api_key,
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.be.an("array").and.to.not.be.empty;
+      for (const key in response.body) {
+        expect(response.body[key]).to.have.property("id").and.to.not.be.empty;
+        expect(response.body[key])
+          .to.have.property("organization_id")
+          .and.to.equal(organization_id);
+        if (base_url.includes("integ") || base_url.includes("sandbox")) {
+          expect(response.body[key])
+            .to.have.property("publishable_key")
+            .and.include("pk_snd_").and.to.not.be.empty;
+        } else if (base_url.includes("localhost")) {
+          expect(response.body[key])
+            .to.have.property("publishable_key")
+            .and.include("pk_dev_").and.to.not.be.empty;
+        }
+        expect(response.body[key]).to.have.property("id").and.to.not.be.empty;
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `API Keys list call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
+Cypress.Commands.add("businessProfilesListCall", (globalState) => {
   // Define the necessary variables and constants
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
   const merchant_id = globalState.get("merchantId");
-  const url = `${base_url}/v2/account/${merchant_id}/connectors`;
+  const url = `${base_url}/v2/merchant_accounts/${merchant_id}/profiles`;
 
   const customHeaders = {
     "x-merchant-id": merchant_id,
@@ -1199,55 +1243,120 @@ Cypress.Commands.add("listMcaCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     if (response.status === 200) {
-      // Control never comes here until the API endpoints are introduced
-      console.log("List MCA call successful");
-      globalState.set(
-        "adyenMerchantConnectorId",
-        response.body[2].merchant_connector_id
-      );
-      globalState.set(
-        "bluesnapMerchantConnectorId",
-        response.body[0].merchant_connector_id
-      );
-      globalState.set(
-        "stripeMerchantConnectorId",
-        response.body[1].merchant_connector_id
-      );
-    } else if (response.status === 404) {
-      expect(response.body.error)
-        .to.have.property("message")
-        .and.to.equal("Unrecognized request URL");
-      expect(response.body.error)
-        .to.have.property("type")
-        .and.to.equal("invalid_request");
-
-      // hard code MCA values for now
-      if (base_url.includes("integ")) {
-        globalState.set("adyenMerchantConnectorId", "mca_YOGOW6CdrjudsT9Mvg7w");
-        globalState.set(
-          "bluesnapMerchantConnectorId",
-          "mca_cdKJoouwpmkHqwVJ1bzV"
-        );
-        globalState.set(
-          "stripeMerchantConnectorId",
-          "mca_KyxoOnfLXWE1hzPSsl9H"
-        );
+      expect(response.body).to.be.an("array").and.to.not.be.empty;
+      for (const key in response.body) {
+        expect(response.body[key]).to.have.property("id").and.to.not.be.empty;
+        expect(response.body[key])
+          .to.have.property("merchant_id")
+          .and.to.equal(merchant_id);
+        expect(response.body[key]).to.have.property("payment_response_hash_key")
+          .and.to.not.be.empty;
       }
     } else {
       // to be updated
       throw new Error(
-        `MCA list call failed with status ${response.status} and message ${response.body.message}`
+        `API Keys list call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
 });
+Cypress.Commands.add("mcaListCall", (globalState, service_type) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const profile_id = globalState.get("profileId");
+  const url = `${base_url}/v2/profiles/${profile_id}/connector_accounts`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "api-key": api_key,
+      "Content-Type": "application/json",
+      ...customHeaders,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      // TODO: Update List MCA such that it should handle cases for both routing as well normal calls
+      // TODO: Present implementation looks a bit hacky
+      if (service_type === "routing") {
+        if (response.body[0].connector_name === "stripe")
+          globalState.set("stripeMerchantConnectorId", response.body[0].id);
+        if (response.body[1].connector_name === "adyen")
+          globalState.set("adyenMerchantConnectorId", response.body[1].id);
+        if (response.body[2].connector_name === "bluesnap")
+          globalState.set("bluesnapMerchantConnectorId", response.body[2].id);
+      } else {
+        expect(response.body).to.be.an("array").and.to.not.be.empty;
+        for (const key in response.body) {
+          expect(response.body[key]).to.have.property("connector_name").and.to
+            .not.be.empty;
+          expect(response.body[key]).to.have.property("connector_label").and.to
+            .not.be.empty;
+          expect(response.body[key]).to.have.property("id").and.to.not.be.empty;
+          expect(response.body[key])
+            .to.have.property("payment_methods_enabled")
+            .and.to.be.an("array").and.to.not.be.empty;
+          expect(response.body[key])
+            .to.have.property("profile_id")
+            .and.to.equal(profile_id);
+          expect(response.body[key])
+            .to.have.property("status")
+            .and.to.equal("active");
+        }
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `Merchant connector account list call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
+Cypress.Commands.add("apiKeysListCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/api_keys/list`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "api-key": api_key,
+      "Content-Type": "application/json",
+      ...customHeaders,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      // This end point does not work
+      expect(response.body).to.be.an("array").and.to.not.be.empty;
+    } else {
+      // to be updated
+      throw new Error(
+        `API Keys list call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
+
 // templates
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
-});
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
-});
 Cypress.Commands.add("", () => {
   cy.request({}).then((response) => {});
 });
