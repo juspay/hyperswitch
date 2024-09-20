@@ -121,10 +121,10 @@ function renderStatusDetails(payoutDetails) {
     "{{i18n_ref_id_text}}": payoutDetails.payout_id,
   };
   if (typeof payoutDetails.error_code === "string") {
-    // resourceInfo["{{i18n_error_code_text}}"] = payoutDetails.error_code;
+    resourceInfo["{{i18n_error_code_text}}"] = payoutDetails.error_code;
   }
   if (typeof payoutDetails.error_message === "string") {
-    // resourceInfo["{{i18n_error_message}}"] = payoutDetails.error_message;
+    resourceInfo["{{i18n_error_message}}"] = payoutDetails.error_message;
   }
   var resourceNode = document.createElement("div");
   resourceNode.id = "resource-info-container";

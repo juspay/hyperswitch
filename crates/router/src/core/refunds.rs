@@ -904,7 +904,7 @@ pub async fn refund_list(
 pub async fn refund_filter_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: api_models::payments::TimeRange,
+    req: common_utils::types::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
     let db = state.store;
     let filter_list = db
@@ -1098,7 +1098,7 @@ pub async fn get_filters_for_refunds(
 pub async fn get_aggregates_for_refunds(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    time_range: api::TimeRange,
+    time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundAggregateResponse> {
     let db = state.store.as_ref();
     let refund_status_with_count = db

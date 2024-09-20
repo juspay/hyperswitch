@@ -41,7 +41,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _time_range: &api_models::payments::TimeRange,
+        _time_range: &common_utils::types::TimeRange,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
@@ -57,7 +57,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        _time_range: &api_models::payments::TimeRange,
+        _time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?

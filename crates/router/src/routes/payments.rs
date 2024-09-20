@@ -987,7 +987,7 @@ pub async fn profile_payments_list_by_filter(
 pub async fn get_filters_for_payments(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Json<payment_types::TimeRange>,
+    payload: web::Json<common_utils::types::TimeRange>,
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
@@ -1065,7 +1065,7 @@ pub async fn get_payment_filters_profile(
 pub async fn get_payments_aggregates(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::TimeRange>,
+    payload: web::Query<common_utils::types::TimeRange>,
 ) -> impl Responder {
     let flow = Flow::PaymentsAggregate;
     let payload = payload.into_inner();
@@ -1780,7 +1780,7 @@ impl GetLockingInput for payment_types::PaymentsManualUpdateRequest {
 pub async fn get_payments_aggregates_profile(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::TimeRange>,
+    payload: web::Query<common_utils::types::TimeRange>,
 ) -> impl Responder {
     let flow = Flow::PaymentsAggregate;
     let payload = payload.into_inner();

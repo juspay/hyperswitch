@@ -71,7 +71,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where

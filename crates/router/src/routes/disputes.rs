@@ -11,7 +11,7 @@ use super::app::AppState;
 use crate::{
     core::disputes,
     services::{api, authentication as auth},
-    types::api::{disputes as dispute_types, payments::TimeRange},
+    types::api::disputes as dispute_types,
 };
 
 /// Disputes - Retrieve Dispute
@@ -413,7 +413,7 @@ pub async fn delete_dispute_evidence(
 pub async fn get_disputes_aggregate(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_param: web::Query<TimeRange>,
+    query_param: web::Query<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::DisputesAggregate;
     let query_param = query_param.into_inner();
@@ -443,7 +443,7 @@ pub async fn get_disputes_aggregate(
 pub async fn get_disputes_aggregate_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_param: web::Query<TimeRange>,
+    query_param: web::Query<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::DisputesAggregate;
     let query_param = query_param.into_inner();

@@ -53,7 +53,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     tags(
         (name = "Merchant Account", description = "Create and manage merchant accounts"),
-        (name = "Business Profile", description = "Create and manage business profiles"),
+        (name = "Profile", description = "Create and manage profiles"),
         (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
         (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
         (name = "Refunds", description = "Create and manage refunds for successful payments"),
@@ -136,12 +136,12 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_delete_api,
 
-        // Routes for Business Profile
-        routes::business_profile::business_profile_create,
-        routes::business_profile::business_profile_list,
-        routes::business_profile::business_profile_retrieve,
-        routes::business_profile::business_profile_update,
-        routes::business_profile::business_profile_delete,
+        // Routes for Profile
+        routes::profile::profile_create,
+        routes::profile::profile_list,
+        routes::profile::profile_retrieve,
+        routes::profile::profile_update,
+        routes::profile::profile_delete,
 
         // Routes for disputes
         routes::disputes::retrieve_dispute,
@@ -194,6 +194,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     components(schemas(
         common_utils::types::MinorUnit,
+        common_utils::types::TimeRange,
         common_utils::link_utils::GenericLinkUiConfig,
         common_utils::link_utils::EnabledPaymentMethod,
         api_models::refunds::RefundRequest,
@@ -283,8 +284,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
-        api_models::admin::BusinessProfileCreate,
-        api_models::admin::BusinessProfileResponse,
+        api_models::admin::ProfileCreate,
+        api_models::admin::ProfileResponse,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,
@@ -467,7 +468,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::refunds::RefundAggregateResponse,
-        api_models::payments::TimeRange,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
@@ -614,7 +614,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::GivexGiftCardAdditionalData,
         api_models::payments::additional_info::UpiAdditionalData,
         api_models::payments::additional_info::UpiCollectAdditionalData,
+        api_models::payments::additional_info::WalletAdditionalDataForCard,
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
+        api_models::payments::WalletResponse,
+        api_models::payments::WalletResponseData,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
     )),
