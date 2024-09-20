@@ -16,12 +16,10 @@ describe("Auto Retries & Step Up 3DS", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("Create JWT token", () => {
-      let data = utils.getConnectorDetails("common")["jwt"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.createJWTToken(req_data, res_data, globalState);
+    it("User login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
     });
 
     it("List MCA", () => {

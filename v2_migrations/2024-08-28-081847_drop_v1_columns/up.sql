@@ -56,8 +56,15 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN business_country,
     DROP COLUMN business_label,
     DROP COLUMN incremental_authorization_allowed,
+    DROP COLUMN fingerprint_id,
     DROP COLUMN merchant_decision,
-    DROP COLUMN fingerprint_id;
+    DROP COLUMN statement_descriptor_name,
+    DROP COLUMN amount_to_capture,
+    DROP COLUMN off_session,
+    DROP COLUMN payment_confirm_source,
+    DROP COLUMN merchant_order_reference_id,
+    DROP COLUMN is_payment_processor_token_flow,
+    DROP COLUMN charges;
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE payment_attempt DROP COLUMN attempt_id,

@@ -166,7 +166,7 @@ pub async fn api_key_update(
     payload.key_id = key_id;
     payload.merchant_id.clone_from(&merchant_id);
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -182,7 +182,7 @@ pub async fn api_key_update(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

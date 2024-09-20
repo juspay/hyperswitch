@@ -489,7 +489,18 @@ async fn store_bank_details_in_payment_methods(
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt customer details")?;
+
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
+
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+            let pm_id = common_utils::id_type::GlobalPaymentMethodId::generate("random_cell_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
             let now = common_utils::date_time::now();
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
@@ -785,6 +796,18 @@ async fn get_selected_config_from_redis(
     Ok(selected_config)
 }
 
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_from_auth_service(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    auth_token: &payment_methods::BankAccountTokenData,
+    payment_intent: &PaymentIntent,
+    _customer: &Option<domain::Customer>,
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn retrieve_payment_method_from_auth_service(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -827,13 +850,6 @@ pub async fn retrieve_payment_method_from_auth_service(
         .attach_printable(
             "error while fetching merchant_connector_account from merchant_id and connector name",
         )?;
-
-    #[cfg(feature = "v2")]
-    let mca = {
-        let _ = merchant_account;
-        let _ = connector;
-        todo!()
-    };
 
     let auth_type = pm_auth_helpers::get_connector_auth_type(mca)?;
 

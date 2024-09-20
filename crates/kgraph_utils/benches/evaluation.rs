@@ -71,6 +71,7 @@ fn build_test_data(
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
+        connector_wallets_details: None,
     };
 
     #[cfg(feature = "v1")]
@@ -95,6 +96,7 @@ fn build_test_data(
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
+        connector_wallets_details: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),

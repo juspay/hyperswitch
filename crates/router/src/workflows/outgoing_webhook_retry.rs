@@ -5,7 +5,10 @@ use api_models::{
     webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::{
+    consts::DEFAULT_LOCALE,
+    ext_traits::{StringExt, ValueExt},
+};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -521,12 +524,18 @@ async fn get_outgoing_webhook_content_and_event_type(
                 payout_models::PayoutActionRequest { payout_id },
             );
 
-            let payout_data =
-                payouts::make_payout_data(&state, &merchant_account, None, &key_store, &request)
-                    .await?;
+            let payout_data = payouts::make_payout_data(
+                &state,
+                &merchant_account,
+                None,
+                &key_store,
+                &request,
+                DEFAULT_LOCALE,
+            )
+            .await?;
 
             let router_response =
-                payouts::response_handler(&merchant_account, &payout_data).await?;
+                payouts::response_handler(&state, &merchant_account, &payout_data).await?;
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {

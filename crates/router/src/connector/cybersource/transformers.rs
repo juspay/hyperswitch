@@ -436,10 +436,25 @@ pub struct FluidData {
 
 pub const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
 
+pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAPP.PAYMENT";
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPaymentInformation {
     fluid_data: FluidData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayPaymentInformation {
+    fluid_data: FluidData,
+    tokenized_card: SamsungPayTokenizedCard,
 }
 
 #[derive(Debug, Serialize)]
@@ -450,6 +465,7 @@ pub enum PaymentInformation {
     ApplePay(Box<ApplePayPaymentInformation>),
     ApplePayToken(Box<ApplePayTokenPaymentInformation>),
     MandatePayment(Box<MandatePaymentInformation>),
+    SamsungPay(Box<SamsungPayPaymentInformation>),
     NetworkToken(Box<NetworkTokenPaymentInformation>),
 }
 
@@ -504,12 +520,15 @@ pub struct AdditionalAmount {
 pub enum PaymentSolution {
     ApplePay,
     GooglePay,
+    SamsungPay,
 }
 
 #[derive(Debug, Serialize)]
 pub enum TransactionType {
     #[serde(rename = "1")]
     ApplePay,
+    #[serde(rename = "1")]
+    SamsungPay,
 }
 
 impl From<PaymentSolution> for String {
@@ -517,6 +536,7 @@ impl From<PaymentSolution> for String {
         let payment_solution = match solution {
             PaymentSolution::ApplePay => "001",
             PaymentSolution::GooglePay => "012",
+            PaymentSolution::SamsungPay => "008",
         };
         payment_solution.to_string()
     }
@@ -575,7 +595,7 @@ impl
         let mut commerce_indicator = solution
             .as_ref()
             .map(|pm_solution| match pm_solution {
-                PaymentSolution::ApplePay => network
+                PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
                     .as_ref()
                     .map(|card_network| match card_network.to_lowercase().as_str() {
                         "amex" => "aesk",
@@ -1491,6 +1511,66 @@ impl
     }
 }
 
+impl
+    TryFrom<(
+        &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+        Box<domain::SamsungPayWalletData>,
+    )> for CybersourcePaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, samsung_pay_data): (
+            &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+            Box<domain::SamsungPayWalletData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+
+        let payment_information =
+            PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
+                fluid_data: FluidData {
+                    value: Secret::from(
+                        consts::BASE64_ENGINE
+                            .encode(samsung_pay_data.payment_credential.token_data.data.peek()),
+                    ),
+                    descriptor: Some(
+                        consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
+                    ),
+                },
+                tokenized_card: SamsungPayTokenizedCard {
+                    transaction_type: TransactionType::SamsungPay,
+                },
+            }));
+
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            Some(PaymentSolution::SamsungPay),
+            Some(samsung_pay_data.payment_credential.card_brand),
+        ))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            consumer_authentication_information: None,
+            merchant_defined_information,
+        })
+    }
+}
+
 impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
     for CybersourcePaymentsRequest
 {
@@ -1588,6 +1668,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         domain::WalletData::GooglePay(google_pay_data) => {
                             Self::try_from((item, google_pay_data))
                         }
+                        domain::WalletData::SamsungPay(samsung_pay_data) => {
+                            Self::try_from((item, samsung_pay_data))
+                        }
                         domain::WalletData::AliPayQr(_)
                         | domain::WalletData::AliPayRedirect(_)
                         | domain::WalletData::AliPayHkRedirect(_)
@@ -1604,7 +1687,6 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::MobilePayRedirect(_)
                         | domain::WalletData::PaypalRedirect(_)
                         | domain::WalletData::PaypalSdk(_)
-                        | domain::WalletData::SamsungPay(_)
                         | domain::WalletData::TwintRedirect {}
                         | domain::WalletData::VippsRedirect {}
                         | domain::WalletData::TouchNGoRedirect(_)
@@ -2227,6 +2309,7 @@ fn get_payment_response(
                             .payment_instrument
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
+                        mandate_metadata: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2947,6 +3030,7 @@ impl
                         .payment_instrument
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
+                    mandate_metadata: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((
             item.response

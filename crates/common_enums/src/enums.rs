@@ -1843,6 +1843,7 @@ pub enum DisputeStage {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -3211,4 +3212,40 @@ pub enum UIWidgetFormLayout {
 pub enum DeleteStatus {
     Active,
     Redacted,
+}
+
+/// Whether 3ds authentication is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum External3dsAuthenticationRequest {
+    /// Request for 3ds authentication
+    Enable,
+    /// Skip 3ds authentication
+    Skip,
+}
+
+/// Whether payment link is requested to be enabled or not for this transaction
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum EnablePaymentLinkRequest {
+    /// Request for enabling payment link
+    Enable,
+    /// Skip enabling payment link
+    Skip,
+}
+
+/// Whether mit exemption is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum MitExemptionRequest {
+    /// Request for applying MIT exemption
+    Apply,
+    /// Skip applying MIT exemption
+    Skip,
+}
+
+/// Whether customer is present / absent during the payment
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum PresenceOfCustomerDuringPayment {
+    /// Customer is present during the payment. This is the default value
+    Present,
+    /// Customer is absent during the payment
+    Absent,
 }

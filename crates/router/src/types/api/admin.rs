@@ -1,15 +1,19 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+pub use api_models::admin;
 pub use api_models::{
     admin::{
-        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
         MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
         MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
         MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
         MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
-        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+        ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest, ToggleAllKVResponse,
+        ToggleKVRequest, ToggleKVResponse, WebhookDetails,
     },
-    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
+    organization::{
+        OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
+    },
 };
 use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::OrganizationBridge;
@@ -107,10 +111,10 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
-    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
         let profile_id = item.get_id().to_owned();
         let outgoing_webhook_custom_http_headers = item
             .outgoing_webhook_custom_http_headers
@@ -169,10 +173,10 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 }
 
 #[cfg(feature = "v2")]
-impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+impl ForeignTryFrom<domain::Profile> for admin::ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
-    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
         let id = item.get_id().to_owned();
 
         let outgoing_webhook_custom_http_headers = item
@@ -235,12 +239,12 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 }
 
 #[cfg(feature = "v1")]
-pub async fn create_business_profile_from_merchant_account(
+pub async fn create_profile_from_merchant_account(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
-    request: BusinessProfileCreate,
+    request: ProfileCreate,
     key_store: &MerchantKeyStore,
-) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     use common_utils::ext_traits::AsyncExt;
 
     use crate::core;
@@ -281,76 +285,73 @@ pub async fn create_business_profile_from_merchant_account(
         })
         .transpose()?;
 
-    Ok(domain::BusinessProfile::from(
-        domain::BusinessProfileSetter {
-            profile_id,
-            merchant_id,
-            profile_name: request.profile_name.unwrap_or("default".to_string()),
-            created_at: current_time,
-            modified_at: current_time,
-            return_url: request
-                .return_url
-                .map(|return_url| return_url.to_string())
-                .or(merchant_account.return_url),
-            enable_payment_response_hash: request
-                .enable_payment_response_hash
-                .unwrap_or(merchant_account.enable_payment_response_hash),
-            payment_response_hash_key: Some(payment_response_hash_key),
-            redirect_to_merchant_with_http_post: request
-                .redirect_to_merchant_with_http_post
-                .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
-            webhook_details: webhook_details.or(merchant_account.webhook_details),
-            metadata: request.metadata,
-            routing_algorithm: None,
-            intent_fulfillment_time: request
-                .intent_fulfillment_time
-                .map(i64::from)
-                .or(merchant_account.intent_fulfillment_time)
-                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
-            frm_routing_algorithm: request
-                .frm_routing_algorithm
-                .or(merchant_account.frm_routing_algorithm),
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: request
-                .payout_routing_algorithm
-                .or(merchant_account.payout_routing_algorithm),
-            #[cfg(not(feature = "payouts"))]
-            payout_routing_algorithm: None,
-            is_recon_enabled: merchant_account.is_recon_enabled,
-            applepay_verified_domains: request.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: request
-                .session_expiry
-                .map(i64::from)
-                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
-            authentication_connector_details: request
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: None,
-            extended_card_info_config: None,
-            use_billing_as_payment_method_billing: request
-                .use_billing_as_payment_method_billing
-                .or(Some(true)),
-            collect_shipping_details_from_wallet_connector: request
-                .collect_shipping_details_from_wallet_connector
-                .or(Some(false)),
-            collect_billing_details_from_wallet_connector: request
-                .collect_billing_details_from_wallet_connector
-                .or(Some(false)),
-            always_collect_billing_details_from_wallet_connector: request
-                .always_collect_billing_details_from_wallet_connector
-                .or(Some(false)),
-            always_collect_shipping_details_from_wallet_connector: request
-                .always_collect_shipping_details_from_wallet_connector
-                .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-            tax_connector_id: request.tax_connector_id,
-            is_tax_connector_enabled: request.is_tax_connector_enabled,
-            dynamic_routing_algorithm: None,
-            is_network_tokenization_enabled: request.is_network_tokenization_enabled,
-        },
-    ))
+    Ok(domain::Profile::from(domain::ProfileSetter {
+        profile_id,
+        merchant_id,
+        profile_name: request.profile_name.unwrap_or("default".to_string()),
+        created_at: current_time,
+        modified_at: current_time,
+        return_url: request
+            .return_url
+            .map(|return_url| return_url.to_string())
+            .or(merchant_account.return_url),
+        enable_payment_response_hash: request
+            .enable_payment_response_hash
+            .unwrap_or(merchant_account.enable_payment_response_hash),
+        payment_response_hash_key: Some(payment_response_hash_key),
+        redirect_to_merchant_with_http_post: request
+            .redirect_to_merchant_with_http_post
+            .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+        webhook_details: webhook_details.or(merchant_account.webhook_details),
+        metadata: request.metadata,
+        routing_algorithm: None,
+        intent_fulfillment_time: request
+            .intent_fulfillment_time
+            .map(i64::from)
+            .or(merchant_account.intent_fulfillment_time)
+            .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
+        frm_routing_algorithm: request
+            .frm_routing_algorithm
+            .or(merchant_account.frm_routing_algorithm),
+        #[cfg(feature = "payouts")]
+        payout_routing_algorithm: request
+            .payout_routing_algorithm
+            .or(merchant_account.payout_routing_algorithm),
+        #[cfg(not(feature = "payouts"))]
+        payout_routing_algorithm: None,
+        is_recon_enabled: merchant_account.is_recon_enabled,
+        applepay_verified_domains: request.applepay_verified_domains,
+        payment_link_config,
+        session_expiry: request
+            .session_expiry
+            .map(i64::from)
+            .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+        authentication_connector_details: request
+            .authentication_connector_details
+            .map(ForeignInto::foreign_into),
+        payout_link_config,
+        is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
+        is_extended_card_info_enabled: None,
+        extended_card_info_config: None,
+        use_billing_as_payment_method_billing: request
+            .use_billing_as_payment_method_billing
+            .or(Some(true)),
+        collect_shipping_details_from_wallet_connector: request
+            .collect_shipping_details_from_wallet_connector
+            .or(Some(false)),
+        collect_billing_details_from_wallet_connector: request
+            .collect_billing_details_from_wallet_connector
+            .or(Some(false)),
+        always_collect_billing_details_from_wallet_connector: request
+            .always_collect_billing_details_from_wallet_connector
+            .or(Some(false)),
+        always_collect_shipping_details_from_wallet_connector: request
+            .always_collect_shipping_details_from_wallet_connector
+            .or(Some(false)),
+        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+        tax_connector_id: request.tax_connector_id,
+        is_tax_connector_enabled: request.is_tax_connector_enabled,
+        dynamic_routing_algorithm: None,
+        is_network_tokenization_enabled: request.is_network_tokenization_enabled,
+    }))
 }

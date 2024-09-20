@@ -270,14 +270,20 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenTransferResponse>>
         item: types::PayoutsResponseRouterData<F, AdyenTransferResponse>,
     ) -> Result<Self, Self::Error> {
         let response: AdyenTransferResponse = item.response;
+        let status = enums::PayoutStatus::from(response.status);
+
+        let error_code = match status {
+            enums::PayoutStatus::Ineligible => Some(response.reason),
+            _ => None,
+        };
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(enums::PayoutStatus::from(response.status)),
+                status: Some(status),
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
-                error_code: None,
+                error_code,
                 error_message: None,
             }),
             ..item.data
