@@ -1195,7 +1195,7 @@ pub async fn validate_and_get_business_profile(
     merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<Option<domain::BusinessProfile>> {
+) -> RouterResult<Option<domain::Profile>> {
     profile_id
         .async_map(|profile_id| async {
             db.find_business_profile_by_profile_id(
@@ -1204,7 +1204,7 @@ pub async fn validate_and_get_business_profile(
                 profile_id,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })
         })
@@ -1303,7 +1303,7 @@ pub async fn get_profile_id_from_business_details(
                         merchant_account.get_id(),
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                         id: profile_name,
                     })?;
 
@@ -1508,7 +1508,7 @@ impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
     }
 }
 
-impl GetProfileId for domain::BusinessProfile {
+impl GetProfileId for domain::Profile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(self.get_id())
     }

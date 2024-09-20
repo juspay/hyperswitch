@@ -77,7 +77,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
@@ -169,7 +169,7 @@ async fn create_applepay_session_token(
     state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     header_payload: api_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
@@ -638,7 +638,7 @@ fn create_gpay_session_token(
     state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
@@ -825,7 +825,7 @@ where
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>;
 }
@@ -834,7 +834,7 @@ fn create_paypal_sdk_session_token(
     _state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
-    _business_profile: &domain::BusinessProfile,
+    _business_profile: &domain::Profile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
 
@@ -874,7 +874,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         connector: &api::ConnectorData,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         match connector.get_token {
