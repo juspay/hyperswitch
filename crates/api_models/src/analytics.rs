@@ -201,6 +201,12 @@ pub struct AnalyticsMetadata {
     pub current_time_range: TimeRange,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentsAnalyticsMetadata {
+    pub total_payment_processed_amount: u64,
+    pub total_payment_processed_count: u64,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentFiltersRequest {
@@ -312,6 +318,13 @@ pub struct SdkEventFiltersResponse {
 pub struct SdkEventFilterValue {
     pub dimension: SdkEventDimensions,
     pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentsMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [PaymentsAnalyticsMetadata; 1],
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -76,6 +76,8 @@ pub enum PaymentDimensions {
     ProfileId,
     CardNetwork,
     MerchantId,
+    #[strum(serialize = "card_last_4")]
+    #[serde(rename = "card_last_4")]
     CardLast4,
     CardIssuer,
     ErrorReason,
@@ -259,6 +261,7 @@ pub struct PaymentMetricsBucketValue {
     pub payment_count: Option<u64>,
     pub payment_success_count: Option<u64>,
     pub payment_processed_amount: Option<u64>,
+    pub payment_processed_count: Option<u64>,
     pub avg_ticket_size: Option<f64>,
     pub payment_error_message: Option<Vec<ErrorResult>>,
     pub retries_count: Option<u64>,

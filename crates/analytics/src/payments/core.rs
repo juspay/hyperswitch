@@ -6,8 +6,8 @@ use api_models::analytics::{
         MetricsBucketResponse, PaymentDimensions, PaymentDistributions, PaymentMetrics,
         PaymentMetricsBucketIdentifier,
     },
-    AnalyticsMetadata, FilterValue, GetPaymentFiltersRequest, GetPaymentMetricRequest,
-    MetricsResponse, PaymentFiltersResponse,
+    FilterValue, GetPaymentFiltersRequest, GetPaymentMetricRequest, PaymentFiltersResponse,
+    PaymentsAnalyticsMetadata, PaymentsMetricsResponse,
 };
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
@@ -48,7 +48,7 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: GetPaymentMetricRequest,
-) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
+) -> AnalyticsResult<PaymentsMetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
         PaymentMetricsBucketIdentifier,
         PaymentMetricsAccumulator,
@@ -203,19 +203,31 @@ pub async fn get_metrics(
             }
         }
     }
-
+    let mut total_payment_processed_amount = 0;
+    let mut total_payment_processed_count = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
-        .map(|(id, val)| MetricsBucketResponse {
-            values: val.collect(),
-            dimensions: id,
+        .map(|(id, val)| {
+            let collected_values = val.collect();
+            if let Some(amount) = collected_values.payment_processed_amount {
+                total_payment_processed_amount += amount;
+            }
+            if let Some(count) = collected_values.payment_processed_count {
+                total_payment_processed_count += count;
+            }
+
+            MetricsBucketResponse {
+                values: collected_values,
+                dimensions: id,
+            }
         })
         .collect();
 
-    Ok(MetricsResponse {
+    Ok(PaymentsMetricsResponse {
         query_data,
-        meta_data: [AnalyticsMetadata {
-            current_time_range: req.time_range,
+        meta_data: [PaymentsAnalyticsMetadata {
+            total_payment_processed_amount,
+            total_payment_processed_count,
         }],
     })
 }

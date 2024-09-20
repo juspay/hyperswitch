@@ -14,7 +14,7 @@ pub struct PaymentMetricsAccumulator {
     pub avg_ticket_size: AverageAccumulator,
     pub payment_error_message: ErrorDistributionAccumulator,
     pub retries_count: CountAccumulator,
-    pub retries_amount_processed: SumAccumulator,
+    pub retries_amount_processed: RetriesAmountAccumulator,
     pub connector_success_rate: SuccessRateAccumulator,
 }
 
@@ -43,8 +43,8 @@ pub struct CountAccumulator {
 }
 
 #[derive(Debug, Default)]
-#[repr(transparent)]
 pub struct SumAccumulator {
+    pub count: Option<i64>,
     pub total: Option<i64>,
 }
 
@@ -52,6 +52,12 @@ pub struct SumAccumulator {
 pub struct AverageAccumulator {
     pub total: u32,
     pub count: u32,
+}
+
+#[derive(Debug, Default)]
+#[repr(transparent)]
+pub struct RetriesAmountAccumulator {
+    pub total: Option<i64>,
 }
 
 pub trait PaymentMetricAccumulator {
@@ -148,7 +154,7 @@ impl PaymentMetricAccumulator for CountAccumulator {
 }
 
 impl PaymentMetricAccumulator for SumAccumulator {
-    type MetricOutput = Option<u64>;
+    type MetricOutput = (Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         self.total = match (
@@ -158,7 +164,33 @@ impl PaymentMetricAccumulator for SumAccumulator {
             (None, None) => None,
             (None, i @ Some(_)) | (i @ Some(_), None) => i,
             (Some(a), Some(b)) => Some(a + b),
+        };
+        self.count = match (self.count, metrics.count) {
+            (None, None) => None,
+            (None, i @ Some(_)) | (i @ Some(_), None) => i,
+            (Some(a), Some(b)) => Some(a + b),
         }
+    }
+    #[inline]
+    fn collect(self) -> Self::MetricOutput {
+        let total_output = u64::try_from(self.total.unwrap_or(0)).ok();
+        let count_output = self.count.and_then(|i| u64::try_from(i).ok());
+
+        (total_output, count_output)
+    }
+}
+
+impl PaymentMetricAccumulator for RetriesAmountAccumulator {
+    type MetricOutput = Option<u64>;
+    fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
+        self.total = match (
+            self.total,
+            metrics.total.as_ref().and_then(ToPrimitive::to_i64),
+        ) {
+            (None, None) => None,
+            (None, i @ Some(_)) | (i @ Some(_), None) => i,
+            (Some(a), Some(b)) => Some(a + b),
+        };
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
@@ -195,11 +227,13 @@ impl PaymentMetricAccumulator for AverageAccumulator {
 
 impl PaymentMetricsAccumulator {
     pub fn collect(self) -> PaymentMetricsBucketValue {
+        let (processed_amount, processed_count) = self.processed_amount.collect();
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),
             payment_count: self.payment_count.collect(),
             payment_success_count: self.payment_success.collect(),
-            payment_processed_amount: self.processed_amount.collect(),
+            payment_processed_amount: processed_amount,
+            payment_processed_count: processed_count,
             avg_ticket_size: self.avg_ticket_size.collect(),
             payment_error_message: self.payment_error_message.collect(),
             retries_count: self.retries_count.collect(),

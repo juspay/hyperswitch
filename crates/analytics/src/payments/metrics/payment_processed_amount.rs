@@ -43,7 +43,12 @@ where
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
-
+        query_builder
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
+            })
+            .switch()?;
         query_builder
             .add_select_column(Aggregate::Sum {
                 field: "amount",
