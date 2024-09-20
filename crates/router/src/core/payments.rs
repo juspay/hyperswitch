@@ -608,6 +608,7 @@ where
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();
 
+    #[cfg(feature = "v1")]
     operation
         .to_domain()?
         .store_extended_card_info_temporarily(
@@ -704,6 +705,19 @@ where
     todo!()
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn populate_surcharge_details<F>(
+    state: &SessionState,
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 async fn populate_surcharge_details<F>(
     state: &SessionState,
@@ -1597,6 +1611,7 @@ where
     )
     .await?;
 
+    #[cfg(feature = "v1")]
     let merchant_recipient_data = if let Some(true) = payment_data
         .get_payment_intent()
         .is_payment_processor_token_flow
@@ -1613,6 +1628,10 @@ where
             )
             .await?
     };
+
+    // TODO: handle how we read `is_processor_token_flow` in v2 and then call `get_merchant_recipient_data`
+    #[cfg(feature = "v2")]
+    let merchant_recipient_data = None;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -2357,6 +2376,7 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
+    #[cfg(feature = "v1")]
     let profile_id = payment_data
         .get_payment_intent()
         .profile_id
@@ -2365,6 +2385,9 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in payment_intent")?
         .clone();
+
+    #[cfg(feature = "v2")]
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -2735,6 +2758,24 @@ where
     Ok(payment_data_and_tokenization_action)
 }
 
+#[cfg(feature = "v2")]
+pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, D>(
+    state: &SessionState,
+    operation: &BoxedOperation<'_, F, Req, D>,
+    payment_data: &mut D,
+    validate_result: &operations::ValidateResult,
+    merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
+    business_profile: &domain::Profile,
+) -> RouterResult<D>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, D>(
     state: &SessionState,
     operation: &BoxedOperation<'_, F, Req, D>,
@@ -3806,7 +3847,7 @@ where
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,
@@ -3821,10 +3862,7 @@ where
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
@@ -4956,6 +4994,7 @@ pub trait OperationSessionGetters<F> {
     fn get_authorizations(&self) -> Vec<diesel_models::authorization::Authorization>;
     fn get_attempts(&self) -> Option<Vec<storage::PaymentAttempt>>;
     fn get_recurring_details(&self) -> Option<&RecurringDetails>;
+    // TODO: this should be a mandatory field, should we throw an error instead of returning an Option?
     fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId>;
     fn get_currency(&self) -> storage_enums::Currency;
     fn get_amount(&self) -> api::Amount;
@@ -5085,8 +5124,14 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.recurring_details.as_ref()
     }
 
+    #[cfg(feature = "v1")]
     fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId> {
         self.payment_intent.profile_id.as_ref()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId> {
+        Some(&self.payment_intent.profile_id)
     }
 
     fn get_currency(&self) -> storage_enums::Currency {
