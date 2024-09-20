@@ -95,7 +95,12 @@ pub async fn get_filters_for_disputes(
     {
         data
     } else {
-        return Err(errors::ApiErrorResponse::InternalServerError.into());
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable(
+            "Failed to retrieve merchant connector accounts while fetching dispute list filters.",
+        );
     };
 
     let connector_map = merchant_connector_accounts

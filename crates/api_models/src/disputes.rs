@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
+use common_utils::types::TimeRange;
 use masking::{Deserialize, Serialize};
 use serde::de::Error;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
-use crate::{admin::MerchantConnectorInfo, enums, files, payments::TimeRange};
+use crate::{admin::MerchantConnectorInfo, enums, files};
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
@@ -144,22 +145,6 @@ pub struct DisputeListGetConstraints {
     pub time_range: Option<TimeRange>,
 }
 
-fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
-{
-    let output = Option::<&str>::deserialize(v)?;
-    output
-        .map(|s| {
-            s.split(",")
-                .map(|x| x.parse::<T>().map_err(D::Error::custom))
-                .collect::<Result<_, _>>()
-        })
-        .transpose()
-}
-
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct DisputeListFilters {
     /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
@@ -242,4 +227,20 @@ pub struct DeleteEvidenceRequest {
 pub struct DisputesAggregateResponse {
     /// Different status of disputes with their count
     pub status_with_count: HashMap<DisputeStatus, i64>,
+}
+
+fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    let output = Option::<&str>::deserialize(v)?;
+    output
+        .map(|s| {
+            s.split(",")
+                .map(|x| x.parse::<T>().map_err(D::Error::custom))
+                .collect::<Result<_, _>>()
+        })
+        .transpose()
 }
