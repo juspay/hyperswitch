@@ -479,7 +479,7 @@ pub async fn refunds_manual_update(
 pub async fn get_refunds_aggregate_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_params: web::Query<api_models::payments::TimeRange>,
+    query_params: web::Query<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsAggregate;
     let query_params = query_params.into_inner();
