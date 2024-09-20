@@ -167,7 +167,7 @@ Cypress.Commands.add(
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const organization_id = globalState.get("organizationId");
-    const url = `${base_url}/v2/accounts`;
+    const url = `${base_url}/v2/merchant_accounts`;
 
     const merchant_name = merchantAccountCreateBody.merchant_name
       .replaceAll(" ", "")
@@ -221,7 +221,7 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
   const merchant_id = globalState.get("merchantId");
-  const url = `${base_url}/v2/accounts/${merchant_id}`;
+  const url = `${base_url}/v2/merchant_accounts/${merchant_id}`;
 
   cy.request({
     method: "GET",
@@ -267,7 +267,7 @@ Cypress.Commands.add(
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const merchant_id = globalState.get("merchantId");
-    const url = `${base_url}/v2/accounts/${merchant_id}`;
+    const url = `${base_url}/v2/merchant_accounts/${merchant_id}`;
 
     const merchant_name = merchantAccountUpdateBody.merchant_name;
 
