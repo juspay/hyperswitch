@@ -203,9 +203,8 @@ pub async fn api_key_update(
         state,
         &req,
         payload,
-        |state, authentication_data, mut payload, _|
-        {
-            payload.merchant_id  = authentication_data.merchant_account.get_id().to_owned();
+        |state, authentication_data, mut payload, _| {
+            payload.merchant_id = authentication_data.merchant_account.get_id().to_owned();
             api_keys::update_api_key(state, payload)
         },
         auth::auth_type(
