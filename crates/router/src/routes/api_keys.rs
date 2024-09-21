@@ -351,10 +351,10 @@ pub async fn api_key_list(
         flow,
         state,
         &req,
-        (payload.limit, payload.skip),
-        |state, authentication_data, (limit, offset), _| async move {
+        payload,
+        |state, authentication_data, payload, _| async move {
             let merchant_id = authentication_data.merchant_account.get_id().to_owned();
-            api_keys::list_api_keys(state, merchant_id, limit, offset).await
+            api_keys::list_api_keys(state, merchant_id, payload.limit, payload.skip).await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
