@@ -130,7 +130,6 @@ impl_api_event_type!(
         (&String, &String),
         (Option<i64>, Option<i64>, String),
         (Option<i64>, Option<i64>, id_type::MerchantId),
-        (Option<i64>, Option<i64>),
         bool
     )
 );
