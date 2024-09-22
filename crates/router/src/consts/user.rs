@@ -26,3 +26,5 @@ pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 15 * 60; // 15 minutes
 
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
+
+pub const MAX_INVITE_REQUESTS: usize = 10;

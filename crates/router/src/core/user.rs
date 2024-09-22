@@ -498,7 +498,7 @@ pub async fn invite_multiple_user(
     req_state: ReqState,
     auth_id: Option<String>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
-    if requests.len() > 10 {
+    if requests.len() > consts::user::MAX_INVITE_REQUESTS {
         return Err(report!(UserErrors::MaxInvitationsError))
             .attach_printable("Number of invite requests must not exceed 10");
     }
