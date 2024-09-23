@@ -14,7 +14,7 @@ use storage_impl::errors::StorageError;
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
-    db::user_role::ListUserRolesByUserIdPayload,
+    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
@@ -397,4 +397,25 @@ pub async fn get_single_merchant_id_and_profile_id(
     };
 
     Ok((merchant_id, profile_id))
+}
+
+pub async fn fetch_user_roles_by_payload(
+    state: &SessionState,
+    payload: ListUserRolesByOrgIdPayload<'_>,
+    request_entity_type: Option<EntityType>,
+) -> UserResult<HashSet<UserRole>> {
+    Ok(state
+        .store
+        .list_user_roles_by_org_id(payload)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter_map(|user_role| {
+            let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
+            (request_entity_type.is_none()
+                || request_entity_type
+                    .is_some_and(|req_entity_type| entity_type == req_entity_type))
+            .then_some(user_role)
+        })
+        .collect::<HashSet<_>>())
 }

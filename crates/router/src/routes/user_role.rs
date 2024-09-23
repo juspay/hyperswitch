@@ -297,15 +297,14 @@ pub async fn list_users_in_lineage(
     query: web::Query<user_role_api::ListUsersInEntityRequest>,
 ) -> HttpResponse {
     let flow = Flow::ListUsersInLineage;
-    let query_params = query.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
-        query_params,
-        |state, user_from_token, payload, _| {
-            user_role_core::list_users_in_lineage(state, user_from_token, payload)
+        query.into_inner(),
+        |state, user_from_token, request, _| {
+            user_role_core::list_users_in_lineage(state, user_from_token, request)
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,

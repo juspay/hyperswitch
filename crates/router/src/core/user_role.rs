@@ -686,77 +686,66 @@ pub async fn list_users_in_lineage(
 
     let user_roles_set: HashSet<_> =
         match (requestor_role_info.get_entity_type(), request.entity_type) {
-            (EntityType::Organization, None) => state
-                .store
-                .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
-                    user_id: None,
-                    org_id: &user_from_token.org_id,
-                    merchant_id: None,
-                    profile_id: None,
-                    version: None,
-                })
-                .await
-                .change_context(UserErrors::InternalServerError)?
-                .into_iter()
-                .filter_map(|user_role| {
-                    let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
-                    request
-                        .entity_type
-                        .is_some_and(|req_entity_type| entity_type == req_entity_type)
-                        .then_some(user_role)
-                })
-                .collect(),
+            (EntityType::Organization, None)
+            | (EntityType::Organization, Some(EntityType::Organization)) => {
+                utils::user_role::fetch_user_roles_by_payload(
+                    &state,
+                    ListUserRolesByOrgIdPayload {
+                        user_id: None,
+                        org_id: &user_from_token.org_id,
+                        merchant_id: None,
+                        profile_id: None,
+                        version: None,
+                    },
+                    request.entity_type,
+                )
+                .await?
+            }
             (EntityType::Merchant, None)
-            | (EntityType::Organization, Some(EntityType::Merchant)) => state
-                .store
-                .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
-                    user_id: None,
-                    org_id: &user_from_token.org_id,
-                    merchant_id: Some(&user_from_token.merchant_id),
-                    profile_id: None,
-                    version: None,
-                })
-                .await
-                .change_context(UserErrors::InternalServerError)?
-                .into_iter()
-                .filter_map(|user_role| {
-                    let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
-                    request
-                        .entity_type
-                        .is_some_and(|req_entity_type| entity_type == req_entity_type)
-                        .then_some(user_role)
-                })
-                .collect(),
+            | (EntityType::Merchant, Some(EntityType::Merchant))
+            | (EntityType::Organization, Some(EntityType::Merchant)) => {
+                utils::user_role::fetch_user_roles_by_payload(
+                    &state,
+                    ListUserRolesByOrgIdPayload {
+                        user_id: None,
+                        org_id: &user_from_token.org_id,
+                        merchant_id: Some(&user_from_token.merchant_id),
+                        profile_id: None,
+                        version: None,
+                    },
+                    request.entity_type,
+                )
+                .await?
+            }
             (EntityType::Profile, None)
             | (EntityType::Organization, Some(EntityType::Profile))
-            | (EntityType::Merchant, Some(EntityType::Profile)) => {
+            | (EntityType::Merchant, Some(EntityType::Profile))
+            | (EntityType::Profile, Some(EntityType::Profile)) => {
                 let Some(profile_id) = user_from_token.profile_id.as_ref() else {
                     return Err(UserErrors::JwtProfileIdMissing.into());
                 };
 
-                state
-                    .store
-                    .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                utils::user_role::fetch_user_roles_by_payload(
+                    &state,
+                    ListUserRolesByOrgIdPayload {
                         user_id: None,
                         org_id: &user_from_token.org_id,
                         merchant_id: Some(&user_from_token.merchant_id),
                         profile_id: Some(profile_id),
                         version: None,
-                    })
-                    .await
-                    .change_context(UserErrors::InternalServerError)?
-                    .into_iter()
-                    .filter_map(|user_role| {
-                        let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
-                        request
-                            .entity_type
-                            .is_some_and(|req_entity_type| entity_type == req_entity_type)
-                            .then_some(user_role)
-                    })
-                    .collect()
+                    },
+                    request.entity_type,
+                )
+                .await?
             }
             (EntityType::Internal, _) => HashSet::new(),
-            (_, _) => return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable("{requestor_role_info.get_entity_type()} level user requesting data for {request.entity_type} level"),
+            (_, _) => {
+                return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                    "{} level user requesting data for {:?} level",
+                    requestor_role_info.get_entity_type(),
+                    request.entity_type
+                ))
+            }
         };
 
     let mut email_map = state
