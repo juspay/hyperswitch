@@ -174,54 +174,46 @@ pub struct UpdateNexixpayConnectorMetaData {
     pub authorization_operation_id: Option<String>,
     pub capture_operation_id: Option<String>,
     pub cancel_operation_id: Option<String>,
-    pub psync_flow: NexixpayPaymentIntent,
+    pub psync_flow: Option<NexixpayPaymentIntent>,
     pub meta_data: serde_json::Value,
-    pub is_auto_capture: bool
+    pub is_auto_capture: bool,
 }
 
 fn update_nexi_meta_data(
-    (
-        three_d_s_auth_result,
-        three_d_s_auth_response,
-        authorization_operation_id,
-        capture_operation_id,
-        cancel_operation_id,
-        psync_flow,
-        meta_data,
-        is_auto_capture,
-    ): (
-        Option<ThreeDSAuthResult>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<NexixpayPaymentIntent>,
-        serde_json::Value,
-        bool,
-    ),
+    update_request: UpdateNexixpayConnectorMetaData,
 ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-    let nexixpay_meta_data = serde_json::from_value::<NexixpayConnectorMetaData>(meta_data)
-        .change_context(errors::ConnectorError::ParsingFailed)?;
+    let nexixpay_meta_data =
+        serde_json::from_value::<NexixpayConnectorMetaData>(update_request.meta_data)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
 
     Ok(serde_json::json!(NexixpayConnectorMetaData {
-        three_d_s_auth_result: three_d_s_auth_result.or(nexixpay_meta_data.three_d_s_auth_result),
-        three_d_s_auth_response: three_d_s_auth_response
+        three_d_s_auth_result: update_request
+            .three_d_s_auth_result
+            .or(nexixpay_meta_data.three_d_s_auth_result),
+        three_d_s_auth_response: update_request
+            .three_d_s_auth_response
             .or(nexixpay_meta_data.three_d_s_auth_response),
-        authorization_operation_id: authorization_operation_id
+        authorization_operation_id: update_request
+            .authorization_operation_id
             .clone()
             .or(nexixpay_meta_data.authorization_operation_id.clone()),
         capture_operation_id: {
-            if is_auto_capture {
-                authorization_operation_id
+            if update_request.is_auto_capture {
+                update_request
+                    .authorization_operation_id
                     .clone()
                     .or(nexixpay_meta_data.authorization_operation_id)
             } else {
-                capture_operation_id
+                update_request.capture_operation_id
             }
             .or(nexixpay_meta_data.capture_operation_id)
         },
-        cancel_operation_id: cancel_operation_id.or(nexixpay_meta_data.cancel_operation_id),
-        psync_flow: psync_flow.unwrap_or(nexixpay_meta_data.psync_flow)
+        cancel_operation_id: update_request
+            .cancel_operation_id
+            .or(nexixpay_meta_data.cancel_operation_id),
+        psync_flow: update_request
+            .psync_flow
+            .unwrap_or(nexixpay_meta_data.psync_flow)
     }))
 }
 
@@ -718,17 +710,17 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let is_auto_capture = item.data.request.is_auto_capture()?;
-        let metadata = to_connector_meta(item.data.request.connector_meta.clone())?;
-        let connector_metadata = Some(update_nexi_meta_data((
-            None,
-            None,
-            Some(item.response.operation.operation_id.clone()),
-            None,
-            None,
-            Some(NexixpayPaymentIntent::Authorize),
-            metadata,
+        let meta_data = to_connector_meta(item.data.request.connector_meta.clone())?;
+        let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
+            three_d_s_auth_result: None,
+            three_d_s_auth_response: None,
+            authorization_operation_id: Some(item.response.operation.operation_id.clone()),
+            capture_operation_id: None,
+            cancel_operation_id: None,
+            psync_flow: Some(NexixpayPaymentIntent::Authorize),
+            meta_data,
             is_auto_capture,
-        ))?);
+        })?);
 
         Ok(Self {
             status: AttemptStatus::from(item.response.operation.operation_result),
@@ -890,17 +882,17 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let metadata = to_connector_meta(item.data.request.connector_meta.clone())?;
-        let connector_metadata = Some(update_nexi_meta_data((
-            None,
-            None,
-            None,
-            Some(item.response.operation_id.clone()),
-            None,
-            Some(NexixpayPaymentIntent::Capture),
-            metadata,
-            false,
-        ))?);
+        let meta_data = to_connector_meta(item.data.request.connector_meta.clone())?;
+        let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
+            three_d_s_auth_result: None,
+            three_d_s_auth_response: None,
+            authorization_operation_id: None,
+            capture_operation_id: Some(item.response.operation_id.clone()),
+            cancel_operation_id: None,
+            psync_flow: Some(NexixpayPaymentIntent::Capture),
+            meta_data,
+            is_auto_capture: false,
+        })?);
         Ok(Self {
             status: AttemptStatus::Pending, // Capture call do not return status in their response.
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -953,17 +945,17 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let metadata = to_connector_meta(item.data.request.connector_meta.clone())?;
-        let connector_metadata = Some(update_nexi_meta_data((
-            None,
-            None,
-            None,
-            None,
-            Some(item.response.operation_id.clone()),
-            Some(NexixpayPaymentIntent::Cancel),
-            metadata,
-            false,
-        ))?);
+        let meta_data = to_connector_meta(item.data.request.connector_meta.clone())?;
+        let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
+            three_d_s_auth_result: None,
+            three_d_s_auth_response: None,
+            authorization_operation_id: None,
+            capture_operation_id: None,
+            cancel_operation_id: Some(item.response.operation_id.clone()),
+            psync_flow: Some(NexixpayPaymentIntent::Cancel),
+            meta_data,
+            is_auto_capture: false,
+        })?);
         Ok(Self {
             status: AttemptStatus::Pending, // Cancel call do not return status in their response.
             response: Ok(PaymentsResponseData::TransactionResponse {
