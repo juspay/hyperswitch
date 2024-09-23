@@ -291,16 +291,21 @@ pub async fn get_role_information(
     .await
 }
 
-pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_users_in_lineage(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_role_api::ListUsersInEntityRequest>,
+) -> HttpResponse {
     let flow = Flow::ListUsersInLineage;
+    let query_params = query.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
-        (),
-        |state, user_from_token, _, _| {
-            user_role_core::list_users_in_lineage(state, user_from_token)
+        query_params,
+        |state, user_from_token, payload, _| {
+            user_role_core::list_users_in_lineage(state, user_from_token, payload)
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
