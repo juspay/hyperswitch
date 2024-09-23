@@ -3253,3 +3253,12 @@ pub enum PresenceOfCustomerDuringPayment {
     /// Customer is absent during the payment
     Absent,
 }
+
+impl From<ConnectorType> for TransactionType {
+    fn from(connector_type: ConnectorType) -> Self {
+        match connector_type {
+            ConnectorType::PayoutProcessor => Self::Payout,
+            _ => Self::Payment,
+        }
+    }
+}
