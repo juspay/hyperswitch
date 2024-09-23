@@ -13028,7 +13028,7 @@
           "session_expiry": {
             "type": "integer",
             "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
             "minimum": 0
@@ -16896,7 +16896,7 @@
       },
       "PresenceOfCustomerDuringPayment": {
         "type": "string",
-        "description": "Whether customer is present / absent during the payment",
+        "description": "Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
         "enum": [
           "Present",
           "Absent"

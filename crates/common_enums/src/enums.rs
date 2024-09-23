@@ -3248,7 +3248,7 @@ pub enum MitExemptionRequest {
     Skip,
 }
 
-/// Whether customer is present / absent during the payment
+/// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value

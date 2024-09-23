@@ -153,7 +153,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
-    /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
+    /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
     #[serde(default)]
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
@@ -216,7 +216,7 @@ pub struct PaymentsCreateIntentRequest {
     #[serde(default)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
@@ -274,7 +274,7 @@ pub struct PaymentsCreateIntentResponse {
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
-    /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
+    /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
     #[serde(default)]
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
