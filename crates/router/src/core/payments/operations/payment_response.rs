@@ -1659,10 +1659,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let _ =
-        metrics_for_success_based_routing(state, key_store, &payment_attempt, routable_connectors)
-            .await
-            .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e));
+    metrics_for_success_based_routing(state, key_store, &payment_attempt, routable_connectors)
+        .await
+        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+        .ok();
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
