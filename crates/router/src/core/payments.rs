@@ -63,7 +63,7 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[cfg(feature = "v1")]
 use super::routing::helpers::checked_fetch_success_based_routing_configs;
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
@@ -4507,7 +4507,7 @@ where
     .attach_printable("failed eligibility analysis and fallback")?;
 
     // Fetch and cache default config for success based routing
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    #[cfg(feature = "v1")]
     checked_fetch_success_based_routing_configs(state, business_profile)
         .await
         .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
