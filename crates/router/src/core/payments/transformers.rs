@@ -1148,6 +1148,17 @@ where
                             .or_else(|| tax.default.map(|a| a.order_tax_amount))
                     })
             });
+        let connector_mandate_id = payment_data.get_mandate_id().and_then(|mandate| {
+            mandate
+                .mandate_reference_id
+                .as_ref()
+                .and_then(|mandate_ref| match mandate_ref {
+                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_reference_id,
+                    ) => connector_mandate_reference_id.connector_mandate_id.clone(),
+                    _ => None,
+                })
+        });
 
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
@@ -1247,6 +1258,7 @@ where
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
+            connector_mandate_id,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -1500,6 +1512,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             charges: None,
             frm_metadata: None,
             order_tax_amount: None,
+            connector_mandate_id:None,
         }
     }
 }

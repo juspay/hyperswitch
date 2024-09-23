@@ -14,7 +14,7 @@ use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
-use super::{Operation, PostUpdateTracker};
+use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -198,7 +198,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id, ..
+            } = save_payment_call_future.await?;
 
             let mandate_id = mandate::mandate_procedure(
                 state,
@@ -212,11 +214,22 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.mandate_id = mandate_id;
+
             Ok(())
         } else if is_connector_mandate {
             // The mandate is created on connector's end.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id,
+                mandate_reference_id,
+                ..
+            } = save_payment_call_future.await?;
+
             payment_data.payment_attempt.payment_method_id = payment_method_id;
+
+            payment_data.set_mandate_id(api_models::payments::MandateIds {
+                mandate_id: None,
+                mandate_reference_id,
+            });
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
@@ -266,7 +279,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
                     if let Err(err) = result {
                         logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok((payment_method_id, _pm_status)) = result {
+                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                        payment_method_id,
+                        ..
+                    }) = result
+                    {
                         let payment_attempt_update =
                             storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                                 payment_method_id,
@@ -828,23 +845,24 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 }
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
-        let (payment_method_id, _payment_method_status) =
-            Box::pin(tokenization::save_payment_method(
-                state,
-                connector_name,
-                merchant_connector_id.clone(),
-                save_payment_data,
-                customer_id.clone(),
-                merchant_account,
-                resp.request.payment_method_type,
-                key_store,
-                resp.request.amount,
-                Some(resp.request.currency),
-                billing_name,
-                None,
-                business_profile,
-            ))
-            .await?;
+        let tokenization::SavePaymentMethodDataResponse {
+            payment_method_id, ..
+        } = Box::pin(tokenization::save_payment_method(
+            state,
+            connector_name,
+            merchant_connector_id.clone(),
+            save_payment_data,
+            customer_id.clone(),
+            merchant_account,
+            resp.request.payment_method_type,
+            key_store,
+            resp.request.amount,
+            Some(resp.request.currency),
+            billing_name,
+            None,
+            business_profile,
+        ))
+        .await?;
 
         let mandate_id = mandate::mandate_procedure(
             state,

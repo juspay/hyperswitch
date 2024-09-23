@@ -4,7 +4,10 @@ use std::collections::HashMap;
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use api_models::payment_methods::PaymentMethodsData;
+use api_models::{
+    payment_methods::PaymentMethodsData,
+    payments::{ConnectorMandateReferenceId, MandateReferenceId},
+};
 use common_enums::PaymentMethod;
 use common_utils::{
     crypto::Encryptable,
@@ -57,7 +60,11 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
         }
     }
 }
-
+pub struct SavePaymentMethodDataResponse {
+    pub payment_method_id: Option<String>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub mandate_reference_id: Option<MandateReferenceId>,
+}
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -78,7 +85,7 @@ pub async fn save_payment_method<FData>(
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
     business_profile: &domain::Profile,
-) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
+) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
 {
@@ -737,9 +744,36 @@ where
             } else {
                 None
             };
-            Ok((pm_id, pm_status))
+            let cmid_config = db
+                .find_config_by_key_unwrap_or(
+                    format!("{}_connector_mandate_details", merchant_account.get_id().get_string_repr().to_owned()).as_str(),
+                    Some("false".to_string()),
+                )
+                .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", connector_mandate_details_population=?err)).ok();
+
+            let mandate_reference_id = match cmid_config {
+                Some(config) if config.config == "true" => Some(
+                    MandateReferenceId::ConnectorMandateId(ConnectorMandateReferenceId {
+                        connector_mandate_id: connector_mandate_id.clone(),
+                        payment_method_id: pm_id.clone(),
+                        update_history: None,
+                        mandate_metadata: mandate_metadata.clone(),
+                    }),
+                ),
+                _ => None,
+            };
+
+            Ok(SavePaymentMethodDataResponse {
+                payment_method_id: pm_id,
+                payment_method_status: pm_status,
+                mandate_reference_id,
+            })
         }
-        Err(_) => Ok((None, None)),
+        Err(_) => Ok(SavePaymentMethodDataResponse {
+            payment_method_id: None,
+            payment_method_status: None,
+            mandate_reference_id: None,
+        }),
     }
 }
 
