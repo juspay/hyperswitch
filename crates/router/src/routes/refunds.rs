@@ -381,7 +381,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
 #[utoipa::path(
     get,
-    path = "/refunds/v2/filter/profile",
+    path = "/refunds/v2/profile/filter",
     responses(
         (status = 200, description = "List of static filters", body = RefundListFilters),
     ),
