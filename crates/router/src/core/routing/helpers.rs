@@ -12,6 +12,7 @@ use common_utils::{
 };
 use diesel_models::configs;
 use error_stack::ResultExt;
+#[cfg(feature = "dynamic_routing")]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
@@ -643,8 +644,7 @@ pub async fn checked_fetch_success_based_routing_configs(
 }
 
 /// metrics for success based dynamic routing
-#[cfg(feature = "v1")]
-#[cfg(feature = "dynamic_routing")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn metrics_for_success_based_routing(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -704,11 +704,17 @@ pub async fn metrics_for_success_based_routing(
 
     let payment_status_attribute = get_desired_payment_status_for_metrics(&payment_attempt.status);
 
-    let first_success_based_connector = &success_based_connectors
+    let first_success_based_connector_label = &success_based_connectors
         .labels_with_score
         .first()
         .ok_or(errors::ApiErrorResponse::InternalServerError)?
-        .label;
+        .label
+        .to_string();
+
+    let first_success_based_connector = first_success_based_connector_label
+        .split_once(':')
+        .map(|(connector, _)| connector)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
     let outcome = get_success_based_metrics_outcome_for_payment(
         &payment_status_attribute,
@@ -720,15 +726,15 @@ pub async fn metrics_for_success_based_routing(
         &metrics::CONTEXT,
         1,
         &add_attributes([
+            ("tenant", state.tenant.name.clone()),
+            (
+                "merchant_id",
+                payment_attempt.merchant_id.get_string_repr().to_string(),
+            ),
             (
                 "profile_id",
                 payment_attempt.profile_id.get_string_repr().to_string(),
             ),
-            (
-                "payment_id",
-                payment_attempt.payment_id.get_string_repr().to_string(),
-            ),
-            ("tenant", state.tenant.name.clone()),
             (
                 "merchant_connector_id",
                 payment_attempt
@@ -739,19 +745,33 @@ pub async fn metrics_for_success_based_routing(
                     .to_string(),
             ),
             (
+                "payment_id",
+                payment_attempt.payment_id.get_string_repr().to_string(),
+            ),
+            (
                 "success_based_routing_connector",
                 first_success_based_connector.to_string(),
             ),
             ("payment_connector", payment_connector.to_string()),
             ("amount", payment_attempt.amount.to_string()),
             (
-                "merchant_id",
-                payment_attempt.merchant_id.get_string_repr().to_string(),
+                "currency",
+                payment_attempt
+                    .currency
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .to_string(),
             ),
             (
                 "payment_method",
                 payment_attempt
                     .payment_method
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .to_string(),
+            ),
+            (
+                "payment_method_type",
+                payment_attempt
+                    .payment_method_type
                     .ok_or(errors::ApiErrorResponse::InternalServerError)?
                     .to_string(),
             ),
@@ -763,23 +783,9 @@ pub async fn metrics_for_success_based_routing(
                     .to_string(),
             ),
             (
-                "currency",
-                payment_attempt
-                    .currency
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
-                    .to_string(),
-            ),
-            (
                 "authentication_type",
                 payment_attempt
                     .authentication_type
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
-                    .to_string(),
-            ),
-            (
-                "payment_method_type",
-                payment_attempt
-                    .payment_method_type
                     .ok_or(errors::ApiErrorResponse::InternalServerError)?
                     .to_string(),
             ),
