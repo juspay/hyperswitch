@@ -9659,9 +9659,9 @@ impl Default for super::settings::RequiredFields {
                                                 },
                                                 value: None,
                                             }),
-                                            ("email".to_string(),
+                                            ("billing.email".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "email".to_string(),
+                                                required_field: "payment_method_data.billing.email".to_string(),
                                                 display_name: "email".to_string(),
                                                 field_type: enums::FieldType::UserEmailAddress,
                                                 value: None,
@@ -9822,9 +9822,9 @@ impl Default for super::settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
-                                                    "payment_method_data.billing.phone.number".to_string(),
+                                                    "billing.phone.number".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.phone.number".to_string(),
+                                                        required_field: "payment_method_data.billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
                                                         value: None,
@@ -9865,7 +9865,47 @@ impl Default for super::settings::RequiredFields {
                                                         field_type: enums::FieldType::UserAddressLine2,
                                                         value: None,
                                                     }
-                                                )
+                                                ),
+                                                (
+                                                    "shipping.address.line1".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.line1".to_string(),
+                                                        display_name: "line1".to_string(),
+                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.line2".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.line2".to_string(),
+                                                        display_name: "line2".to_string(),
+                                                        field_type: enums::FieldType::UserAddressLine2,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.zip".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.zip".to_string(),
+                                                        display_name: "zip".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressPincode,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.country".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.country".to_string(),
+                                                        display_name: "country".to_string(),
+                                                        field_type: enums::FieldType::UserCountry {
+                                                            options: vec![
+                                                                    "US".to_string(),
+                                                            ]},
+                                                        value: None,
+                                                    }
+                                                ),
+
                                             ]
                                         ),
                                         common: HashMap::new(),
@@ -9945,7 +9985,7 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "payment_method_data.billing.phone.number".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "billing.phone.number".to_string(),
+                                                        required_field: "payment_method_data.billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
                                                         value: None,
@@ -10060,6 +10100,21 @@ impl Default for super::settings::RequiredFields {
                                                         required_field: "payment_method_data.billing.phone.number".to_string(),
                                                         display_name: "phone".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "billing.address.country".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "payment_method_data.billing.address.country".to_string(),
+                                                        display_name: "country".to_string(),
+                                                        field_type: enums::FieldType::UserAddressCountry{
+                                                        options: vec![
+                                                                "DK".to_string(),
+                                                                "FI".to_string(),
+                                                                "NO".to_string(),
+                                                                "SE".to_string(),
+                                                            ]},
                                                         value: None,
                                                     }
                                                 ),
@@ -11940,42 +11995,12 @@ impl Default for super::settings::RequiredFields {
                                                                 display_name: "country".to_string(),
                                                                 field_type: enums::FieldType::UserAddressCountry {
                                                                     options: vec![
-                                                                        "AT".to_string(),
                                                                         "BE".to_string(),
-                                                                        "BG".to_string(),
-                                                                        "HR".to_string(),
-                                                                        "CY".to_string(),
-                                                                        "CZ".to_string(),
-                                                                        "DK".to_string(),
-                                                                        "EE".to_string(),
-                                                                        "FI".to_string(),
-                                                                        "FR".to_string(),
                                                                         "DE".to_string(),
-                                                                        "GR".to_string(),
-                                                                        "HU".to_string(),
-                                                                        "IE".to_string(),
-                                                                        "IT".to_string(),
-                                                                        "LV".to_string(),
-                                                                        "LT".to_string(),
-                                                                        "LU".to_string(),
-                                                                        "MT".to_string(),
-                                                                        "NL".to_string(),
-                                                                        "PL".to_string(),
-                                                                        "PT".to_string(),
-                                                                        "RO".to_string(),
-                                                                        "SI".to_string(),
-                                                                        "SK".to_string(),
                                                                         "ES".to_string(),
-                                                                        "SE".to_string(),
-                                                                        "AD".to_string(),
-                                                                        "IS".to_string(),
-                                                                        "LI".to_string(),
-                                                                        "MC".to_string(),
-                                                                        "NO".to_string(),
-                                                                        "SM".to_string(),
-                                                                        "CH".to_string(),
-                                                                        "GB".to_string(),
-                                                                        "VA".to_string(),
+                                                                        "FR".to_string(),
+                                                                        "IE".to_string(),
+                                                                        "NL".to_string(),  
                                                                     ],
                                                                 },
                                                                 value: None,
