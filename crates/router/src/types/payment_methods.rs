@@ -8,6 +8,9 @@ use crate::{
 };
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::Secret;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
@@ -17,6 +20,21 @@ pub trait VaultingInterface {
 #[async_trait::async_trait]
 pub trait VaultingDataInterface {
     fn get_vaulting_data_key(&self) -> String;
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultId(String);
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl VaultId {
+    pub fn get_string_repr(&self) -> &String {
+        &self.0
+    }
+
+    pub fn generate(id: String) -> Self {
+        Self(id)
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -36,7 +54,7 @@ pub struct VaultFingerprintResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
+    pub vault_id: VaultId,
     pub data: D,
     pub ttl: i64,
 }
@@ -45,7 +63,7 @@ pub struct AddVaultRequest<D> {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
+    pub vault_id: VaultId,
     pub fingerprint_id: Option<String>,
 }
 
@@ -86,11 +104,17 @@ impl VaultingInterface for VaultRetrieve {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum PaymentMethodVaultingData {
+    Card(api::CardDetail),
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
-impl VaultingDataInterface for api::PaymentMethodCreateData {
+impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
-            api::PaymentMethodCreateData::Card(card) => card.card_number.to_string(),
+            PaymentMethodVaultingData::Card(card) => card.card_number.to_string(),
         }
     }
 }
@@ -118,11 +142,11 @@ pub struct SavedPMLPaymentsInfo {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
+    pub vault_id: VaultId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
-    pub data: String,
+    pub data: Secret<String>,
 }

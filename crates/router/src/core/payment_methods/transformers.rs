@@ -25,6 +25,9 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::types::payment_methods as pm_types;
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum StoreLockerReq {
@@ -525,15 +528,15 @@ pub fn mk_add_card_response_hs(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub fn generate_pm_create_from_update_request(
-    pm_create: api::PaymentMethodCreateData,
+pub fn generate_pm_vaulting_req_from_update_request(
+    pm_create: pm_types::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
-) -> api::PaymentMethodCreateData {
+) -> pm_types::PaymentMethodVaultingData {
     match (pm_create, pm_update) {
         (
-            api::PaymentMethodCreateData::Card(card_create),
+            pm_types::PaymentMethodVaultingData::Card(card_create),
             api::PaymentMethodUpdateData::Card(update_card),
-        ) => api::PaymentMethodCreateData::Card(api::CardDetail {
+        ) => pm_types::PaymentMethodVaultingData::Card(api::CardDetail {
             card_number: card_create.card_number,
             card_exp_month: card_create.card_exp_month,
             card_exp_year: card_create.card_exp_year,
@@ -823,6 +826,15 @@ pub fn get_card_detail(
         saved_to_locker: true,
     };
     Ok(card_detail)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<api::PaymentMethodCreateData> for pm_types::PaymentMethodVaultingData {
+    fn from(item: api::PaymentMethodCreateData) -> Self {
+        match item {
+            api::PaymentMethodCreateData::Card(card) => Self::Card(card),
+        }
+    }
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
