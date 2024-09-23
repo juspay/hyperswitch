@@ -215,11 +215,32 @@ pub async fn construct_payout_router_data<'a, F>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
 
     Ok(router_data)
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_refund_router_data<'a, F>(
+    _state: &'a SessionState,
+    _connector_id: &str,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _money: (MinorUnit, enums::Currency),
+    _payment_intent: &'a storage::PaymentIntent,
+    _payment_attempt: &storage::PaymentAttempt,
+    _refund: &'a storage::Refund,
+    _creds_identifier: Option<String>,
+    _charges: Option<types::ChargeRefunds>,
+) -> RouterResult<types::RefundsRouterData<F>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
@@ -370,6 +391,8 @@ pub async fn construct_refund_router_data<'a, F>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
 
     Ok(router_data)
@@ -588,6 +611,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     )
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a SessionState,
@@ -677,10 +701,13 @@ pub async fn construct_accept_dispute_router_data<'a>(
         refund_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a SessionState,
@@ -769,10 +796,13 @@ pub async fn construct_submit_evidence_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_upload_file_router_data<'a>(
@@ -867,10 +897,24 @@ pub async fn construct_upload_file_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
 
+#[cfg(feature = "v2")]
+pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
+    state: &'a SessionState,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    merchant_connector_account: &MerchantConnectorAccount,
+) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -974,10 +1018,13 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         payment_method_status: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a SessionState,
@@ -1069,6 +1116,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         dispute_id: Some(dispute.dispute_id.clone()),
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -1159,6 +1208,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -1195,7 +1246,7 @@ pub async fn validate_and_get_business_profile(
     merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<Option<domain::BusinessProfile>> {
+) -> RouterResult<Option<domain::Profile>> {
     profile_id
         .async_map(|profile_id| async {
             db.find_business_profile_by_profile_id(
@@ -1204,7 +1255,7 @@ pub async fn validate_and_get_business_profile(
                 profile_id,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })
         })
@@ -1303,7 +1354,7 @@ pub async fn get_profile_id_from_business_details(
                         merchant_account.get_id(),
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                         id: profile_name,
                     })?;
 
@@ -1459,8 +1510,15 @@ impl GetProfileId for MerchantConnectorAccount {
 }
 
 impl GetProfileId for storage::PaymentIntent {
+    #[cfg(feature = "v1")]
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
+    }
+
+    // TODO: handle this in a better way for v2
+    #[cfg(feature = "v2")]
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
     }
 }
 
@@ -1508,7 +1566,7 @@ impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
     }
 }
 
-impl GetProfileId for domain::BusinessProfile {
+impl GetProfileId for domain::Profile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(self.get_id())
     }

@@ -16,6 +16,9 @@ ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey;
 ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_pkey_id PRIMARY KEY (id);
 
+ALTER TABLE ORGANIZATION
+ADD CONSTRAINT organization_organization_name_key UNIQUE (organization_name);
+
 ------------------------ Merchant Account -----------------------
 -- The new primary key for v2 merchant account will be `id`
 ALTER TABLE merchant_account DROP CONSTRAINT merchant_account_pkey;
@@ -66,6 +69,8 @@ ALTER TABLE merchant_connector_account
 ALTER COLUMN profile_id
 SET NOT NULL;
 
+CREATE INDEX IF NOT EXISTS merchant_connector_account_profile_id_index ON merchant_connector_account (profile_id);
+
 ------------------------ Customers -----------------------
 -- Run this query only when V1 is deprecated
 ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_pkey;
@@ -85,3 +90,12 @@ ALTER TABLE payment_intent DROP CONSTRAINT payment_intent_pkey;
 
 ALTER TABLE payment_intent
 ADD PRIMARY KEY (id);
+
+-- This migration is to make fields mandatory in payment_intent table
+ALTER TABLE payment_intent
+ALTER COLUMN profile_id
+SET NOT NULL,
+    ALTER COLUMN currency
+SET NOT NULL,
+    ALTER COLUMN client_secret
+SET NOT NULL;

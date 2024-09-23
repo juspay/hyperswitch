@@ -193,11 +193,11 @@ pub async fn update_merchant_active_algorithm_ref(
 }
 
 #[cfg(feature = "v1")]
-pub async fn update_business_profile_active_algorithm_ref(
+pub async fn update_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
-    current_business_profile: domain::BusinessProfile,
+    current_business_profile: domain::Profile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
@@ -225,12 +225,12 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = domain::BusinessProfileUpdate::RoutingAlgorithmUpdate {
+    let business_profile_update = domain::ProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
         payout_routing_algorithm,
     };
 
-    db.update_business_profile_by_profile_id(
+    db.update_profile_by_profile_id(
         key_manager_state,
         merchant_key_store,
         current_business_profile,
@@ -252,17 +252,17 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
-    current_business_profile: domain::BusinessProfile,
+    current_business_profile: domain::Profile,
     dynamic_routing_algorithm: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<()> {
     let ref_val = dynamic_routing_algorithm
         .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert dynamic routing ref to value")?;
-    let business_profile_update = domain::BusinessProfileUpdate::DynamicRoutingAlgorithmUpdate {
+    let business_profile_update = domain::ProfileUpdate::DynamicRoutingAlgorithmUpdate {
         dynamic_routing_algorithm: Some(ref_val),
     };
-    db.update_business_profile_by_profile_id(
+    db.update_profile_by_profile_id(
         key_manager_state,
         merchant_key_store,
         current_business_profile,
@@ -588,7 +588,7 @@ pub async fn refresh_success_based_routing_cache(
 #[cfg(feature = "v1")]
 pub async fn checked_fetch_success_based_routing_configs(
     state: &SessionState,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
     let dynamic_routing_algorithm = business_profile.dynamic_routing_algorithm.clone().ok_or(
         errors::ApiErrorResponse::GenericNotFoundError {
@@ -676,7 +676,7 @@ pub async fn metrics_for_success_based_routing(
             &payment_attempt.profile_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: payment_attempt.profile_id.get_string_repr().to_owned(),
         })?;
 

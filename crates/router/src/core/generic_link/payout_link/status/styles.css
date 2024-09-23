@@ -80,11 +80,12 @@ body {
 #resource-info-container {
   width: 100%;
   border-top: 1px solid rgb(231, 234, 241);
-  padding: 20px 10px;
+  padding: 20px 0;
 }
 #resource-info {
   display: flex;
   align-items: center;
+  margin: 0 2.5rem;
 }
 #info-key {
   text-align: right;

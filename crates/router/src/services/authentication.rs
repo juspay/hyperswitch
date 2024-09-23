@@ -1984,13 +1984,9 @@ where
     default_auth
 }
 
-#[derive(Clone)]
-#[cfg(feature = "recon")]
-pub struct UserFromTokenWithAuthData(pub UserFromToken, pub AuthenticationDataWithUser);
-
 #[cfg(feature = "recon")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserFromTokenWithAuthData, A> for JWTAuth
+impl<A> AuthenticateAndFetch<AuthenticationDataWithUser, A> for JWTAuth
 where
     A: SessionStateInfo + Sync,
 {
@@ -1998,7 +1994,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(UserFromTokenWithAuthData, AuthenticationType)> {
+    ) -> RouterResult<(AuthenticationDataWithUser, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
@@ -2049,17 +2045,9 @@ where
 
         let auth_type = AuthenticationType::MerchantJwt {
             merchant_id: auth.merchant_account.get_id().clone(),
-            user_id: Some(user_id.clone()),
+            user_id: Some(user_id),
         };
 
-        let user = UserFromToken {
-            user_id,
-            merchant_id: payload.merchant_id.clone(),
-            org_id: payload.org_id,
-            role_id: payload.role_id,
-            profile_id: payload.profile_id,
-        };
-
-        Ok((UserFromTokenWithAuthData(user, auth), auth_type))
+        Ok((auth, auth_type))
     }
 }

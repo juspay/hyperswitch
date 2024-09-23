@@ -8,7 +8,7 @@ mod merchant_account {
 
 mod business_profile {
     pub use hyperswitch_domain_models::business_profile::{
-        BusinessProfile, BusinessProfileGeneralUpdate, BusinessProfileSetter, BusinessProfileUpdate,
+        Profile, ProfileGeneralUpdate, ProfileSetter, ProfileUpdate,
     };
 }
 

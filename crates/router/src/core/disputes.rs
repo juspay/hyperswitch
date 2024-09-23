@@ -1,11 +1,13 @@
-use api_models::{disputes as dispute_models, files as files_api_models};
+use std::collections::HashMap;
+
+use api_models::{
+    admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
+};
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-pub mod transformers;
-use std::collections::HashMap;
-
 use strum::IntoEnumIterator;
+pub mod transformers;
 
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
@@ -48,12 +50,13 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-    constraints: api_models::disputes::DisputeListConstraints,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    constraints: api_models::disputes::DisputeListGetConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
+    let dispute_list_constraints = &(constraints.clone(), profile_id_list.clone()).try_into()?;
     let disputes = state
         .store
-        .find_disputes_by_merchant_id(merchant_account.get_id(), constraints)
+        .find_disputes_by_constraints(merchant_account.get_id(), dispute_list_constraints)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;
@@ -74,6 +77,59 @@ pub async fn accept_dispute(
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     todo!()
+}
+
+#[instrument(skip(state))]
+pub async fn get_filters_for_disputes(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+) -> RouterResponse<api_models::disputes::DisputeListFilters> {
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(
+            state,
+            merchant_account.get_id().to_owned(),
+            profile_id_list,
+        )
+        .await?
+    {
+        data
+    } else {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable(
+            "Failed to retrieve merchant connector accounts while fetching dispute list filters.",
+        );
+    };
+
+    let connector_map = merchant_connector_accounts
+        .into_iter()
+        .filter_map(|merchant_connector_account| {
+            merchant_connector_account
+                .connector_label
+                .clone()
+                .map(|label| {
+                    let info = merchant_connector_account.to_merchant_connector_info(&label);
+                    (merchant_connector_account.connector_name, info)
+                })
+        })
+        .fold(
+            HashMap::new(),
+            |mut map: HashMap<String, Vec<MerchantConnectorInfo>>, (connector_name, info)| {
+                map.entry(connector_name).or_default().push(info);
+                map
+            },
+        );
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::disputes::DisputeListFilters {
+            connector: connector_map,
+            currency: storage_enums::Currency::iter().collect(),
+            dispute_status: storage_enums::DisputeStatus::iter().collect(),
+            dispute_stage: storage_enums::DisputeStage::iter().collect(),
+        },
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -516,7 +572,7 @@ pub async fn get_aggregates_for_disputes(
     state: SessionState,
     merchant: domain::MerchantAccount,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-    time_range: api::TimeRange,
+    time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<dispute_models::DisputesAggregateResponse> {
     let db = state.store.as_ref();
     let dispute_status_with_count = db

@@ -151,6 +151,8 @@ where
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }
@@ -167,6 +169,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     _customer: &'a Option<domain::Customer>,
     _merchant_connector_account: &helpers::MerchantConnectorAccountType,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
+    _header_payload: Option<api_models::payments::HeaderPayload>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -190,6 +193,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
+    header_payload: Option<api_models::payments::HeaderPayload>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -318,14 +322,7 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-        connector_meta_data: if let Some(data) = merchant_recipient_data {
-            let val = serde_json::to_value(data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while encoding MerchantRecipientData")?;
-            Some(Secret::new(val))
-        } else {
-            merchant_connector_account.get_metadata()
-        },
+        connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         request: T::try_from(additional_data)?,
         response,
@@ -364,6 +361,12 @@ where
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: merchant_recipient_data.map(|data| {
+            api_models::admin::AdditionalMerchantData::foreign_from(
+                types::AdditionalMerchantData::OpenBankingRecipientData(data),
+            )
+        }),
+        header_payload,
     };
 
     Ok(router_data)
@@ -438,6 +441,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsSessionResponse
 where
     F: Clone,
@@ -472,6 +476,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsDynamicTaxCalculationResponse
 where
     F: Clone,
@@ -1899,6 +1904,16 @@ impl ConnectorTransactionId for Nexinets {
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1952,6 +1967,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -2002,6 +2027,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

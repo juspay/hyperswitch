@@ -123,6 +123,8 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         uses: taiki-e/install-action@v2.33.28
@@ -224,6 +226,8 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         uses: taiki-e/install-action@v2.33.28
@@ -306,6 +310,8 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0

@@ -88,7 +88,7 @@ pub async fn retrieve_payment_method(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
         pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
@@ -507,7 +507,7 @@ pub async fn retrieve_payment_method_with_token(
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
     _mandate_id: Option<api_models::payments::MandateIds>,
     _payment_method_info: Option<domain::PaymentMethod>,
-    _business_profile: &domain::BusinessProfile,
+    _business_profile: &domain::Profile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     todo!()
 }
@@ -528,7 +528,7 @@ pub async fn retrieve_payment_method_with_token(
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -1317,10 +1317,12 @@ async fn get_pm_list_context(
                 hyperswitch_token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
                         Some(pm.get_id().clone()),
-                        pm.locker_id.clone().or(Some(pm.get_id().get_string_repr())),
                         pm.locker_id
                             .clone()
-                            .unwrap_or(pm.get_id().get_string_repr()),
+                            .or(Some(pm.get_id().get_string_repr().to_owned())),
+                        pm.locker_id
+                            .clone()
+                            .unwrap_or(pm.get_id().get_string_repr().to_owned()),
                     ),
                 ),
             })
@@ -1628,7 +1630,7 @@ async fn generate_saved_pm_response(
 
     let pma = api::CustomerPaymentMethod {
         payment_token: parent_payment_method_token.clone(),
-        payment_method_id: pm.get_id().get_string_repr(),
+        payment_method_id: pm.get_id().get_string_repr().to_owned(),
         customer_id: pm.customer_id.to_owned(),
         payment_method,
         payment_method_type: pm.payment_method_type,
@@ -1642,7 +1644,7 @@ async fn generate_saved_pm_response(
             && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
         last_used_at: Some(pm.last_used_at),
         is_default: customer.default_payment_method_id.is_some()
-            && customer.default_payment_method_id.as_ref() == Some(&pm.get_id().get_string_repr()),
+            && customer.default_payment_method_id.as_deref() == Some(pm.get_id().get_string_repr()),
         billing: payment_method_billing,
     };
 
@@ -1685,19 +1687,13 @@ impl pm_types::SavedPMLPaymentsInfo {
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        let profile_id = payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("profile_id is not set in payment_intent")?
-            .clone();
+        let profile_id = &payment_intent.profile_id;
 
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             key_manager_state,
             key_store,
-            Some(profile_id).as_ref(),
+            Some(profile_id),
             merchant_account.get_id(),
         )
         .await?;

@@ -136,7 +136,7 @@ impl ConnectorCommon for Taxjar {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.clone(),
+            code: response.error.clone(),
             message: response.detail.clone(),
             reason: Some(response.detail),
             attempt_status: None,

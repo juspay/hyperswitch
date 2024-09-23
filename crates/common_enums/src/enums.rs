@@ -1357,6 +1357,8 @@ pub enum IntentStatus {
 }
 
 /// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
+/// - On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment
+/// - Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.
 #[derive(
     Clone,
     Copy,
@@ -1817,6 +1819,7 @@ pub enum CardNetwork {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -2480,6 +2483,7 @@ pub enum ClientPlatform {
     #[default]
     Web,
     Ios,
+    Android,
     #[serde(other)]
     Unknown,
 }
@@ -3234,4 +3238,40 @@ pub enum SuccessBasedRoutingConclusiveState {
     FalseNegative,
     // status = processing
     NonDeterministic,
+}
+
+/// Whether 3ds authentication is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum External3dsAuthenticationRequest {
+    /// Request for 3ds authentication
+    Enable,
+    /// Skip 3ds authentication
+    Skip,
+}
+
+/// Whether payment link is requested to be enabled or not for this transaction
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum EnablePaymentLinkRequest {
+    /// Request for enabling payment link
+    Enable,
+    /// Skip enabling payment link
+    Skip,
+}
+
+/// Whether mit exemption is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum MitExemptionRequest {
+    /// Request for applying MIT exemption
+    Apply,
+    /// Skip applying MIT exemption
+    Skip,
+}
+
+/// Whether customer is present / absent during the payment
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum PresenceOfCustomerDuringPayment {
+    /// Customer is present during the payment. This is the default value
+    Present,
+    /// Customer is absent during the payment
+    Absent,
 }

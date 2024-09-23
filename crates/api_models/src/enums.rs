@@ -3,7 +3,6 @@ use std::str::FromStr;
 pub use common_enums::*;
 #[cfg(feature = "dummy_connector")]
 use common_utils::errors;
-use common_utils::transformers::ForeignFrom;
 use utoipa::ToSchema;
 
 #[derive(
@@ -321,98 +320,6 @@ impl Connector {
     }
 }
 
-impl ForeignFrom<Connector> for RoutableConnectors {
-    fn foreign_from(from: Connector) -> Self {
-        match from {
-            Connector::Adyenplatform => Self::Adyenplatform,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector1 => Self::DummyConnector1,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector2 => Self::DummyConnector2,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector3 => Self::DummyConnector3,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector4 => Self::DummyConnector4,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector5 => Self::DummyConnector5,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector6 => Self::DummyConnector6,
-            #[cfg(feature = "dummy_connector")]
-            Connector::DummyConnector7 => Self::DummyConnector7,
-            Connector::Aci => Self::Aci,
-            Connector::Adyen => Self::Adyen,
-            Connector::Airwallex => Self::Airwallex,
-            Connector::Authorizedotnet => Self::Authorizedotnet,
-            Connector::Bambora => Self::Bambora,
-            Connector::Bamboraapac => Self::Bamboraapac,
-            Connector::Bankofamerica => Self::Bankofamerica,
-            Connector::Billwerk => Self::Billwerk,
-            Connector::Bitpay => Self::Bitpay,
-            Connector::Bluesnap => Self::Bluesnap,
-            Connector::Boku => Self::Boku,
-            Connector::Braintree => Self::Braintree,
-            Connector::Cashtocode => Self::Cashtocode,
-            Connector::Checkout => Self::Checkout,
-            Connector::Coinbase => Self::Coinbase,
-            Connector::Cryptopay => Self::Cryptopay,
-            Connector::Cybersource => Self::Cybersource,
-            Connector::Datatrans => Self::Datatrans,
-            Connector::Deutschebank => Self::Deutschebank,
-            Connector::Dlocal => Self::Dlocal,
-            Connector::Ebanx => Self::Ebanx,
-            Connector::Fiserv => Self::Fiserv,
-            Connector::Fiservemea => Self::Fiservemea,
-            Connector::Fiuu => Self::Fiuu,
-            Connector::Forte => Self::Forte,
-            Connector::Globalpay => Self::Globalpay,
-            Connector::Globepay => Self::Globepay,
-            Connector::Gocardless => Self::Gocardless,
-            Connector::Helcim => Self::Helcim,
-            Connector::Iatapay => Self::Iatapay,
-            Connector::Itaubank => Self::Itaubank,
-            Connector::Klarna => Self::Klarna,
-            Connector::Mifinity => Self::Mifinity,
-            Connector::Mollie => Self::Mollie,
-            Connector::Multisafepay => Self::Multisafepay,
-            Connector::Nexinets => Self::Nexinets,
-            Connector::Nmi => Self::Nmi,
-            Connector::Noon => Self::Noon,
-            Connector::Novalnet => Self::Novalnet,
-            Connector::Nuvei => Self::Nuvei,
-            Connector::Opennode => Self::Opennode,
-            Connector::Paybox => Self::Paybox,
-            Connector::Payme => Self::Payme,
-            Connector::Payone => Self::Payone,
-            Connector::Paypal => Self::Paypal,
-            Connector::Payu => Self::Payu,
-            Connector::Placetopay => Self::Placetopay,
-            Connector::Powertranz => Self::Powertranz,
-            Connector::Prophetpay => Self::Prophetpay,
-            Connector::Rapyd => Self::Rapyd,
-            Connector::Razorpay => Self::Razorpay,
-            Connector::Shift4 => Self::Shift4,
-            Connector::Square => Self::Square,
-            Connector::Stax => Self::Stax,
-            Connector::Stripe => Self::Stripe,
-            Connector::Trustpay => Self::Trustpay,
-            Connector::Tsys => Self::Tsys,
-            Connector::Volt => Self::Volt,
-            Connector::Wellsfargo => Self::Wellsfargo,
-            Connector::Wise => Self::Wise,
-            Connector::Worldline => Self::Worldline,
-            Connector::Worldpay => Self::Worldpay,
-            Connector::Signifyd => Self::Signifyd,
-            Connector::Plaid => Self::Plaid,
-            Connector::Riskified => Self::Riskified,
-            Connector::Zen => Self::Zen,
-            Connector::Zsl => Self::Zsl,
-            Connector::Gpayments => Self::Zsl,
-            Connector::Taxjar => Self::Zsl,
-            Connector::Threedsecureio => Self::Zsl,
-            Connector::Netcetera => Self::Zsl,
-        }
-    }
-}
 #[cfg(feature = "payouts")]
 #[derive(
     Clone,

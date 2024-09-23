@@ -169,7 +169,7 @@ pub async fn create_routing_algorithm_under_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
@@ -271,7 +271,7 @@ pub async fn create_routing_algorithm_under_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
@@ -339,7 +339,7 @@ pub async fn link_routing_config_under_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     utils::when(
         routing_algorithm.0.algorithm_for != *transaction_type,
@@ -362,8 +362,8 @@ pub async fn link_routing_config_under_profile(
             })
         },
     )?;
-    admin::BusinessProfileWrapper::new(business_profile)
-        .update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
+    admin::ProfileWrapper::new(business_profile)
+        .update_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
             db,
             key_manager_state,
             &key_store,
@@ -407,8 +407,8 @@ pub async fn link_routing_config(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: routing_algorithm.profile_id.get_string_repr().to_owned(),
     })?;
 
@@ -486,7 +486,7 @@ pub async fn link_routing_config(
                 },
             )?;
             routing_ref.update_algorithm_id(algorithm_id);
-            helpers::update_business_profile_active_algorithm_ref(
+            helpers::update_profile_active_algorithm_ref(
                 db,
                 key_manager_state,
                 &key_store,
@@ -527,7 +527,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")
+    .get_required_value("Profile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
@@ -568,7 +568,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")
+    .get_required_value("Profile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
@@ -601,7 +601,7 @@ pub async fn unlink_routing_config_under_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     let routing_algo_id = match transaction_type {
         enums::TransactionType::Payment => business_profile.routing_algorithm_id.clone(),
@@ -617,8 +617,8 @@ pub async fn unlink_routing_config_under_profile(
         )
         .await?;
         let response = record.0.foreign_into();
-        admin::BusinessProfileWrapper::new(business_profile)
-            .update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
+        admin::ProfileWrapper::new(business_profile)
+            .update_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
                 db,
                 key_manager_state,
                 &key_store,
@@ -703,7 +703,7 @@ pub async fn unlink_routing_config(
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
                     let response = record.foreign_into();
-                    helpers::update_business_profile_active_algorithm_ref(
+                    helpers::update_profile_active_algorithm_ref(
                         db,
                         key_manager_state,
                         &key_store,
@@ -747,8 +747,8 @@ pub async fn update_default_fallback_routing(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
-    let profile_wrapper = admin::BusinessProfileWrapper::new(profile);
+    .get_required_value("Profile")?;
+    let profile_wrapper = admin::ProfileWrapper::new(profile);
     let default_list_of_connectors =
         profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
 
@@ -875,9 +875,9 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
-    let connectors_choice = admin::BusinessProfileWrapper::new(profile)
+    let connectors_choice = admin::ProfileWrapper::new(profile)
         .get_default_fallback_list_of_connector_under_profile()?;
 
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
@@ -926,7 +926,7 @@ pub async fn retrieve_routing_config_under_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     let record = db
         .list_routing_algorithm_metadata_by_profile_id(
@@ -972,17 +972,13 @@ pub async fn retrieve_linked_routing_config(
         )
         .await?
         .map(|profile| vec![profile])
-        .get_required_value("BusinessProfile")
-        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?
     } else {
         let business_profile = db
-            .list_business_profile_by_merchant_id(
-                key_manager_state,
-                &key_store,
-                merchant_account.get_id(),
-            )
+            .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_account.get_id())
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
         core_utils::filter_objects_based_on_profile_id_list(
@@ -1038,11 +1034,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
     let key_manager_state = &(&state).into();
 
     let all_profiles = db
-        .list_business_profile_by_merchant_id(
-            key_manager_state,
-            &key_store,
-            merchant_account.get_id(),
-        )
+        .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_account.get_id())
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("error retrieving all business profiles for merchant")?;
@@ -1099,8 +1091,8 @@ pub async fn update_default_routing_config_for_profile(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
     let default_config = helpers::get_merchant_default_config(
@@ -1178,7 +1170,7 @@ pub async fn toggle_success_based_routing(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile: domain::BusinessProfile = core_utils::validate_and_get_business_profile(
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
@@ -1186,8 +1178,8 @@ pub async fn toggle_success_based_routing(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
 

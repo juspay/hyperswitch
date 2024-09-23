@@ -264,7 +264,7 @@ services:
     volumes:
       - ./config/otel-collector.yaml:/etc/otel-collector.yaml
     ports:
-      - "4317:4317"
+      - "4317"
       - "8888"
       - "8889"
 
