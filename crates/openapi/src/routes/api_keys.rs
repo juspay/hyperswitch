@@ -167,7 +167,7 @@ pub async fn api_key_revoke() {}
 #[cfg(feature = "v1")]
 /// API Key - List
 ///
-/// Update information for the specified API Key.
+/// List all the API Keys associated to a merchant account.
 #[utoipa::path(
     get,
     path = "/api_keys/{merchant_id}/list",
@@ -188,7 +188,7 @@ pub async fn api_key_list() {}
 #[cfg(feature = "v2")]
 /// API Key - List
 ///
-/// Update information for the specified API Key.
+/// List all the API Keys associated to a merchant account.
 #[utoipa::path(
     get,
     path = "/v2/api_keys/list",
