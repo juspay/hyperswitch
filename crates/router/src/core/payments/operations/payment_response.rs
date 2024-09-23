@@ -16,6 +16,8 @@ use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
 use super::{Operation, PostUpdateTracker};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::routing::helpers::metrics_for_success_based_routing;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -953,7 +955,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
 
-    use crate::core::routing::helpers::metrics_for_success_based_routing;
     let additional_payment_method_data = match payment_data.payment_method_data.clone() {
         Some(payment_method_data) => match payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
@@ -1604,18 +1605,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         utils::flatten_join_error(payment_attempt_fut)
     )?;
 
-    #[cfg(feature = "dynamic_routing")]
-    let _ = metrics_for_success_based_routing(
-        state,
-        key_store,
-        &payment_attempt.status,
-        &payment_attempt.merchant_connector_id,
-        &payment_attempt.profile_id,
-        &payment_attempt.connector,
-        routable_connectors,
-    )
-    .await
-    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e));
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let _ =
+        metrics_for_success_based_routing(state, key_store, &payment_attempt, routable_connectors)
+            .await
+            .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e));
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;

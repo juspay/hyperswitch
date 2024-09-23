@@ -1020,11 +1020,15 @@ pub async fn toggle_success_based_routing(
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuthProfileFromRoute {
-            profile_id: wrapper.profile_id,
-            required_permission: Permission::RoutingWrite,
-            minimum_entity_level: EntityType::Merchant,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: wrapper.profile_id,
+                required_permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

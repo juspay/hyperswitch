@@ -38,9 +38,8 @@ pub mod refunds_v2;
 
 use std::{fmt::Debug, str::FromStr};
 
-use api_models::routing::RoutableConnectorChoice;
+use api_models::routing::{self as api_routing, RoutableConnectorChoice};
 use common_enums::RoutableConnectors;
-use common_utils::transformers::ForeignFrom;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
@@ -61,6 +60,7 @@ pub use self::{
     payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
     webhooks::*,
 };
+use super::transformers::ForeignTryFrom;
 use crate::{
     configs::settings::Connectors,
     connector,
@@ -231,21 +231,25 @@ impl SessionConnectorData {
 
 pub fn convert_connector_data_to_routable_connectors(
     connectors: &[ConnectorData],
-) -> Vec<RoutableConnectorChoice> {
+) -> CustomResult<Vec<RoutableConnectorChoice>, common_utils::errors::ValidationError> {
     connectors
-        .to_owned()
-        .clone()
-        .into_iter()
-        .map(RoutableConnectorChoice::from)
-        .collect::<Vec<RoutableConnectorChoice>>()
+        .iter()
+        .map(|connector_data| RoutableConnectorChoice::foreign_try_from(connector_data.clone()))
+        .collect()
 }
 
-impl From<ConnectorData> for RoutableConnectorChoice {
-    fn from(value: ConnectorData) -> Self {
-        Self {
-            choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-            connector: RoutableConnectors::foreign_from(value.connector_name),
-            merchant_connector_id: value.merchant_connector_id,
+impl ForeignTryFrom<ConnectorData> for RoutableConnectorChoice {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+    fn foreign_try_from(from: ConnectorData) -> Result<Self, Self::Error> {
+        match RoutableConnectors::foreign_try_from(from.connector_name) {
+            Ok(connector) => Ok(Self {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector,
+                merchant_connector_id: from.merchant_connector_id,
+            }),
+            Err(e) => Err(common_utils::errors::ValidationError::InvalidValue {
+                message: format!("This is not a routable connector: {:?}", e),
+            })?,
         }
     }
 }

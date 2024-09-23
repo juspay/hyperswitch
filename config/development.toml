@@ -8,7 +8,7 @@ log_format = "default"
 
 [log.telemetry]
 traces_enabled = false
-metrics_enabled = false
+metrics_enabled = true
 use_xray_generator = false
 bg_metrics_collection_interval_in_secs = 15
 
@@ -740,3 +740,7 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+[grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
+host = "localhost" # Client Host
+port = 7000    

@@ -63,10 +63,10 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use super::routing::helpers::checked_fetch_success_based_routing_configs;
 use super::{
-    errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs,
-    routing::{helpers::fetch_and_cache_dynamic_routing_configs, TransactionData},
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -297,7 +297,8 @@ where
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(connector) => {
                     let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&[connector.clone()]);
+                        convert_connector_data_to_routable_connectors(&[connector.clone()])
+                            .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -388,7 +389,8 @@ where
 
                 ConnectorCallType::Retryable(connectors) => {
                     let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&connectors);
+                        convert_connector_data_to_routable_connectors(&connectors)
+                            .unwrap_or_default();
 
                     let mut connectors = connectors.into_iter();
 
@@ -4450,8 +4452,8 @@ where
     .attach_printable("failed eligibility analysis and fallback")?;
 
     // Fetch and cache default config for success based routing
-    #[cfg(feature = "dynamic_routing")]
-    let _ = fetch_and_cache_dynamic_routing_configs(state, business_profile)
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let _ = checked_fetch_success_based_routing_configs(state, business_profile)
         .await
         .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e));
 

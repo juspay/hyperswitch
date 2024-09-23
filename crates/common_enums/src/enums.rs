@@ -3224,13 +3224,13 @@ pub enum SuccessBasedRoutingConclusiveState {
     // sc: success based routing outcome/first connector
     // status: payment status
     //
-    // pc == sc && status = success
+    // status = success && pc == sc
     TruePositive,
-    // pc == sc && status = failed
-    TrueNegative,
-    // pc != sc && status = success
+    // status = failed && pc == sc
     FalsePositive,
-    // pc == sc && status = failed
+    // status = failed && pc != sc
+    TrueNegative,
+    // status = success && pc != sc
     FalseNegative,
     // status = processing
     NonDeterministic,
