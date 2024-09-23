@@ -552,7 +552,7 @@ pub fn get_default_config_key(
     }
 }
 
-/// Retrives cached success_based routing configs specific to tenant and profile
+/// Retrieves cached success_based routing configs specific to tenant and profile
 pub async fn get_cached_success_routing_config_for_profile<'a>(
     state: &SessionState,
     key: &str,
