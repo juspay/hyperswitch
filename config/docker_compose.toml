@@ -503,7 +503,7 @@ database_name = "default"
 [analytics.sqlx]
 username = "db_user"
 password = "db_pass"
-host = "localhost"
+host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
