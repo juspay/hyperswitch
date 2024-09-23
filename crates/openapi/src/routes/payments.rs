@@ -459,7 +459,7 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_list() {}
 
-/// Business Profile level Payments - List
+/// Profile level Payments - List
 ///
 /// To list the payments
 #[utoipa::path(
@@ -545,3 +545,21 @@ pub fn payments_external_authentication() {}
   security(("publishable_key" = []))
 )]
 pub fn payments_complete_authorize() {}
+
+/// Dynamic Tax Calculation
+///
+///
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/calculate_tax",
+    request_body=PaymentsDynamicTaxCalculationRequest,
+    responses(
+        (status = 200, description = "Tax Calculation is done", body = PaymentsDynamicTaxCalculationResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Tax Calculation for a Payment",
+    security(("publishable_key" = []))
+)]
+
+pub fn payments_dynamic_tax_calculation() {}

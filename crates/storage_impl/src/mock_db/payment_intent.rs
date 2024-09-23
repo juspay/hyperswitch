@@ -16,7 +16,11 @@ use super::MockDb;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intent_by_constraints(
         &self,
         _state: &KeyManagerState,
@@ -28,28 +32,41 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _time_range: &api_models::payments::TimeRange,
+        _time_range: &common_utils::types::TimeRange,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _time_range: &api_models::payments::TimeRange,
+        _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        _time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -59,7 +76,11 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         _state: &KeyManagerState,
@@ -98,7 +119,7 @@ impl PaymentIntentInterface for MockDb {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter_mut()
-            .find(|item| item.payment_id == this.payment_id && item.merchant_id == this.merchant_id)
+            .find(|item| item.get_id() == this.get_id() && item.merchant_id == this.merchant_id)
             .unwrap();
 
         let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::from(update);
@@ -120,6 +141,7 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -135,11 +157,29 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intents
             .iter()
             .find(|payment_intent| {
-                payment_intent.payment_id == *payment_id
-                    && payment_intent.merchant_id.eq(merchant_id)
+                payment_intent.get_id() == payment_id && payment_intent.merchant_id.eq(merchant_id)
             })
             .cloned()
             .unwrap())
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    async fn find_payment_intent_by_id(
+        &self,
+        _state: &KeyManagerState,
+        id: &common_utils::id_type::GlobalPaymentId,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let payment_intents = self.payment_intents.lock().await;
+        let payment_intent = payment_intents
+            .iter()
+            .find(|payment_intent| payment_intent.get_id() == id)
+            .ok_or(StorageError::ValueNotFound(
+                "PaymentIntent not found".to_string(),
+            ))?;
+
+        Ok(payment_intent.clone())
     }
 
     async fn get_active_payment_attempt(

@@ -62,10 +62,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
-// Qr Image data source starts with this string
-// The base64 image data will be appended to it to image data source
-pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -94,7 +90,7 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
-pub const ROLE_CACHE_PREFIX: &str = "CR_";
+pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -141,68 +137,17 @@ pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
 pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_000";
 pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
-/// Regex for Identifying Card Network
-pub const CARD_NETWORK_DATA: Lazy<HashMap<common_enums::CardNetwork, CardNetworkPattern>> =
-    Lazy::new(|| {
-        let mut map = HashMap::new();
-        map.insert(common_enums::CardNetwork::Maestro, CardNetworkPattern {
-        regex:  Regex::new(r"^(5018|5081|5044|504681|504993|5020|502260|5038|603845|603123|6304|6759|676[1-3]|6220|504834|504817|504645|504775|600206|627741)[0-9]{0,15}$").ok(), 
-        allowed_card_number_length: vec![12, 13, 14, 15, 16, 17, 18, 19],
-        allowed_cvc_length: vec![3, 4]
-    });
-        map.insert(common_enums::CardNetwork::RuPay, CardNetworkPattern {
-        regex: Regex::new(r"^(508227|508[5-9]|603741|60698[5-9]|60699|607[0-8]|6079[0-7]|60798[0-4]|60800[1-9]|6080[1-9]|608[1-4]|608500|6521[5-9]|652[2-9]|6530|6531[0-4]|817290|817368|817378|353800)[0-9]*$").ok(),
-        allowed_card_number_length: vec![16],
-        allowed_cvc_length: vec![3],
-    });
-        map.insert(
-            common_enums::CardNetwork::DinersClub,
-            CardNetworkPattern {
-                regex: Regex::new(r"^(36|38|30[0-5])[0-9]{0,17}$").ok(),
-                allowed_card_number_length: vec![14, 15, 16, 17, 18, 19],
-                allowed_cvc_length: vec![3],
-            },
-        );
-        map.insert(
-            common_enums::CardNetwork::Discover,
-            CardNetworkPattern {
-                regex: Regex::new(r"^(6011|65|64[4-9]|622)[0-9]*$").ok(),
-                allowed_card_number_length: vec![16],
-                allowed_cvc_length: vec![3],
-            },
-        );
-        map.insert(
-            common_enums::CardNetwork::Mastercard,
-            CardNetworkPattern {
-                regex: Regex::new(r"^5[1-5][0-9]{14}$").ok(),
-                allowed_card_number_length: vec![16],
-                allowed_cvc_length: vec![3],
-            },
-        );
-        map.insert(
-            common_enums::CardNetwork::AmericanExpress,
-            CardNetworkPattern {
-                regex: Regex::new(r"^3[47][0-9]{13}$").ok(),
-                allowed_card_number_length: vec![14, 15],
-                allowed_cvc_length: vec![3, 4],
-            },
-        );
-        map.insert(
-            common_enums::CardNetwork::Visa,
-            CardNetworkPattern {
-                regex: Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$").ok(),
-                allowed_card_number_length: vec![13, 14, 15, 16, 19],
-                allowed_cvc_length: vec![3],
-            },
-        );
-        map.insert(
-            common_enums::CardNetwork::JCB,
-            CardNetworkPattern {
-                regex: Regex::new(r"^35[0-9]{0,14}$").ok(),
-                allowed_card_number_length: vec![16],
-                allowed_cvc_length: vec![3],
-            },
-        );
+// Recon's feature tag
+pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 
-        map
-    });
+/// Vault Add request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+
+/// Vault Get Fingerprint request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+
+/// Vault Header content type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";

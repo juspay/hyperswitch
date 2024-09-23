@@ -71,6 +71,11 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
@@ -150,6 +155,11 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
         with:
@@ -197,3 +207,34 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  check-v2:
+    name: Check compilation for V2 features
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
+
+      - name: Run cargo check enabling only the release and v2 features
+        shell: bash
+        run: cargo check --no-default-features --features "release,v2"

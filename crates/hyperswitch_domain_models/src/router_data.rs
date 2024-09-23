@@ -7,7 +7,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{payment_address::PaymentAddress, payment_method_data};
 
@@ -80,6 +80,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub minor_amount_captured: Option<MinorUnit>,
 
     pub integrity_check: Result<(), IntegrityCheckError>,
+
+    pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
+
+    pub header_payload: Option<api_models::payments::HeaderPayload>,
 }
 
 // Different patterns of authentication.
@@ -136,6 +140,74 @@ impl ConnectorAuthType {
                 "ConnectorAuthType",
             ))
     }
+
+    // show only first and last two digits of the key and mask others with *
+    // mask the entire key if it's length is less than or equal to 4
+    fn mask_key(&self, key: String) -> Secret<String> {
+        let key_len = key.len();
+        let masked_key = if key_len <= 4 {
+            "*".repeat(key_len)
+        } else {
+            // Show the first two and last two characters, mask the rest with '*'
+            let mut masked_key = String::new();
+            let key_len = key.len();
+            // Iterate through characters by their index
+            for (index, character) in key.chars().enumerate() {
+                if index < 2 || index >= key_len - 2 {
+                    masked_key.push(character); // Keep the first two and last two characters
+                } else {
+                    masked_key.push('*'); // Mask the middle characters
+                }
+            }
+            masked_key
+        };
+        Secret::new(masked_key)
+    }
+
+    // Mask the keys in the auth_type
+    pub fn get_masked_keys(&self) -> Self {
+        match self {
+            Self::TemporaryAuth => Self::TemporaryAuth,
+            Self::NoKey => Self::NoKey,
+            Self::HeaderKey { api_key } => Self::HeaderKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+            },
+            Self::BodyKey { api_key, key1 } => Self::BodyKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+            },
+            Self::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Self::SignatureKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+                api_secret: self.mask_key(api_secret.clone().expose()),
+            },
+            Self::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Self::MultiAuthKey {
+                api_key: self.mask_key(api_key.clone().expose()),
+                key1: self.mask_key(key1.clone().expose()),
+                api_secret: self.mask_key(api_secret.clone().expose()),
+                key2: self.mask_key(key2.clone().expose()),
+            },
+            Self::CurrencyAuthKey { auth_key_map } => Self::CurrencyAuthKey {
+                auth_key_map: auth_key_map.clone(),
+            },
+            Self::CertificateAuth {
+                certificate,
+                private_key,
+            } => Self::CertificateAuth {
+                certificate: self.mask_key(certificate.clone().expose()),
+                private_key: self.mask_key(private_key.clone().expose()),
+            },
+        }
+    }
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -174,6 +246,7 @@ pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::enums::Currency>,
+    pub mandate_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]

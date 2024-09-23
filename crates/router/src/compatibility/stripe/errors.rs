@@ -611,7 +611,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "authentication".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
+            errors::ApiErrorResponse::ProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
                 id,
             },

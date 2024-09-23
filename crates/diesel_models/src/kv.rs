@@ -1,6 +1,8 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::payment_attempt::PaymentAttemptUpdateInternal;
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
@@ -109,8 +111,18 @@ impl DBOperation {
                 Updateable::PaymentIntentUpdate(a) => {
                     DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
+                )),
+                #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
+                    a.orig
+                        .update_with_attempt_id(
+                            conn,
+                            PaymentAttemptUpdateInternal::from(a.update_data),
+                        )
+                        .await?,
                 )),
                 Updateable::RefundUpdate(a) => {
                     DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
@@ -124,10 +136,18 @@ impl DBOperation {
                 Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
                     v.orig
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
+                )),
+                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
+                    v.orig.update_with_id(conn, v.update_data).await?,
                 )),
                 Updateable::MandateUpdate(m) => DBResult::Mandate(Box::new(
                     Mandate::update_by_merchant_id_mandate_id(

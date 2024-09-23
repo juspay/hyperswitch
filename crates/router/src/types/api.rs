@@ -112,6 +112,7 @@ pub trait Connector:
     + ConnectorMandateRevokeV2
     + ExternalAuthentication
     + ExternalAuthenticationV2
+    + TaxCalculation
 {
 }
 
@@ -139,7 +140,8 @@ impl<
             + ConnectorMandateRevoke
             + ConnectorMandateRevokeV2
             + ExternalAuthentication
-            + ExternalAuthenticationV2,
+            + ExternalAuthenticationV2
+            + TaxCalculation,
     > Connector for T
 {
 }
@@ -188,6 +190,7 @@ pub type BoxedConnectorV2 = Box<&'static (dyn ConnectorV2 + Sync)>;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum GetToken {
     GpayMetadata,
+    SamsungPayMetadata,
     ApplePayMetadata,
     PaypalSdkMetadata,
     Connector,
@@ -357,9 +360,9 @@ impl ConnectorData {
                 enums::Connector::Datatrans => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
                 }
-                // enums::Connector::Deutschebank => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
-                // }
+                enums::Connector::Deutschebank => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
+                }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
@@ -396,6 +399,7 @@ impl ConnectorData {
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
+                enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }
@@ -419,7 +423,9 @@ impl ConnectorData {
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
-                // enums::Connector::Novalnet => Ok(ConnectorEnum::Old(Box::new(connector::Novalnet))),
+                enums::Connector::Novalnet => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
+                }
                 enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
@@ -454,7 +460,6 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                // enums::Connector::Taxjar => Ok(ConnectorEnum::Old(Box::new(connector::Taxjar))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
@@ -480,14 +485,17 @@ impl ConnectorData {
                 enums::Connector::Paypal => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
                 }
+                // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
+
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Wellsfargo)))
                 }
+
                 // enums::Connector::Wellsfargopayout => {
                 //     Ok(Box::new(connector::Wellsfargopayout::new()))
                 // }
@@ -499,7 +507,8 @@ impl ConnectorData {
                 enums::Connector::Signifyd
                 | enums::Connector::Riskified
                 | enums::Connector::Gpayments
-                | enums::Connector::Threedsecureio => {
+                | enums::Connector::Threedsecureio
+                | enums::Connector::Taxjar => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -587,5 +596,34 @@ mod test {
 
         let result = enums::Connector::from_str("Opennode");
         assert!(result.is_err());
+    }
+}
+
+#[derive(Clone)]
+pub struct TaxCalculateConnectorData {
+    pub connector: ConnectorEnum,
+    pub connector_name: enums::TaxConnectors,
+}
+
+impl TaxCalculateConnectorData {
+    pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector_name = enums::TaxConnectors::from_str(name)
+            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+            .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
+        let connector = Self::convert_connector(connector_name)?;
+        Ok(Self {
+            connector,
+            connector_name,
+        })
+    }
+
+    fn convert_connector(
+        connector_name: enums::TaxConnectors,
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
+        match connector_name {
+            enums::TaxConnectors::Taxjar => {
+                Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
+            }
+        }
     }
 }

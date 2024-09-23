@@ -12,9 +12,9 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+            PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
@@ -27,13 +27,14 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -73,9 +74,9 @@ use hyperswitch_interfaces::{
         payments_v2::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
-            PaymentRejectV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2,
-            PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2,
-            PaymentsPreProcessingV2,
+            PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2,
+            PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+            PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
@@ -104,6 +105,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl ConnectorCustomerV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
+            impl TaxCalculationV2 for $path::$connector{}
+            impl PaymentSessionUpdateV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -176,6 +179,18 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 AuthorizeSessionTokenData,
                 PaymentsResponseData
         > for $path::$connector{}
+        impl ConnectorIntegrationV2<
+            CalculateTax,
+            PaymentFlowData,
+            PaymentsTaxCalculationData,
+            TaxCalculationResponseData,
+            > for $path::$connector{}
+         impl ConnectorIntegrationV2<
+            SdkSessionUpdate,
+            PaymentFlowData,
+            SdkPaymentsSessionUpdateData,
+            PaymentsResponseData,
+            > for $path::$connector{}
     )*
     };
 }
@@ -192,10 +207,13 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -226,10 +244,13 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -255,10 +276,13 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -290,10 +314,13 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
@@ -324,10 +351,13 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -358,10 +388,13 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -402,10 +435,13 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -438,10 +474,13 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -474,10 +513,13 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -510,10 +552,13 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -546,10 +591,13 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -582,10 +630,13 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -618,10 +669,13 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -654,10 +708,13 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -690,10 +747,13 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -724,10 +784,13 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -760,10 +823,13 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -796,10 +862,13 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -832,10 +901,13 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -868,10 +940,13 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -904,10 +979,13 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -937,8 +1015,11 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );

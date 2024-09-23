@@ -1,8 +1,11 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::RequestSurchargeDetails;
+use api_models::payments::{Address, RequestSurchargeDetails};
 use common_utils::{
-    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
+    consts, errors,
+    ext_traits::OptionExt,
+    id_type, pii,
+    types::{self as common_types, MinorUnit},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -343,6 +346,8 @@ pub struct PaymentsPostProcessingData {
     pub customer_id: Option<id_type::CustomerId>,
     pub connector_transaction_id: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+    pub header_payload: Option<api_models::payments::HeaderPayload>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
@@ -368,6 +373,8 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
                 .get_payment_billing()
                 .and_then(|bl| bl.address.as_ref())
                 .and_then(|address| address.country),
+            connector_meta_data: data.connector_meta_data.clone(),
+            header_payload: data.header_payload,
         })
     }
 }
@@ -789,6 +796,21 @@ pub struct PaymentsSessionData {
 
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PaymentsTaxCalculationData {
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub shipping_address: Address,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SdkPaymentsSessionUpdateData {
+    pub order_tax_amount: MinorUnit,
+    pub net_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone)]

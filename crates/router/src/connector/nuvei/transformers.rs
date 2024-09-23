@@ -618,6 +618,7 @@ impl TryFrom<common_enums::enums::BankNames> for NuveiBIC {
             | common_enums::enums::BankNames::AllianceBank
             | common_enums::enums::BankNames::AmBank
             | common_enums::enums::BankNames::BankOfAmerica
+            | common_enums::enums::BankNames::BankOfChina
             | common_enums::enums::BankNames::BankIslam
             | common_enums::enums::BankNames::BankMuamalat
             | common_enums::enums::BankNames::BankRakyat
@@ -1601,6 +1602,7 @@ where
                         .map(|id| types::MandateReference {
                             connector_mandate_id: Some(id),
                             payment_method_id: None,
+                            mandate_metadata: None,
                         }),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present
                     connector_metadata: if let Some(token) = response.session_token {

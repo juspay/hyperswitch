@@ -43,7 +43,7 @@ pub async fn retrieve_dispute() {}
 )]
 pub async fn retrieve_disputes_list() {}
 
-/// Disputes - List Disputes for The Given Business Profiles
+/// Disputes - List Disputes for The Given Profiles
 /// Lists all the Disputes for a merchant
 #[utoipa::path(
     get,
@@ -65,7 +65,7 @@ pub async fn retrieve_disputes_list() {}
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Disputes",
-    operation_id = "List Disputes for The given Business Profiles",
+    operation_id = "List Disputes for The given Profiles",
     security(("api_key" = []))
 )]
 pub async fn retrieve_disputes_list_profile() {}

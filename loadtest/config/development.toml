@@ -96,7 +96,7 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
-deutschebank.base_url = "https://sandbox.directpos.de/rest-api/services/v2.1"
+deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -104,6 +104,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
+fiuu.third_base_url="https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -148,6 +149,7 @@ stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+thunes.base_url = "https://api.limonetikqualif.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -230,6 +232,7 @@ cards = [
     "stripe",
     "taxjar",
     "threedsecureio",
+    "thunes",
     "trustpay",
     "tsys",
     "volt",
@@ -364,3 +367,16 @@ global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[email]
+sender_email = "example@example.com"
+aws_region = ""
+allowed_unverified_days = 1
+active_email_client = "SES"
+recon_recipient_email = "recon@example.com"
+prod_intent_recipient_email = "business@example.com"
+
+[email.aws_ses]
+email_role_arn = ""
+sts_role_session_name = ""
+

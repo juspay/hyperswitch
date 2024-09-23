@@ -243,6 +243,7 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::AllianceBank
             | BankNames::AmBank
             | BankNames::BankOfAmerica
+            | BankNames::BankOfChina
             | BankNames::BankIslam
             | BankNames::BankMuamalat
             | BankNames::BankRakyat
@@ -981,6 +982,7 @@ impl<F, T>
                                 .map(|id| types::MandateReference {
                                     connector_mandate_id: Some(id.expose()),
                                     payment_method_id: None,
+                                    mandate_metadata: None,
                                 }),
                             connector_metadata: None,
                             network_txn_id: None,

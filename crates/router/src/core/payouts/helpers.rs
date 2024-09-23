@@ -8,7 +8,7 @@ use common_utils::{
     fp_utils, id_type, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
-        MinorUnit,
+        MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -19,6 +19,8 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
@@ -30,7 +32,7 @@ use crate::{
         },
         payments::{
             customers::get_connector_customer_details_if_present, helpers as payment_helpers,
-            route_connector_v1, routing, CustomerDetails,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
         utils as core_utils,
@@ -305,7 +307,7 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(
+    let stored_resp = cards::add_card_to_hs_locker(
         state,
         &locker_req,
         customer_id,
@@ -324,7 +326,12 @@ pub async fn save_payout_data_to_locker(
 
             // Use locker ref as payment_method_id
             let existing_pm_by_pmid = db
-                .find_payment_method(&locker_ref, merchant_account.storage_scheme)
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    &locker_ref,
+                    merchant_account.storage_scheme,
+                )
                 .await;
 
             match existing_pm_by_pmid {
@@ -343,6 +350,8 @@ pub async fn save_payout_data_to_locker(
                     if err.current_context().is_db_not_found() {
                         match db
                             .find_payment_method_by_locker_id(
+                                &(state.into()),
+                                key_store,
                                 &locker_ref,
                                 merchant_account.storage_scheme,
                             )
@@ -528,6 +537,9 @@ pub async fn save_payout_data_to_locker(
             merchant_account.storage_scheme,
             None,
             None,
+            None,
+            None,
+            None,
         )
         .await?;
     }
@@ -550,6 +562,7 @@ pub async fn save_payout_data_to_locker(
             card_reference,
         )
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to delete PMD from locker as a part of metadata update operation",
         )?;
@@ -557,7 +570,7 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::call_to_locker_hs(
+        let stored_resp = cards::add_card_to_hs_locker(
             state,
             &locker_req,
             customer_id,
@@ -570,6 +583,8 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
+                &(state.into()),
+                key_store,
                 merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
@@ -585,10 +600,16 @@ pub async fn save_payout_data_to_locker(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
         };
-        db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in db")?;
+        db.update_payment_method(
+            &(state.into()),
+            key_store,
+            existing_pm,
+            pm_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
     };
 
     // Store card_reference in payouts table
@@ -771,7 +792,7 @@ pub async fn decide_payout_connector(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
@@ -785,7 +806,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -833,7 +854,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -871,15 +892,14 @@ pub async fn decide_payout_connector(
     }
 
     // 4. Route connector
-    route_connector_v1(
+    route_connector_v1_for_payouts(
         state,
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        TransactionData::<()>::Payout(payout_data),
+        payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }
@@ -928,12 +948,13 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,
-    flow: String,
+    flow: &str,
 ) -> Option<storage::gsm::GatewayStatusMap> {
+    let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
-                connector_name.clone().unwrap_or_default(),
-                flow.clone(),
+                connector_name.clone(),
+                flow.to_string(),
                 "sub_flow".to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
@@ -943,7 +964,7 @@ pub async fn get_gsm_record(
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
                         "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
-                        connector_name.unwrap_or_default(),
+                        connector_name,
                         flow,
                         error_code,
                         error_message
@@ -1248,4 +1269,30 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
     }
+}
+
+pub async fn get_translated_unified_code_and_message(
+    state: &SessionState,
+    unified_code: Option<&UnifiedCode>,
+    unified_message: Option<&UnifiedMessage>,
+    locale: &str,
+) -> CustomResult<Option<UnifiedMessage>, errors::ApiErrorResponse> {
+    Ok(unified_code
+        .zip(unified_message)
+        .async_and_then(|(code, message)| async {
+            payment_helpers::get_unified_translation(
+                state,
+                code.0.clone(),
+                message.0.clone(),
+                locale.to_string(),
+            )
+            .await
+            .map(UnifiedMessage::try_from)
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "unified_message",
+        })?
+        .or_else(|| unified_message.cloned()))
 }

@@ -9,7 +9,6 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
-use indexmap::IndexMap;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -27,7 +26,7 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
-    pub organization_id: String,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "v1")]
@@ -189,7 +188,7 @@ pub struct MerchantAccountCreate {
 
     /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<MerchantAccountMetadata>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
@@ -314,7 +313,7 @@ pub struct MerchantAccountUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    /// The default business profile that must be used for creating merchant accounts and payments
+    /// The default profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64, value_type = Option<String>)]
     pub default_profile: Option<id_type::ProfileId>,
 
@@ -503,7 +502,7 @@ pub struct MerchantAccountResponse {
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
 
-    /// The default business profile that must be used for creating merchant accounts and payments
+    /// The default profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64, value_type = Option<String>)]
     pub default_profile: Option<id_type::ProfileId>,
 
@@ -675,7 +674,7 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = String)]
     pub profile_id: id_type::ProfileId,
 
@@ -746,6 +745,10 @@ pub struct MerchantConnectorCreate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -795,7 +798,7 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
@@ -883,6 +886,10 @@ pub struct MerchantConnectorCreate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1023,7 +1030,7 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: String,
 
-    /// A unique label to identify the connector account created under a business profile
+    /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -1031,7 +1038,7 @@ pub struct MerchantConnectorResponse {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
 
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = String)]
     pub profile_id: id_type::ProfileId,
 
@@ -1103,6 +1110,10 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1127,7 +1138,7 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: String,
 
-    /// A unique label to identify the connector account created under a business profile
+    /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -1135,7 +1146,7 @@ pub struct MerchantConnectorResponse {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = String)]
     pub profile_id: id_type::ProfileId,
 
@@ -1222,6 +1233,10 @@ pub struct MerchantConnectorResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1245,7 +1260,7 @@ pub struct MerchantConnectorListResponse {
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: String,
 
-    /// A unique label to identify the connector account created under a business profile
+    /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -1253,7 +1268,7 @@ pub struct MerchantConnectorListResponse {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = String)]
     pub profile_id: id_type::ProfileId,
 
@@ -1328,6 +1343,10 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1351,7 +1370,7 @@ pub struct MerchantConnectorListResponse {
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: String,
 
-    /// A unique label to identify the connector account created under a business profile
+    /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -1359,7 +1378,7 @@ pub struct MerchantConnectorListResponse {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
 
-    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = String)]
     pub profile_id: id_type::ProfileId,
 
@@ -1418,6 +1437,10 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1513,6 +1536,28 @@ pub struct MerchantConnectorUpdate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    #[schema(value_type = Option<ConnectorWalletDetails>)]
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+
+pub struct ConnectorWalletDetails {
+    /// This field contains the Apple Pay certificates and credentials for iOS and Web Apple Pay flow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub apple_pay_combined: Option<pii::SecretSerdeValue>,
+    /// This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub apple_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Samsung Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub samsung_pay: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1598,6 +1643,9 @@ pub struct MerchantConnectorUpdate {
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+
+    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
+    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1816,8 +1864,8 @@ pub struct MerchantConnectorDetails {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BusinessProfileCreate {
-    /// The name of business profile
+pub struct ProfileCreate {
+    /// The name of profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
@@ -1863,11 +1911,11 @@ pub struct BusinessProfileCreate {
     /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Client Secret Default expiry for all payments created under this business profile
+    /// Client Secret Default expiry for all payments created under this profile
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// Default Payment Link config for all payment links created under this business profile
+    /// Default Payment Link config for all payment links created under this profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
@@ -1911,12 +1959,18 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[serde(default)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -1928,8 +1982,8 @@ pub struct OrderFulfillmentTime(i64);
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BusinessProfileCreate {
-    /// The name of business profile
+pub struct ProfileCreate {
+    /// The name of profile
     #[schema(max_length = 64)]
     pub profile_name: String,
 
@@ -1966,11 +2020,11 @@ pub struct BusinessProfileCreate {
     /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Client Secret Default expiry for all payments created under this business profile
+    /// Client Secret Default expiry for all payments created under this profile
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// Default Payment Link config for all payment links created under this business profile
+    /// Default Payment Link config for all payment links created under this profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
@@ -2014,26 +2068,32 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[serde(default)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
-pub struct BusinessProfileResponse {
+pub struct ProfileResponse {
     /// The identifier for Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
-    /// The identifier for business profile. This must be used for creating merchant accounts, payments and payouts
+    /// The identifier for profile. This must be used for creating merchant accounts, payments and payouts
     #[schema(max_length = 64, value_type = String, example = "pro_abcdefghijklmnopqrstuvwxyz")]
     pub profile_id: id_type::ProfileId,
 
-    /// Name of the business profile
+    /// Name of the profile
     #[schema(max_length = 64)]
     pub profile_name: String,
 
@@ -2079,11 +2139,11 @@ pub struct BusinessProfileResponse {
     /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Client Secret Default expiry for all payments created under this business profile
+    /// Client Secret Default expiry for all payments created under this profile
     #[schema(example = 900)]
     pub session_expiry: Option<i64>,
 
-    /// Default Payment Link config for all payment links created under this business profile
+    /// Default Payment Link config for all payment links created under this profile
     #[schema(value_type = Option<BusinessPaymentLinkConfig>)]
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
@@ -2131,25 +2191,31 @@ pub struct BusinessProfileResponse {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[schema(default = false, example = false)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
-pub struct BusinessProfileResponse {
+pub struct ProfileResponse {
     /// The identifier for Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
-    /// The identifier for business profile. This must be used for creating merchant accounts, payments and payouts
+    /// The identifier for profile. This must be used for creating merchant accounts, payments and payouts
     #[schema(max_length = 64, value_type = String, example = "pro_abcdefghijklmnopqrstuvwxyz")]
     pub id: id_type::ProfileId,
 
-    /// Name of the business profile
+    /// Name of the profile
     #[schema(max_length = 64)]
     pub profile_name: String,
 
@@ -2178,11 +2244,11 @@ pub struct BusinessProfileResponse {
     /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Client Secret Default expiry for all payments created under this business profile
+    /// Client Secret Default expiry for all payments created under this profile
     #[schema(example = 900)]
     pub session_expiry: Option<i64>,
 
-    /// Default Payment Link config for all payment links created under this business profile
+    /// Default Payment Link config for all payment links created under this profile
     #[schema(value_type = Option<BusinessPaymentLinkConfig>)]
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
@@ -2238,18 +2304,24 @@ pub struct BusinessProfileResponse {
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[schema(default = false, example = false)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BusinessProfileUpdate {
-    /// The name of business profile
+pub struct ProfileUpdate {
+    /// The name of profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
@@ -2295,11 +2367,11 @@ pub struct BusinessProfileUpdate {
     /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Client Secret Default expiry for all payments created under this business profile
+    /// Client Secret Default expiry for all payments created under this profile
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// Default Payment Link config for all payment links created under this business profile
+    /// Default Payment Link config for all payment links created under this profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
@@ -2346,18 +2418,26 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
+
+    /// Indicates if dynamic routing is enabled or not.
+    #[serde(default)]
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct BusinessProfileUpdate {
-    /// The name of business profile
+pub struct ProfileUpdate {
+    /// The name of profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,
 
@@ -2394,11 +2474,11 @@ pub struct BusinessProfileUpdate {
     /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    /// Client Secret Default expiry for all payments created under this business profile
+    /// Client Secret Default expiry for all payments created under this profile
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// Default Payment Link config for all payment links created under this business profile
+    /// Default Payment Link config for all payment links created under this profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
@@ -2445,11 +2525,15 @@ pub struct BusinessProfileUpdate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
-    pub tax_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub tax_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2466,6 +2550,10 @@ pub struct BusinessCollectLinkConfig {
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
     #[schema(value_type = Option<bool>, default = false)]
@@ -2574,8 +2662,32 @@ pub struct PaymentLinkConfigRequest {
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
-    #[schema(value_type = Option<Object>, example = r#"{ "value1": "some-value", "value2": "some-value" }"#)]
-    pub transaction_details: Option<IndexMap<String, String>>,
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkTransactionDetails {
+    /// Key for the transaction details
+    #[schema(value_type = String, max_length = 255, example = "Policy-Number")]
+    pub key: String,
+    /// Value for the transaction details
+    #[schema(value_type = String, max_length = 255, example = "297472368473924")]
+    pub value: String,
+    /// UI configuration for the transaction details
+    pub ui_configuration: Option<TransactionDetailsUiConfiguration>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct TransactionDetailsUiConfiguration {
+    /// Position of the key-value pair in the UI
+    #[schema(value_type = Option<i8>, example = 5)]
+    pub position: Option<i8>,
+    /// Whether the key should be bold
+    #[schema(default = false, example = true)]
+    pub is_key_bold: Option<bool>,
+    /// Whether the value should be bold
+    #[schema(default = false, example = true)]
+    pub is_value_bold: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -2595,7 +2707,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
-    pub transaction_details: Option<String>,
+    pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

@@ -2,6 +2,7 @@ use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
+use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -23,14 +24,14 @@ pub struct PaymentAttemptBatchNew {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub status: AttemptStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
-    pub offer_amount: Option<i64>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_amount: Option<i64>,
+    pub offer_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<PaymentMethod>,
     pub capture_method: Option<CaptureMethod>,
@@ -45,7 +46,7 @@ pub struct PaymentAttemptBatchNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: Option<MinorUnit>,
     pub mandate_id: Option<String>,
     pub browser_info: Option<serde_json::Value>,
     pub payment_token: Option<String>,
@@ -62,14 +63,14 @@ pub struct PaymentAttemptBatchNew {
     pub connector_response_reference_id: Option<String>,
     pub connector_transaction_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: i64,
+    pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<i64>,
+    pub net_amount: Option<MinorUnit>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
@@ -82,6 +83,8 @@ pub struct PaymentAttemptBatchNew {
     pub customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
     pub profile_id: common_utils::id_type::ProfileId,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[allow(dead_code)]
@@ -157,6 +160,8 @@ impl PaymentAttemptBatchNew {
             customer_acceptance: self.customer_acceptance,
             profile_id: self.profile_id,
             organization_id: self.organization_id,
+            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.order_tax_amount,
         }
     }
 }

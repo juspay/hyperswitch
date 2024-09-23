@@ -32,6 +32,10 @@ pub(crate) trait MandateResponseExt: Sized {
     ) -> RouterResult<Self>;
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
@@ -42,7 +46,12 @@ impl MandateResponseExt for MandateResponse {
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
-            .find_payment_method(&mandate.payment_method_id, storage_scheme)
+            .find_payment_method(
+                &(state.into()),
+                &key_store,
+                &mandate.payment_method_id,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -62,7 +71,7 @@ impl MandateResponseExt for MandateResponse {
                     payment_method
                         .locker_id
                         .as_ref()
-                        .unwrap_or(&payment_method.payment_method_id),
+                        .unwrap_or(payment_method.get_id()),
                 )
                 .await?;
 
@@ -73,7 +82,6 @@ impl MandateResponseExt for MandateResponse {
                 payment_methods::cards::get_card_details_without_locker_fallback(
                     &payment_method,
                     state,
-                    &key_store,
                 )
                 .await?
             };
@@ -105,6 +113,19 @@ impl MandateResponseExt for MandateResponse {
             payment_method_type,
             payment_method_id: mandate.payment_method_id,
         })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+impl MandateResponseExt for MandateResponse {
+    async fn from_db_mandate(
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+        mandate: storage::Mandate,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> RouterResult<Self> {
+        todo!()
     }
 }
 

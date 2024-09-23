@@ -2,7 +2,8 @@
 -- These migrations can be run as long as there's no v2 application running.
 ALTER TABLE customers DROP COLUMN IF EXISTS merchant_reference_id,
     DROP COLUMN IF EXISTS default_billing_address,
-    DROP COLUMN IF EXISTS default_shipping_address;
+    DROP COLUMN IF EXISTS default_shipping_address,
+    DROP COLUMN IF EXISTS status;
 
 ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN order_fulfillment_time,
@@ -12,3 +13,21 @@ ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN default_fallback_routing;
 
 DROP TYPE "OrderFulfillmentTimeOrigin";
+
+-- Revert renaming of field,
+ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
+    DROP COLUMN billing_address,
+    DROP COLUMN shipping_address,
+    DROP COLUMN capture_method,
+    DROP COLUMN authentication_type,
+    DROP COLUMN amount_to_capture,
+    DROP COLUMN prerouting_algorithm,
+    DROP COLUMN surcharge_amount,
+    DROP COLUMN tax_on_surcharge,
+    DROP COLUMN frm_merchant_decision,
+    DROP COLUMN statement_descriptor,
+    DROP COLUMN enable_payment_link,
+    DROP COLUMN apply_mit_exemption,
+    DROP COLUMN customer_present,
+    DROP COLUMN routing_algorithm_id,
+    DROP COLUMN payment_link_config;

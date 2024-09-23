@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -47,7 +48,10 @@ pub async fn refunds_create(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundWrite),
+            &auth::JWTAuth {
+                permission: Permission::RefundWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -103,12 +107,15 @@ pub async fn refunds_retrieve(
                 auth.profile_id,
                 auth.key_store,
                 refund_request,
-                refund_retrieve_core,
+                refund_retrieve_core_with_refund_id,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -155,7 +162,7 @@ pub async fn refunds_retrieve_with_body(
                 auth.profile_id,
                 auth.key_store,
                 req,
-                refund_retrieve_core,
+                refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -233,7 +240,10 @@ pub async fn refunds_list(
         |state, auth, req, _| refund_list(state, auth.merchant_account, None, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -278,7 +288,10 @@ pub async fn refunds_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -305,7 +318,7 @@ pub async fn refunds_list_profile(
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<api_models::payments::TimeRange>,
+    payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
     Box::pin(api::server_wrap(
@@ -316,7 +329,10 @@ pub async fn refunds_filter_list(
         |state, auth, req, _| refund_filter_list(state, auth.merchant_account, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -349,7 +365,10 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account, None),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -362,7 +381,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
 #[utoipa::path(
     get,
-    path = "/refunds/v2/filter/profile",
+    path = "/refunds/v2/profile/filter",
     responses(
         (status = 200, description = "List of static filters", body = RefundListFilters),
     ),
@@ -391,7 +410,40 @@ pub async fn get_refunds_filters_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RefundRead),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::RefundsAggregate;
+    let query_params = query_params.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_refunds(state, auth.merchant_account, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

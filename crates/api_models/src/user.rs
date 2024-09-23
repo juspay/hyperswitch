@@ -1,4 +1,6 @@
-use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
+use std::fmt::Debug;
+
+use common_enums::{EntityType, PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
@@ -51,9 +53,6 @@ pub struct AuthorizeResponse {
     //this field is added for audit/debug reasons
     #[serde(skip_serializing)]
     pub user_id: String,
-    //this field is added for audit/debug reasons
-    #[serde(skip_serializing)]
-    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -159,6 +158,8 @@ pub struct GetUserDetailsResponse {
     pub org_id: id_type::OrganizationId,
     pub is_two_factor_auth_setup: bool,
     pub recovery_codes_left: Option<usize>,
+    pub profile_id: id_type::ProfileId,
+    pub entity_type: EntityType,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -177,6 +178,23 @@ pub struct GetUserRoleDetailsResponse {
     pub last_modified_at: time::PrimitiveDateTime,
     pub groups: Vec<PermissionGroup>,
     pub role_scope: RoleScope,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GetUserRoleDetailsResponseV2 {
+    pub role_id: String,
+    pub org: NameIdUnit<Option<String>, id_type::OrganizationId>,
+    pub merchant: Option<NameIdUnit<OptionalEncryptableName, id_type::MerchantId>>,
+    pub profile: Option<NameIdUnit<String, id_type::ProfileId>>,
+    pub status: UserStatus,
+    pub entity_type: EntityType,
+    pub role_name: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct NameIdUnit<N: Debug + Clone, I: Debug + Clone> {
+    pub name: N,
+    pub id: I,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -209,7 +227,6 @@ pub struct VerifyTokenResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
-    pub preferred_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
