@@ -15,6 +15,8 @@ use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::types::payment_methods as pm_types;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -24,9 +26,6 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::types::payment_methods as pm_types;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
