@@ -2,7 +2,9 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-use std::{str::FromStr, sync::Arc};
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::str::FromStr;
+use std::sync::Arc;
 
 use api_models::routing as routing_types;
 use common_utils::{
@@ -14,6 +16,7 @@ use diesel_models::configs;
 use error_stack::ResultExt;
 #[cfg(feature = "dynamic_routing")]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
@@ -21,15 +24,14 @@ use storage_impl::redis::cache;
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        metrics as core_metrics,
-    },
+    core::errors::{self, RouterResult},
     db::StorageInterface,
-    routes::{metrics, SessionState},
+    routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::{core::metrics as core_metrics, routes::metrics};
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -817,6 +819,7 @@ pub async fn metrics_for_success_based_routing(
     Ok(())
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 fn get_desired_payment_status_for_metrics(
     attempt_status: &common_enums::AttemptStatus,
 ) -> common_enums::AttemptStatus {
@@ -852,6 +855,7 @@ fn get_desired_payment_status_for_metrics(
     }
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 fn get_success_based_metrics_outcome_for_payment(
     payment_status_attribute: &common_enums::AttemptStatus,
     payment_connector: String,

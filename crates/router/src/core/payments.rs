@@ -70,6 +70,8 @@ use super::{
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     connector::utils::missing_field_err,
@@ -84,9 +86,7 @@ use crate::{
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{
-            self, convert_connector_data_to_routable_connectors, ConnectorCallType, ConnectorCommon,
-        },
+        api::{self, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
@@ -296,6 +296,7 @@ where
             };
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(connector) => {
+                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
                         convert_connector_data_to_routable_connectors(&[connector.clone()])
                             .unwrap_or_default();
@@ -366,6 +367,7 @@ where
                             &key_store,
                             merchant_account.storage_scheme,
                             &locale,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
                         )
                         .await?;
@@ -389,6 +391,7 @@ where
                 }
 
                 ConnectorCallType::Retryable(connectors) => {
+                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
                         convert_connector_data_to_routable_connectors(&connectors)
                             .unwrap_or_default();
@@ -496,6 +499,7 @@ where
                             &key_store,
                             merchant_account.storage_scheme,
                             &locale,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
                         )
                         .await?;
@@ -4504,9 +4508,10 @@ where
 
     // Fetch and cache default config for success based routing
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let _ = checked_fetch_success_based_routing_configs(state, business_profile)
+    checked_fetch_success_based_routing_configs(state, business_profile)
         .await
-        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e));
+        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+        .ok();
 
     let connector_data = connectors
         .into_iter()
