@@ -14,6 +14,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    disputes,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
 };
@@ -590,13 +591,13 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_disputes_by_merchant_id(merchant_id, dispute_constraints)
+            .find_disputes_by_constraints(merchant_id, dispute_constraints)
             .await
     }
 
