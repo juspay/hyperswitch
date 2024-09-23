@@ -566,7 +566,7 @@ pub fn payments_dynamic_tax_calculation() {}
 
 /// Payments - Create Intent
 ///
-/// **Creates a payment intent object when amount, currency and profile_id are passed.**
+/// **Creates a payment intent object when amount_details are passed.**
 ///
 /// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
 #[utoipa::path(
@@ -577,7 +577,7 @@ pub fn payments_dynamic_tax_calculation() {}
       examples(
           (
               "Create a payment intent with minimal fields" = (
-                  value = json!({"amount": 6540, "currency": "USD", "profile_id": "pro_abcdefghijklmnopqrstuvwxyz"})
+                  value = json!({"amount_details": {"order_amount": 6540, "currency": "USD"}})
               )
           ),
       ),

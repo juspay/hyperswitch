@@ -3258,12 +3258,20 @@ pub enum PresenceOfCustomerDuringPayment {
     Absent,
 }
 
-/// Whether external tax calculation is requested or not
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
-pub enum ExternalTaxCalculationRequest {
-    /// Request for tax calculation
-    Enable,
-    /// Skip tax calculation
+pub enum TaxCalculationOverride {
+    /// Skip calling the external tax provider
     #[default]
     Skip,
+    /// Calculate tax by calling the external tax provider
+    Calculate,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum SurchargeCalculationOverride {
+    /// Skip calculating surcharge
+    #[default]
+    Skip,
+    /// Calculate surcharge
+    Calculate,
 }

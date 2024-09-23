@@ -1660,7 +1660,7 @@
           "Payments"
         ],
         "summary": "Payments - Create Intent",
-        "description": "**Creates a payment intent object when amount, currency and profile_id are passed.**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.",
+        "description": "**Creates a payment intent object when amount_details are passed.**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.",
         "operationId": "Create a Payment Intent",
         "requestBody": {
           "content": {
@@ -1671,9 +1671,10 @@
               "examples": {
                 "Create a payment intent with minimal fields": {
                   "value": {
-                    "amount": 6540,
-                    "currency": "USD",
-                    "profile_id": "pro_abcdefghijklmnopqrstuvwxyz"
+                    "amount_details": {
+                      "currency": "USD",
+                      "order_amount": 6540
+                    }
                   }
                 }
               }
@@ -2124,6 +2125,62 @@
       },
       "AliPayRedirection": {
         "type": "object"
+      },
+      "AmountDetails": {
+        "type": "object",
+        "required": [
+          "currency"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "skip_surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "AmountFilter": {
         "type": "object",
@@ -6289,6 +6346,17 @@
           }
         }
       },
+      "DefaultTax": {
+        "type": "object",
+        "required": [
+          "order_tax_amount"
+        ],
+        "properties": {
+          "order_tax_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
       "DeviceChannel": {
         "type": "string",
         "description": "Device Channel indicating whether request is coming from App or Browser",
@@ -6893,14 +6961,6 @@
             "nullable": true
           }
         }
-      },
-      "ExternalTaxCalculationRequest": {
-        "type": "string",
-        "description": "Whether external tax calculation is requested or not",
-        "enum": [
-          "Enable",
-          "Skip"
-        ]
       },
       "FeatureMetadata": {
         "type": "object",
@@ -12230,6 +12290,21 @@
           "open_banking_pis"
         ]
       },
+      "PaymentMethodTypeTax": {
+        "type": "object",
+        "required": [
+          "order_tax_amount",
+          "pmt"
+        ],
+        "properties": {
+          "order_tax_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "pmt": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PaymentMethodUpdate": {
         "type": "object",
         "properties": {
@@ -12816,23 +12891,11 @@
       "PaymentsCreateIntentRequest": {
         "type": "object",
         "required": [
-          "currency",
-          "profile_id"
+          "amount_details"
         ],
         "properties": {
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
-            "example": 6540,
-            "minimum": 0
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up."
+          "amount_details": {
+            "$ref": "#/components/schemas/AmountDetails"
           },
           "merchant_reference_id": {
             "type": "string",
@@ -12844,16 +12907,11 @@
           },
           "routing_algorithm_id": {
             "type": "string",
-            "description": "Details of the routing configuration for that payment",
+            "description": "The routing algorithm id to be used for the payment",
             "nullable": true
           },
           "capture_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CaptureMethod"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CaptureMethod"
           },
           "authentication_type": {
             "allOf": [
@@ -12861,8 +12919,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
-            "nullable": true
+            "default": "no_three_ds"
           },
           "billing": {
             "allOf": [
@@ -12904,12 +12961,7 @@
             "nullable": true
           },
           "setup_future_usage": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FutureUsage"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/FutureUsage"
           },
           "apply_mit_exemption": {
             "$ref": "#/components/schemas/MitExemptionRequest"
@@ -12919,7 +12971,7 @@
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
             "example": "Hyperswitch Router",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 22
           },
           "order_details": {
             "type": "array",
@@ -12940,7 +12992,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "connector_metadata": {
@@ -12960,30 +13012,12 @@
             "nullable": true
           },
           "payment_link_enabled": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EnablePaymentLinkRequest"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/EnablePaymentLinkRequest"
           },
           "payment_link_config": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_link_config_id": {
-            "type": "string",
-            "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
-            "nullable": true
-          },
-          "surcharge_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RequestSurchargeDetails"
               }
             ],
             "nullable": true
@@ -13006,16 +13040,6 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
-          },
-          "shipping_cost": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
-            "example": 6540,
-            "nullable": true
-          },
-          "request_external_tax_calculation": {
-            "$ref": "#/components/schemas/ExternalTaxCalculationRequest"
           }
         },
         "additionalProperties": false
@@ -13023,23 +13047,11 @@
       "PaymentsCreateIntentResponse": {
         "type": "object",
         "required": [
-          "currency",
-          "profile_id"
+          "amount_details"
         ],
         "properties": {
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
-            "example": 6540,
-            "minimum": 0
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up."
+          "amount_details": {
+            "$ref": "#/components/schemas/AmountDetails"
           },
           "client_secret": {
             "type": "string",
@@ -13057,16 +13069,11 @@
           },
           "routing_algorithm_id": {
             "type": "string",
-            "description": "Details of the routing configuration for that payment",
+            "description": "The routing algorithm id to be used for the payment",
             "nullable": true
           },
           "capture_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CaptureMethod"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CaptureMethod"
           },
           "authentication_type": {
             "allOf": [
@@ -13074,8 +13081,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
-            "nullable": true
+            "default": "no_three_ds"
           },
           "billing": {
             "allOf": [
@@ -13117,12 +13123,7 @@
             "nullable": true
           },
           "setup_future_usage": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FutureUsage"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/FutureUsage"
           },
           "apply_mit_exemption": {
             "$ref": "#/components/schemas/MitExemptionRequest"
@@ -13132,7 +13133,7 @@
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
             "example": "Hyperswitch Router",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 22
           },
           "order_details": {
             "type": "array",
@@ -13153,7 +13154,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "connector_metadata": {
@@ -13173,30 +13174,12 @@
             "nullable": true
           },
           "payment_link_enabled": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EnablePaymentLinkRequest"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/EnablePaymentLinkRequest"
           },
           "payment_link_config": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_link_config_id": {
-            "type": "string",
-            "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
-            "nullable": true
-          },
-          "surcharge_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RequestSurchargeDetails"
               }
             ],
             "nullable": true
@@ -13219,16 +13202,6 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
-          },
-          "shipping_cost": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
-            "example": 6540,
-            "nullable": true
-          },
-          "request_external_tax_calculation": {
-            "$ref": "#/components/schemas/ExternalTaxCalculationRequest"
           }
         },
         "additionalProperties": false
@@ -19136,6 +19109,13 @@
           "destination"
         ]
       },
+      "SurchargeCalculationOverride": {
+        "type": "string",
+        "enum": [
+          "Skip",
+          "Calculate"
+        ]
+      },
       "SurchargeDetailsResponse": {
         "type": "object",
         "required": [
@@ -19236,6 +19216,34 @@
       },
       "SwishQrData": {
         "type": "object"
+      },
+      "TaxCalculationOverride": {
+        "type": "string",
+        "enum": [
+          "Skip",
+          "Calculate"
+        ]
+      },
+      "TaxDetails": {
+        "type": "object",
+        "properties": {
+          "default": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DefaultTax"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodTypeTax"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",

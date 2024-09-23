@@ -118,18 +118,8 @@ pub struct CustomerDetailsResponse {
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsCreateIntentRequest {
-    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
-    #[schema(value_type = u64, example = 6540)]
-    #[serde(default, deserialize_with = "amount::deserialize")]
-    pub amount: Amount,
-
-    /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
-    #[schema(example = "USD", value_type = Currency)]
-    pub currency: api_enums::Currency,
-
-    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
-    #[schema(value_type = String)]
-    pub profile_id: id_type::ProfileId,
+    /// The amount details for the payment
+    pub amount_details: AmountDetails,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -139,17 +129,19 @@ pub struct PaymentsCreateIntentRequest {
         max_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
-    pub merchant_reference_id: Option<id_type::PaymentId>,
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
-    /// Details of the routing configuration for that payment
+    /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<String>,
 
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
-    pub capture_method: Option<api_enums::CaptureMethod>,
+    #[schema(value_type = CaptureMethod, example = "automatic")]
+    #[serde(default)]
+    pub capture_method: api_enums::CaptureMethod,
 
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
-    pub authentication_type: Option<api_enums::AuthenticationType>,
+    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
+    #[serde(default)]
+    pub authentication_type: api_enums::AuthenticationType,
 
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
@@ -164,18 +156,19 @@ pub struct PaymentsCreateIntentRequest {
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
     #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
     #[serde(default)]
-    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 
     /// A description for the payment
-    #[schema(example = "It's my first payment request")]
-    pub description: Option<String>,
+    #[schema(example = "It's my first payment request", value_type = Option<String>)]
+    pub description: Option<common_utils::types::Description>,
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
-    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    #[schema(value_type = FutureUsage, example = "off_session")]
+    #[serde(default)]
+    pub setup_future_usage: api_enums::FutureUsage,
 
     /// Apply MIT exemption for a payment
     #[schema(value_type = MitExemptionRequest)]
@@ -183,8 +176,8 @@ pub struct PaymentsCreateIntentRequest {
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
-    pub statement_descriptor: Option<String>,
+    #[schema(max_length = 22, example = "Hyperswitch Router", value_type = Option<String>)]
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
 
     /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
     #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
@@ -199,9 +192,9 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
@@ -210,18 +203,13 @@ pub struct PaymentsCreateIntentRequest {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    #[schema(value_type = EnablePaymentLinkRequest)]
     #[serde(default)]
-    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
+    pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
+    /// Configure a custom payment link for the particular payment
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
-
-    /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
-    pub payment_link_config_id: Option<String>,
-
-    #[schema(value_type = Option<RequestSurchargeDetails>)]
-    pub surcharge_details: Option<RequestSurchargeDetails>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = RequestIncrementalAuthorization)]
@@ -241,33 +229,14 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = External3dsAuthenticationRequest)]
     #[serde(default)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
-
-    /// The shipping cost for the payment. This is required for tax calculation in some regions.
-    #[schema(value_type = Option<i64>, example = 6540)]
-    pub shipping_cost: Option<MinorUnit>,
-
-    /// Whether to calculate tax for this payment intent
-    #[schema(value_type = ExternalTaxCalculationRequest)]
-    #[serde(default)]
-    pub request_external_tax_calculation: common_enums::ExternalTaxCalculationRequest,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsCreateIntentResponse {
-    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
-    #[schema(value_type = u64, example = 6540)]
-    #[serde(default, deserialize_with = "amount::deserialize")]
-    pub amount: Amount,
-
-    /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
-    #[schema(example = "USD", value_type = Currency)]
-    pub currency: api_enums::Currency,
-
-    /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
-    #[schema(value_type = String)]
-    pub profile_id: id_type::ProfileId,
+    /// The amount details for the payment
+    pub amount_details: AmountDetails,
 
     /// It's a token used for client side verification.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
@@ -281,17 +250,19 @@ pub struct PaymentsCreateIntentResponse {
         max_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
-    pub merchant_reference_id: Option<id_type::PaymentId>,
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
-    /// Details of the routing configuration for that payment
+    /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<String>,
 
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
-    pub capture_method: Option<api_enums::CaptureMethod>,
+    #[schema(value_type = CaptureMethod, example = "automatic")]
+    #[serde(default)]
+    pub capture_method: api_enums::CaptureMethod,
 
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
-    pub authentication_type: Option<api_enums::AuthenticationType>,
+    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
+    #[serde(default)]
+    pub authentication_type: api_enums::AuthenticationType,
 
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
@@ -306,18 +277,19 @@ pub struct PaymentsCreateIntentResponse {
     /// Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. When making a recurring payment by passing a mandate_id, this parameter is mandatory
     #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
     #[serde(default)]
-    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 
     /// A description for the payment
-    #[schema(example = "It's my first payment request")]
-    pub description: Option<String>,
+    #[schema(example = "It's my first payment request", value_type = Option<String>)]
+    pub description: Option<common_utils::types::Description>,
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
-    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    #[schema(value_type = FutureUsage, example = "off_session")]
+    #[serde(default)]
+    pub setup_future_usage: api_enums::FutureUsage,
 
     /// Apply MIT exemption for a payment
     #[schema(value_type = MitExemptionRequest)]
@@ -325,8 +297,8 @@ pub struct PaymentsCreateIntentResponse {
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
-    pub statement_descriptor: Option<String>,
+    #[schema(max_length = 22, example = "Hyperswitch Router", value_type = Option<String>)]
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
 
     /// Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount
     #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
@@ -341,9 +313,9 @@ pub struct PaymentsCreateIntentResponse {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
@@ -352,18 +324,13 @@ pub struct PaymentsCreateIntentResponse {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    #[schema(value_type = EnablePaymentLinkRequest)]
     #[serde(default)]
-    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
+    pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
+    /// Configure a custom payment link for the particular payment
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
-
-    /// Custom payment link config id set at business profile, send only if business_specific_configs is configured
-    pub payment_link_config_id: Option<String>,
-
-    #[schema(value_type = Option<RequestSurchargeDetails>)]
-    pub surcharge_details: Option<RequestSurchargeDetails>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = RequestIncrementalAuthorization)]
@@ -383,15 +350,60 @@ pub struct PaymentsCreateIntentResponse {
     #[schema(value_type = External3dsAuthenticationRequest)]
     #[serde(default)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+}
 
-    /// The shipping cost for the payment. This is required for tax calculation in some regions.
-    #[schema(value_type = Option<i64>, example = 6540)]
-    pub shipping_cost: Option<MinorUnit>,
-
-    /// Whether to calculate tax for this payment intent
-    #[schema(value_type = ExternalTaxCalculationRequest)]
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmountDetails {
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
+    #[schema(value_type = u64, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize")]
+    order_amount: Amount,
+    /// The currency of the order
+    #[schema(example = "USD", value_type = Currency)]
+    currency: common_enums::Currency,
+    /// The shipping cost of the order. This has to be collected from the merchant
+    shipping_cost: Option<MinorUnit>,
+    /// Tax details related to the order. This will be calculated by the external tax provider
+    tax_details: Option<TaxDetails>,
+    /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
-    pub request_external_tax_calculation: common_enums::ExternalTaxCalculationRequest,
+    #[schema(value_type = TaxCalculationOverride)]
+    skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    /// The action to whether calculate surcharge or not
+    #[serde(default)]
+    #[schema(value_type = SurchargeCalculationOverride)]
+    skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    /// The surcharge amount to be added to the order, collected from the merchant
+    surcharge_amount: Option<MinorUnit>,
+    /// tax on surcharge amount
+    tax_on_surcharge: Option<MinorUnit>,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct TaxDetails {
+    /// This is the tax related information that is calculated irrespective of any payment method.
+    /// This is calculated when the order is created with shipping details
+    pub default: Option<DefaultTax>,
+
+    /// This is the tax related information that is calculated based on the payment method
+    /// This is calculated when calling the /calculate_tax API
+    pub payment_method_type: Option<PaymentMethodTypeTax>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct PaymentMethodTypeTax {
+    /// The order tax amount for the payment method type
+    pub order_tax_amount: MinorUnit,
+    /// The payment method type
+    #[schema(value_type = PaymentMethodType, example = "google_pay")]
+    pub pmt: common_enums::PaymentMethodType,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct DefaultTax {
+    /// The order tax amount for the default tax
+    pub order_tax_amount: MinorUnit,
 }
 
 #[derive(
