@@ -21,7 +21,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -1403,6 +1404,22 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 .as_ref()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
+    }
+}
+
+pub trait PaymentsPreProcessingRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
     }
 }
 

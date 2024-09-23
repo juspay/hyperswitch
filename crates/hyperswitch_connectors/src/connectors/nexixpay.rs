@@ -39,6 +39,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
+use serde_json::Value;
 use transformers as nexixpay;
 use uuid::Uuid;
 
@@ -504,11 +505,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let connector_payment_id = get_payment_id((req.request.connector_meta.clone(), None))?;
         Ok(format!(
             "{}/operations/{}",
             self.base_url(connectors),
@@ -559,6 +556,29 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
     }
 }
 
+fn get_payment_id(
+    (metadata, payment_intent): (Option<Value>, Option<nexixpay::NexixpayPaymentIntent>),
+) -> CustomResult<String, errors::ConnectorError> {
+    let connector_metadata = metadata.ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "connector_meta",
+    })?;
+    let nexixpay_meta_data =
+        serde_json::from_value::<nexixpay::NexixpayConnectorMetaData>(connector_metadata)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+    let payment_flow = payment_intent.unwrap_or(nexixpay_meta_data.psync_flow);
+    let payment_id = match payment_flow {
+        nexixpay::NexixpayPaymentIntent::Cancel => nexixpay_meta_data.cancel_operation_id,
+        nexixpay::NexixpayPaymentIntent::Capture => nexixpay_meta_data.capture_operation_id,
+        nexixpay::NexixpayPaymentIntent::Authorize => nexixpay_meta_data.authorization_operation_id,
+    };
+    payment_id.ok_or_else(|| {
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "operation_id",
+        }
+        .into()
+    })
+}
+
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Nexixpay {
     fn get_headers(
         &self,
@@ -583,7 +603,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_payment_id = get_payment_id((
+            req.request.connector_meta.clone(),
+            Some(nexixpay::NexixpayPaymentIntent::Authorize),
+        ))?;
         Ok(format!(
             "{}/operations/{}/captures",
             self.base_url(connectors),
@@ -679,7 +702,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_payment_id = get_payment_id((
+            req.request.connector_meta.clone(),
+            Some(nexixpay::NexixpayPaymentIntent::Authorize),
+        ))?;
         Ok(format!(
             "{}/operations/{}/refunds",
             self.base_url(connectors),
@@ -782,7 +808,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexixpa
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_payment_id = get_payment_id((
+            req.request.connector_metadata.clone(),
+            Some(nexixpay::NexixpayPaymentIntent::Capture),
+        ))?;
         Ok(format!(
             "{}/operations/{}/refunds",
             self.base_url(connectors),

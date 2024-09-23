@@ -1976,10 +1976,8 @@ options=["Connector","Hyperswitch"]
   payment_method_type = "CartesBancaires"
 [[nexixpay.debit]]
   payment_method_type = "UnionPay"
-[nexixpay.connector_auth.SignatureKey]
-api_key="Product Activation Key"
-key1="Payment Access Key"
-api_secret="Tariff ID"
+[nexixpay.connector_auth.HeaderKey]
+api_key="API Key"
 
 [nmi]
 [[nmi.credit]]
