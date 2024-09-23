@@ -1718,7 +1718,7 @@ pub async fn retrieve_payment_method(
     let resp = api::PaymentMethodResponse {
         merchant_id: payment_method.merchant_id.to_owned(),
         customer_id: payment_method.customer_id.to_owned(),
-        payment_method_id: payment_method.id.get_string_repr(),
+        payment_method_id: payment_method.id.get_string_repr().to_string(),
         payment_method: payment_method.payment_method,
         payment_method_type: payment_method.payment_method_type,
         metadata: payment_method.metadata.clone(),
