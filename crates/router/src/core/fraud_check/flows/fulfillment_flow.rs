@@ -16,6 +16,20 @@ use crate::{
     utils, SessionState,
 };
 
+#[cfg(feature = "v2")]
+pub async fn construct_fulfillment_router_data<'a>(
+    _state: &'a SessionState,
+    _payment_intent: &'a storage::PaymentIntent,
+    _payment_attempt: &storage::PaymentAttempt,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _connector: String,
+    _fulfillment_request: FrmFulfillmentRequest,
+) -> RouterResult<FrmFulfillmentRouterData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
     state: &'a SessionState,
@@ -108,6 +122,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }

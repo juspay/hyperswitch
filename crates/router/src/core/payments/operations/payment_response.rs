@@ -42,6 +42,7 @@ use crate::{
     utils,
 };
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
@@ -49,6 +50,11 @@ use crate::{
 )]
 pub struct PaymentResponse;
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Copy)]
+pub struct PaymentResponse;
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
@@ -88,6 +94,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         Ok(payment_data)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -95,7 +102,26 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        todo!()
+    }
+
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -246,6 +272,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 payment_method_id,
                                 updated_by: storage_scheme.clone().to_string(),
                             };
+
+                        #[cfg(all(
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_v2")
+                        ))]
                         let respond = state
                             .store
                             .update_payment_attempt_with_attempt_id(
@@ -254,6 +285,19 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 storage_scheme,
                             )
                             .await;
+
+                        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                        let respond = state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                &(&state).into(),
+                                &key_store,
+                                payment_attempt,
+                                payment_attempt_update,
+                                storage_scheme,
+                            )
+                            .await;
+
                         if let Err(err) = respond {
                             logger::error!("Error updating payment attempt: {:?}", err);
                         };
@@ -266,6 +310,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAuthorizationData>
     for PaymentResponse
@@ -325,15 +370,33 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
-            payment_data.payment_attempt = state
-                .store
-                .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt.clone(),
-                    payment_attempt_update,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            {
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            }
+
+            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            {
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        &state.into(),
+                        key_store,
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            }
         }
         // payment_intent update
         if let Some(payment_intent_update) = option_payment_intent_update {
@@ -404,6 +467,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -438,7 +502,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -457,6 +521,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     for PaymentResponse
@@ -489,6 +554,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpdateData>
     for PaymentResponse
@@ -562,6 +628,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
@@ -594,6 +661,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -624,6 +692,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     for PaymentResponse
@@ -656,6 +725,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -686,6 +756,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
     for PaymentResponse
@@ -733,7 +804,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -791,6 +862,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
     for PaymentResponse
@@ -827,7 +899,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1448,21 +1520,24 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let flow_name = core_utils::get_flow_name::<F>()?;
     if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
-        let connector_mandate_id = match router_data.response.clone() {
+        let (connector_mandate_id, mandate_metadata) = match router_data.response.clone() {
             Ok(resp) => match resp {
                 types::PaymentsResponseData::TransactionResponse {
                     ref mandate_reference,
                     ..
                 } => {
                     if let Some(mandate_ref) = mandate_reference {
-                        mandate_ref.connector_mandate_id.clone()
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                        )
                     } else {
-                        None
+                        (None, None)
                     }
                 }
-                _ => None,
+                _ => (None, None),
             },
-            Err(_) => None,
+            Err(_) => (None, None),
         };
         if let Some(payment_method) = payment_data.payment_method_info.clone() {
             let connector_mandate_details =
@@ -1473,6 +1548,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
+                    mandate_metadata,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
                 state,
@@ -1566,6 +1642,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn update_payment_method_status_and_ntid<F: Clone>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+    payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+) -> RouterResult<()> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,

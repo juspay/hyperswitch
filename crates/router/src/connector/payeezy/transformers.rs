@@ -418,6 +418,7 @@ impl<F, T>
             .map(|id| types::MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
+                mandate_metadata: None,
             });
         let status = enums::AttemptStatus::foreign_from((
             item.response.transaction_status,

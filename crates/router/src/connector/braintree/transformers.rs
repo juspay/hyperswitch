@@ -443,6 +443,7 @@ impl<F>
                             MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
+                                mandate_metadata: None,
                             }
                         }),
                         connector_metadata: None,
@@ -617,6 +618,7 @@ impl<F>
                             MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
+                                mandate_metadata: None,
                             }
                         }),
                         connector_metadata: None,
@@ -698,6 +700,7 @@ impl<F>
                             MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
+                                mandate_metadata: None,
                             }
                         }),
                         connector_metadata: None,
@@ -761,6 +764,7 @@ impl<F>
                             MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
+                                mandate_metadata: None,
                             }
                         }),
                         connector_metadata: None,

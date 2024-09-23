@@ -1,4 +1,5 @@
 -- Backfill for organization table
+------------------------ Organization -----------------------
 UPDATE ORGANIZATION
 SET org_id = id
 WHERE org_id IS NULL;
@@ -8,12 +9,15 @@ ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey_id;
 ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_pkey PRIMARY KEY (org_id);
 
+ALTER TABLE organization DROP CONSTRAINT organization_organization_name_key;
+
 -- back fill
 UPDATE ORGANIZATION
 SET org_name = organization_name
 WHERE org_name IS NULL
     AND organization_name IS NOT NULL;
 
+------------------------ Merchant Account -----------------------
 -- The new primary key for v2 merchant account will be `id`
 ALTER TABLE merchant_account DROP CONSTRAINT merchant_account_pkey;
 
@@ -31,6 +35,7 @@ WHERE merchant_id IS NULL;
 ALTER TABLE merchant_account
 ADD PRIMARY KEY (merchant_id);
 
+------------------------ Business Profile -----------------------
 UPDATE business_profile
 SET profile_id = id
 WHERE profile_id IS NULL;
@@ -40,6 +45,7 @@ ALTER TABLE business_profile DROP COLUMN id;
 ALTER TABLE business_profile
 ADD PRIMARY KEY (profile_id);
 
+------------------------ Merchant Connector Account -----------------------
 ALTER TABLE merchant_connector_account DROP CONSTRAINT merchant_connector_account_pkey;
 
 UPDATE merchant_connector_account
@@ -52,6 +58,9 @@ ADD PRIMARY KEY (merchant_connector_id);
 ALTER TABLE merchant_connector_account
 ALTER COLUMN profile_id DROP NOT NULL;
 
+DROP INDEX IF EXISTS merchant_connector_account_profile_id_index;
+
+------------------------ Customers -----------------------
 -- Run this query only when V1 is deprecated
 ALTER TABLE customers DROP CONSTRAINT customers_pkey;
 
@@ -63,6 +72,7 @@ WHERE customer_id IS NULL;
 ALTER TABLE customers
 ADD PRIMARY KEY (merchant_id, customer_id);
 
+------------------------ Payment Intent -----------------------
 ALTER TABLE payment_intent DROP CONSTRAINT payment_intent_pkey;
 
 UPDATE payment_intent
@@ -71,3 +81,12 @@ WHERE payment_id IS NULL;
 
 ALTER TABLE payment_intent
 ADD PRIMARY KEY (payment_id, merchant_id);
+
+ALTER TABLE payment_intent
+ALTER COLUMN profile_id DROP NOT NULL;
+
+ALTER TABLE payment_intent
+ALTER COLUMN currency DROP NOT NULL;
+
+ALTER TABLE payment_intent
+ALTER COLUMN client_secret DROP NOT NULL;

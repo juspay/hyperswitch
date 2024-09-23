@@ -90,7 +90,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
+                .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
@@ -262,7 +262,7 @@ pub async fn generate_sample_data(
                 true => common_enums::AttemptStatus::Failure,
                 _ => common_enums::AttemptStatus::Charged,
             },
-            amount: amount * 100,
+            amount: MinorUnit::new(amount * 100),
             currency: payment_intent.currency,
             connector: Some(
                 (*connector_vec
@@ -289,7 +289,7 @@ pub async fn generate_sample_data(
             created_at,
             modified_at,
             last_synced: Some(last_synced),
-            amount_to_capture: Some(amount * 100),
+            amount_to_capture: Some(MinorUnit::new(amount * 100)),
             connector_response_reference_id: Some(attempt_id.clone()),
             updated_by: merchant_from_db.storage_scheme.to_string(),
             save_to_locker: None,
@@ -312,7 +312,7 @@ pub async fn generate_sample_data(
             mandate_details: None,
             error_reason: None,
             multiple_capture_count: None,
-            amount_capturable: i64::default(),
+            amount_capturable: MinorUnit::new(i64::default()),
             merchant_connector_id: None,
             authentication_data: None,
             encoded_data: None,

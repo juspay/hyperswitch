@@ -12,6 +12,11 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payment_methods::{
+    create_payment_method, list_customer_payment_method_util, payment_method_intent_confirm,
+    payment_method_intent_create,
+};
 use crate::{
     core::{
         api_locking, errors,
@@ -35,6 +40,10 @@ use crate::{
     types::api::customers::CustomerRequest,
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
@@ -58,6 +67,114 @@ pub async fn create_payment_method_api(
             .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
+pub async fn create_payment_method_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsCreate;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| async move {
+            Box::pin(create_payment_method(
+                &state,
+                req,
+                &auth.merchant_account,
+                &auth.key_store,
+            ))
+            .await
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
+pub async fn create_payment_method_intent_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodIntentCreate>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsCreate;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| async move {
+            Box::pin(payment_method_intent_create(
+                &state,
+                req,
+                &auth.merchant_account,
+                &auth.key_store,
+            ))
+            .await
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
+pub async fn confirm_payment_method_intent_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodIntentConfirm>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsCreate;
+    let pm_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
+        id: pm_id.clone(),
+        payment_method: payload.payment_method,
+        payment_method_type: payload.payment_method_type,
+        client_secret: payload.client_secret.clone(),
+        customer_id: payload.customer_id.to_owned(),
+        payment_method_data: payload.payment_method_data.clone(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        inner_payload,
+        |state, auth, req, _| {
+            let pm_id = pm_id.clone();
+            async move {
+                Box::pin(payment_method_intent_confirm(
+                    &state,
+                    req.into(),
+                    &auth.merchant_account,
+                    &auth.key_store,
+                    pm_id,
+                ))
+                .await
+            }
+        },
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -346,7 +463,7 @@ pub async fn list_customer_payment_method_for_payment(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_customer_payment_method_util(
+            list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -411,7 +528,7 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth, req, _| {
-            cards::list_customer_payment_method_util(
+            list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
                 auth.key_store,

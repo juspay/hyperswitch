@@ -18,6 +18,21 @@ function normalise(input) {
     // Add more known exceptions here
   };
 
+  if (typeof input !== "string") {
+    const specName = Cypress.spec.name;
+
+    if (specName.includes("-")) {
+      const parts = specName.split("-");
+
+      if (parts.length > 1 && parts[1].includes(".")) {
+        return parts[1].split(".")[0];
+      }
+    }
+
+    // Fallback
+    return `${specName}`;
+  }
+
   if (exceptions[input.toLowerCase()]) {
     return exceptions[input.toLowerCase()];
   } else {

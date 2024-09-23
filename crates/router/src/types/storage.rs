@@ -48,7 +48,7 @@ pub use diesel_models::{
 };
 pub use hyperswitch_domain_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateFields},
+    payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     PaymentIntent,
 };
 #[cfg(feature = "payouts")]

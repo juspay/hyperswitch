@@ -22,8 +22,18 @@ function normalise(input) {
   };
 
   if (typeof input !== "string") {
-    const spec_name = Cypress.spec.name.split("-")[1].split(".")[0];
-    return `${spec_name}`;
+    const specName = Cypress.spec.name;
+
+    if (specName.includes("-")) {
+      const parts = specName.split("-");
+
+      if (parts.length > 1 && parts[1].includes(".")) {
+        return parts[1].split(".")[0];
+      }
+    }
+
+    // Fallback
+    return `${specName}`;
   }
 
   const lowerCaseInput = input.toLowerCase();

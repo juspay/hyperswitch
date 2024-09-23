@@ -578,7 +578,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
                 key_manager_state,
                 &self.id,
                 merchant_account.get_id(),
-                &key_store,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -602,13 +602,9 @@ impl CustomerDeleteBridge for customers::GlobalId {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.payment_method == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_by_locker_id(
-                            &state,
-                            &self.id,
-                            merchant_account.get_id(),
-                        )
-                        .await
-                        .switch()?;
+                        cards::delete_card_by_locker_id(state, &self.id, merchant_account.get_id())
+                            .await
+                            .switch()?;
                     }
                     // No solution as of now, need to discuss this further with payment_method_v2
 
@@ -660,7 +656,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
             name: Some(redacted_encrypted_value.clone()),
             email: Box::new(Some(redacted_encrypted_email)),
             phone: Box::new(Some(redacted_encrypted_value.clone())),
-            description: Some(Description::new(REDACTED.to_string())),
+            description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
             metadata: None,
             connector_customer: None,
@@ -676,7 +672,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
             customer_orig,
             merchant_account.get_id(),
             updated_customer,
-            &key_store,
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -902,7 +898,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                 .switch()?,
             ),
             phone: Box::new(Some(redacted_encrypted_value.clone())),
-            description: Some(Description::new(REDACTED.to_string())),
+            description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
             metadata: None,
             connector_customer: None,
