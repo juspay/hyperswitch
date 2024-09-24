@@ -84,4 +84,5 @@ ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
     ADD COLUMN business_sub_label VARCHAR(64),
     ADD COLUMN mandate_details JSONB,
     ADD COLUMN mandate_data JSONB,
-    ADD COLUMN tax_amount bigint;
+    ADD COLUMN tax_amount bigint,
+    ADD COLUMN straight_through_algorithm JSONB;

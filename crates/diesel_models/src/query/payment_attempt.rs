@@ -57,7 +57,7 @@ impl PaymentAttempt {
         }
     }
 
-    #[cfg(all(feature = "v2"))]
+    #[cfg(feature = "v2")]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -70,9 +70,7 @@ impl PaymentAttempt {
             _,
         >(
             conn,
-            dsl::attempt_id
-                .eq(self.attempt_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            dsl::id.eq(self.id.to_owned()),
             payment_attempt.populate_derived_fields(&self),
         )
         .await
@@ -193,6 +191,15 @@ impl PaymentAttempt {
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::attempt_id.eq(attempt_id.to_owned())),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id.to_owned()),
         )
         .await
     }

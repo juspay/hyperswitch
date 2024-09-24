@@ -763,6 +763,7 @@ pub fn is_operation_allowed<Op: Debug>(operation: &Op) -> bool {
     .contains(&format!("{operation:?}").as_str())
 }
 
+#[cfg(feature = "v1")]
 impl From<PaymentToFrmData> for PaymentDetails {
     fn from(payment_data: PaymentToFrmData) -> Self {
         Self {

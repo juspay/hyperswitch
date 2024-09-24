@@ -760,7 +760,6 @@ diesel::table! {
         #[max_length = 50]
         payment_experience -> Nullable<Varchar>,
         payment_method_data -> Nullable<Jsonb>,
-        straight_through_algorithm -> Nullable<Jsonb>,
         preprocessing_step_id -> Nullable<Varchar>,
         error_reason -> Nullable<Text>,
         multiple_capture_count -> Nullable<Int2>,

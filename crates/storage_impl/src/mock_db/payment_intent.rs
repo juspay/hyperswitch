@@ -181,24 +181,4 @@ impl PaymentIntentInterface for MockDb {
 
         Ok(payment_intent.clone())
     }
-
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut PaymentIntent,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, StorageError> {
-        match payment.active_attempt.clone() {
-            hyperswitch_domain_models::RemoteStorageObject::ForeignID(id) => {
-                let attempts = self.payment_attempts.lock().await;
-                let attempt = attempts
-                    .iter()
-                    .find(|pa| pa.attempt_id == id && pa.merchant_id == payment.merchant_id)
-                    .ok_or(StorageError::ValueNotFound("Attempt not found".to_string()))?;
-
-                payment.active_attempt = attempt.clone().into();
-                Ok(attempt.clone())
-            }
-            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
-        }
-    }
 }

@@ -46,7 +46,6 @@ use hyperswitch_domain_models::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
         PaymentIntent,
     },
-    RemoteStorageObject,
 };
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
@@ -377,33 +376,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut PaymentIntent,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, StorageError> {
-        match payment.active_attempt.clone() {
-            RemoteStorageObject::ForeignID(attempt_id) => {
-                let conn = pg_connection_read(self).await?;
-
-                let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
-                    &conn,
-                    &payment.merchant_id,
-                    attempt_id.as_str(),
-                )
-                .await
-                .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
-                    er.change_context(new_err)
-                })
-                .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
-                Ok(pa)
-            }
-            RemoteStorageObject::Object(pa) => Ok(pa.clone()),
-        }
-    }
-
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_v2"),
@@ -636,34 +608,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .change_context(StorageError::DecryptionError)
-    }
-
-    #[instrument(skip_all)]
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut PaymentIntent,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, StorageError> {
-        match &payment.active_attempt {
-            RemoteStorageObject::ForeignID(attempt_id) => {
-                let conn = pg_connection_read(self).await?;
-
-                let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
-                    &conn,
-                    &payment.merchant_id,
-                    attempt_id.as_str(),
-                )
-                .await
-                .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
-                    er.change_context(new_err)
-                })
-                .map(PaymentAttempt::from_storage_model)?;
-                payment.active_attempt = RemoteStorageObject::Object(pa.clone());
-                Ok(pa)
-            }
-            RemoteStorageObject::Object(pa) => Ok(pa.clone()),
-        }
     }
 
     #[cfg(all(

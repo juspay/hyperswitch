@@ -1514,20 +1514,18 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         attempt_id: &str,
-        merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+    ) -> error_stack::Result<storage::PaymentAttempt, errors::DataStorageError> {
         self.diesel_store
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_key_store,
                 attempt_id,
-                merchant_id,
                 storage_scheme,
             )
             .await
@@ -1819,16 +1817,6 @@ impl PaymentIntentInterface for KafkaStore {
                 constraints,
                 storage_scheme,
             )
-            .await
-    }
-
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut storage::PaymentIntent,
-        storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<storage::PaymentAttempt, errors::DataStorageError> {
-        self.diesel_store
-            .get_active_payment_attempt(payment, storage_scheme)
             .await
     }
 }

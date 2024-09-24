@@ -65,12 +65,6 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut PaymentIntent,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
-
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_v2"),

@@ -37,7 +37,6 @@ pub struct PaymentAttempt {
     pub connector_metadata: Option<serde_json::Value>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_data: Option<serde_json::Value>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -65,7 +64,7 @@ pub struct PaymentAttempt {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub connector_payment_id: Option<String>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    pub routing_algorithm_applied: Option<serde_json::Value>,
+    pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
@@ -175,12 +174,12 @@ pub struct PaymentListFilters {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptNew {
-    pub payment_id: id_type::PaymentId,
+    pub payment_id: id_type::GlobalPaymentId,
     pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::AttemptStatus,
     pub error_message: Option<String>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_on_surcharge: Option<i64>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
@@ -198,19 +197,18 @@ pub struct PaymentAttemptNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_data: Option<serde_json::Value>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: i64,
+    pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<i64>,
+    pub net_amount: Option<MinorUnit>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
@@ -223,8 +221,8 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
-    pub shipping_cost: Option<i64>,
-    pub order_tax_amount: Option<i64>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -324,11 +322,11 @@ impl PaymentAttemptNew {
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> i64 {
+    pub fn calculate_net_amount(&self) -> MinorUnit {
         todo!();
     }
 
-    pub fn get_or_calculate_net_amount(&self) -> i64 {
+    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
         self.net_amount
             .unwrap_or_else(|| self.calculate_net_amount())
     }
@@ -340,7 +338,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(all(feature = "v1"))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
@@ -739,7 +737,6 @@ pub struct PaymentAttemptUpdateInternal {
     connector_metadata: Option<serde_json::Value>,
     payment_method_data: Option<serde_json::Value>,
     payment_experience: Option<storage_enums::PaymentExperience>,
-    straight_through_algorithm: Option<serde_json::Value>,
     preprocessing_step_id: Option<String>,
     error_reason: Option<Option<String>>,
     connector_response_reference_id: Option<String>,

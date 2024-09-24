@@ -82,4 +82,5 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN business_sub_label,
     DROP COLUMN mandate_details,
     DROP COLUMN mandate_data,
-    DROP COLUMN tax_amount;
+    DROP COLUMN tax_amount,
+    DROP COLUMN straight_through_algorithm;

@@ -367,17 +367,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
     #[instrument(skip_all)]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
 
-        DieselPaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
+        DieselPaymentAttempt::find_by_id(&conn, attempt_id)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
@@ -1128,21 +1127,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
     #[instrument(skip_all)]
-    async fn find_payment_attempt_by_attempt_id_merchant_id(
+    async fn find_payment_attempt_by_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         // Ignoring storage scheme for v2 implementation
         self.router_store
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_key_store,
                 attempt_id,
-                merchant_id,
                 storage_scheme,
             )
             .await
@@ -1679,6 +1676,7 @@ impl DataModelExt for PaymentAttemptNew {
     }
 }
 
+#[cfg(feature = "v1")]
 impl DataModelExt for PaymentAttemptUpdate {
     type StorageModel = DieselPaymentAttemptUpdate;
 

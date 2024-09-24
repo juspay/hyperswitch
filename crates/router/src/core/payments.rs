@@ -802,6 +802,7 @@ pub fn get_connector_data(
         .attach_printable("Connector not found in connectors iterator")
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow(
     state: &SessionState,

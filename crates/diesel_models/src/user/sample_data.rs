@@ -43,7 +43,6 @@ pub struct PaymentAttemptBatchNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub payment_experience: Option<PaymentExperience>,
     pub payment_method_data: Option<serde_json::Value>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
