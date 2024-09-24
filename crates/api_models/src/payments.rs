@@ -6,8 +6,9 @@ use std::{
 pub mod additional_info;
 use cards::CardNumber;
 use common_utils::{
-    consts::{default_payments_list_limit, CARD_NETWORK_DATA},
+    consts::default_payments_list_limit,
     crypto,
+    errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
@@ -1145,18 +1146,23 @@ impl GetAddressFromPaymentMethodData for Card {
 }
 
 impl Card {
-    fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
-        let req_card_brand = self
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: AdditionalCardInfo,
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
+        let card_network = self
             .card_network
             .clone()
-            .or(additional_card_info.card_network);
+            .or_else(|| additional_card_info.card_network.clone())
+            .map(|network| match self.card_number.is_cobadged_card() {
+                Ok(true) => Ok(Some(network)),
+                Ok(false) => Ok(None),
+                Err(e) => Err(e),
+            })
+            .transpose()?
+            .flatten();
 
-        let card_network = match req_card_brand.clone().map(|_| self.is_cobadged_card()) {
-            Some(true) => req_card_brand,
-            Some(false) | None => None,
-        };
-
-        Self {
+        Ok(Self {
             card_number: self.card_number.clone(),
             card_exp_month: self.card_exp_month.clone(),
             card_exp_year: self.card_exp_year.clone(),
@@ -1174,29 +1180,7 @@ impl Card {
                 .or(additional_card_info.card_issuing_country),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
-        }
-    }
-    fn is_cobadged_card(&self) -> bool {
-        let c_card_number_value = self.card_number.get_card_no();
-        let card_number_length = i32::try_from(c_card_number_value.len()).ok();
-        let cvc_length = i32::try_from(self.card_cvc.peek().len()).ok();
-        let mut matching_networks = 0;
-
-        for (_, card_network_data) in CARD_NETWORK_DATA.iter() {
-            if let Some(regex) = &card_network_data.regex {
-                if regex.is_match(&c_card_number_value)
-                    && card_number_length.map_or(false, |len| {
-                        card_network_data.allowed_card_number_length.contains(&len)
-                    })
-                    && cvc_length.map_or(false, |len| {
-                        card_network_data.allowed_cvc_length.contains(&len)
-                    })
-                {
-                    matching_networks += 1;
-                }
-            }
-        }
-        matching_networks > 1
+        })
     }
 }
 
@@ -1636,16 +1620,16 @@ impl PaymentMethodData {
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: AdditionalPaymentData,
-    ) -> Self {
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
         if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
             match self {
-                Self::Card(card) => {
-                    Self::Card(card.apply_additional_card_info(*additional_card_info))
-                }
-                _ => self.to_owned(),
+                Self::Card(card) => Ok(Self::Card(
+                    card.apply_additional_card_info(*additional_card_info)?,
+                )),
+                _ => Ok(self.to_owned()),
             }
         } else {
-            self.to_owned()
+            Ok(self.to_owned())
         }
     }
 

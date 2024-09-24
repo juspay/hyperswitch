@@ -1,11 +1,6 @@
 //! Commonly used constants
 
-use std::collections::{HashMap, HashSet};
-
-use once_cell::sync::Lazy;
-use regex::Regex;
-
-use crate::types::CardNetworkPattern;
+use std::collections::HashSet;
 
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;

@@ -2,12 +2,9 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-use std::collections::HashMap;
 
-use common_utils::{consts, types::CardNetworkPattern};
+use common_utils::consts;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
-use once_cell::sync::Lazy;
-use regex::Regex;
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
 pub(crate) const MAX_ID_LENGTH: usize = 64;
