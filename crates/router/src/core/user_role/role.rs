@@ -230,51 +230,39 @@ pub async fn list_roles_with_info(
         .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
-    let custom_roles = match (user_role_entity, request.entity_type) {
-        (EntityType::Organization, None)
-        | (EntityType::Organization, Some(EntityType::Organization)) => state
-            .store
-            .list_roles_for_org_by_parameters(
-                &user_from_token.org_id,
-                None,
-                request.entity_type,
-                None,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to get roles")?,
-        (EntityType::Merchant, None)
-        | (EntityType::Organization, Some(EntityType::Merchant))
-        | (EntityType::Merchant, Some(EntityType::Merchant)) => state
-            .store
-            .list_roles_for_org_by_parameters(
-                &user_from_token.org_id,
-                Some(&user_from_token.merchant_id),
-                request.entity_type,
-                None,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to get roles")?,
-        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
-        (EntityType::Profile, None)
-        | (EntityType::Organization, Some(EntityType::Profile))
-        | (EntityType::Merchant, Some(EntityType::Profile))
-        | (EntityType::Profile, Some(EntityType::Profile)) => Vec::new(),
-        (EntityType::Internal, _) => {
-            return Err(UserErrors::InvalidRoleOperationWithMessage(
-                "Internal roles are not allowed for this operation".to_string(),
-            )
-            .into());
-        }
-        (_, _) => {
-            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-                "{} level user requesting data for {:?} level",
-                user_role_info.get_entity_type(),
-                request.entity_type
-            ))
-        }
-    };
+    let custom_roles =
+        match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
+            EntityType::Organization => state
+                .store
+                .list_roles_for_org_by_parameters(
+                    &user_from_token.org_id,
+                    None,
+                    request.entity_type,
+                    None,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get roles")?,
+            EntityType::Merchant => state
+                .store
+                .list_roles_for_org_by_parameters(
+                    &user_from_token.org_id,
+                    Some(&user_from_token.merchant_id),
+                    request.entity_type,
+                    None,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get roles")?,
+            // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+            EntityType::Profile => Vec::new(),
+            EntityType::Internal => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Internal roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
+        };
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
 
@@ -282,10 +270,9 @@ pub async fn list_roles_with_info(
         .into_iter()
         .filter_map(|role_info| {
             let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-            let request_filter = request.entity_type.is_none()
-                || request
-                    .entity_type
-                    .is_some_and(|entity_type| role_info.get_entity_type() == entity_type);
+            let request_filter = request.entity_type.map_or(true, |entity_type| {
+                entity_type == role_info.get_entity_type()
+            });
 
             (is_lower_entity && request_filter).then_some(role_api::RoleInfoResponseNew {
                 role_id: role_info.get_role_id().to_string(),

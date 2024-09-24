@@ -684,69 +684,58 @@ pub async fn list_users_in_lineage(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
-    let user_roles_set: HashSet<_> =
-        match (requestor_role_info.get_entity_type(), request.entity_type) {
-            (EntityType::Organization, None)
-            | (EntityType::Organization, Some(EntityType::Organization)) => {
-                utils::user_role::fetch_user_roles_by_payload(
-                    &state,
-                    ListUserRolesByOrgIdPayload {
-                        user_id: None,
-                        org_id: &user_from_token.org_id,
-                        merchant_id: None,
-                        profile_id: None,
-                        version: None,
-                    },
-                    request.entity_type,
-                )
-                .await?
-            }
-            (EntityType::Merchant, None)
-            | (EntityType::Merchant, Some(EntityType::Merchant))
-            | (EntityType::Organization, Some(EntityType::Merchant)) => {
-                utils::user_role::fetch_user_roles_by_payload(
-                    &state,
-                    ListUserRolesByOrgIdPayload {
-                        user_id: None,
-                        org_id: &user_from_token.org_id,
-                        merchant_id: Some(&user_from_token.merchant_id),
-                        profile_id: None,
-                        version: None,
-                    },
-                    request.entity_type,
-                )
-                .await?
-            }
-            (EntityType::Profile, None)
-            | (EntityType::Organization, Some(EntityType::Profile))
-            | (EntityType::Merchant, Some(EntityType::Profile))
-            | (EntityType::Profile, Some(EntityType::Profile)) => {
-                let Some(profile_id) = user_from_token.profile_id.as_ref() else {
-                    return Err(UserErrors::JwtProfileIdMissing.into());
-                };
+    let user_roles_set: HashSet<_> = match utils::user_role::get_min_entity(
+        requestor_role_info.get_entity_type(),
+        request.entity_type,
+    )? {
+        EntityType::Organization => {
+            utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: None,
+                    profile_id: None,
+                    version: None,
+                },
+                request.entity_type,
+            )
+            .await?
+        }
+        EntityType::Merchant => {
+            utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: None,
+                    version: None,
+                },
+                request.entity_type,
+            )
+            .await?
+        }
+        EntityType::Profile => {
+            let Some(profile_id) = user_from_token.profile_id.as_ref() else {
+                return Err(UserErrors::JwtProfileIdMissing.into());
+            };
 
-                utils::user_role::fetch_user_roles_by_payload(
-                    &state,
-                    ListUserRolesByOrgIdPayload {
-                        user_id: None,
-                        org_id: &user_from_token.org_id,
-                        merchant_id: Some(&user_from_token.merchant_id),
-                        profile_id: Some(profile_id),
-                        version: None,
-                    },
-                    request.entity_type,
-                )
-                .await?
-            }
-            (EntityType::Internal, _) => HashSet::new(),
-            (_, _) => {
-                return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-                    "{} level user requesting data for {:?} level",
-                    requestor_role_info.get_entity_type(),
-                    request.entity_type
-                ))
-            }
-        };
+            utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: Some(profile_id),
+                    version: None,
+                },
+                request.entity_type,
+            )
+            .await?
+        }
+        EntityType::Internal => HashSet::new(),
+    };
 
     let mut email_map = state
         .global_store

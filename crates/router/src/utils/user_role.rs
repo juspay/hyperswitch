@@ -412,10 +412,47 @@ pub async fn fetch_user_roles_by_payload(
         .into_iter()
         .filter_map(|user_role| {
             let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
-            (request_entity_type.is_none()
-                || request_entity_type
-                    .is_some_and(|req_entity_type| entity_type == req_entity_type))
-            .then_some(user_role)
+            request_entity_type
+                .map_or(true, |req_entity_type| entity_type == req_entity_type)
+                .then_some(user_role)
         })
         .collect::<HashSet<_>>())
+}
+
+pub fn get_min_entity(
+    user_entity: EntityType,
+    filter_entity: Option<EntityType>,
+) -> UserResult<EntityType> {
+    match (user_entity, filter_entity) {
+        (EntityType::Organization, None)
+        | (EntityType::Organization, Some(EntityType::Organization)) => {
+            Ok(EntityType::Organization)
+        }
+
+        (EntityType::Merchant, None)
+        | (EntityType::Organization, Some(EntityType::Merchant))
+        | (EntityType::Merchant, Some(EntityType::Merchant)) => Ok(EntityType::Merchant),
+
+        (EntityType::Profile, None)
+        | (EntityType::Organization, Some(EntityType::Profile))
+        | (EntityType::Merchant, Some(EntityType::Profile))
+        | (EntityType::Profile, Some(EntityType::Profile)) => Ok(EntityType::Profile),
+
+        (EntityType::Internal, _) => Ok(EntityType::Internal),
+
+        (EntityType::Organization, Some(EntityType::Internal))
+        | (EntityType::Merchant, Some(EntityType::Internal))
+        | (EntityType::Profile, Some(EntityType::Internal)) => {
+            Err(UserErrors::InvalidRoleOperation.into())
+        }
+
+        (EntityType::Merchant, Some(EntityType::Organization))
+        | (EntityType::Profile, Some(EntityType::Organization))
+        | (EntityType::Profile, Some(EntityType::Merchant)) => {
+            Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "{} level user requesting data for {:?} level",
+                user_entity, filter_entity
+            ))
+        }
+    }
 }
