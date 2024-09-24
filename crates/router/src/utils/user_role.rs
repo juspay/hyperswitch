@@ -239,10 +239,7 @@ pub async fn get_single_merchant_id(
             .attach_printable("No merchants found for org_id")?
             .get_id()
             .clone()),
-        Some(EntityType::Merchant)
-        | Some(EntityType::Internal)
-        | Some(EntityType::Profile)
-        | None => user_role
+        Some(EntityType::Merchant) | Some(EntityType::Profile) | None => user_role
             .merchant_id
             .clone()
             .ok_or(UserErrors::InternalServerError)
@@ -263,9 +260,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
-        EntityType::Internal | EntityType::Organization => {
-            Err(UserErrors::InvalidRoleOperation.into())
-        }
+        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
         EntityType::Merchant => {
             let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
                 return Ok(None);
@@ -369,7 +364,7 @@ pub async fn get_single_merchant_id_and_profile_id(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
     let profile_id = match entity_type {
-        EntityType::Organization | EntityType::Merchant | EntityType::Internal => {
+        EntityType::Organization | EntityType::Merchant => {
             let key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(

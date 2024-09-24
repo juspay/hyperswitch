@@ -1332,7 +1332,7 @@ impl NewUserRole<InternalLevel> {
             merchant_id: Some(internal_merchant_id.clone()),
             profile_id: None,
             entity_id: internal_merchant_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Internal,
+            entity_type: EntityType::Merchant,
         });
 
         Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
