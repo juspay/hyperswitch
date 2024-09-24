@@ -291,16 +291,20 @@ pub async fn get_role_information(
     .await
 }
 
-pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_users_in_lineage(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_role_api::ListUsersInEntityRequest>,
+) -> HttpResponse {
     let flow = Flow::ListUsersInLineage;
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
-        (),
-        |state, user_from_token, _, _| {
-            user_role_core::list_users_in_lineage(state, user_from_token)
+        query.into_inner(),
+        |state, user_from_token, request, _| {
+            user_role_core::list_users_in_lineage(state, user_from_token, request)
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
@@ -308,15 +312,21 @@ pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest)
     .await
 }
 
-pub async fn list_roles_with_info(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_roles_with_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<role_api::ListRolesRequest>,
+) -> HttpResponse {
     let flow = Flow::ListRolesV2;
 
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
-        (),
-        |state, user_from_token, _, _| role_core::list_roles_with_info(state, user_from_token),
+        query.into_inner(),
+        |state, user_from_token, request, _| {
+            role_core::list_roles_with_info(state, user_from_token, request)
+        },
         &auth::JWTAuth {
             permission: Permission::UsersRead,
             minimum_entity_level: EntityType::Profile,

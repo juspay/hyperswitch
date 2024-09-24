@@ -1,15 +1,24 @@
 use std::collections::HashMap;
 
-use common_utils::pii;
+use common_enums::enums;
+use common_utils::{pii, request::Method};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types,
+};
+use hyperswitch_interfaces::errors;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
-    pii::Secret,
-    services,
-    types::{self, api, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
+    },
 };
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -46,10 +55,10 @@ pub struct CoinbaseAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
+impl TryFrom<&ConnectorAuthType> for CoinbaseAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
+    fn try_from(_auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::HeaderKey { api_key } = _auth_type {
             Ok(Self {
                 api_key: api_key.to_owned(),
             })
@@ -112,23 +121,17 @@ pub struct CoinbasePaymentsResponse {
     data: CoinbasePaymentResponseData,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, CoinbasePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CoinbasePaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let redirection_data = services::RedirectForm::Form {
+        let redirection_data = RedirectForm::Form {
             endpoint: item.response.data.hosted_url.to_string(),
-            method: services::Method::Get,
+            method: Method::Get,
             form_fields,
         };
         let timeline = item
@@ -138,10 +141,10 @@ impl<F, T>
             .last()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
             .clone();
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
+        let connector_id = ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = timeline.status.clone();
         let response_data = timeline.context.map_or(
-            Ok(types::PaymentsResponseData::TransactionResponse {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id.clone(),
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
@@ -152,9 +155,9 @@ impl<F, T>
                 charge_id: None,
             }),
             |context| {
-                Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
+                Ok(PaymentsResponseData::TransactionUnresolvedResponse{
                 resource_id: connector_id,
-                reason: Some(api::enums::UnresolvedResponseReason {
+                reason: Some(api_models::enums::UnresolvedResponseReason {
                 code: context.to_string(),
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
@@ -207,12 +210,12 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {}
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        _item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Err(errors::ConnectorError::NotImplemented(
             "try_from RefundsResponseRouterData".to_string(),
@@ -221,12 +224,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        _item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Err(errors::ConnectorError::NotImplemented(
             "try_from RefundsResponseRouterData".to_string(),

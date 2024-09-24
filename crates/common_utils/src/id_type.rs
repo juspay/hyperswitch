@@ -27,7 +27,7 @@ pub use global_id::{payment::GlobalPaymentId, payment_methods::GlobalPaymentMeth
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
-pub use payment::PaymentId;
+pub use payment::{PaymentId, PaymentReferenceId};
 pub use profile::ProfileId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
