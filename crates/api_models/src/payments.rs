@@ -133,7 +133,7 @@ pub struct PaymentsCreateIntentRequest {
 
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
-    pub routing_algorithm_id: Option<String>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
 
     #[schema(value_type = CaptureMethod, example = "automatic")]
     #[serde(default)]
@@ -254,7 +254,7 @@ pub struct PaymentsCreateIntentResponse {
 
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
-    pub routing_algorithm_id: Option<String>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
 
     #[schema(value_type = CaptureMethod, example = "automatic")]
     #[serde(default)]
@@ -364,8 +364,8 @@ pub struct AmountDetails {
     currency: common_enums::Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
-    /// Tax details related to the order. This will be calculated by the external tax provider
-    tax_details: Option<TaxDetails>,
+    /// Tax amount related to the order. This will be calculated by the external tax provider
+    order_tax_amount: MinorUnit,
     /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
     #[schema(value_type = TaxCalculationOverride)]
@@ -378,32 +378,6 @@ pub struct AmountDetails {
     surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     tax_on_surcharge: Option<MinorUnit>,
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct TaxDetails {
-    /// This is the tax related information that is calculated irrespective of any payment method.
-    /// This is calculated when the order is created with shipping details
-    pub default: Option<DefaultTax>,
-
-    /// This is the tax related information that is calculated based on the payment method
-    /// This is calculated when calling the /calculate_tax API
-    pub payment_method_type: Option<PaymentMethodTypeTax>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct PaymentMethodTypeTax {
-    /// The order tax amount for the payment method type
-    pub order_tax_amount: MinorUnit,
-    /// The payment method type
-    #[schema(value_type = PaymentMethodType, example = "google_pay")]
-    pub pmt: common_enums::PaymentMethodType,
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct DefaultTax {
-    /// The order tax amount for the default tax
-    pub order_tax_amount: MinorUnit,
 }
 
 #[derive(
