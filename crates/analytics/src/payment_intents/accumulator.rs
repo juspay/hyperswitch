@@ -109,17 +109,19 @@ impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
             if status.as_ref() != &storage_enums::IntentStatus::RequiresCustomerAction
                 && status.as_ref() != &storage_enums::IntentStatus::RequiresPaymentMethod
             {
-                self.total += metrics.count.unwrap_or_default() as u32;
+                if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
+                    self.total += total;
+                }
             }
         }
     }
 
     fn collect(self) -> (Option<u32>, Option<u32>, Option<f64>) {
-        if self.total <= 0 {
+        if self.total == 0 {
             (None, None, None)
         } else {
-            let success = u32::try_from(self.success).ok();
-            let total = u32::try_from(self.total).ok();
+            let success = Some(self.success);
+            let total = Some(self.total);
             let success_rate = match (success, total) {
                 (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
                 _ => None,

@@ -203,13 +203,13 @@ pub struct AnalyticsMetadata {
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentsAnalyticsMetadata {
-    pub total_payment_processed_amount: u64,
-    pub total_payment_processed_count: u64,
+    pub total_payment_processed_amount: Option<u64>,
+    pub total_payment_processed_count: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentIntentsAnalyticsMetadata {
-    pub total_success_rate: f64,
+    pub total_success_rate: Option<f64>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

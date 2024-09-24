@@ -226,8 +226,8 @@ pub async fn get_metrics(
     Ok(PaymentsMetricsResponse {
         query_data,
         meta_data: [PaymentsAnalyticsMetadata {
-            total_payment_processed_amount,
-            total_payment_processed_count,
+            total_payment_processed_amount: Some(total_payment_processed_amount),
+            total_payment_processed_count: Some(total_payment_processed_count),
         }],
     })
 }

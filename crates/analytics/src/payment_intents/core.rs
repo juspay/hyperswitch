@@ -156,10 +156,9 @@ pub async fn get_metrics(
             }
         })
         .collect();
-    let total_success_rate = if total > 0 {
-        (success as f64) * 100.0 / total as f64
-    } else {
-        0.0
+    let total_success_rate = match (success, total) {
+        (s, t) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+        _ => None,
     };
     Ok(PaymentIntentsMetricsResponse {
         query_data,
