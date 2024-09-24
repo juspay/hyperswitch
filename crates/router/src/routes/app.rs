@@ -1003,6 +1003,10 @@ impl Refunds {
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
                 .service(web::resource("/aggregate").route(web::get().to(get_refunds_aggregates)))
                 .service(
+                    web::resource("/profile/aggregate")
+                        .route(web::get().to(get_refunds_aggregate_profile)),
+                )
+                .service(
                     web::resource("/v2/profile/filter")
                         .route(web::get().to(get_refunds_filters_profile)),
                 )

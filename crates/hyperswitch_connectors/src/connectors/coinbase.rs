@@ -2,31 +2,45 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use diesel_models::enums;
+use common_enums::enums;
+use common_utils::{
+    crypto,
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
+    webhooks,
+};
+use masking::Mask;
 use transformers as coinbase;
 
 use self::coinbase::CoinbaseWebhookDetails;
-use super::utils;
-use crate::{
-    configs::settings,
-    connector::utils as connector_utils,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
-    },
-    utils::BytesExt,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Debug, Clone)]
 pub struct Coinbase;
@@ -50,9 +64,9 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -78,14 +92,14 @@ impl ConnectorCommon for Coinbase {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.coinbase.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth: coinbase::CoinbaseAuthType = coinbase::CoinbaseAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -128,49 +142,32 @@ impl ConnectorValidation for Coinbase {
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+                utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Coinbase
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Coinbase
 {
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Coinbase
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Coinbase {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Coinbase
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Coinbase {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Coinbase
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Coinbase
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Coinbase".to_string())
                 .into(),
@@ -178,14 +175,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Coinbase
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Coinbase {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -195,16 +190,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/charges", self.base_url(_connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = coinbase::CoinbasePaymentsRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -212,19 +207,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -233,17 +224,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: coinbase::CoinbasePaymentsResponse = res
             .response
             .parse_struct("Coinbase PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -260,14 +251,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Coinbase
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Coinbase {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -277,8 +266,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_id = _req
             .request
@@ -294,31 +283,31 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsSyncType::get_url(self, req, connectors)?)
+                .headers(PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: coinbase::CoinbasePaymentsResponse = res
             .response
             .parse_struct("coinbase PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -335,14 +324,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Coinbase
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Coinbase {
     fn build_request(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
             connector: "Coinbase".to_string(),
@@ -351,19 +338,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Coinbase
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Coinbase {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Coinbase
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coinbase {
     fn build_request(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refund".to_string(),
             connector: "Coinbase".to_string(),
@@ -372,22 +354,22 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Coinbase {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Coinbase {
     // default implementation of build_request method will be executed
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Coinbase {
+impl webhooks::IncomingWebhook for Coinbase {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
@@ -398,7 +380,7 @@ impl api::IncomingWebhook for Coinbase {
 
     fn get_webhook_source_verification_message(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -409,7 +391,7 @@ impl api::IncomingWebhook for Coinbase {
 
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif: CoinbaseWebhookDetails = request
             .body
@@ -422,31 +404,31 @@ impl api::IncomingWebhook for Coinbase {
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         match notif.event.event_type {
             coinbase::WebhookEventType::Confirmed | coinbase::WebhookEventType::Resolved => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
             }
             coinbase::WebhookEventType::Failed => {
-                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentActionRequired)
             }
             coinbase::WebhookEventType::Pending => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
             }
             coinbase::WebhookEventType::Unknown | coinbase::WebhookEventType::Created => {
-                Ok(api::IncomingWebhookEvent::EventNotSupported)
+                Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
             }
         }
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: CoinbaseWebhookDetails = request
             .body
