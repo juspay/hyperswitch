@@ -792,9 +792,8 @@ where
                 _ => Some(data.parse_value("payment_method_data")),
             })
             .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
-            })?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse the AdditionalPaymentData from payment_attempt.payment_method_data")?;
 
     let surcharge_details =
         payment_attempt
