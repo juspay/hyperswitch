@@ -3926,7 +3926,7 @@ pub struct PaymentsResponse {
     /// order tax amount calculated by tax connectors
     pub order_tax_amount: Option<MinorUnit>,
 
-    /// Connector Identifier
+    /// Connector Identifier for the payment method
     pub connector_mandate_id: Option<String>,
 }
 
