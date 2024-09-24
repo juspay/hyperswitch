@@ -13630,7 +13630,7 @@
           },
           "connector_mandate_id": {
             "type": "string",
-            "description": "Identifier for the payment_method saved with the connector",
+            "description": "Connector Identifier",
             "nullable": true
           }
         }
@@ -14789,7 +14789,7 @@
           },
           "connector_mandate_id": {
             "type": "string",
-            "description": "Identifier for the payment_method saved with the connector",
+            "description": "Connector Identifier",
             "nullable": true
           }
         }
