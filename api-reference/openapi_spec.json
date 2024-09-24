@@ -17427,7 +17427,7 @@
           },
           "connector_mandate_id": {
             "type": "string",
-            "description": "Connector Identifier",
+            "description": "Connector Identifier for the payment method",
             "nullable": true
           }
         }
@@ -18586,7 +18586,7 @@
           },
           "connector_mandate_id": {
             "type": "string",
-            "description": "Connector Identifier",
+            "description": "Connector Identifier for the payment method",
             "nullable": true
           }
         }
