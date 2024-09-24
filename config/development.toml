@@ -13,7 +13,7 @@ use_xray_generator = false
 bg_metrics_collection_interval_in_secs = 15
 
 [key_manager]
-url = "http://localhost:5000"
+enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]

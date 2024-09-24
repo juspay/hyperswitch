@@ -213,9 +213,10 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct KeyManagerConfig {
-    pub enabled: Option<bool>,
+    pub enabled: bool,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
@@ -858,6 +859,8 @@ impl Settings<SecuredSecret> {
             .as_ref()
             .map(|x| x.get_inner().validate())
             .transpose()?;
+
+        self.key_manager.get_inner().validate()?;
 
         Ok(())
     }
