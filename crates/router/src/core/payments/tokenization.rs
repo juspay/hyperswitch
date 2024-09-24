@@ -5,7 +5,6 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
-
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use common_enums::PaymentMethod;
 use common_utils::{
