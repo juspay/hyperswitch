@@ -74,7 +74,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
                 })
                 .attach_printable("Invalid payment method type"))
             },
-        );
+        )?;
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
@@ -87,7 +87,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
                 })
                 .attach_printable("Invalid payment method data"))
             },
-        );
+        )?;
         Ok(())
     }
 }
@@ -106,7 +106,7 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
                 })
                 .attach_printable("Invalid payment method type"))
             },
-        );
+        )?;
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
@@ -119,7 +119,7 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
                 })
                 .attach_printable("Invalid payment method data"))
             },
-        );
+        )?;
         Ok(())
     }
 }
