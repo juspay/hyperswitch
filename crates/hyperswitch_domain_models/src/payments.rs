@@ -1,3 +1,4 @@
+#[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
