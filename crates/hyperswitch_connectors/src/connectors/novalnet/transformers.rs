@@ -352,7 +352,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
-    pub status_code: u16,
+    pub status_code: u32,
     pub status_text: String,
     pub additional_message: Option<String>,
 }
@@ -360,7 +360,7 @@ pub struct ResultData {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TransactionData {
     payment_type: Option<String>,
-    status_code: u16,
+    status_code: u32,
     txn_secret: Option<String>,
     tid: Option<Secret<i64>>,
     test_mode: Option<i8>,
@@ -493,7 +493,7 @@ pub struct NovalnetResponseTransactionData {
     pub payment_data: NovalnetResponsePaymentData,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u16,
+    pub status_code: u32,
     pub test_mode: u8,
     pub tid: Option<Secret<i64>>,
     pub txn_secret: Option<Secret<String>>,
@@ -649,7 +649,7 @@ pub struct NovalnetRefundsTransactionData {
     refund: RefundData,
     refunded_amount: u32,
     status: NovalnetTransactionStatus,
-    status_code: u16,
+    status_code: u32,
     test_mode: u8,
     tid: Option<Secret<i64>>,
 }
@@ -857,7 +857,7 @@ pub struct CaptureTransactionData {
     order_no: Option<String>,
     payment_type: Option<String>,
     status: Option<NovalnetTransactionStatus>,
-    status_code: Option<u16>,
+    status_code: Option<u32>,
     test_mode: Option<u8>,
     tid: Option<Secret<i64>>,
 }
@@ -867,7 +867,7 @@ pub struct CaptureData {
     amount: Option<u32>,
     payment_type: Option<String>,
     status: Option<String>,
-    status_code: u16,
+    status_code: u32,
     tid: Option<Secret<i64>>,
 }
 
@@ -1105,7 +1105,7 @@ impl<F>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct NovalnetErrorResponse {
-    pub status_code: u16,
+    pub status_code: u32,
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
