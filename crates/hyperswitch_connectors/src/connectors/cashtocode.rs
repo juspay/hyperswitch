@@ -1,33 +1,41 @@
 pub mod transformers;
-
 use base64::Engine;
+use common_enums::enums;
 use common_utils::{
-    request::RequestContent,
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use diesel_models::enums;
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse,
+    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{PaymentsAuthorizeType, Response},
+    webhooks,
+};
+use masking::{Mask, PeekInterface, Secret};
 use transformers as cashtocode;
 
-use super::utils as connector_utils;
-use crate::{
-    configs::settings::{self},
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage, ErrorResponse, Response,
-    },
-    utils::{ByteSliceExt, BytesExt},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Cashtocode {
@@ -56,13 +64,13 @@ impl api::RefundExecute for Cashtocode {}
 impl api::RefundSync for Cashtocode {}
 
 fn get_b64_auth_cashtocode(
-    payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    payment_method_type: &Option<enums::PaymentMethodType>,
     auth_type: &transformers::CashtocodeAuth,
-) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
     fn construct_basic_auth(
         username: Option<Secret<String>>,
         password: Option<Secret<String>>,
-    ) -> Result<request::Maskable<String>, errors::ConnectorError> {
+    ) -> Result<masking::Maskable<String>, errors::ConnectorError> {
         let username = username.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let password = password.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(format!(
@@ -77,11 +85,11 @@ fn get_b64_auth_cashtocode(
     }
 
     let auth_header = match payment_method_type {
-        Some(storage::enums::PaymentMethodType::ClassicReward) => construct_basic_auth(
+        Some(enums::PaymentMethodType::ClassicReward) => construct_basic_auth(
             auth_type.username_classic.to_owned(),
             auth_type.password_classic.to_owned(),
         ),
-        Some(storage::enums::PaymentMethodType::Evoucher) => construct_basic_auth(
+        Some(enums::PaymentMethodType::Evoucher) => construct_basic_auth(
             auth_type.username_evoucher.to_owned(),
             auth_type.password_evoucher.to_owned(),
         ),
@@ -91,12 +99,8 @@ fn get_b64_auth_cashtocode(
     Ok(vec![(headers::AUTHORIZATION.to_string(), auth_header)])
 }
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Cashtocode
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Cashtocode
 {
     // Not Implemented (R)
 }
@@ -115,7 +119,7 @@ impl ConnectorCommon for Cashtocode {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.cashtocode.base_url.as_ref()
     }
 
@@ -153,39 +157,26 @@ impl ConnectorValidation for Cashtocode {
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+                utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Cashtocode {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Cashtocode
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Cashtocode {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Cashtocode
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Cashtocode
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Cashtocode".to_string())
                 .into(),
@@ -193,17 +184,15 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Cashtocode {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
+            PaymentsAuthorizeType::get_content_type(self)
                 .to_owned()
                 .into(),
         )];
@@ -225,8 +214,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}/merchant/paytokens",
@@ -236,10 +225,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -250,20 +239,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -272,10 +257,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: cashtocode::CashtocodePaymentsResponse = res
             .response
             .parse_struct("Cashtocode PaymentsAuthorizeResponse")
@@ -283,7 +268,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -299,23 +284,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cashtocode {
     // default implementation of build_request method will be executed
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: transformers::CashtocodePaymentsSyncResponse = res
             .response
             .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -331,18 +314,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Cashtocode {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::Capture,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
             connector: "Cashtocode".to_string(),
@@ -351,14 +328,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cashtocode {
     fn build_request(
         &self,
-        _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Payments Cancel".to_string(),
             connector: "Cashtocode".to_string(),
@@ -368,21 +343,20 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Cashtocode {
+impl webhooks::IncomingWebhook for Cashtocode {
     fn get_webhook_source_verification_signature(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature =
-            connector_utils::get_header_key_value("authorization", request.headers)?;
+        let base64_signature = utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
         Ok(signature)
     }
 
     async fn verify_webhook_source(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
@@ -412,7 +386,7 @@ impl api::IncomingWebhook for Cashtocode {
 
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook: transformers::CashtocodePaymentsSyncResponse = request
             .body
@@ -426,14 +400,14 @@ impl api::IncomingWebhook for Cashtocode {
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
@@ -445,9 +419,8 @@ impl api::IncomingWebhook for Cashtocode {
 
     fn get_webhook_api_response(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
-    {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         let status = "EXECUTED".to_string();
         let obj: transformers::CashtocodePaymentsSyncResponse = request
             .body
@@ -455,22 +428,16 @@ impl api::IncomingWebhook for Cashtocode {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let response: serde_json::Value =
             serde_json::json!({ "status": status, "transactionId" : obj.transaction_id});
-        Ok(services::api::ApplicationResponse::Json(response))
+        Ok(ApplicationResponse::Json(response))
     }
 }
 
-impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::RefundsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cashtocode {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::refunds::Execute,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<Execute, RefundsData, RefundsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
             connector: "Cashtocode".to_string(),
@@ -479,8 +446,6 @@ impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::Refu
     }
 }
 
-impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>
-    for Cashtocode
-{
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cashtocode {
     // default implementation of build_request method will be executed
 }
