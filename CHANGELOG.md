@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.20.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Update pm details in Psync response ([#6011](https://github.com/juspay/hyperswitch/pull/6011)) ([`cbeddb3`](https://github.com/juspay/hyperswitch/commit/cbeddb3ea50b6f095d0b8526655bace0a5c0c3fb))
+
+- - -
+
 ## 2024.09.20.0
 
 ### Features
