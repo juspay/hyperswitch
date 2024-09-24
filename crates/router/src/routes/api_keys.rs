@@ -9,10 +9,6 @@ use crate::{
     types::api as api_types,
 };
 
-/// API Key - Create
-///
-/// Create a new API Key for accessing our APIs from your servers. The plaintext API Key will be
-/// displayed only once on creation, so ensure you store it securely.
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
 pub async fn api_key_create(
@@ -78,9 +74,6 @@ pub async fn api_key_create(
     .await
 }
 
-/// API Key - Retrieve
-///
-/// Retrieve information about the specified API Key.
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
@@ -117,9 +110,6 @@ pub async fn api_key_retrieve(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - Retrieve
-///
-/// Retrieve information about the specified API Key.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
@@ -150,9 +140,6 @@ pub async fn api_key_retrieve(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - Update
-///
-/// Update information for the specified API Key.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyUpdate))]
 pub async fn api_key_update(
     state: web::Data<AppState>,
@@ -221,10 +208,6 @@ pub async fn api_key_update(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - Revoke
-///
-/// Revoke the specified API Key. Once revoked, the API Key can no longer be used for
-/// authenticating with our APIs.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
@@ -285,9 +268,6 @@ pub async fn api_key_revoke(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - List
-///
-/// List all API Keys associated with your merchant account.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
 pub async fn api_key_list(
     state: web::Data<AppState>,
