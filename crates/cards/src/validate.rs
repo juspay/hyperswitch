@@ -93,8 +93,7 @@ impl CardNumber {
                 no_of_supported_card_networks += 1;
             }
         }
-        // Ok(no_of_supported_card_networks > 1)
-        Ok(true)
+        Ok(no_of_supported_card_networks > 1)
     }
 }
 
