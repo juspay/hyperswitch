@@ -219,8 +219,8 @@ pub struct PaymentIntentMetricsBucketValue {
     pub total_smart_retries: Option<u64>,
     pub smart_retried_amount: Option<u64>,
     pub payment_intent_count: Option<u64>,
-    pub successful_payments: Option<u64>,
-    pub total_payments: Option<u64>,
+    pub successful_payments: Option<u32>,
+    pub total_payments: Option<u32>,
     pub payments_success_rate: Option<f64>,
     pub auth_declined_rate: Option<f64>,
 }
