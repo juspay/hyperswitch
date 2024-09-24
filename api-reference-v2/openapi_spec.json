@@ -14100,6 +14100,11 @@
               }
             ],
             "nullable": true
+          },
+          "connector_mandate_id": {
+            "type": "string",
+            "description": "Connector Identifier for the payment method",
+            "nullable": true
           }
         }
       },
@@ -15253,6 +15258,11 @@
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "connector_mandate_id": {
+            "type": "string",
+            "description": "Connector Identifier for the payment method",
             "nullable": true
           }
         }
