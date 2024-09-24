@@ -130,7 +130,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     None => ccard
                         .get_card_issuer()
                         .ok()
-                        .map(|issuer| String::from(issuer)),
+                        .map(String::from),
                 };
                 (
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1163,7 +1163,7 @@ impl
             None => ccard
                 .get_card_issuer()
                 .ok()
-                .map(|issuer| String::from(issuer)),
+                .map(String::from),
         };
 
         let security_code = if item
@@ -1344,7 +1344,7 @@ impl
             None => ccard
                 .get_card_issuer()
                 .ok()
-                .map(|issuer| String::from(issuer)),
+                .map(String::from),
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1829,7 +1829,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     None => ccard
                         .get_card_issuer()
                         .ok()
-                        .map(|issuer| String::from(issuer)),
+                        .map(String::from),
                 };
                 let payment_information =
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2559,7 +2559,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     None => ccard
                         .get_card_issuer()
                         .ok()
-                        .map(|issuer| String::from(issuer)),
+                        .map(String::from),
                 };
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {

@@ -2439,7 +2439,7 @@ impl TryFrom<&domain::Card> for PaymentInformation {
             None => ccard
                 .get_card_issuer()
                 .ok()
-                .map(|issuer| String::from(issuer)),
+                .map(String::from),
         };
         Ok(Self::Cards(Box::new(CardPaymentInformation {
             card: Card {
