@@ -127,10 +127,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => ccard
-                        .get_card_issuer()
-                        .ok()
-                        .map(String::from),
+                    None => ccard.get_card_issuer().ok().map(String::from),
                 };
                 (
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1160,10 +1157,7 @@ impl
             .and_then(get_cybersource_card_type)
         {
             Some(card_network) => Some(card_network.to_string()),
-            None => ccard
-                .get_card_issuer()
-                .ok()
-                .map(String::from),
+            None => ccard.get_card_issuer().ok().map(String::from),
         };
 
         let security_code = if item
@@ -1341,10 +1335,7 @@ impl
             .and_then(get_cybersource_card_type)
         {
             Some(card_network) => Some(card_network.to_string()),
-            None => ccard
-                .get_card_issuer()
-                .ok()
-                .map(String::from),
+            None => ccard.get_card_issuer().ok().map(String::from),
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1826,10 +1817,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => ccard
-                        .get_card_issuer()
-                        .ok()
-                        .map(String::from),
+                    None => ccard.get_card_issuer().ok().map(String::from),
                 };
                 let payment_information =
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2556,10 +2544,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => ccard
-                        .get_card_issuer()
-                        .ok()
-                        .map(String::from),
+                    None => ccard.get_card_issuer().ok().map(String::from),
                 };
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {

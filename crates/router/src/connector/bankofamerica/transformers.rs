@@ -2436,10 +2436,7 @@ impl TryFrom<&domain::Card> for PaymentInformation {
     fn try_from(ccard: &domain::Card) -> Result<Self, Self::Error> {
         let card_type = match ccard.card_network.clone().and_then(get_boa_card_type) {
             Some(card_network) => Some(card_network.to_string()),
-            None => ccard
-                .get_card_issuer()
-                .ok()
-                .map(String::from),
+            None => ccard.get_card_issuer().ok().map(String::from),
         };
         Ok(Self::Cards(Box::new(CardPaymentInformation {
             card: Card {
