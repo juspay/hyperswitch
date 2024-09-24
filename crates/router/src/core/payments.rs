@@ -63,8 +63,8 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-#[cfg(feature = "v1")]
-use super::routing::helpers::checked_fetch_success_based_routing_configs;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use super::routing::helpers::fetch_success_based_routing_configs;
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
@@ -299,6 +299,7 @@ where
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
                         convert_connector_data_to_routable_connectors(&[connector.clone()])
+                            .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -394,6 +395,7 @@ where
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
                         convert_connector_data_to_routable_connectors(&connectors)
+                            .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
                     let mut connectors = connectors.into_iter();
@@ -4507,8 +4509,8 @@ where
     .attach_printable("failed eligibility analysis and fallback")?;
 
     // Fetch and cache default config for success based routing
-    #[cfg(feature = "v1")]
-    checked_fetch_success_based_routing_configs(state, business_profile)
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    fetch_success_based_routing_configs(state, business_profile)
         .await
         .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
         .ok();

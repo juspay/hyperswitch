@@ -4,10 +4,11 @@ use error_stack::ResultExt;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::redis::cache::DYNAMIC_ALGORITHM_CACHE;
 use crate::redis::cache::{
     CacheKey, CacheKind, CacheRedact, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE,
-    DECISION_MANAGER_CACHE, DYNAMIC_ALGORITHM_CACHE, PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE,
-    SURCHARGE_CACHE,
+    DECISION_MANAGER_CACHE, PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE, SURCHARGE_CACHE,
 };
 
 #[async_trait::async_trait]
@@ -138,7 +139,8 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                 .await;
                             key
                         }
-                        CacheKind::DynamicRouting(key) => {
+                        #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                        CacheKind::SuccessBasedDynamicRoutingCache(key) => {
                             DYNAMIC_ALGORITHM_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
@@ -199,6 +201,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                     prefix: message.tenant.clone(),
                                 })
                                 .await;
+                            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
                             DYNAMIC_ALGORITHM_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),

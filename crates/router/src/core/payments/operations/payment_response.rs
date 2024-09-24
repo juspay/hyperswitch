@@ -18,7 +18,7 @@ use tracing_futures::Instrument;
 
 use super::{Operation, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers::metrics_for_success_based_routing;
+use crate::core::routing::helpers::push_metrics_for_success_based_routing;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -1659,7 +1659,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    metrics_for_success_based_routing(state, key_store, &payment_attempt, routable_connectors)
+    push_metrics_for_success_based_routing(state, key_store, &payment_attempt, routable_connectors)
         .await
         .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
         .ok();

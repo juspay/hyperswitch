@@ -3,15 +3,12 @@
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use api_models::routing as routing_types;
-use common_utils::{
-    ext_traits::{Encode, ValueExt},
-    id_type,
-    types::keymanager::KeyManagerState,
-};
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 use error_stack::ResultExt;
 #[cfg(feature = "dynamic_routing")]
@@ -556,6 +553,7 @@ pub fn get_default_config_key(
 }
 
 /// Retrieves cached success_based routing configs specific to tenant and profile
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn get_cached_success_routing_config_for_profile<'a>(
     state: &SessionState,
     key: &str,
@@ -569,6 +567,7 @@ pub async fn get_cached_success_routing_config_for_profile<'a>(
 }
 
 /// Refreshes the cached success_based routing configs specific to tenant and profile
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn refresh_success_based_routing_cache(
     state: &SessionState,
     key: &str,
@@ -588,8 +587,8 @@ pub async fn refresh_success_based_routing_cache(
 }
 
 /// Checked fetch of success based routing configs
-#[cfg(feature = "v1")]
-pub async fn checked_fetch_success_based_routing_configs(
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn fetch_success_based_routing_configs(
     state: &SessionState,
     business_profile: &domain::Profile,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
@@ -602,21 +601,22 @@ pub async fn checked_fetch_success_based_routing_configs(
     let dynamic_routing_algorithm_ref = dynamic_routing_algorithm
         .parse_value::<routing_types::DynamicRoutingAlgorithmRef>("DynamicRoutingAlgorithmRef")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse dynamic_algorithm_ref")?;
+        .attach_printable("unable to parse dynamic_routing_algorithm_ref")?;
 
     let success_based_routing_id = dynamic_routing_algorithm_ref
         .success_based_algorithm
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "unable derive success_based_algorithm from dynamic algorithm ref".to_string(),
+            message: "success_based_algorithm not found in dynamic_algorithm_ref".to_string(),
         })?
         .algorithm_id
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "unable to find algorithm id in success based algorithm".to_string(),
+            message: "unable to find algorithm id in success based algorithm confi configg"
+                .to_string(),
         })?;
 
     let key = format!(
         "{}_{}",
-        business_profile.get_id().get_string_repr(),
+        business_profile.get_id().get_string_repr().to_owned(),
         success_based_routing_id.get_string_repr()
     );
 
@@ -647,7 +647,7 @@ pub async fn checked_fetch_success_based_routing_configs(
 
 /// metrics for success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn metrics_for_success_based_routing(
+pub async fn push_metrics_for_success_based_routing(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
@@ -683,7 +683,7 @@ pub async fn metrics_for_success_based_routing(
         })?;
 
     let default_success_based_routing_configs =
-        checked_fetch_success_based_routing_configs(state, &business_profile)
+        fetch_success_based_routing_configs(state, &business_profile)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to retrieve default success_rate configs")?;
@@ -702,21 +702,28 @@ pub async fn metrics_for_success_based_routing(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to calculate/derive success based connectors")?;
+        .attach_printable("unable to calculate/fetch success rate from dynamic routing service")?;
 
-    let payment_status_attribute = get_desired_payment_status_for_metrics(&payment_attempt.status);
+    let payment_status_attribute =
+        get_desired_payment_status_for_success_routing_metrics(&payment_attempt.status);
 
     let first_success_based_connector_label = &success_based_connectors
         .labels_with_score
         .first()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to derive first connector from the list of success rate connectors",
+        )?
         .label
         .to_string();
 
     let first_success_based_connector = first_success_based_connector_label
         .split_once(':')
         .map(|(connector, _)| connector)
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to split connector_name and mca_id from success rate connector",
+        )?;
 
     let outcome = get_success_based_metrics_outcome_for_payment(
         &payment_status_attribute,
@@ -742,7 +749,8 @@ pub async fn metrics_for_success_based_routing(
                 payment_attempt
                     .merchant_connector_id
                     .as_ref()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("mca_id not found in payment_attempt")?
                     .get_string_repr()
                     .to_string(),
             ),
@@ -760,35 +768,40 @@ pub async fn metrics_for_success_based_routing(
                 "currency",
                 payment_attempt
                     .currency
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("payment currency not found in payment_attempt")?
                     .to_string(),
             ),
             (
                 "payment_method",
                 payment_attempt
                     .payment_method
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("payment method not found in payment_attempt")?
                     .to_string(),
             ),
             (
                 "payment_method_type",
                 payment_attempt
                     .payment_method_type
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("payment method type not found in payment_attempt")?
                     .to_string(),
             ),
             (
                 "capture_method",
                 payment_attempt
                     .capture_method
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("capture method not found in payment_attempt")?
                     .to_string(),
             ),
             (
                 "authentication_type",
                 payment_attempt
                     .authentication_type
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("authentication type not found in payment_attempt")?
                     .to_string(),
             ),
             ("payment_status", payment_attempt.status.clone().to_string()),
@@ -820,7 +833,7 @@ pub async fn metrics_for_success_based_routing(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-fn get_desired_payment_status_for_metrics(
+fn get_desired_payment_status_for_success_routing_metrics(
     attempt_status: &common_enums::AttemptStatus,
 ) -> common_enums::AttemptStatus {
     match attempt_status {
