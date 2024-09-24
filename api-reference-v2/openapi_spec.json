@@ -1433,6 +1433,60 @@
         ]
       }
     },
+    "/v2/api_keys/list": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - List",
+        "description": "List all the API Keys associated to a merchant account.",
+        "operationId": "List all API Keys associated with a merchant account",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of API Keys to include in the response",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "The number of API Keys to skip when retrieving the list of API keys.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API Keys retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/customers": {
       "post": {
         "tags": [
