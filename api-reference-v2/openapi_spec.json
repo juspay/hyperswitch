@@ -2129,7 +2129,8 @@
       "AmountDetails": {
         "type": "object",
         "required": [
-          "currency"
+          "currency",
+          "order_tax_amount"
         ],
         "properties": {
           "order_amount": {
@@ -2150,13 +2151,8 @@
             ],
             "nullable": true
           },
-          "tax_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TaxDetails"
-              }
-            ],
-            "nullable": true
+          "order_tax_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "skip_external_tax_calculation": {
             "$ref": "#/components/schemas/TaxCalculationOverride"
@@ -6343,17 +6339,6 @@
           },
           "payment_method_id": {
             "type": "string"
-          }
-        }
-      },
-      "DefaultTax": {
-        "type": "object",
-        "required": [
-          "order_tax_amount"
-        ],
-        "properties": {
-          "order_tax_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -12289,21 +12274,6 @@
           "mifinity",
           "open_banking_pis"
         ]
-      },
-      "PaymentMethodTypeTax": {
-        "type": "object",
-        "required": [
-          "order_tax_amount",
-          "pmt"
-        ],
-        "properties": {
-          "order_tax_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "pmt": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          }
-        }
       },
       "PaymentMethodUpdate": {
         "type": "object",
@@ -19233,27 +19203,6 @@
           "Skip",
           "Calculate"
         ]
-      },
-      "TaxDetails": {
-        "type": "object",
-        "properties": {
-          "default": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/DefaultTax"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodTypeTax"
-              }
-            ],
-            "nullable": true
-          }
-        }
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
