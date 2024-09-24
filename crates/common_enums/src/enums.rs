@@ -3257,6 +3257,7 @@ pub enum PresenceOfCustomerDuringPayment {
 impl From<ConnectorType> for TransactionType {
     fn from(connector_type: ConnectorType) -> Self {
         match connector_type {
+            #[cfg(feature = "payouts")]
             ConnectorType::PayoutProcessor => Self::Payout,
             _ => Self::Payment,
         }
