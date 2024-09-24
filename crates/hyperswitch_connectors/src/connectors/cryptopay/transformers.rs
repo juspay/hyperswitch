@@ -1,17 +1,23 @@
+use common_enums::enums;
 use common_utils::{
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types,
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, is_payment_failure, CryptoData, PaymentsAuthorizeRequestData},
-    consts,
-    core::errors,
-    services,
-    types::{self, domain, storage::enums, transformers::ForeignTryFrom},
+    types::ResponseRouterData,
+    utils::{self, CryptoData, ForeignTryFrom, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Debug, Serialize)]
@@ -51,7 +57,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &CryptopayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let cryptopay_request = match item.router_data.request.payment_method_data {
-            domain::PaymentMethodData::Crypto(ref cryptodata) => {
+            PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
                     price_amount: item.amount.clone(),
@@ -65,26 +71,24 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     custom_id: item.router_data.connector_request_reference_id.clone(),
                 })
             }
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::MandatePayment {}
-            | domain::PaymentMethodData::Reward {}
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("CryptoPay"),
-                ))
-            }
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::MandatePayment {}
+            | PaymentMethodData::Reward {}
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("CryptoPay"),
+            )),
         }?;
         Ok(cryptopay_request)
     }
@@ -96,10 +100,10 @@ pub struct CryptopayAuthType {
     pub(super) api_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CryptopayAuthType {
+impl TryFrom<&ConnectorAuthType> for CryptopayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 api_key: api_key.to_owned(),
                 api_secret: key1.to_owned(),
@@ -140,21 +144,21 @@ pub struct CryptopayPaymentsResponse {
 
 impl<F, T>
     ForeignTryFrom<(
-        types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+        ResponseRouterData<F, CryptopayPaymentsResponse, T, PaymentsResponseData>,
         Option<MinorUnit>,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+    )> for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
         (item, amount_captured_in_minor_units): (
-            types::ResponseRouterData<F, CryptopayPaymentsResponse, T, types::PaymentsResponseData>,
+            ResponseRouterData<F, CryptopayPaymentsResponse, T, PaymentsResponseData>,
             Option<MinorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.data.status.clone());
-        let response = if is_payment_failure(status) {
+        let response = if utils::is_payment_failure(status) {
             let payment_response = &item.response.data;
-            Err(types::ErrorResponse {
+            Err(ErrorResponse {
                 code: payment_response
                     .name
                     .clone()
@@ -173,11 +177,9 @@ impl<F, T>
                 .response
                 .data
                 .hosted_page_url
-                .map(|x| services::RedirectForm::from((x, services::Method::Get)));
-            Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.data.id.clone(),
-                ),
+                .map(|x| RedirectForm::from((x, common_utils::request::Method::Get)));
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.data.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,

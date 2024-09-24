@@ -159,3 +159,8 @@ pub struct Entity {
     pub entity_id: String,
     pub entity_type: common_enums::EntityType,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListUsersInEntityRequest {
+    pub entity_type: Option<common_enums::EntityType>,
+}

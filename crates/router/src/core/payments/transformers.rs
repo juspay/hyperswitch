@@ -784,36 +784,16 @@ where
         .map(ToString::to_string)
         .unwrap_or("".to_owned());
     let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
-    match payment_data.get_payment_method_data(){
-        Some(payment_method_data) => match payment_method_data{
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_) |
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_)  => {payment_attempt
-                .payment_method_data
-                .clone()
-                .map(|data| data.parse_value("payment_method_data"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_method_data",
-                })?},
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_) => None,
-        }
-        None => None
-
-        };
+        payment_attempt
+            .payment_method_data
+            .clone()
+            .and_then(|data| match data {
+                serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
+                _ => Some(data.parse_value("AdditionalPaymentData")),
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse the AdditionalPaymentData from payment_attempt.payment_method_data")?;
 
     let surcharge_details =
         payment_attempt
@@ -1148,6 +1128,17 @@ where
                             .or_else(|| tax.default.map(|a| a.order_tax_amount))
                     })
             });
+        let connector_mandate_id = payment_data.get_mandate_id().and_then(|mandate| {
+            mandate
+                .mandate_reference_id
+                .as_ref()
+                .and_then(|mandate_ref| match mandate_ref {
+                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_reference_id,
+                    ) => connector_mandate_reference_id.connector_mandate_id.clone(),
+                    _ => None,
+                })
+        });
 
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
@@ -1247,6 +1238,7 @@ where
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
+            connector_mandate_id,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -1500,6 +1492,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             charges: None,
             frm_metadata: None,
             order_tax_amount: None,
+            connector_mandate_id:None,
         }
     }
 }

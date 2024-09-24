@@ -1,18 +1,24 @@
 use std::collections::HashMap;
 
+use common_enums::enums;
 pub use common_utils::request::Method;
 use common_utils::{
     errors::CustomResult, ext_traits::ValueExt, id_type, pii::Email, types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types::PaymentsAuthorizeRouterData,
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
-    services,
-    types::{self, storage::enums},
+    types::ResponseRouterData,
+    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 #[derive(Default, Debug, Serialize)]
@@ -32,7 +38,7 @@ pub struct CashtocodePaymentsRequest {
 }
 
 fn get_mid(
-    connector_auth_type: &types::ConnectorAuthType,
+    connector_auth_type: &ConnectorAuthType,
     payment_method_type: Option<enums::PaymentMethodType>,
     currency: enums::Currency,
 ) -> Result<Secret<String>, errors::ConnectorError> {
@@ -50,10 +56,10 @@ fn get_mid(
     }
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePaymentsRequest {
+impl TryFrom<(&PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, amount): (&types::PaymentsAuthorizeRouterData, FloatMajorUnit),
+        (item, amount): (&PaymentsAuthorizeRouterData, FloatMajorUnit),
     ) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
         let url = item.request.get_router_return_url()?;
@@ -63,7 +69,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, FloatMajorUnit)> for Cashtoco
             item.request.currency,
         )?;
         match item.payment_method {
-            diesel_models::enums::PaymentMethod::Reward => Ok(Self {
+            enums::PaymentMethod::Reward => Ok(Self {
                 amount,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency,
@@ -96,12 +102,12 @@ pub struct CashtocodeAuth {
     pub merchant_id_evoucher: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
+impl TryFrom<&ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>; // Assuming ErrorStack is the appropriate error type
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
                 let transformed_auths = auth_key_map
                     .iter()
                     .map(|(currency, identity_auth_key)| {
@@ -125,13 +131,13 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     }
 }
 
-impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
+impl TryFrom<(&ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(value: (&types::ConnectorAuthType, &enums::Currency)) -> Result<Self, Self::Error> {
+    fn try_from(value: (&ConnectorAuthType, &enums::Currency)) -> Result<Self, Self::Error> {
         let (auth_type, currency) = value;
 
-        if let types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } = auth_type {
+        if let ConnectorAuthType::CurrencyAuthKey { auth_key_map } = auth_type {
             if let Some(identity_auth_key) = auth_key_map.get(currency) {
                 let cashtocode_auth: Self = identity_auth_key
                     .to_owned()
@@ -199,15 +205,15 @@ pub struct CashtocodePaymentsSyncResponse {
 fn get_redirect_form_data(
     payment_method_type: &enums::PaymentMethodType,
     response_data: CashtocodePaymentsResponseData,
-) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
+) -> CustomResult<RedirectForm, errors::ConnectorError> {
     match payment_method_type {
-        enums::PaymentMethodType::ClassicReward => Ok(services::RedirectForm::Form {
+        enums::PaymentMethodType::ClassicReward => Ok(RedirectForm::Form {
             //redirect form is manually constructed because the connector for this pm type expects query params in the url
             endpoint: response_data.pay_url.to_string(),
             method: Method::Post,
             form_fields: Default::default(),
         }),
-        enums::PaymentMethodType::Evoucher => Ok(services::RedirectForm::from((
+        enums::PaymentMethodType::Evoucher => Ok(RedirectForm::from((
             //here the pay url gets parsed, and query params are sent as formfields as the connector expects
             response_data.pay_url,
             Method::Get,
@@ -220,27 +226,27 @@ fn get_redirect_form_data(
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             CashtocodePaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             CashtocodePaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response {
             CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
                 enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
+                Err(ErrorResponse {
                     code: error_data.error.to_string(),
                     status_code: item.http_code,
                     message: error_data.error_description,
@@ -259,8 +265,8 @@ impl<F>
                 let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (
                     enums::AttemptStatus::AuthenticationPending,
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
                             item.data.attempt_id.clone(),
                         ),
                         redirection_data: Some(redirection_data),
@@ -283,29 +289,17 @@ impl<F>
     }
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            CashtocodePaymentsSyncResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CashtocodePaymentsSyncResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Charged, // Charged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
                 ),
                 redirection_data: None,

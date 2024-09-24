@@ -37,7 +37,7 @@ describe("Routing core APIs", () => {
     });
 
     it("List MCA call", () => {
-      cy.listMcaCall(globalState);
+      cy.mcaListCall(globalState, "routing");
     });
   });
 

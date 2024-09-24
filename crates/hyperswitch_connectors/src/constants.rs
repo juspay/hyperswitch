@@ -10,6 +10,8 @@ pub(crate) mod headers {
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
     pub(crate) const X_ACCEPT_VERSION: &str = "X-Accept-Version";
+    pub(crate) const X_CC_API_KEY: &str = "X-CC-Api-Key";
+    pub(crate) const X_CC_VERSION: &str = "X-CC-Version";
     pub(crate) const X_NN_ACCESS_KEY: &str = "X-NN-Access-Key";
     pub(crate) const X_RANDOM_VALUE: &str = "X-RandomValue";
     pub(crate) const X_REQUEST_DATE: &str = "X-RequestDate";
