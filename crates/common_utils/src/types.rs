@@ -1026,7 +1026,8 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
     }
 }
 
-impl<DB> FromSql<sql_types::Text, DB> for LengthString<MAX_DESCRIPTION_LENGTH, 1>
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
     String: FromSql<sql_types::Text, DB>,
@@ -1048,7 +1049,8 @@ where
     }
 }
 
-impl<DB> Queryable<sql_types::Text, DB> for LengthString<MAX_DESCRIPTION_LENGTH, 1>
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Queryable<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
     Self: FromSql<sql_types::Text, DB>,
@@ -1124,10 +1126,10 @@ where
 impl<DB> FromSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
-    LengthString<MAX_DESCRIPTION_LENGTH, 1>: FromSql<sql_types::Text, DB>,
+    LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>: FromSql<sql_types::Text, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let val = LengthString::<MAX_DESCRIPTION_LENGTH, 1>::from_sql(bytes)?;
+        let val = LengthString::<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>::from_sql(bytes)?;
         Ok(Self(val))
     }
 }
@@ -1135,7 +1137,7 @@ where
 impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
-    LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+    LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>: ToSql<sql_types::Text, DB>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
