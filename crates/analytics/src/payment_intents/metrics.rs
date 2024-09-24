@@ -17,15 +17,15 @@ use crate::{
 };
 
 mod auth_declined_rate;
-mod authorization_success_rate;
 mod payment_intent_count;
+mod payments_success_rate;
 mod smart_retried_amount;
 mod successful_smart_retries;
 mod total_smart_retries;
 
 use auth_declined_rate::AuthDeclinedRate;
-use authorization_success_rate::AuthorizationSuccessRate;
 use payment_intent_count::PaymentIntentCount;
+use payments_success_rate::PaymentsSuccessRate;
 use smart_retried_amount::SmartRetriedAmount;
 use successful_smart_retries::SuccessfulSmartRetries;
 use total_smart_retries::TotalSmartRetries;
@@ -111,8 +111,8 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
-            Self::AuthorizationSuccessRate => {
-                AuthorizationSuccessRate
+            Self::PaymentsSuccessRate => {
+                PaymentsSuccessRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

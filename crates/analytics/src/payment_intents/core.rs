@@ -6,8 +6,8 @@ use api_models::analytics::{
         MetricsBucketResponse, PaymentIntentDimensions, PaymentIntentMetrics,
         PaymentIntentMetricsBucketIdentifier,
     },
-    AnalyticsMetadata, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
-    MetricsResponse, PaymentIntentFilterValue, PaymentIntentFiltersResponse,
+    GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, PaymentIntentFilterValue,
+    PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse,
 };
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
@@ -46,7 +46,7 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: GetPaymentIntentMetricRequest,
-) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
+) -> AnalyticsResult<PaymentIntentsMetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
         PaymentIntentMetricsBucketIdentifier,
         PaymentIntentMetricsAccumulator,
@@ -119,8 +119,8 @@ pub async fn get_metrics(
                         PaymentIntentMetrics::PaymentIntentCount => metrics_builder
                             .payment_intent_count
                             .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::AuthorizationSuccessRate => metrics_builder
-                            .authorization_success_rate
+                        PaymentIntentMetrics::PaymentsSuccessRate => metrics_builder
+                            .payments_success_rate
                             .add_metrics_bucket(&value),
                         PaymentIntentMetrics::AuthDeclinedRate => metrics_builder
                             .auth_declined_rate
@@ -137,19 +137,33 @@ pub async fn get_metrics(
         }
     }
 
+    let mut success = 0;
+    let mut total = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
-        .map(|(id, val)| MetricsBucketResponse {
-            values: val.collect(),
-            dimensions: id,
+        .map(|(id, val)| {
+            let collected_values = val.collect();
+            if let Some(success_count) = collected_values.successful_payments {
+                success += success_count;
+            }
+            if let Some(total_count) = collected_values.total_payments {
+                total += total_count;
+            }
+
+            MetricsBucketResponse {
+                values: collected_values,
+                dimensions: id,
+            }
         })
         .collect();
-
-    Ok(MetricsResponse {
+    let total_success_rate = if total > 0 {
+        (success as f64) * 100.0 / total as f64
+    } else {
+        0.0
+    };
+    Ok(PaymentIntentsMetricsResponse {
         query_data,
-        meta_data: [AnalyticsMetadata {
-            current_time_range: req.time_range,
-        }],
+        meta_data: [PaymentIntentsAnalyticsMetadata { total_success_rate }],
     })
 }
 

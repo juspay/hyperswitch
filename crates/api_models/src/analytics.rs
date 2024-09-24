@@ -207,6 +207,11 @@ pub struct PaymentsAnalyticsMetadata {
     pub total_payment_processed_count: u64,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentIntentsAnalyticsMetadata {
+    pub total_success_rate: f64,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentFiltersRequest {
@@ -322,6 +327,13 @@ pub struct SdkEventFilterValue {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [AnalyticsMetadata; 1],
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentsMetricsResponse<T> {
     pub query_data: Vec<T>,
     pub meta_data: [PaymentsAnalyticsMetadata; 1],
@@ -329,9 +341,9 @@ pub struct PaymentsMetricsResponse<T> {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MetricsResponse<T> {
+pub struct PaymentIntentsMetricsResponse<T> {
     pub query_data: Vec<T>,
-    pub meta_data: [AnalyticsMetadata; 1],
+    pub meta_data: [PaymentIntentsAnalyticsMetadata; 1],
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

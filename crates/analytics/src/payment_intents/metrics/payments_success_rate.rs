@@ -18,10 +18,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct AuthorizationSuccessRate;
+pub(super) struct PaymentsSuccessRate;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentIntentMetric<T> for AuthorizationSuccessRate
+impl<T> super::PaymentIntentMetric<T> for PaymentsSuccessRate
 where
     T: AnalyticsDataSource + super::PaymentIntentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
