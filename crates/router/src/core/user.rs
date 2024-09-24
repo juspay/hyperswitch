@@ -2684,6 +2684,14 @@ pub async fn list_merchants_for_user_in_org(
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
+
+    if role_info.is_internal() {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "Internal roles are not allowed for this operation".to_string(),
+        )
+        .into());
+    }
+
     let merchant_accounts = match role_info.get_entity_type() {
         EntityType::Organization => state
             .store
@@ -3040,41 +3048,12 @@ pub async fn switch_merchant_for_user_in_org(
                         "No user role associated with the requested merchant_id".to_string(),
                     ))?;
 
-                let profile_id = if let Some(profile_id) = &user_role.profile_id {
-                    profile_id.clone()
-                } else {
-                    let merchant_key_store = state
-                        .store
-                        .get_merchant_key_store_by_merchant_id(
-                            key_manager_state,
-                            &request.merchant_id,
-                            &state.store.get_master_key().to_vec().into(),
-                        )
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
-
-                    state
-                        .store
-                        .list_profile_by_merchant_id(
-                            key_manager_state,
-                            &merchant_key_store,
-                            &request.merchant_id,
-                        )
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable(
-                            "Failed to list business profiles for the given merchant_id",
-                        )?
-                        .pop()
-                        .ok_or(UserErrors::InternalServerError)
-                        .attach_printable("No business profile found for the given merchant_id")?
-                        .get_id()
-                        .to_owned()
-                };
+                let (merchant_id, profile_id) =
+                    utils::user_role::get_single_merchant_id_and_profile_id(&state, &user_role)
+                        .await?;
                 (
                     user_from_token.org_id,
-                    request.merchant_id,
+                    merchant_id,
                     profile_id,
                     user_role.role_id,
                 )

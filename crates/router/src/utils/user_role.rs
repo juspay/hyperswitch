@@ -433,14 +433,6 @@ pub fn get_min_entity(
         | (EntityType::Merchant, Some(EntityType::Profile))
         | (EntityType::Profile, Some(EntityType::Profile)) => Ok(EntityType::Profile),
 
-        (EntityType::Internal, _) => Ok(EntityType::Internal),
-
-        (EntityType::Organization, Some(EntityType::Internal))
-        | (EntityType::Merchant, Some(EntityType::Internal))
-        | (EntityType::Profile, Some(EntityType::Internal)) => {
-            Err(UserErrors::InvalidRoleOperation.into())
-        }
-
         (EntityType::Merchant, Some(EntityType::Organization))
         | (EntityType::Profile, Some(EntityType::Organization))
         | (EntityType::Profile, Some(EntityType::Merchant)) => {
