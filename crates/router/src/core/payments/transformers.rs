@@ -789,7 +789,7 @@ where
             .clone()
             .and_then(|data| match data {
                 serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
-                _ => Some(data.parse_value("payment_method_data")),
+                _ => Some(data.parse_value("AdditionalPaymentData")),
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
