@@ -4,10 +4,9 @@ use std::collections::HashMap;
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use api_models::{
-    payment_methods::PaymentMethodsData,
-    payments::{ConnectorMandateReferenceId, MandateReferenceId},
-};
+use api_models::payment_methods::PaymentMethodsData;
+
+use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use common_enums::PaymentMethod;
 use common_utils::{
     crypto::Encryptable,
@@ -746,7 +745,7 @@ where
             };
             let cmid_config = db
                 .find_config_by_key_unwrap_or(
-                    format!("{}_connector_mandate_details", merchant_account.get_id().get_string_repr().to_owned()).as_str(),
+                    format!("{}_should_show_connector_mandate_id", merchant_account.get_id().get_string_repr().to_owned()).as_str(),
                     Some("false".to_string()),
                 )
                 .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", connector_mandate_details_population=?err)).ok();
@@ -795,7 +794,7 @@ pub async fn save_payment_method<FData>(
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
     _business_profile: &domain::Profile,
-) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
+) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
 {
