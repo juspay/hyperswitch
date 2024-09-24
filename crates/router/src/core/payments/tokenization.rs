@@ -745,7 +745,7 @@ where
             };
             let cmid_config = db
                 .find_config_by_key_unwrap_or(
-                    format!("{}_should_show_connector_mandate_id", merchant_account.get_id().get_string_repr().to_owned()).as_str(),
+                    format!("{}_should_show_connector_mandate_id_in_payments_response", merchant_account.get_id().get_string_repr().to_owned()).as_str(),
                     Some("false".to_string()),
                 )
                 .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", connector_mandate_details_population=?err)).ok();
