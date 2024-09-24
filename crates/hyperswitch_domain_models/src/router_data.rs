@@ -80,6 +80,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub minor_amount_captured: Option<MinorUnit>,
 
     pub integrity_check: Result<(), IntegrityCheckError>,
+
+    pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
+
+    pub header_payload: Option<api_models::payments::HeaderPayload>,
 }
 
 // Different patterns of authentication.

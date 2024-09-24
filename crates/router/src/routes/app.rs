@@ -1003,6 +1003,10 @@ impl Refunds {
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
                 .service(web::resource("/aggregate").route(web::get().to(get_refunds_aggregates)))
                 .service(
+                    web::resource("/profile/aggregate")
+                        .route(web::get().to(get_refunds_aggregate_profile)),
+                )
+                .service(
                     web::resource("/v2/profile/filter")
                         .route(web::get().to(get_refunds_filters_profile)),
                 )
@@ -1495,6 +1499,11 @@ impl Disputes {
             .service(
                 web::resource("/profile/list")
                     .route(web::get().to(disputes::retrieve_disputes_list_profile)),
+            )
+            .service(web::resource("/filter").route(web::get().to(disputes::get_disputes_filters)))
+            .service(
+                web::resource("/profile/filter")
+                    .route(web::get().to(disputes::get_disputes_filters_profile)),
             )
             .service(
                 web::resource("/accept/{dispute_id}")
