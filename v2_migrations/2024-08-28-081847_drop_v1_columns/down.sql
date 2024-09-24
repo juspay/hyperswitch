@@ -79,9 +79,9 @@ ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
     ADD COLUMN connector_transaction_id VARCHAR(64),
     ADD COLUMN capture_method "CaptureMethod",
     ADD COLUMN capture_on TIMESTAMP,
-    ADD COLUMN amount_to_capture bigint,
     ADD COLUMN mandate_id VARCHAR(64),
     ADD COLUMN payment_method_type VARCHAR(64),
     ADD COLUMN business_sub_label VARCHAR(64),
     ADD COLUMN mandate_details JSONB,
-    ADD COLUMN mandate_data JSONB;
+    ADD COLUMN mandate_data JSONB,
+    ADD COLUMN tax_amount bigint;

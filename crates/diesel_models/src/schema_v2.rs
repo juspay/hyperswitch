@@ -741,7 +741,6 @@ diesel::table! {
         status -> AttemptStatus,
         error_message -> Nullable<Text>,
         surcharge_amount -> Nullable<Int8>,
-        tax_amount -> Nullable<Int8>,
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
         confirm -> Bool,
@@ -751,6 +750,7 @@ diesel::table! {
         last_synced -> Nullable<Timestamp>,
         #[max_length = 255]
         cancellation_reason -> Nullable<Varchar>,
+        amount_to_capture -> Nullable<Int8>,
         browser_info -> Nullable<Jsonb>,
         #[max_length = 255]
         error_code -> Nullable<Varchar>,
@@ -800,19 +800,20 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 32]
         card_network -> Nullable<Varchar>,
-        shipping_cost -> Nullable<Int8>,
-        order_tax_amount -> Nullable<Int8>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_subtype -> Nullable<Varchar>,
-        routing_algorithm_applied -> Nullable<Jsonb>,
+        routing_result -> Nullable<Jsonb>,
         authentication_applied -> Nullable<AuthenticationType>,
         #[max_length = 128]
         external_reference_id -> Nullable<Varchar>,
+        tax_on_surcharge -> Nullable<Int8>,
         #[max_length = 64]
         id -> Varchar,
+        shipping_cost -> Nullable<Int8>,
+        order_tax_amount -> Nullable<Int8>,
     }
 }
 

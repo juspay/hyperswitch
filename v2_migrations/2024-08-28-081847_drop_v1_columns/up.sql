@@ -77,9 +77,9 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN connector_transaction_id,
     DROP COLUMN capture_method,
     DROP COLUMN capture_on,
-    DROP COLUMN amount_to_capture,
     DROP COLUMN mandate_id,
     DROP COLUMN payment_method_type,
     DROP COLUMN business_sub_label,
     DROP COLUMN mandate_details,
-    DROP COLUMN mandate_data;
+    DROP COLUMN mandate_data,
+    DROP COLUMN tax_amount;
