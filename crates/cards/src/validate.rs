@@ -91,6 +91,9 @@ impl CardNumber {
 
             if card_regex.is_match(card_number_str.as_bytes()) {
                 no_of_supported_card_networks += 1;
+                if no_of_supported_card_networks > 1 {
+                    return Ok(true);
+                }
             }
         }
         Ok(no_of_supported_card_networks > 1)
