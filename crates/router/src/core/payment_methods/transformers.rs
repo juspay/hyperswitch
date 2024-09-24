@@ -310,15 +310,11 @@ pub async fn create_jwe_body_for_vault(
 
     let public_key = jwekey.vault_encryption_key.peek().as_bytes();
 
-    let jwe_encrypted = encryption::encrypt_jwe(
-        &payload,
-        public_key,
-        encryption::EncryptionAlgorithm::A256GCM,
-        None,
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Error on jwe encrypt")?;
+    let jwe_encrypted =
+        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
 
     let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {

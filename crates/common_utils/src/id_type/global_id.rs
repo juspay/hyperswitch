@@ -113,7 +113,7 @@ impl GlobalId {
     pub(crate) fn from_string(
         input_string: std::borrow::Cow<'static, str>,
     ) -> Result<Self, GlobalIdError> {
-        let length_id = LengthId::from(input_string.into())?;
+        let length_id = LengthId::from(input_string)?;
         let input_string = &length_id.0 .0;
         let (cell_id, remaining) = input_string
             .split_once("_")
