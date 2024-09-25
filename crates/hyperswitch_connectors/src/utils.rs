@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::collections::{HashMap, HashSet};
 
 use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
 use base64::Engine;

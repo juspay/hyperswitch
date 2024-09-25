@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::{payments::MandateReferenceId, webhooks::IncomingWebhookEvent};
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
@@ -121,7 +121,6 @@ pub struct NovalnetPaymentsRequestTransaction {
     error_return_url: Option<String>,
     enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
     create_token: Option<i8>,
-    create_token: Option<i8>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -138,25 +137,12 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         item: &NovalnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
         let merchant = NovalnetPaymentsRequestMerchant {
             signature: auth.product_activation_key,
             tariff: auth.tariff_id,
         };
-        let merchant = NovalnetPaymentsRequestMerchant {
-            signature: auth.product_activation_key,
-            tariff: auth.tariff_id,
-        };
 
-        let enforce_3d = match item.router_data.auth_type {
-            enums::AuthenticationType::ThreeDs => Some(1),
-            enums::AuthenticationType::NoThreeDs => None,
-        };
-        let test_mode = match item.router_data.test_mode {
-            Some(true) => 1,
-            Some(false) | None => 0,
-        };
         let enforce_3d = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => Some(1),
             enums::AuthenticationType::NoThreeDs => None,
@@ -246,7 +232,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 )
                 .into()),
             },
-            Some(MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
@@ -806,7 +792,6 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .clone()
                     .clone()
                     .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
