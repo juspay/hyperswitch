@@ -108,7 +108,7 @@ where
                         i.card_last_4.clone(),
                         i.card_issuer.clone(),
                         i.error_reason.clone(),
-                        i.include_smart_retries.clone(),
+                        i.include_smart_retries,
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
