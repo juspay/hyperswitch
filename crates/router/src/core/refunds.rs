@@ -1,3 +1,4 @@
+pub mod transformers;
 pub mod validator;
 
 #[cfg(feature = "olap")]
@@ -34,7 +35,7 @@ use crate::{
         api::{self, refunds},
         domain,
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         ChargeRefunds,
     },
     utils::{self, OptionExt},
@@ -444,27 +445,14 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
-    let charges_req = match payment_intent.charges.clone().zip(refund.charges.clone()) {
-        Some((charges, refund_charges)) => {
-            let payment_charges: PaymentCharges = charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges into PaymentCharges")?;
-
-            Some(ChargeRefunds {
-                charge_id: refund_charges.charge_id.clone(),
-                charge_type: payment_charges.charge_type.clone(),
-                transfer_account_id: payment_charges.transfer_account_id,
-                options: validator::validate_charge_refund(
-                    &refund_charges,
-                    &payment_charges.charge_type,
-                )?,
-            })
-        }
-        _ => None,
-    };
+    let charges_req = payment_intent
+        .charges
+        .clone()
+        .zip(refund.charges.clone())
+        .map(|(charges, refund_charges)| {
+            ForeignTryFrom::foreign_try_from((refund_charges, charges))
+        })
+        .transpose()?;
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         sync_refund_with_gateway(

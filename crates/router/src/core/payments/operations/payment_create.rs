@@ -952,33 +952,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
             )?;
         }
 
-        // Validate charged fees on payment
-        match &request.charges {
-            Some(charges) => {
-                let amount = request.amount.get_required_value("amount")?;
-                match amount {
-                    api::payments::Amount::Zero => {
-                        if charges.fees.get_amount_as_i64() != 0 {
-                            Err(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "charges.fees",
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    }
-                    api::payments::Amount::Value(amount) => {
-                        if charges.fees.get_amount_as_i64() > amount.into() {
-                            Err(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "charges.fees",
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    }
-                }
-            }
-            None => Ok(()),
-        }?;
+        if let Some(charges) = &request.charges {
+            let amount = request.amount.get_required_value("amount")?;
+            helpers::validate_platform_fees_for_marketplace(amount, charges)?;
+        };
 
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
             .routing

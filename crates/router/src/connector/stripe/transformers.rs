@@ -10,10 +10,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    mandates::AcceptanceType,
-    router_request_types::{ChargeRefunds, PaymentCharges},
-};
+use hyperswitch_domain_models::mandates::AcceptanceType;
 use masking::{ExposeInterface, ExposeOptionInterface, Mask, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -4028,38 +4025,19 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
     }
 }
 
-pub(super) fn transform_headers_for_connect_platform_payment(
-    charges: Option<&PaymentCharges>,
+pub(super) fn transform_headers_for_connect_platform(
+    charge_type: api::enums::PaymentChargeType,
+    transfer_account_id: String,
     header: &mut Vec<(String, services::request::Maskable<String>)>,
 ) {
-    charges.map(|charge| match &charge.charge_type {
-        api::enums::PaymentChargeType::Stripe(stripe_charge) => {
-            if stripe_charge == &api::enums::StripeChargeType::Direct {
-                let mut customer_account_header = vec![(
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    charge.transfer_account_id.clone().into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-        }
-    });
-}
-
-pub(super) fn transform_headers_for_connect_platform_refund(
-    charges: Option<&ChargeRefunds>,
-    header: &mut Vec<(String, services::request::Maskable<String>)>,
-) {
-    charges.map(|charge| match &charge.charge_type {
-        api::enums::PaymentChargeType::Stripe(stripe_charge) => {
-            if stripe_charge == &api::enums::StripeChargeType::Direct {
-                let mut customer_account_header = vec![(
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    charge.transfer_account_id.clone().into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-        }
-    });
+    if let api::enums::PaymentChargeType::Stripe(api::enums::StripeChargeType::Direct) = charge_type
+    {
+        let mut customer_account_header = vec![(
+            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+            transfer_account_id.into_masked(),
+        )];
+        header.append(&mut customer_account_header);
+    }
 }
 
 #[cfg(test)]

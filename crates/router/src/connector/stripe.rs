@@ -761,10 +761,13 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        transformers::transform_headers_for_connect_platform_payment(
-            req.request.charges.as_ref(),
-            &mut header,
-        );
+        req.request.charges.as_ref().map(|charges| {
+            transformers::transform_headers_for_connect_platform(
+                charges.charge_type.clone(),
+                charges.transfer_account_id.clone(),
+                &mut header,
+            )
+        });
         Ok(header)
     }
 
@@ -1622,10 +1625,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        transformers::transform_headers_for_connect_platform_refund(
-            req.request.charges.as_ref(),
-            &mut header,
-        );
+        req.request.charges.as_ref().map(|charges| {
+            transformers::transform_headers_for_connect_platform(
+                charges.charge_type.clone(),
+                charges.transfer_account_id.clone(),
+                &mut header,
+            )
+        });
         Ok(header)
     }
 

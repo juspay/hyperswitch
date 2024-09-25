@@ -5,7 +5,7 @@ use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
     payments::{
-        additional_info as payment_additional_types, AddressDetailsWithPhone,
+        additional_info as payment_additional_types, AddressDetailsWithPhone, PaymentChargeRequest,
         RequestSurchargeDetails,
     },
 };
@@ -5740,4 +5740,30 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         }
     }
     Ok(())
+}
+
+pub fn validate_platform_fees_for_marketplace(
+    amount: api::Amount,
+    charges: &PaymentChargeRequest,
+) -> Result<(), errors::ApiErrorResponse> {
+    match amount {
+        api::Amount::Zero => {
+            if charges.fees.get_amount_as_i64() != 0 {
+                Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "charges.fees",
+                })
+            } else {
+                Ok(())
+            }
+        }
+        api::Amount::Value(amount) => {
+            if charges.fees.get_amount_as_i64() > amount.into() {
+                Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "charges.fees",
+                })
+            } else {
+                Ok(())
+            }
+        }
+    }
 }
