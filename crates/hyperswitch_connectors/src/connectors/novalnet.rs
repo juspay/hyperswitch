@@ -792,8 +792,8 @@ impl webhooks::IncomingWebhook for Novalnet {
         let message = format!(
             "{}{}{}{}{}{}",
             notif.event.tid,
-            notif.event.event_type,
-            notif.result.status,
+            notif.event.event_type.to_string().to_uppercase(),
+            notif.result.status.to_string().to_uppercase(),
             amount,
             currency,
             reversed_secret_auth
