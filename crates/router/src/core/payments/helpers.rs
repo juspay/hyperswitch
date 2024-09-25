@@ -2546,6 +2546,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::KakaoPay
                 | api_enums::PaymentMethodType::Cashapp
                 | api_enums::PaymentMethodType::Mifinity
+                | api_enums::PaymentMethodType::Paze
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -4624,6 +4625,9 @@ async fn get_and_merge_apple_pay_metadata(
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
+                    paze: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.paze.clone()),
                 }
             }
             api_models::payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
@@ -4639,6 +4643,9 @@ async fn get_and_merge_apple_pay_metadata(
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
+                    paze: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.paze.clone()),
                 }
             }
         };

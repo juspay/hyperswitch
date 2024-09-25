@@ -498,6 +498,32 @@ async fn create_applepay_session_token(
     }
 }
 
+fn create_paze_session_token(
+    router_data: &types::PaymentsSessionRouterData,
+    _header_payload: api_models::payments::HeaderPayload,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let paze_wallet_details = router_data
+        .connector_wallets_details
+        .clone()
+        .parse_value::<payment_types::PazeSessionTokenData>("PazeSessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorWalletDetails)
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_wallets_details".to_string(),
+            expected_format: "paze_metadata_format".to_string(),
+        })?;
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::Paze(Box::new(
+                payment_types::PazeSessionTokenResponse {
+                    something: paze_wallet_details.data.some_data,
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
 fn create_samsung_pay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     header_payload: api_models::payments::HeaderPayload,
@@ -955,6 +981,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
             api::GetToken::PaypalSdkMetadata => {
                 create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
+            api::GetToken::PazeMetadata => create_paze_session_token(self, header_payload),
             api::GetToken::Connector => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Session,

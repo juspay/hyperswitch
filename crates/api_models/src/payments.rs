@@ -1967,6 +1967,7 @@ impl GetPaymentMethodType for WalletData {
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::Paze(_) => api_enums::PaymentMethodType::Paze,
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
@@ -2856,6 +2857,8 @@ pub enum WalletData {
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Paze
+    Paze(PazeWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
     /// Wallet data for Twint Redirection
@@ -2916,6 +2919,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::GooglePayRedirect(_)
             | Self::GooglePayThirdPartySdk(_)
             | Self::PaypalSdk(_)
+            | Self::Paze(_)
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
@@ -2926,6 +2930,13 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SwishQr(_) => None,
         }
     }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct PazeWalletData {
+    /// random data for now
+    pub payment_data: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4950,6 +4961,17 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PazeSessionTokenData {
+    #[serde(rename = "paze")]
+    pub data: PazeMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PazeMetadata {
+    pub some_data: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SamsungPaySessionTokenData {
     #[serde(rename = "samsung_pay")]
     pub data: SamsungPayMetadata,
@@ -5138,8 +5160,17 @@ pub enum SessionToken {
     ApplePay(Box<ApplepaySessionTokenResponse>),
     /// Session token for OpenBanking PIS flow
     OpenBanking(OpenBankingSessionToken),
+    /// The session response structure for Paze
+    Paze(Box<PazeSessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct PazeSessionTokenResponse {
+    /// Random
+    pub something: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]

@@ -297,6 +297,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -1035,6 +1036,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::MobilePayRedirect(_)
                         | domain::WalletData::PaypalRedirect(_)
                         | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::Paze(_)
                         | domain::WalletData::SamsungPay(_)
                         | domain::WalletData::TwintRedirect {}
                         | domain::WalletData::VippsRedirect {}

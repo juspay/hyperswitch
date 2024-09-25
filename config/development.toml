@@ -608,6 +608,10 @@ apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
 
+[paze]
+paze_private_key = "PAZE_PRIVATE_KEY"
+paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE"
+
 [generic_link]
 [generic_link.payment_method_collect]
 sdk_url = "http://localhost:9050/HyperLoader.js"
