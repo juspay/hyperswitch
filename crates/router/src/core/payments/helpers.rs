@@ -1788,7 +1788,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 pub async fn retrieve_card_with_permanent_token(
     state: &SessionState,
     locker_id: &str,
-    _payment_method_id: &common_utils::id_type::GlobalPaymentMethodId,
+    _payment_method_id: &id_type::GlobalPaymentMethodId,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&domain::CardToken>,
     _merchant_key_store: &domain::MerchantKeyStore,

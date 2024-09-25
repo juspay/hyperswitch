@@ -109,8 +109,8 @@ pub enum SurchargeCalculationOverride {
 impl From<Option<bool>> for TaxCalculationOverride {
     fn from(value: Option<bool>) -> Self {
         match value {
-            Some(true) => TaxCalculationOverride::Calculate,
-            _ => TaxCalculationOverride::Skip,
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
         }
     }
 }
@@ -119,8 +119,8 @@ impl From<Option<bool>> for TaxCalculationOverride {
 impl From<Option<bool>> for SurchargeCalculationOverride {
     fn from(value: Option<bool>) -> Self {
         match value {
-            Some(true) => SurchargeCalculationOverride::Calculate,
-            _ => SurchargeCalculationOverride::Skip,
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
         }
     }
 }
@@ -235,7 +235,7 @@ pub struct PaymentIntent {
     /// The details of the customer in a denormalized form. Only a subset of fields are stored.
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
     /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
-    pub merchant_reference_id: Option<common_utils::id_type::PaymentId>,
+    pub merchant_reference_id: Option<id_type::PaymentId>,
     /// The billing address for the order in a denormalized form.
     pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
     /// The shipping address for the order in a denormalized form.
