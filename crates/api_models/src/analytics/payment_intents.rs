@@ -71,7 +71,7 @@ pub enum PaymentIntentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
-    IncludeSmartRetries
+    IncludeSmartRetries,
 }
 
 #[derive(
