@@ -1707,11 +1707,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
-        let amount = payment_data
+        let mut amount = payment_data
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
+
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount));
+
+        amount = match order_tax_amount {
+            Some(tax) => amount + tax,
+            None => amount,
+        };
 
         let customer_name = additional_data
             .customer_data
@@ -1788,6 +1799,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
+            order_tax_amount,
         })
     }
 }
