@@ -2129,10 +2129,14 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             } else {
                 None
             },
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
-                state, &key_store, &metadata,
-            )
-            .await?,
+            connector_wallets_details:
+                helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(
+                    state,
+                    &key_store,
+                    &metadata,
+                    &self.connector_wallets_details,
+                )
+                .await?,
         })
     }
 }
@@ -2306,10 +2310,14 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             } else {
                 None
             },
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
-                state, &key_store, &metadata,
-            )
-            .await?,
+            connector_wallets_details:
+                helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(
+                    state,
+                    &key_store,
+                    &metadata,
+                    &self.connector_wallets_details,
+                )
+                .await?,
         })
     }
 }
@@ -2440,7 +2448,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(state, &key_store, &self.metadata).await?,
+            connector_wallets_details: helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(state, &key_store, &self.metadata, &self.connector_wallets_details).await?,
             additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {
                 Some(domain_types::crypto_operation(
                     key_manager_state,
@@ -2605,7 +2613,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(state, &key_store, &self.metadata).await?,
+            connector_wallets_details: helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(state, &key_store, &self.metadata, &self.connector_wallets_details).await?,
             test_mode: self.test_mode,
             business_country: self.business_country,
             business_label: self.business_label.clone(),

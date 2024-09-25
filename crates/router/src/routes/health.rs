@@ -48,10 +48,11 @@ async fn deep_health_check_func(
 
     logger::debug!("Database health check begin");
 
-    let db_status = state.health_check_db().await.map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+    let db_status = state.health_check_db().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
             component: "Database",
-            message: err.to_string()
+            message,
         })
     })?;
 
@@ -59,10 +60,11 @@ async fn deep_health_check_func(
 
     logger::debug!("Redis health check begin");
 
-    let redis_status = state.health_check_redis().await.map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+    let redis_status = state.health_check_redis().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
             component: "Redis",
-            message: err.to_string()
+            message,
         })
     })?;
 
@@ -70,10 +72,11 @@ async fn deep_health_check_func(
 
     logger::debug!("Locker health check begin");
 
-    let locker_status = state.health_check_locker().await.map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+    let locker_status = state.health_check_locker().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
             component: "Locker",
-            message: err.to_string()
+            message,
         })
     })?;
 
@@ -82,10 +85,11 @@ async fn deep_health_check_func(
     logger::debug!("Analytics health check begin");
 
     #[cfg(feature = "olap")]
-    let analytics_status = state.health_check_analytics().await.map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+    let analytics_status = state.health_check_analytics().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
             component: "Analytics",
-            message: err.to_string()
+            message,
         })
     })?;
 
@@ -94,10 +98,11 @@ async fn deep_health_check_func(
     logger::debug!("Opensearch health check begin");
 
     #[cfg(feature = "olap")]
-    let opensearch_status = state.health_check_opensearch().await.map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+    let opensearch_status = state.health_check_opensearch().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
             component: "Opensearch",
-            message: err.to_string()
+            message,
         })
     })?;
 
@@ -105,10 +110,11 @@ async fn deep_health_check_func(
 
     logger::debug!("Outgoing Request health check begin");
 
-    let outgoing_check = state.health_check_outgoing().await.map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+    let outgoing_check = state.health_check_outgoing().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
             component: "Outgoing Request",
-            message: err.to_string()
+            message,
         })
     })?;
 

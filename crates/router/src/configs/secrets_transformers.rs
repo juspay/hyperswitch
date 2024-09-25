@@ -498,6 +498,8 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
+        #[cfg(feature = "v2")]
+        cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
         network_tokenization_service,

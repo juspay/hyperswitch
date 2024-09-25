@@ -130,6 +130,7 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::Ach
+                | PaymentMethodType::SamsungPay
                 | PaymentMethodType::Alma
                 | PaymentMethodType::Bacs
                 | PaymentMethodType::Givex
@@ -222,7 +223,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::RedCompra
                 | PaymentMethodType::RedPagos
                 | PaymentMethodType::CryptoCurrency
-                | PaymentMethodType::SamsungPay
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect

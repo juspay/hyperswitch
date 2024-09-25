@@ -173,7 +173,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
 }
 
 #[cfg(feature = "v2")]
-impl ForeignTryFrom<domain::Profile> for admin::ProfileResponse {
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
@@ -193,7 +193,7 @@ impl ForeignTryFrom<domain::Profile> for admin::ProfileResponse {
 
         let order_fulfillment_time = item
             .order_fulfillment_time
-            .map(api_models::admin::OrderFulfillmentTime::try_new)
+            .map(admin::OrderFulfillmentTime::try_new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
 

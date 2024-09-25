@@ -47,6 +47,32 @@ pub mod flows;
 pub mod operation;
 pub mod types;
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
+    state: &SessionState,
+    payment_data: &OperationData,
+    frm_data: &mut FrmData,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
+) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
+where
+    F: Send + Clone,
+
+    OperationData: payments::OperationSessionGetters<D> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    FrmData: ConstructFlowSpecificData<F, Req, frm_types::FraudCheckResponseData>,
+    oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>: FeatureFrm<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn Connector: services::api::ConnectorIntegration<F, Req, frm_types::FraudCheckResponseData>,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     state: &SessionState,
@@ -92,6 +118,7 @@ where
             key_store,
             customer,
             &merchant_connector_account,
+            None,
             None,
         )
         .await?;
@@ -350,6 +377,30 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
+    _db: &dyn StorageInterface,
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: D,
+    frm_routing_algorithm: FrmRoutingAlgorithm,
+    profile_id: common_utils::id_type::ProfileId,
+    frm_configs: FrmConfigsObject,
+    _customer: &Option<domain::Customer>,
+) -> RouterResult<FrmInfo<F, D>>
+where
+    F: Send + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
     _db: &dyn StorageInterface,

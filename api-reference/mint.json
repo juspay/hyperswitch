@@ -137,7 +137,8 @@
         "api-reference/api-key/api-key--create",
         "api-reference/api-key/api-key--retrieve",
         "api-reference/api-key/api-key--update",
-        "api-reference/api-key/api-key--revoke"
+        "api-reference/api-key/api-key--revoke",
+        "api-reference/api-key/api-key--list"
       ]
     },
     {

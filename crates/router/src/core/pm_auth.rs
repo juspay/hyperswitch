@@ -165,6 +165,9 @@ pub async fn create_link_token(
             )?]),
             language: payload.language,
             user_info: payment_intent.and_then(|pi| pi.customer_id),
+            client_platform: payload.client_platform,
+            android_package_name: payload.android_package_name,
+            redirect_uri: payload.redirect_uri,
         },
         response: Ok(pm_auth_types::LinkTokenResponse {
             link_token: "".to_string(),
@@ -796,6 +799,18 @@ async fn get_selected_config_from_redis(
     Ok(selected_config)
 }
 
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_from_auth_service(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    auth_token: &payment_methods::BankAccountTokenData,
+    payment_intent: &PaymentIntent,
+    _customer: &Option<domain::Customer>,
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn retrieve_payment_method_from_auth_service(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -838,13 +853,6 @@ pub async fn retrieve_payment_method_from_auth_service(
         .attach_printable(
             "error while fetching merchant_connector_account from merchant_id and connector name",
         )?;
-
-    #[cfg(feature = "v2")]
-    let mca = {
-        let _ = merchant_account;
-        let _ = connector;
-        todo!()
-    };
 
     let auth_type = pm_auth_helpers::get_connector_auth_type(mca)?;
 

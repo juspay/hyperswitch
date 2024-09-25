@@ -20,8 +20,8 @@ use super::domain;
 use crate::{
     core::errors,
     headers::{
-        ACCEPT_LANGUAGE, BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
-        X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE,
+        ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
+        X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -1068,6 +1068,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         #[cfg(feature = "v2")]
         let response = Self {
@@ -1096,6 +1108,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         Ok(response)
     }
@@ -1191,6 +1215,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         #[cfg(feature = "v1")]
         let response = Self {
@@ -1235,6 +1271,18 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         };
         Ok(response)
     }
@@ -1407,6 +1455,12 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
         let x_merchant_domain =
             get_header_value_by_key(X_MERCHANT_DOMAIN.into(), headers)?.map(|val| val.to_string());
 
+        let x_app_id =
+            get_header_value_by_key(X_APP_ID.into(), headers)?.map(|val| val.to_string());
+
+        let x_redirect_uri =
+            get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+
         Ok(Self {
             payment_confirm_source,
             client_source,
@@ -1416,6 +1470,8 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             x_client_platform,
             x_merchant_domain,
             locale,
+            x_app_id,
+            x_redirect_uri,
         })
     }
 }

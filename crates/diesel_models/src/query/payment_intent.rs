@@ -44,7 +44,7 @@ impl PaymentIntent {
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
     pub async fn find_by_global_id(
         conn: &PgPooledConn,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::GlobalPaymentId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
@@ -105,7 +105,7 @@ impl PaymentIntent {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
-    pub async fn find_optional_by_merchant_id_merchant_reference_id(
+    pub async fn find_optional_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
         merchant_reference_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,
