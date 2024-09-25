@@ -135,13 +135,11 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = CaptureMethod, example = "automatic")]
-    #[serde(default)]
-    pub capture_method: api_enums::CaptureMethod,
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
-    #[serde(default)]
-    pub authentication_type: api_enums::AuthenticationType,
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
@@ -154,9 +152,8 @@ pub struct PaymentsCreateIntentRequest {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
-    #[serde(default)]
-    pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
+    #[schema(example = true, value_type = Option<PresenceOfCustomerDuringPayment>)]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
 
     /// A description for the payment
     #[schema(example = "It's my first payment request", value_type = Option<String>)]
@@ -166,14 +163,12 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
-    #[schema(value_type = FutureUsage, example = "off_session")]
-    #[serde(default)]
-    pub setup_future_usage: api_enums::FutureUsage,
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = MitExemptionRequest)]
-    #[serde(default)]
-    pub apply_mit_exemption: common_enums::MitExemptionRequest,
+    #[schema(value_type = Option<MitExemptionRequest>)]
+    pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 22, example = "Hyperswitch Router", value_type = Option<String>)]
@@ -203,18 +198,16 @@ pub struct PaymentsCreateIntentRequest {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = EnablePaymentLinkRequest)]
-    #[serde(default)]
-    pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
+    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = RequestIncrementalAuthorization)]
-    #[serde(default)]
-    pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
+    #[schema(value_type = Option<RequestIncrementalAuthorization>)]
+    pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
@@ -226,9 +219,9 @@ pub struct PaymentsCreateIntentRequest {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = External3dsAuthenticationRequest)]
-    #[serde(default)]
-    pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+    #[schema(value_type = Option<External3dsAuthenticationRequest>)]
+    pub request_external_three_ds_authentication:
+        Option<common_enums::External3dsAuthenticationRequest>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -239,8 +232,8 @@ pub struct PaymentsCreateIntentResponse {
     pub amount_details: AmountDetails,
 
     /// It's a token used for client side verification.
-    #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Option<Secret<String>>,
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Secret<String>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -257,11 +250,9 @@ pub struct PaymentsCreateIntentResponse {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
     #[schema(value_type = CaptureMethod, example = "automatic")]
-    #[serde(default)]
     pub capture_method: api_enums::CaptureMethod,
 
     #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
-    #[serde(default)]
     pub authentication_type: api_enums::AuthenticationType,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -276,7 +267,6 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
-    #[serde(default)]
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 
     /// A description for the payment
@@ -288,12 +278,10 @@ pub struct PaymentsCreateIntentResponse {
     pub return_url: Option<Url>,
 
     #[schema(value_type = FutureUsage, example = "off_session")]
-    #[serde(default)]
     pub setup_future_usage: api_enums::FutureUsage,
 
     /// Apply MIT exemption for a payment
     #[schema(value_type = MitExemptionRequest)]
-    #[serde(default)]
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -325,7 +313,6 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]
-    #[serde(default)]
     pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
     /// Configure a custom payment link for the particular payment
@@ -334,10 +321,9 @@ pub struct PaymentsCreateIntentResponse {
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = RequestIncrementalAuthorization)]
-    #[serde(default)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
@@ -348,7 +334,6 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
-    #[serde(default)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
 }
 
