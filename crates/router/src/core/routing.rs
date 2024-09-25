@@ -15,8 +15,8 @@ use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::logger;
+#[cfg(feature = "v1")]
+use router_env::logger;
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
@@ -1339,7 +1339,7 @@ pub async fn success_based_routing_update_configs(
 
     // refresh cache for success based routing configs
     let cache_key = format!(
-        "{}:{}",
+        "{}_{}",
         profile_id.get_string_repr(),
         algorithm_id.get_string_repr()
     );

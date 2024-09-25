@@ -3,7 +3,7 @@
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -27,6 +27,7 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+use std::sync::Arc;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{core::metrics as core_metrics, routes::metrics};
 
@@ -616,7 +617,7 @@ pub async fn fetch_success_based_routing_configs(
         })?;
 
     let key = format!(
-        "{}:{}",
+        "{}_{}",
         business_profile.get_id().get_string_repr(),
         success_based_routing_id.get_string_repr()
     );
