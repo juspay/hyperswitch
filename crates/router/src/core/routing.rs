@@ -1317,10 +1317,10 @@ pub async fn success_based_routing_update_configs(
 
     config_to_update.update(request);
 
-    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
     let algo = RoutingAlgorithm {
-        algorithm_id: algorithm_id.clone(),
+        algorithm_id: updated_algorithm_id,
         profile_id: dynamic_routing_algo_to_update.profile_id,
         merchant_id: dynamic_routing_algo_to_update.merchant_id,
         name: dynamic_routing_algo_to_update.name,
@@ -1337,7 +1337,7 @@ pub async fn success_based_routing_update_configs(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
 
-    // refresh cache for success based routing configs
+    // redact cache for success based routing configs
     let cache_key = format!(
         "{}_{}",
         profile_id.get_string_repr(),

@@ -27,6 +27,7 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{core::metrics as core_metrics, routes::metrics};
@@ -744,7 +745,6 @@ pub async fn push_metrics_for_success_based_routing(
                 first_success_based_connector.to_string(),
             ),
             ("payment_connector", payment_connector.to_string()),
-            ("amount", payment_attempt.amount.to_string()),
             (
                 "currency",
                 payment_attempt
