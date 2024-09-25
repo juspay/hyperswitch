@@ -810,8 +810,9 @@ impl<F>
                     .clone()
                     .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
-                let mandate_reference_id =
-                    NovalnetResponseTransactionData::get_token(item.response.transaction.as_ref());
+                let mandate_reference_id = NovalnetSyncResponseTransactionData::get_token(
+                    item.response.transaction.as_ref(),
+                );
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
