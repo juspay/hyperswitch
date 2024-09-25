@@ -1316,7 +1316,6 @@ impl NewUserRole<MerchantLevel> {
     }
 }
 
-
 impl NewUserRole<ProfileLevel> {
     pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
