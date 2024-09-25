@@ -268,6 +268,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;

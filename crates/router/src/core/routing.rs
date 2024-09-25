@@ -10,11 +10,9 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use storage_impl::redis::cache::{self, CacheKind};
+#[cfg(feature = "v1")]
+use storage_impl::redis::cache;
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use self::helpers::refresh_success_based_routing_cache;
 #[cfg(feature = "payouts")]
 use super::payouts;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1339,24 +1337,21 @@ pub async fn success_based_routing_update_configs(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
 
-    // remove and refresh cache for success based routing configs
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    {
-        let cache_key = format!(
-            "{}_{}",
-            profile_id.get_string_repr().to_owned(),
-            algorithm_id.get_string_repr()
-        );
-        let cache_to_redact = vec![CacheKind::SuccessBasedDynamicRoutingCache(
-            cache_key.clone().into(),
-        )];
-        let _ = cache::publish_into_redact_channel(db.get_cache_store().as_ref(), cache_to_redact)
-            .await
-            .map_err(|e| {
-                logger::error!("unable to redact the success based routing config cache {e}")
-            });
-        refresh_success_based_routing_cache(&state, cache_key.as_str(), config_to_update).await;
-    }
+    // refresh cache for success based routing configs
+    let cache_key = format!(
+        "{}_{}",
+        profile_id.get_string_repr(),
+        algorithm_id.get_string_repr()
+    );
+    let cache_entries_to_redact = vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+        cache_key.into(),
+    )];
+    let _ = cache::publish_into_redact_channel(
+        state.store.get_cache_store().as_ref(),
+        cache_entries_to_redact,
+    )
+    .await
+    .map_err(|e| logger::error!("unable to redact the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 

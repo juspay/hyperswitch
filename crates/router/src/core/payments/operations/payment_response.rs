@@ -79,6 +79,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b,
@@ -97,6 +98,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -357,6 +360,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -511,6 +516,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -525,6 +531,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await
     }
@@ -572,6 +580,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -586,6 +595,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -614,6 +625,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -687,6 +700,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -701,6 +715,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -723,6 +739,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -737,6 +754,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -761,6 +780,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -775,6 +795,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -797,6 +819,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -811,6 +834,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -839,6 +864,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -858,6 +884,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -947,6 +975,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -961,6 +990,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await
     }
@@ -1019,6 +1050,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connectors: Vec<
         RoutableConnectorChoice,
     >,
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
 
@@ -1677,11 +1709,25 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    push_metrics_for_success_based_routing(state, key_store, &payment_attempt, routable_connectors)
-        .await
-        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-        .ok();
-
+    {
+        let state = state.clone();
+        let business_profile = business_profile.clone();
+        let payment_attempt = payment_attempt.clone();
+        tokio::spawn(
+            async move {
+                push_metrics_for_success_based_routing(
+                    &state,
+                    &payment_attempt,
+                    routable_connectors,
+                    &business_profile,
+                )
+                .await
+                .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                .ok();
+            }
+            .in_current_span(),
+        );
+    }
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
     router_data.payment_method_status.and_then(|status| {

@@ -63,8 +63,6 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use super::routing::helpers::fetch_success_based_routing_configs;
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
@@ -370,6 +368,8 @@ where
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            &business_profile,
                         )
                         .await?;
 
@@ -503,6 +503,8 @@ where
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            &business_profile,
                         )
                         .await?;
 
@@ -4507,13 +4509,6 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
-
-    // Fetch and cache default config for success based routing
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    fetch_success_based_routing_configs(state, business_profile)
-        .await
-        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-        .ok();
 
     let connector_data = connectors
         .into_iter()

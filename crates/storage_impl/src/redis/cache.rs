@@ -73,10 +73,9 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
 });
 
 /// Dynamic Algorithm Cache
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub static DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
     Cache::new(
-        "DYNAMIC_ALGORITHM_CACHE",
+        "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
         CACHE_TTI,
         Some(MAX_CAPACITY),
@@ -102,7 +101,6 @@ pub enum CacheKind<'a> {
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
     SuccessBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
