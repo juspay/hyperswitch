@@ -66,8 +66,9 @@ where
                 .attach_printable("Error adding profile id filter")?;
         }
         if !self.card_network.is_empty() {
+            let card_networks: Vec<String> = self.card_network.iter().flat_map(|cn| [format!("\"{cn}\""), cn.to_string(), format!("\"{cn}\"").to_uppercase()]).collect();
             builder
-                .add_filter_in_range_clause(PaymentDimensions::CardNetwork, &self.card_network)
+                .add_filter_in_range_clause(PaymentDimensions::CardNetwork, card_networks.as_slice())
                 .attach_printable("Error adding card network filter")?;
         }
         if !self.merchant_id.is_empty() {
