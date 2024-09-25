@@ -14,7 +14,6 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -725,16 +724,16 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
 fn get_webhook_object_from_body(
     body: &[u8],
 ) -> CustomResult<novalnet::NovalnetWebhookNotificationResponse, errors::ConnectorError> {
-    let body_str = str::from_utf8(body).expect("Failed to convert body to string");
-    let novalnet_webhook_notification_response =
-        serde_json::from_str::<novalnet::NovalnetWebhookNotificationResponse>(body_str)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    let novalnet_webhook_notification_response = std::str::from_utf8(body)
+        .map_err(|_| errors::ConnectorError::ParsingFailed)
+        .and_then(|body_str| {
+            serde_json::from_str::<novalnet::NovalnetWebhookNotificationResponse>(body_str)
+                .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
+        })?;
+
     Ok(novalnet_webhook_notification_response)
 }
 
-fn reverse_string(s: &str) -> String {
-    s.chars().rev().collect()
-}
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Novalnet {
     fn get_webhook_source_verification_algorithm(
@@ -771,9 +770,11 @@ impl webhooks::IncomingWebhook for Novalnet {
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => {
                 (data.amount, data.currency)
             }
+
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
                 (data.amount, data.currency)
             }
+
             novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => {
                 (data.amount, data.currency)
             }
@@ -788,13 +789,13 @@ impl webhooks::IncomingWebhook for Novalnet {
         let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert webhook secret auth to UTF-8")?;
-        let reversed_secret_auth = reverse_string(&secret_auth);
+        let reversed_secret_auth = novalnet::reverse_string(&secret_auth);
 
         let message = format!(
             "{}{}{}{}{}{}",
             notif.event.tid,
-            notif.event.event_type.to_string().to_uppercase(),
-            notif.result.status.to_string().to_uppercase(),
+            notif.event.event_type,
+            notif.result.status,
             amount,
             currency,
             reversed_secret_auth
@@ -846,9 +847,8 @@ impl webhooks::IncomingWebhook for Novalnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let body_str = str::from_utf8(request.body).expect("Failed to convert body to string");
-        let notif = serde_json::from_str::<novalnet::NovalnetWebhookNotificationResponse>(body_str)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let optional_transaction_status = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
