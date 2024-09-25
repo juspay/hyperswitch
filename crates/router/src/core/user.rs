@@ -498,18 +498,6 @@ pub async fn invite_multiple_user(
     req_state: ReqState,
     auth_id: Option<String>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
-    let invitor_role_info = user_from_token
-        .get_role_info_from_db(&state)
-        .await
-        .attach_printable("Invalid role_id in JWT")?;
-
-    if invitor_role_info.is_internal() {
-        return Err(UserErrors::InvalidRoleOperationWithMessage(
-            "Internal roles are not allowed for this operation".to_string(),
-        )
-        .into());
-    }
-
     if requests.len() > 10 {
         return Err(report!(UserErrors::MaxInvitationsError))
             .attach_printable("Number of invite requests must not exceed 10");
