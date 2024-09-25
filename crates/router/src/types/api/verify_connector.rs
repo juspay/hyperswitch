@@ -57,7 +57,6 @@ impl VerifyConnectorData {
             charges: None,
             merchant_order_reference_id: None,
             integrity_object: None,
-            order_tax_amount: None,
         }
     }
 

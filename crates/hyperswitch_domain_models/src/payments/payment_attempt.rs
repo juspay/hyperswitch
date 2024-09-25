@@ -238,6 +238,8 @@ impl PaymentAttempt {
         self.amount
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_amount.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
+            + self.shipping_cost.unwrap_or_default()
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {

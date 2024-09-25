@@ -1717,12 +1717,19 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_intent
             .tax_details
             .clone()
-            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount));
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|a| a.order_tax_amount)
+                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
+            });
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
 
-        amount = match order_tax_amount {
-            Some(tax) => amount + tax,
-            None => amount,
-        };
+        if let Some(shipping_cost) = shipping_cost {
+            amount = amount + shipping_cost;
+        }
+        if let Some(tax_amount) = order_tax_amount {
+            amount = amount + tax_amount;
+        }
 
         let customer_name = additional_data
             .customer_data
@@ -1799,7 +1806,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
-            order_tax_amount,
         })
     }
 }

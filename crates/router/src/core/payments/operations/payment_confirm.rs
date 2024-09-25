@@ -1222,7 +1222,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let authorized_amount = payment_data
+        let mut authorized_amount = payment_data
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
@@ -1304,6 +1304,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .clone()
                 .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
         });
+
+        if let Some(shipping_cost) = shipping_cost {
+            authorized_amount = authorized_amount + shipping_cost;
+        }
+        if let Some(tax_amount) = order_tax_amount {
+            authorized_amount = authorized_amount + tax_amount;
+        }
 
         let payment_attempt_fut = tokio::spawn(
             async move {
