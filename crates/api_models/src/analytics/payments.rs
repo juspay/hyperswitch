@@ -7,7 +7,8 @@ use common_utils::id_type;
 
 use super::{NameDescription, TimeRange};
 use crate::enums::{
-    AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod, PaymentMethodType, CardNetwork
+    AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
+    PaymentMethodType,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
