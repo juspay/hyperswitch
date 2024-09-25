@@ -1137,11 +1137,6 @@ pub struct ProfileLevel {
 }
 
 #[derive(Clone)]
-pub struct InternalLevel {
-    pub org_id: id_type::OrganizationId,
-}
-
-#[derive(Clone)]
 pub struct NewUserRole<E: Clone> {
     pub user_id: String,
     pub role_id: String,
