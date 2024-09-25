@@ -320,6 +320,7 @@ nmi = { payment_method = "card" }
 payme = { payment_method = "card" }
 deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
+nexixpay = { payment_method = "card" }
 
 [dummy_connector]
 enabled = true

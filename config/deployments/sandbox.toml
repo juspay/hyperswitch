@@ -367,6 +367,7 @@ nmi.payment_method = "card"
 payme.payment_method = "card"
 deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
+nexixpay = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

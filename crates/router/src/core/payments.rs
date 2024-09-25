@@ -2314,13 +2314,12 @@ where
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
-            } else if (connector.connector_name == router_types::Connector::Nexixpay)
-                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && is_operation_complete_authorize(&operation)
-                || (connector.connector_name == router_types::Connector::Nuvei
-                    || connector.connector_name == router_types::Connector::Shift4)
-                    && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                    && !is_operation_complete_authorize(&operation)
+            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && ((connector.connector_name == router_types::Connector::Nexixpay
+                    && is_operation_complete_authorize(&operation))
+                    || ((connector.connector_name == router_types::Connector::Nuvei
+                        || connector.connector_name == router_types::Connector::Shift4)
+                        && !is_operation_complete_authorize(&operation)))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)

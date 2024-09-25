@@ -27,8 +27,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        to_connector_meta, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+        get_unimplemented_payment_method_error_message, to_connector_meta, CardData,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 
@@ -243,9 +244,6 @@ pub struct Operation {
     operation_time: String,
     operation_type: NexixpayOperationType,
     order_id: String,
-    payment_circuit: String,
-    payment_end_to_end_id: String,
-    payment_instrument_info: String,
     payment_method: String,
     warnings: Option<Vec<String>>,
 }
@@ -395,7 +393,24 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                 };
                 Ok(Self { order, card })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("nexixpay"),
+            ))?,
         }
     }
 }
@@ -531,9 +546,8 @@ impl From<NexixpayPaymentStatus> for AttemptStatus {
             | NexixpayPaymentStatus::DeniedByRisk
             | NexixpayPaymentStatus::ThreedsFailed
             | NexixpayPaymentStatus::Failed => Self::Failure,
-            NexixpayPaymentStatus::Authorized | NexixpayPaymentStatus::ThreedsValidated => {
-                Self::Authorized
-            }
+            NexixpayPaymentStatus::Authorized => Self::Authorized,
+            NexixpayPaymentStatus::ThreedsValidated => Self::AuthenticationSuccessful,
             NexixpayPaymentStatus::Executed => Self::Charged,
             NexixpayPaymentStatus::Pending => Self::AuthenticationPending,
             NexixpayPaymentStatus::Canceled | NexixpayPaymentStatus::Voided => Self::Voided,
@@ -547,13 +561,12 @@ fn get_nexixpay_capture_type(
 ) -> CustomResult<Option<NexixpayCaptureType>, errors::ConnectorError> {
     match item {
         Some(CaptureMethod::Manual) => Ok(Some(NexixpayCaptureType::Explicit)),
-        Some(CaptureMethod::Automatic) => Ok(Some(NexixpayCaptureType::Implicit)),
+        Some(CaptureMethod::Automatic) | None => Ok(Some(NexixpayCaptureType::Implicit)),
         Some(item) => Err(errors::ConnectorError::FlowNotSupported {
             flow: item.to_string(),
             connector: "Nexixpay".to_string(),
         }
         .into()),
-        None => Ok(None),
     }
 }
 

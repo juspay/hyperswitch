@@ -215,7 +215,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Nexixpay
 			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
@@ -251,8 +250,8 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
-            | Self::Novalnet
             | Self::Nexixpay
+            | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
