@@ -6,8 +6,13 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::FutureUsage;
-use common_utils::{ext_traits::ValueExt, pii, types::SemanticVersion};
+use common_utils::{
+    ext_traits::{OptionExt, ValueExt},
+    pii,
+    types::SemanticVersion,
+};
 use error_stack::ResultExt;
+use josekit::jwt::decode_header;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -455,6 +460,14 @@ pub struct SamsungPayTokenizedCard {
 pub struct SamsungPayPaymentInformation {
     fluid_data: FluidData,
     tokenized_card: SamsungPayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayFluidDataValue {
+    public_key_hash: Secret<String>,
+    version: String,
+    data: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1531,13 +1544,17 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
+        let samsung_pay_fluid_data_value =
+            get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
+
+        let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize samsung pay fluid data")?;
+
         let payment_information =
             PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
                 fluid_data: FluidData {
-                    value: Secret::from(
-                        consts::BASE64_ENGINE
-                            .encode(samsung_pay_data.payment_credential.token_data.data.peek()),
-                    ),
+                    value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
                     descriptor: Some(
                         consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
                     ),
@@ -1569,6 +1586,28 @@ impl
             merchant_defined_information,
         })
     }
+}
+
+fn get_samsung_pay_fluid_data_value(
+    samsung_pay_token_data: &hyperswitch_domain_models::payment_method_data::SamsungPayTokenData,
+) -> Result<SamsungPayFluidDataValue, error_stack::Report<errors::ConnectorError>> {
+    let samsung_pay_header = decode_header(samsung_pay_token_data.data.clone().peek())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to decode samsung pay header")?;
+
+    let samsung_pay_kid_optional = samsung_pay_header.claim("kid").and_then(|kid| kid.as_str());
+
+    let samsung_pay_fluid_data_value = SamsungPayFluidDataValue {
+        public_key_hash: Secret::new(
+            samsung_pay_kid_optional
+                .get_required_value("samsung pay public_key_hash")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ),
+        version: samsung_pay_token_data.version.clone(),
+        data: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_token_data.data.peek())),
+    };
+    Ok(samsung_pay_fluid_data_value)
 }
 
 impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
