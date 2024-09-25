@@ -1945,37 +1945,17 @@ options=["Connector","Hyperswitch"]
 [[nexixpay.credit]]
   payment_method_type = "Visa"
 [[nexixpay.credit]]
-  payment_method_type = "Interac"
-[[nexixpay.credit]]
   payment_method_type = "AmericanExpress"
 [[nexixpay.credit]]
   payment_method_type = "JCB"
-[[nexixpay.credit]]
-  payment_method_type = "DinersClub"
-[[nexixpay.credit]]
-  payment_method_type = "Discover"
-[[nexixpay.credit]]
-  payment_method_type = "CartesBancaires"
-[[nexixpay.credit]]
-  payment_method_type = "UnionPay"
 [[nexixpay.debit]]
   payment_method_type = "Mastercard"
 [[nexixpay.debit]]
   payment_method_type = "Visa"
 [[nexixpay.debit]]
-  payment_method_type = "Interac"
-[[nexixpay.debit]]
   payment_method_type = "AmericanExpress"
 [[nexixpay.debit]]
   payment_method_type = "JCB"
-[[nexixpay.debit]]
-  payment_method_type = "DinersClub"
-[[nexixpay.debit]]
-  payment_method_type = "Discover"
-[[nexixpay.debit]]
-  payment_method_type = "CartesBancaires"
-[[nexixpay.debit]]
-  payment_method_type = "UnionPay"
 [nexixpay.connector_auth.HeaderKey]
 api_key="API Key"
 
