@@ -8,6 +8,8 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
+#[cfg(feature = "v1")]
+use router_env::logger;
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
 #[cfg(feature = "v1")]
@@ -15,8 +17,6 @@ use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(feature = "v1")]
-use router_env::logger;
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
@@ -1252,6 +1252,27 @@ pub async fn toggle_success_based_routing(
                             },
                         ),
                     };
+
+                    // redact cache for success based routing configs
+                    let cache_key = format!(
+                        "{}_{}",
+                        business_profile.get_id().get_string_repr(),
+                        algorithm_id.get_string_repr()
+                    );
+                    let cache_entries_to_redact =
+                        vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+                            cache_key.into(),
+                        )];
+                    let _ = cache::publish_into_redact_channel(
+                        state.store.get_cache_store().as_ref(),
+                        cache_entries_to_redact,
+                    )
+                    .await
+                    .map_err(|e| {
+                        logger::error!(
+                            "unable to redact the success based routing config cache {e:?}"
+                        )
+                    });
 
                     let record = db
                         .find_routing_algorithm_by_profile_id_algorithm_id(

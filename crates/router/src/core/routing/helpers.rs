@@ -4,6 +4,8 @@
 //! routing dict, configs, defaults
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
+use std::sync::Arc;
 
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -27,8 +29,6 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
-#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use std::sync::Arc;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{core::metrics as core_metrics, routes::metrics};
 
@@ -595,6 +595,7 @@ pub async fn fetch_success_based_routing_configs(
     state: &SessionState,
     business_profile: &domain::Profile,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
+    // error can only be possible when the feature is not enabled.
     let dynamic_routing_algorithm = business_profile.dynamic_routing_algorithm.clone().ok_or(
         errors::ApiErrorResponse::GenericNotFoundError {
             message: "unable to find dynamic_routing_algorithm in business profile".to_string(),
@@ -613,8 +614,13 @@ pub async fn fetch_success_based_routing_configs(
                 .to_string(),
         })?
         .algorithm_id
+        // error can be possible when the feature is toggled off.
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "unable to find algorithm id in success based algorithm config".to_string(),
+            message: format!(
+                "{} {}",
+                "unable to find algorithm id in success based algorithm config",
+                business_profile.get_id().get_string_repr()
+            ),
         })?;
 
     let key = format!(
@@ -678,7 +684,7 @@ pub async fn push_metrics_for_success_based_routing(
         fetch_success_based_routing_configs(state, business_profile)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to retrieve success_rate configs")?;
+            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
     let tenant_business_profile_id = format!(
         "{}:{}",
@@ -749,41 +755,35 @@ pub async fn push_metrics_for_success_based_routing(
                 "currency",
                 payment_attempt
                     .currency
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("payment currency not found in payment_attempt")?
-                    .to_string(),
+                    .map_or_else(|| "None".to_string(), |currency| currency.to_string()),
             ),
             (
                 "payment_method",
-                payment_attempt
-                    .payment_method
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("payment method not found in payment_attempt")?
-                    .to_string(),
+                payment_attempt.payment_method.map_or_else(
+                    || "None".to_string(),
+                    |payment_method| payment_method.to_string(),
+                ),
             ),
             (
                 "payment_method_type",
-                payment_attempt
-                    .payment_method_type
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("payment method type not found in payment_attempt")?
-                    .to_string(),
+                payment_attempt.payment_method_type.map_or_else(
+                    || "None".to_string(),
+                    |payment_method_type| payment_method_type.to_string(),
+                ),
             ),
             (
                 "capture_method",
-                payment_attempt
-                    .capture_method
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("capture method not found in payment_attempt")?
-                    .to_string(),
+                payment_attempt.capture_method.map_or_else(
+                    || "None".to_string(),
+                    |capture_method| capture_method.to_string(),
+                ),
             ),
             (
                 "authentication_type",
-                payment_attempt
-                    .authentication_type
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("authentication type not found in payment_attempt")?
-                    .to_string(),
+                payment_attempt.authentication_type.map_or_else(
+                    || "None".to_string(),
+                    |authentication_type| authentication_type.to_string(),
+                ),
             ),
             ("payment_status", payment_attempt.status.to_string()),
             ("conclusive_classification", outcome.to_string()),
