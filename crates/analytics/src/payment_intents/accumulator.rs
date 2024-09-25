@@ -121,15 +121,7 @@ impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
         }
     }
 
-    fn collect(
-        self,
-    ) -> (
-        Option<u32>,
-        Option<u32>,
-        Option<u32>,
-        Option<f64>,
-        Option<f64>,
-    ) {
+    fn collect(self) -> Self::MetricOutput {
         if self.total == 0 {
             (None, None, None, None, None)
         } else {

@@ -163,6 +163,11 @@ pub async fn get_metrics(
                                 .connector_success_rate
                                 .add_metrics_bucket(&value);
                         }
+                        PaymentMetrics::SuccessfulPaymentsDistribution => {
+                            metrics_builder
+                                .successful_payments_distribution
+                                .add_metrics_bucket(&value);
+                        }
                     }
                 }
 

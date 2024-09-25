@@ -20,6 +20,7 @@ mod payment_processed_amount;
 mod payment_success_count;
 mod retries_count;
 mod success_rate;
+mod successful_payments_distribution;
 
 use avg_ticket_size::AvgTicketSize;
 use connector_success_rate::ConnectorSuccessRate;
@@ -27,6 +28,7 @@ use payment_count::PaymentCount;
 use payment_processed_amount::PaymentProcessedAmount;
 use payment_success_count::PaymentSuccessCount;
 use success_rate::PaymentSuccessRate;
+use successful_payments_distribution::SuccessfulPaymentsDistribution;
 
 use self::retries_count::RetriesCount;
 
@@ -47,6 +49,7 @@ pub struct PaymentMetricRow {
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
     pub include_smart_retries: Option<bool>,
+    pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -125,6 +128,11 @@ where
             }
             Self::ConnectorSuccessRate => {
                 ConnectorSuccessRate
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SuccessfulPaymentsDistribution => {
+                SuccessfulPaymentsDistribution
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

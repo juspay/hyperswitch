@@ -355,6 +355,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let first_attempt: Option<bool> = row.try_get("first_attempt").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -386,6 +390,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             card_issuer,
             error_reason,
             include_smart_retries,
+            first_attempt,
             total,
             count,
             start_bucket,
