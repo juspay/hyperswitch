@@ -2055,9 +2055,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
         let payment_data = additional_data.payment_data;
         let order_tax_amount = payment_data
             .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
+            .get_order_tax_amount(payment_data.payment_attempt)
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;
