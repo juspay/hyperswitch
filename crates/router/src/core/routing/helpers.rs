@@ -4,6 +4,8 @@
 //! routing dict, configs, defaults
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
+use std::sync::Arc;
 
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -27,8 +29,6 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
-#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use std::sync::Arc;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{core::metrics as core_metrics, routes::metrics};
 

@@ -8,6 +8,8 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
+#[cfg(feature = "v1")]
+use router_env::logger;
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
 #[cfg(feature = "v1")]
@@ -15,8 +17,6 @@ use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(feature = "v1")]
-use router_env::logger;
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
