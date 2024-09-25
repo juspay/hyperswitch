@@ -14,7 +14,6 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -792,8 +791,8 @@ impl webhooks::IncomingWebhook for Novalnet {
         let message = format!(
             "{}{}{}{}{}{}",
             notif.event.tid,
-            notif.event.event_type.to_string().to_uppercase(),
-            notif.result.status.to_string().to_uppercase(),
+            notif.event.event_type,
+            notif.result.status,
             amount,
             currency,
             reversed_secret_auth
