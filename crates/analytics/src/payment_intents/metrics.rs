@@ -16,14 +16,12 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 
-mod auth_declined_rate;
 mod payment_intent_count;
 mod payments_success_rate;
 mod smart_retried_amount;
 mod successful_smart_retries;
 mod total_smart_retries;
 
-use auth_declined_rate::AuthDeclinedRate;
 use payment_intent_count::PaymentIntentCount;
 use payments_success_rate::PaymentsSuccessRate;
 use smart_retried_amount::SmartRetriedAmount;
@@ -44,6 +42,8 @@ pub struct PaymentIntentMetricRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub include_smart_retries: Option<bool>,
+    pub first_attempt: Option<i64>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -113,11 +113,6 @@ where
             }
             Self::PaymentsSuccessRate => {
                 PaymentsSuccessRate
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
-                    .await
-            }
-            Self::AuthDeclinedRate => {
-                AuthDeclinedRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

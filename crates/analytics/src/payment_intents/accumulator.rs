@@ -8,10 +8,9 @@ use super::metrics::PaymentIntentMetricRow;
 pub struct PaymentIntentMetricsAccumulator {
     pub successful_smart_retries: CountAccumulator,
     pub total_smart_retries: CountAccumulator,
-    pub smart_retried_amount: SumAccumulator,
+    pub smart_retried_amount: SmartRetriedAmountAccumulator,
     pub payment_intent_count: CountAccumulator,
     pub payments_success_rate: PaymentsSuccessRateAccumulator,
-    pub auth_declined_rate: AuthDeclinedRateAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -41,21 +40,16 @@ pub trait PaymentIntentMetricAccumulator {
 }
 
 #[derive(Debug, Default)]
-#[repr(transparent)]
-pub struct SumAccumulator {
-    pub total: Option<i64>,
+pub struct SmartRetriedAmountAccumulator {
+    pub amount: Option<i64>,
+    pub amount_without_retries: Option<i64>,
 }
 
 #[derive(Debug, Default)]
 pub struct PaymentsSuccessRateAccumulator {
     pub success: u32,
+    pub success_without_retries: u32,
     pub total: u32,
-}
-
-#[derive(Debug, Default)]
-pub struct AuthDeclinedRateAccumulator {
-    pub failed: i64,
-    pub total: i64,
 }
 
 impl PaymentIntentMetricAccumulator for CountAccumulator {
@@ -74,12 +68,12 @@ impl PaymentIntentMetricAccumulator for CountAccumulator {
     }
 }
 
-impl PaymentIntentMetricAccumulator for SumAccumulator {
+impl PaymentIntentMetricAccumulator for SmartRetriedAmountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
-        self.total = match (
-            self.total,
+        self.amount = match (
+            self.amount,
             metrics.total.as_ref().and_then(ToPrimitive::to_i64),
         ) {
             (None, None) => None,
@@ -89,12 +83,18 @@ impl PaymentIntentMetricAccumulator for SumAccumulator {
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        self.total.and_then(|i| u64::try_from(i).ok())
+        self.amount.and_then(|i| u64::try_from(i).ok())
     }
 }
 
 impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
-    type MetricOutput = (Option<u32>, Option<u32>, Option<f64>);
+    type MetricOutput = (
+        Option<u32>,
+        Option<u32>,
+        Option<u32>,
+        Option<f64>,
+        Option<f64>,
+    );
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
         if let Some(ref status) = metrics.status {
@@ -104,10 +104,15 @@ impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
                     .and_then(|success| u32::try_from(success).ok())
                 {
                     self.success += success;
+                    if metrics.first_attempt.unwrap_or(0) == 1 {
+                        self.success_without_retries += success;
+                    }
                 }
             }
             if status.as_ref() != &storage_enums::IntentStatus::RequiresCustomerAction
                 && status.as_ref() != &storage_enums::IntentStatus::RequiresPaymentMethod
+                && status.as_ref() != &storage_enums::IntentStatus::RequiresMerchantAction
+                && status.as_ref() != &storage_enums::IntentStatus::RequiresConfirmation
             {
                 if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
                     self.total += total;
@@ -116,41 +121,38 @@ impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
         }
     }
 
-    fn collect(self) -> (Option<u32>, Option<u32>, Option<f64>) {
+    fn collect(
+        self,
+    ) -> (
+        Option<u32>,
+        Option<u32>,
+        Option<u32>,
+        Option<f64>,
+        Option<f64>,
+    ) {
         if self.total == 0 {
-            (None, None, None)
+            (None, None, None, None, None)
         } else {
             let success = Some(self.success);
+            let success_without_retries = Some(self.success_without_retries);
             let total = Some(self.total);
+
             let success_rate = match (success, total) {
                 (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
                 _ => None,
             };
 
-            (success, total, success_rate)
-        }
-    }
-}
+            let success_without_retries_rate = match (success_without_retries, total) {
+                (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+                _ => None,
+            };
 
-impl PaymentIntentMetricAccumulator for AuthDeclinedRateAccumulator {
-    type MetricOutput = Option<f64>;
-
-    fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
-        if let Some(ref status) = metrics.status {
-            if status.as_ref() == &storage_enums::IntentStatus::Failed {
-                self.failed += metrics.count.unwrap_or_default();
-            }
-        };
-        self.total += metrics.count.unwrap_or_default();
-    }
-
-    fn collect(self) -> Self::MetricOutput {
-        if self.total <= 0 {
-            None
-        } else {
-            Some(
-                f64::from(u32::try_from(self.failed).ok()?) * 100.0
-                    / f64::from(u32::try_from(self.total).ok()?),
+            (
+                success,
+                success_without_retries,
+                total,
+                success_rate,
+                success_without_retries_rate,
             )
         }
     }
@@ -158,17 +160,23 @@ impl PaymentIntentMetricAccumulator for AuthDeclinedRateAccumulator {
 
 impl PaymentIntentMetricsAccumulator {
     pub fn collect(self) -> PaymentIntentMetricsBucketValue {
-        let (successful_payments, total_payments, payments_success_rate) =
-            self.payments_success_rate.collect();
+        let (
+            successful_payments,
+            successful_payments_without_smart_retries,
+            total_payments,
+            payments_success_rate,
+            payments_success_rate_without_smart_retries,
+        ) = self.payments_success_rate.collect();
         PaymentIntentMetricsBucketValue {
             successful_smart_retries: self.successful_smart_retries.collect(),
             total_smart_retries: self.total_smart_retries.collect(),
             smart_retried_amount: self.smart_retried_amount.collect(),
             payment_intent_count: self.payment_intent_count.collect(),
             successful_payments,
+            successful_payments_without_smart_retries,
             total_payments,
             payments_success_rate,
-            auth_declined_rate: self.auth_declined_rate.collect(),
+            payments_success_rate_without_smart_retries,
         }
     }
 }

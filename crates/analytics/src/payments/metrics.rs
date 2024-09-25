@@ -46,6 +46,7 @@ pub struct PaymentMetricRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub include_smart_retries: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

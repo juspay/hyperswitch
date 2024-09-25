@@ -63,4 +63,5 @@ pub struct PaymentIntentFilterRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub include_smart_retries: Option<bool>,
 }

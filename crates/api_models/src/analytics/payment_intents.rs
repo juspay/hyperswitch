@@ -36,6 +36,8 @@ pub struct PaymentIntentFilters {
     pub card_issuer: Vec<String>,
     #[serde(default)]
     pub error_reason: Vec<String>,
+    #[serde(default)]
+    pub include_smart_retries: Option<bool>,
 }
 
 #[derive(
@@ -69,6 +71,7 @@ pub enum PaymentIntentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    IncludeSmartRetries
 }
 
 #[derive(
@@ -91,7 +94,6 @@ pub enum PaymentIntentMetrics {
     SmartRetriedAmount,
     PaymentIntentCount,
     PaymentsSuccessRate,
-    AuthDeclinedRate,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -107,7 +109,6 @@ pub mod metric_behaviour {
     pub struct SmartRetriedAmount;
     pub struct PaymentIntentCount;
     pub struct PaymentsSuccessRate;
-    pub struct AuthDeclinedRate;
 }
 
 impl From<PaymentIntentMetrics> for NameDescription {
@@ -142,6 +143,7 @@ pub struct PaymentIntentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub include_smart_retries: Option<bool>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -164,6 +166,7 @@ impl PaymentIntentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        include_smart_retries: Option<bool>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -179,6 +182,7 @@ impl PaymentIntentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            include_smart_retries,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -199,6 +203,7 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.include_smart_retries.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -220,9 +225,10 @@ pub struct PaymentIntentMetricsBucketValue {
     pub smart_retried_amount: Option<u64>,
     pub payment_intent_count: Option<u64>,
     pub successful_payments: Option<u32>,
+    pub successful_payments_without_smart_retries: Option<u32>,
     pub total_payments: Option<u32>,
     pub payments_success_rate: Option<f64>,
-    pub auth_declined_rate: Option<f64>,
+    pub payments_success_rate_without_smart_retries: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

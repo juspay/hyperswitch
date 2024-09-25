@@ -122,9 +122,6 @@ pub async fn get_metrics(
                         PaymentIntentMetrics::PaymentsSuccessRate => metrics_builder
                             .payments_success_rate
                             .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::AuthDeclinedRate => metrics_builder
-                            .auth_declined_rate
-                            .add_metrics_bucket(&value),
                     }
                 }
 
@@ -138,6 +135,8 @@ pub async fn get_metrics(
     }
 
     let mut success = 0;
+    let mut success_without_smart_retries = 0;
+    let mut total_smart_retried_amount = 0;
     let mut total = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
@@ -146,8 +145,15 @@ pub async fn get_metrics(
             if let Some(success_count) = collected_values.successful_payments {
                 success += success_count;
             }
+            if let Some(success_count) = collected_values.successful_payments_without_smart_retries
+            {
+                success_without_smart_retries += success_count;
+            }
             if let Some(total_count) = collected_values.total_payments {
                 total += total_count;
+            }
+            if let Some(retried_amount) = collected_values.smart_retried_amount {
+                total_smart_retried_amount += retried_amount;
             }
 
             MetricsBucketResponse {
@@ -160,9 +166,17 @@ pub async fn get_metrics(
         (s, t) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
         _ => None,
     };
+    let total_success_rate_without_smart_retries = match (success_without_smart_retries, total) {
+        (s, t) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+        _ => None,
+    };
     Ok(PaymentIntentsMetricsResponse {
         query_data,
-        meta_data: [PaymentIntentsAnalyticsMetadata { total_success_rate }],
+        meta_data: [PaymentIntentsAnalyticsMetadata {
+            total_success_rate,
+            total_success_rate_without_smart_retries,
+            total_smart_retried_amount: Some(total_smart_retried_amount),
+        }],
     })
 }
 
@@ -245,6 +259,7 @@ pub async fn get_filters(
             PaymentIntentDimensions::CardLast4 => fil.card_last_4,
             PaymentIntentDimensions::CardIssuer => fil.card_issuer,
             PaymentIntentDimensions::ErrorReason => fil.error_reason,
+            PaymentIntentDimensions::IncludeSmartRetries => fil.include_smart_retries.map(|i| i.to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {
