@@ -2323,7 +2323,7 @@ api_key="Merchant ID"
 key1="Merchant Site ID"
 api_secret="Merchant Secret"
 [nuvei.connector_webhook_details]
-merchant_secret="Source verification key"
+merchant_secret="Source verification key"//
 
 [[nuvei.metadata.apple_pay]]
 name="certificate"
