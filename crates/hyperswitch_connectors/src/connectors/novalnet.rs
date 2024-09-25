@@ -1,4 +1,5 @@
 pub mod transformers;
+use core::str;
 use std::collections::HashSet;
 
 use base64::Engine;
@@ -10,7 +11,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     payment_method_data::PaymentMethodData,
@@ -724,8 +725,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
 fn get_webhook_object_from_body(
     body: &[u8],
 ) -> CustomResult<novalnet::NovalnetWebhookNotificationResponse, errors::ConnectorError> {
-    serde_urlencoded::from_bytes::<transformers::NovalnetWebhookNotificationResponse>(body)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+    let body_str = str::from_utf8(body).expect("Failed to convert body to string");
+    let novalnet_webhook_notification_response =
+        serde_json::from_str::<novalnet::NovalnetWebhookNotificationResponse>(body_str)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    Ok(novalnet_webhook_notification_response)
 }
 
 fn reverse_string(s: &str) -> String {
@@ -756,30 +760,44 @@ impl webhooks::IncomingWebhook for Novalnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let amount = notif
-            .transaction
-            .amount
+        let (transaction_amount, transaction_currency) = match notif.transaction {
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
+                (data.amount, data.currency)
+            }
+            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => {
+                (data.amount, data.currency)
+            }
+            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
+                (data.amount, data.currency)
+            }
+            novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => {
+                (data.amount, data.currency)
+            }
+        };
+        let amount = transaction_amount
             .map(|amount| amount.to_string())
             .unwrap_or("".to_string());
-        let currency = notif
-            .transaction
-            .currency
+        let currency = transaction_currency
             .map(|amount| amount.to_string())
             .unwrap_or("".to_string());
-        let header_value = utils::get_header_key_value("X-NN-Access-Key", request.headers)?;
-        let reversed_header_value = reverse_string(header_value);
+
+        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Could not convert webhook secret auth to UTF-8")?;
+        let reversed_secret_auth = reverse_string(&secret_auth);
+
         let message = format!(
-            "{}{:?}{}{}{}{}",
+            "{}{}{}{}{}{}",
             notif.event.tid,
-            notif.event.event_type,
-            notif.result.status,
+            notif.event.event_type.to_string().to_uppercase(),
+            notif.result.status.to_string().to_uppercase(),
             amount,
             currency,
-            reversed_header_value
+            reversed_secret_auth
         );
 
         Ok(message.into_bytes())
@@ -791,40 +809,64 @@ impl webhooks::IncomingWebhook for Novalnet {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        if novalnet::is_capture_or_cancel_event(&notif.event.event_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    notif.event.tid.to_string(),
-                ),
-            ));
-        }
-        if novalnet::is_transaction_event(&notif.event.event_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::PaymentAttemptId(notif.event.tid.to_string()),
-            ));
-        }
+        let transaction_order_no = match notif.transaction {
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.order_no,
+            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.order_no,
+            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => data.order_no,
+            novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => data.order_no,
+        };
+
         if novalnet::is_refund_event(&notif.event.event_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::RefundId(notif.event.tid.to_string()),
-            ));
+            let parent_tid =
+                notif
+                    .event
+                    .parent_tid
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "parent_tid",
+                    })?;
+
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(parent_tid.to_string()),
+            ))
+        } else {
+            match transaction_order_no {
+                Some(order_no) => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(order_no),
+                )),
+                None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        notif.event.tid.to_string(),
+                    ),
+                )),
+            }
         }
-        if novalnet::is_chargeback_event(&notif.event.event_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    notif.event.tid.to_string(),
-                ),
-            ));
-        }
-        Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
     }
 
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let transaction_status = notif.transaction.status;
+        let body_str = str::from_utf8(request.body).expect("Failed to convert body to string");
+        let notif = serde_json::from_str::<novalnet::NovalnetWebhookNotificationResponse>(body_str)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let optional_transaction_status = match notif.transaction {
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
+                Some(data.status)
+            }
+            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
+            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
+                Some(data.status)
+            }
+            novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => {
+                Some(data.status)
+            }
+        };
+
+        let transaction_status =
+            optional_transaction_status.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_status",
+            })?;
         let incoming_webhook_event =
             novalnet::get_incoming_webhook_event(notif.event.event_type, transaction_status);
         Ok(incoming_webhook_event)
@@ -836,6 +878,6 @@ impl webhooks::IncomingWebhook for Novalnet {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(Box::new(notif.event))
+        Ok(Box::new(notif))
     }
 }

@@ -57,13 +57,13 @@ pub enum NovalNetPaymentTypes {
     CREDITCARD,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Clone)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestMerchant {
     signature: Secret<String>,
     tariff: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Clone)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestBilling {
     house_no: Secret<String>,
     street: Secret<String>,
@@ -72,7 +72,7 @@ pub struct NovalnetPaymentsRequestBilling {
     country_code: api_enums::CountryAlpha2,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Clone)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestCustomer {
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -348,7 +348,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
@@ -357,20 +357,26 @@ pub struct ResultData {
     pub additional_message: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TransactionData {
-    payment_type: Option<String>,
-    status_code: u32,
-    txn_secret: Option<String>,
-    tid: Option<Secret<i64>>,
-    test_mode: Option<i8>,
-    status: Option<NovalnetTransactionStatus>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetPaymentsResponseTransactionData {
+    pub amount: Option<u32>,
+    pub currency: Option<common_enums::Currency>,
+    pub date: Option<String>,
+    pub order_no: Option<String>,
+    pub payment_data: Option<NovalnetResponsePaymentData>,
+    pub payment_type: Option<String>,
+    pub status_code: Option<u32>,
+    pub txn_secret: Option<String>,
+    pub tid: Option<Secret<i64>>,
+    pub test_mode: Option<i8>,
+    pub status: Option<NovalnetTransactionStatus>,
+    pub authorization: Option<NovalnetAuthorizationResponse>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponse {
     result: ResultData,
-    transaction: Option<TransactionData>,
+    transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse {
@@ -485,7 +491,13 @@ pub struct NovalnetResponseMerchant {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct NovalnetResponseTransactionData {
+pub struct NovalnetAuthorizationResponse {
+    expiry_date: Option<String>,
+    auto_action: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct NovalnetSyncResponseTransactionData {
     pub amount: Option<u32>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
@@ -497,6 +509,7 @@ pub struct NovalnetResponseTransactionData {
     pub test_mode: u8,
     pub tid: Option<Secret<i64>>,
     pub txn_secret: Option<Secret<String>>,
+    pub authorization: Option<NovalnetAuthorizationResponse>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -522,7 +535,7 @@ pub struct NovalnetPSyncResponse {
     pub customer: Option<NovalnetResponseCustomer>,
     pub merchant: Option<NovalnetResponseMerchant>,
     pub result: ResultData,
-    pub transaction: Option<NovalnetResponseTransactionData>,
+    pub transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
@@ -636,22 +649,22 @@ impl From<NovalnetTransactionStatus> for enums::RefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundSyncResponse {
     result: ResultData,
-    transaction: Option<NovalnetResponseTransactionData>,
+    transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundsTransactionData {
-    amount: u32,
-    date: Option<String>,
-    currency: common_enums::Currency,
-    order_no: String,
-    payment_type: String,
-    refund: RefundData,
-    refunded_amount: u32,
-    status: NovalnetTransactionStatus,
-    status_code: u32,
-    test_mode: u8,
-    tid: Option<Secret<i64>>,
+    pub amount: Option<u32>,
+    pub date: Option<String>,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: String,
+    pub refund: RefundData,
+    pub refunded_amount: u32,
+    pub status: NovalnetTransactionStatus,
+    pub status_code: u32,
+    pub test_mode: u8,
+    pub tid: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -758,7 +771,7 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
     }
 }
 
-impl NovalnetResponseTransactionData {
+impl NovalnetSyncResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
         if let Some(data) = transaction_data {
             match &data.payment_data {
@@ -805,8 +818,9 @@ impl<F>
                     .clone()
                     .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
-                let mandate_reference_id =
-                    NovalnetResponseTransactionData::get_token(item.response.transaction.as_ref());
+                let mandate_reference_id = NovalnetSyncResponseTransactionData::get_token(
+                    item.response.transaction.as_ref(),
+                );
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -850,16 +864,16 @@ impl<F>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CaptureTransactionData {
-    amount: Option<u32>,
-    capture: CaptureData,
-    currency: Option<common_enums::Currency>,
-    order_no: Option<String>,
-    payment_type: Option<String>,
-    status: Option<NovalnetTransactionStatus>,
-    status_code: Option<u32>,
-    test_mode: Option<u8>,
-    tid: Option<Secret<i64>>,
+pub struct NovalnetCaptureTransactionData {
+    pub amount: Option<u32>,
+    pub capture: CaptureData,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: String,
+    pub status: NovalnetTransactionStatus,
+    pub status_code: Option<u32>,
+    pub test_mode: Option<u8>,
+    pub tid: Secret<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -874,7 +888,7 @@ pub struct CaptureData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureResponse {
     pub result: ResultData,
-    pub transaction: Option<CaptureTransactionData>,
+    pub transaction: Option<NovalnetCaptureTransactionData>,
 }
 
 impl<F>
@@ -897,11 +911,11 @@ impl<F>
                     .response
                     .transaction
                     .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
+                    .map(|data| data.tid.expose().to_string());
                 let transaction_status = item
                     .response
                     .transaction
-                    .and_then(|transaction_data| transaction_data.status)
+                    .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
 
                 Ok(Self {
@@ -1038,10 +1052,10 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCancelResponse {
     result: ResultData,
-    transaction: Option<TransactionData>,
+    transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 impl<F>
@@ -1103,7 +1117,7 @@ impl<F>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct NovalnetErrorResponse {
     pub status_code: u32,
     pub code: String,
@@ -1111,15 +1125,14 @@ pub struct NovalnetErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Display, Debug, Serialize, Deserialize)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookEventType {
     Payment,
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
-    TransactionUpdate,
-    Chargeback,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1131,35 +1144,25 @@ pub struct NovalnetWebhookEvent {
     pub event_type: WebhookEventType,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum NovalnetWebhookTransactionData {
+    OtherTransactionData(NovalnetSyncResponseTransactionData),
+    CaptureTransactionData(NovalnetCaptureTransactionData),
+    CancelTransactionData(NovalnetPaymentsResponseTransactionData),
+    RefundsTransactionData(NovalnetRefundsTransactionData),
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NovalnetWebhookNotificationResponse {
-    pub customer: NovalnetResponseCustomer,
+    pub customer: Option<NovalnetResponseCustomer>,
     pub event: NovalnetWebhookEvent,
     pub merchant: NovalnetResponseMerchant,
     pub result: ResultData,
-    pub transaction: NovalnetResponseTransactionData,
-}
-
-pub fn is_transaction_event(event_code: &WebhookEventType) -> bool {
-    matches!(
-        event_code,
-        WebhookEventType::TransactionUpdate | WebhookEventType::Payment
-    )
-}
-
-pub fn is_capture_or_cancel_event(event_code: &WebhookEventType) -> bool {
-    matches!(
-        event_code,
-        WebhookEventType::TransactionCapture | WebhookEventType::TransactionCancel
-    )
+    pub transaction: NovalnetWebhookTransactionData,
 }
 
 pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
     matches!(event_code, WebhookEventType::TransactionRefund)
-}
-
-pub fn is_chargeback_event(event_code: &WebhookEventType) -> bool {
-    matches!(event_code, WebhookEventType::Chargeback)
 }
 
 pub fn get_incoming_webhook_event(
@@ -1167,28 +1170,33 @@ pub fn get_incoming_webhook_event(
     transaction_status: NovalnetTransactionStatus,
 ) -> IncomingWebhookEvent {
     match status {
-        WebhookEventType::Payment | WebhookEventType::TransactionUpdate => match transaction_status
-        {
-            NovalnetTransactionStatus::Confirmed => IncomingWebhookEvent::PaymentIntentSuccess,
-            NovalnetTransactionStatus::Pending => IncomingWebhookEvent::PaymentIntentProcessing,
+        WebhookEventType::Payment => match transaction_status {
+            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            NovalnetTransactionStatus::OnHold => {
+                IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+            }
+            NovalnetTransactionStatus::Pending | NovalnetTransactionStatus::Progress => {
+                IncomingWebhookEvent::PaymentIntentProcessing
+            }
             _ => IncomingWebhookEvent::PaymentIntentFailure,
         },
         WebhookEventType::TransactionCapture => match transaction_status {
-            NovalnetTransactionStatus::Confirmed => {
+            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
                 IncomingWebhookEvent::PaymentIntentCaptureSuccess
             }
             _ => IncomingWebhookEvent::PaymentIntentCaptureFailure,
         },
         WebhookEventType::TransactionCancel => match transaction_status {
-            NovalnetTransactionStatus::Confirmed => {
-                IncomingWebhookEvent::PaymentIntentCancelFailure
-            }
-            _ => IncomingWebhookEvent::PaymentIntentCancelled,
+            NovalnetTransactionStatus::Deactivated => IncomingWebhookEvent::PaymentIntentCancelled,
+            _ => IncomingWebhookEvent::PaymentIntentCancelFailure,
         },
         WebhookEventType::TransactionRefund => match transaction_status {
-            NovalnetTransactionStatus::Confirmed => IncomingWebhookEvent::RefundSuccess,
+            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                IncomingWebhookEvent::RefundSuccess
+            }
             _ => IncomingWebhookEvent::RefundFailure,
         },
-        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
     }
 }
