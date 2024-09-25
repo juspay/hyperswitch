@@ -1339,7 +1339,7 @@ pub async fn success_based_routing_update_configs(
 
     // refresh cache for success based routing configs
     let cache_key = format!(
-        "{}_{}",
+        "{}:{}",
         profile_id.get_string_repr(),
         algorithm_id.get_string_repr()
     );

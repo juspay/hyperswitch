@@ -616,7 +616,7 @@ pub async fn fetch_success_based_routing_configs(
         })?;
 
     let key = format!(
-        "{}_{}",
+        "{}:{}",
         business_profile.get_id().get_string_repr(),
         success_based_routing_id.get_string_repr()
     );
