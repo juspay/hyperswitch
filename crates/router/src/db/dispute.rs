@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use error_stack::report;
+use hyperswitch_domain_models::disputes;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -30,10 +31,10 @@ pub trait DisputeInterface {
         dispute_id: &str,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -52,7 +53,7 @@ pub trait DisputeInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::StorageError>;
 }
 
@@ -101,10 +102,10 @@ impl DisputeInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::filter_by_constraints(&conn, merchant_id, dispute_constraints)
@@ -141,7 +142,7 @@ impl DisputeInterface for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::get_dispute_status_with_count(
@@ -238,75 +239,96 @@ impl DisputeInterface for MockDb {
             .into())
     }
 
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: api_models::disputes::DisputeListConstraints,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-
-        Ok(locked_disputes
+        let limit_usize = dispute_constraints
+            .limit
+            .unwrap_or(u32::MAX)
+            .try_into()
+            .unwrap_or(usize::MAX);
+        let offset_usize = dispute_constraints
+            .offset
+            .unwrap_or(0)
+            .try_into()
+            .unwrap_or(usize::MIN);
+        let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
-            .filter(|d| {
-                d.merchant_id == *merchant_id
+            .filter(|dispute| {
+                dispute.merchant_id == *merchant_id
+                    && dispute_constraints
+                        .dispute_id
+                        .as_ref()
+                        .map_or(true, |id| &dispute.dispute_id == id)
+                    && dispute_constraints
+                        .payment_id
+                        .as_ref()
+                        .map_or(true, |id| &dispute.payment_id == id)
+                    && dispute_constraints
+                        .profile_id
+                        .as_ref()
+                        .map_or(true, |profile_ids| {
+                            dispute
+                                .profile_id
+                                .as_ref()
+                                .map_or(true, |id| profile_ids.contains(id))
+                        })
                     && dispute_constraints
                         .dispute_status
                         .as_ref()
-                        .map(|status| status == &d.dispute_status)
-                        .unwrap_or(true)
+                        .map_or(true, |statuses| statuses.contains(&dispute.dispute_status))
                     && dispute_constraints
                         .dispute_stage
                         .as_ref()
-                        .map(|stage| stage == &d.dispute_stage)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .reason
-                        .as_ref()
-                        .and_then(|reason| {
-                            d.connector_reason
-                                .as_ref()
-                                .map(|connector_reason| connector_reason == reason)
-                        })
-                        .unwrap_or(true)
+                        .map_or(true, |stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().map_or(true, |reason| {
+                        dispute
+                            .connector_reason
+                            .as_ref()
+                            .map_or(true, |d_reason| d_reason == reason)
+                    })
                     && dispute_constraints
                         .connector
                         .as_ref()
-                        .map(|connector| connector == &d.connector)
-                        .unwrap_or(true)
+                        .map_or(true, |connectors| {
+                            connectors
+                                .iter()
+                                .any(|connector| dispute.connector.as_str() == *connector)
+                        })
                     && dispute_constraints
-                        .received_time
+                        .merchant_connector_id
                         .as_ref()
-                        .map(|received_time| received_time == &d.created_at)
-                        .unwrap_or(true)
+                        .map_or(true, |id| {
+                            dispute.merchant_connector_id.as_ref() == Some(id)
+                        })
                     && dispute_constraints
-                        .received_time_lt
+                        .currency
                         .as_ref()
-                        .map(|received_time_lt| received_time_lt > &d.created_at)
-                        .unwrap_or(true)
+                        .map_or(true, |currencies| {
+                            currencies
+                                .iter()
+                                .any(|currency| dispute.currency.as_str() == currency.to_string())
+                        })
                     && dispute_constraints
-                        .received_time_gt
+                        .time_range
                         .as_ref()
-                        .map(|received_time_gt| received_time_gt < &d.created_at)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time_lte
-                        .as_ref()
-                        .map(|received_time_lte| received_time_lte >= &d.created_at)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time_gte
-                        .as_ref()
-                        .map(|received_time_gte| received_time_gte <= &d.created_at)
-                        .unwrap_or(true)
+                        .map_or(true, |range| {
+                            let dispute_time = dispute.created_at;
+                            dispute_time >= range.start_time
+                                && range
+                                    .end_time
+                                    .map_or(true, |end_time| dispute_time <= end_time)
+                        })
             })
-            .take(
-                dispute_constraints
-                    .limit
-                    .and_then(|limit| usize::try_from(limit).ok())
-                    .unwrap_or(usize::MAX),
-            )
+            .skip(offset_usize)
+            .take(limit_usize)
             .cloned()
-            .collect())
+            .collect();
+
+        Ok(filtered_disputes)
     }
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -390,7 +412,7 @@ impl DisputeInterface for MockDb {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
@@ -437,11 +459,11 @@ mod tests {
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
 
-        use api_models::disputes::DisputeListConstraints;
         use diesel_models::{
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
         };
+        use hyperswitch_domain_models::disputes::DisputeListConstraints;
         use masking::Secret;
         use redis_interface::RedisSettings;
         use serde_json::Value;
@@ -648,20 +670,21 @@ mod tests {
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id(
+                .find_disputes_by_constraints(
                     &merchant_id,
-                    DisputeListConstraints {
+                    &DisputeListConstraints {
+                        dispute_id: None,
+                        payment_id: None,
+                        profile_id: None,
+                        connector: None,
+                        merchant_connector_id: None,
+                        currency: None,
                         limit: None,
+                        offset: None,
                         dispute_status: None,
                         dispute_stage: None,
                         reason: None,
-                        connector: None,
-                        received_time: None,
-                        received_time_lt: None,
-                        received_time_gt: None,
-                        received_time_lte: None,
-                        received_time_gte: None,
-                        profile_id: None,
+                        time_range: None,
                     },
                 )
                 .await

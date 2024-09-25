@@ -21,7 +21,7 @@ pub enum ApiIdentifier {
     CardsInfo,
     Files,
     Cache,
-    Business,
+    Profile,
     Verification,
     ApiKeys,
     PaymentLink,
@@ -172,6 +172,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::DisputesRetrieve
             | Flow::DisputesList
+            | Flow::DisputesFilters
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence
@@ -184,13 +185,13 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::CacheInvalidate => Self::Cache,
 
-            Flow::BusinessProfileCreate
-            | Flow::BusinessProfileUpdate
-            | Flow::BusinessProfileRetrieve
-            | Flow::BusinessProfileDelete
-            | Flow::BusinessProfileList
+            Flow::ProfileCreate
+            | Flow::ProfileUpdate
+            | Flow::ProfileRetrieve
+            | Flow::ProfileDelete
+            | Flow::ProfileList
             | Flow::ToggleExtendedCardInfo
-            | Flow::ToggleConnectorAgnosticMit => Self::Business,
+            | Flow::ToggleConnectorAgnosticMit => Self::Profile,
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate

@@ -17,11 +17,10 @@ use crate::{
 
 pub async fn send_recon_request(
     state: SessionState,
-    user_with_auth_data: authentication::UserFromTokenWithAuthData,
+    auth_data: authentication::AuthenticationDataWithUser,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
-    let user = user_with_auth_data.0;
-    let user_in_db = &user_with_auth_data.1.user;
-    let merchant_id = user.merchant_id;
+    let user_in_db = &auth_data.user;
+    let merchant_id = auth_data.merchant_account.get_id().clone();
 
     let user_email = user_in_db.email.clone();
     let email_contents = email_types::ProFeatureRequest {
@@ -34,7 +33,7 @@ pub async fn send_recon_request(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert recipient's email to UserEmail")?,
         recipient_email: domain::UserEmail::from_pii_email(
-            state.conf.recipient_emails.recon.clone(),
+            state.conf.email.recon_recipient_email.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert recipient's email to UserEmail")?,
@@ -55,7 +54,6 @@ pub async fn send_recon_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to compose and send email for ProFeatureRequest [Recon]")
         .async_and_then(|_| async {
-            let auth = user_with_auth_data.1;
             let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
                 recon_status: enums::ReconStatus::Requested,
             };
@@ -65,9 +63,9 @@ pub async fn send_recon_request(
             let response = db
                 .update_merchant(
                     key_manager_state,
-                    auth.merchant_account,
+                    auth_data.merchant_account,
                     updated_merchant_account,
-                    &auth.key_store,
+                    &auth_data.key_store,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -14,7 +14,7 @@ use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
-use super::{Operation, PostUpdateTracker};
+use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -42,6 +42,7 @@ use crate::{
     utils,
 };
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
@@ -49,6 +50,11 @@ use crate::{
 )]
 pub struct PaymentResponse;
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Copy)]
+pub struct PaymentResponse;
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
@@ -96,7 +102,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -115,7 +121,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -192,7 +198,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id, ..
+            } = save_payment_call_future.await?;
 
             let mandate_id = mandate::mandate_procedure(
                 state,
@@ -206,11 +214,22 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.mandate_id = mandate_id;
+
             Ok(())
         } else if is_connector_mandate {
             // The mandate is created on connector's end.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id,
+                mandate_reference_id,
+                ..
+            } = save_payment_call_future.await?;
+
             payment_data.payment_attempt.payment_method_id = payment_method_id;
+
+            payment_data.set_mandate_id(api_models::payments::MandateIds {
+                mandate_id: None,
+                mandate_reference_id,
+            });
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
@@ -260,7 +279,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
                     if let Err(err) = result {
                         logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok((payment_method_id, _pm_status)) = result {
+                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                        payment_method_id,
+                        ..
+                    }) = result
+                    {
                         let payment_attempt_update =
                             storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                                 payment_method_id,
@@ -304,6 +327,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAuthorizationData>
     for PaymentResponse
@@ -460,6 +484,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -494,7 +519,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -513,6 +538,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     for PaymentResponse
@@ -545,6 +571,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpdateData>
     for PaymentResponse
@@ -618,6 +645,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
@@ -650,6 +678,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -680,6 +709,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     for PaymentResponse
@@ -712,6 +742,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -742,6 +773,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
     for PaymentResponse
@@ -789,7 +821,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -813,23 +845,24 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 }
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
-        let (payment_method_id, _payment_method_status) =
-            Box::pin(tokenization::save_payment_method(
-                state,
-                connector_name,
-                merchant_connector_id.clone(),
-                save_payment_data,
-                customer_id.clone(),
-                merchant_account,
-                resp.request.payment_method_type,
-                key_store,
-                resp.request.amount,
-                Some(resp.request.currency),
-                billing_name,
-                None,
-                business_profile,
-            ))
-            .await?;
+        let tokenization::SavePaymentMethodDataResponse {
+            payment_method_id, ..
+        } = Box::pin(tokenization::save_payment_method(
+            state,
+            connector_name,
+            merchant_connector_id.clone(),
+            save_payment_data,
+            customer_id.clone(),
+            merchant_account,
+            resp.request.payment_method_type,
+            key_store,
+            resp.request.amount,
+            Some(resp.request.currency),
+            billing_name,
+            None,
+            business_profile,
+        ))
+        .await?;
 
         let mandate_id = mandate::mandate_procedure(
             state,
@@ -847,6 +880,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
     for PaymentResponse
@@ -883,7 +917,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1504,21 +1538,24 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let flow_name = core_utils::get_flow_name::<F>()?;
     if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
-        let connector_mandate_id = match router_data.response.clone() {
+        let (connector_mandate_id, mandate_metadata) = match router_data.response.clone() {
             Ok(resp) => match resp {
                 types::PaymentsResponseData::TransactionResponse {
                     ref mandate_reference,
                     ..
                 } => {
                     if let Some(mandate_ref) = mandate_reference {
-                        mandate_ref.connector_mandate_id.clone()
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                        )
                     } else {
-                        None
+                        (None, None)
                     }
                 }
-                _ => None,
+                _ => (None, None),
             },
-            Err(_) => None,
+            Err(_) => (None, None),
         };
         if let Some(payment_method) = payment_data.payment_method_info.clone() {
             let connector_mandate_details =
@@ -1529,6 +1566,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
+                    mandate_metadata,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
                 state,

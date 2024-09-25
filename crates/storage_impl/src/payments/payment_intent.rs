@@ -65,6 +65,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
+    #[cfg(feature = "v1")]
     async fn insert_payment_intent(
         &self,
         state: &KeyManagerState,
@@ -142,6 +143,33 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(feature = "v2")]
+    async fn insert_payment_intent(
+        &self,
+        state: &KeyManagerState,
+        payment_intent: PaymentIntent,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .insert_payment_intent(
+                        state,
+                        payment_intent,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+            }
+
+            MerchantStorageScheme::RedisKv => {
+                todo!("Implement payment intent insert for kv")
+            }
+        }
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_payment_intent(
         &self,
@@ -229,6 +257,34 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_payment_intent(
+        &self,
+        state: &KeyManagerState,
+        this: PaymentIntent,
+        payment_intent_update: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .update_payment_intent(
+                        state,
+                        this,
+                        payment_intent_update,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => {
+                todo!()
+            }
+        }
+    }
+
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -294,11 +350,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn: bb8::PooledConnection<
+            '_,
+            async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+        > = pg_connection_read(self).await?;
         let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
             .await
             .map_err(|er| {
@@ -378,7 +437,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
@@ -402,7 +461,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         self.router_store
             .get_intent_status_with_count(merchant_id, profile_id_list, time_range)
@@ -555,7 +614,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
@@ -747,7 +806,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
@@ -773,7 +832,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);

@@ -836,7 +836,7 @@ diesel::table! {
         merchant_id -> Varchar,
         status -> IntentStatus,
         amount -> Int8,
-        currency -> Nullable<Currency>,
+        currency -> Currency,
         amount_captured -> Nullable<Int8>,
         #[max_length = 64]
         customer_id -> Nullable<Varchar>,
@@ -845,15 +845,12 @@ diesel::table! {
         #[max_length = 255]
         return_url -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
-        #[max_length = 255]
-        statement_descriptor_name -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
         setup_future_usage -> Nullable<FutureUsage>,
-        off_session -> Nullable<Bool>,
         #[max_length = 128]
-        client_secret -> Nullable<Varchar>,
+        client_secret -> Varchar,
         #[max_length = 64]
         active_attempt_id -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
@@ -862,10 +859,9 @@ diesel::table! {
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
         #[max_length = 255]
         payment_link_id -> Nullable<Varchar>,
-        payment_confirm_source -> Nullable<PaymentSource>,
         #[max_length = 32]
         updated_by -> Varchar,
         surcharge_applicable -> Nullable<Bool>,
@@ -873,29 +869,32 @@ diesel::table! {
         authorization_count -> Nullable<Int4>,
         session_expiry -> Nullable<Timestamp>,
         request_external_three_ds_authentication -> Nullable<Bool>,
-        charges -> Nullable<Jsonb>,
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
-        #[max_length = 255]
-        merchant_order_reference_id -> Nullable<Varchar>,
-        is_payment_processor_token_flow -> Nullable<Bool>,
         shipping_cost -> Nullable<Int8>,
         #[max_length = 32]
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
         #[max_length = 64]
-        merchant_reference_id -> Varchar,
+        merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
         shipping_address -> Nullable<Bytea>,
         capture_method -> Nullable<CaptureMethod>,
         authentication_type -> Nullable<AuthenticationType>,
-        amount_to_capture -> Nullable<Int8>,
         prerouting_algorithm -> Nullable<Jsonb>,
         surcharge_amount -> Nullable<Int8>,
         tax_on_surcharge -> Nullable<Int8>,
         #[max_length = 64]
         frm_merchant_decision -> Nullable<Varchar>,
+        #[max_length = 255]
+        statement_descriptor -> Nullable<Varchar>,
+        enable_payment_link -> Nullable<Bool>,
+        apply_mit_exemption -> Nullable<Bool>,
+        customer_present -> Nullable<Bool>,
+        #[max_length = 64]
+        routing_algorithm_id -> Nullable<Varchar>,
+        payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
     }
@@ -1010,6 +1009,10 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         routing_info -> Nullable<Jsonb>,
+        #[max_length = 255]
+        unified_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        unified_message -> Nullable<Varchar>,
     }
 }
 

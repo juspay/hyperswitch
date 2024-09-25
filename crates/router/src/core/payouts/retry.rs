@@ -190,12 +190,15 @@ pub async fn get_gsm(
     let error_code = payout_data.payout_attempt.error_code.to_owned();
     let error_message = payout_data.payout_attempt.error_message.to_owned();
     let connector_name = Some(original_connector_data.connector_name.to_string());
-    let flow = "payout_flow".to_string();
 
-    Ok(
-        payouts::helpers::get_gsm_record(state, error_code, error_message, connector_name, flow)
-            .await,
+    Ok(payouts::helpers::get_gsm_record(
+        state,
+        error_code,
+        error_message,
+        connector_name,
+        common_utils::consts::PAYOUT_FLOW_STR,
     )
+    .await)
 }
 
 #[instrument(skip_all)]
@@ -295,6 +298,8 @@ pub async fn modify_trackers(
         last_modified_at: common_utils::date_time::now(),
         merchant_connector_id: None,
         routing_info: None,
+        unified_code: None,
+        unified_message: None,
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

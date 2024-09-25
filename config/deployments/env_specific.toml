@@ -60,6 +60,8 @@ sender_email = "example@example.com" # Sender email
 aws_region = ""                      # AWS region used by AWS SES
 allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
 active_email_client = "SES"          # The currently active email client
+recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
+prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
 # Configuration for aws ses, applicable when the active email client is SES
 [email.aws_ses]
@@ -300,8 +302,8 @@ public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "p
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
 
-[recipient_emails]
-recon = "recon@example.com"
+[cell_information]
+id = "12345" # Default CellID for Global Cell Information
 
 [network_tokenization_service] # Network Tokenization Service Configuration
 generate_token_url= ""        # base url to generate token
@@ -312,3 +314,7 @@ private_key= ""               # private key to decrypt  response payload from to
 key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
+
+[grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
+host = "localhost" # Client Host
+port = 7000        # Client Port

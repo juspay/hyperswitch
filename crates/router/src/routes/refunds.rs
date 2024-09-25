@@ -318,7 +318,7 @@ pub async fn refunds_list_profile(
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<api_models::payments::TimeRange>,
+    payload: web::Json<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
     Box::pin(api::server_wrap(
@@ -381,7 +381,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
 #[utoipa::path(
     get,
-    path = "/refunds/v2/filter/profile",
+    path = "/refunds/v2/profile/filter",
     responses(
         (status = 200, description = "List of static filters", body = RefundListFilters),
     ),
@@ -426,7 +426,7 @@ pub async fn get_refunds_filters_profile(
 pub async fn get_refunds_aggregates(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_params: web::Query<api_models::payments::TimeRange>,
+    query_params: web::Query<common_utils::types::TimeRange>,
 ) -> HttpResponse {
     let flow = Flow::RefundsAggregate;
     let query_params = query_params.into_inner();
@@ -436,7 +436,7 @@ pub async fn get_refunds_aggregates(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            get_aggregates_for_refunds(state, auth.merchant_account, req)
+            get_aggregates_for_refunds(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -469,6 +469,41 @@ pub async fn refunds_manual_update(
         refund_manual_update_req,
         |state, _auth, req, _| refund_manual_update(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_aggregate_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::RefundsAggregate;
+    let query_params = query_params.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_refunds(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

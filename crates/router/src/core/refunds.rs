@@ -904,7 +904,7 @@ pub async fn refund_list(
 pub async fn refund_filter_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: api_models::payments::TimeRange,
+    req: common_utils::types::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
     let db = state.store;
     let filter_list = db
@@ -1098,11 +1098,17 @@ pub async fn get_filters_for_refunds(
 pub async fn get_aggregates_for_refunds(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    time_range: api::TimeRange,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundAggregateResponse> {
     let db = state.store.as_ref();
     let refund_status_with_count = db
-        .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme)
+        .get_refund_status_with_count(
+            merchant.get_id(),
+            profile_id_list,
+            &time_range,
+            merchant.storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find status count")?;
@@ -1185,7 +1191,7 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            let update_refund = trigger_refund_to_gateway(
+                            let update_refund = Box::pin(trigger_refund_to_gateway(
                                 state,
                                 &refund,
                                 merchant_account,
@@ -1194,7 +1200,7 @@ pub async fn schedule_refund_execution(
                                 payment_intent,
                                 creds_identifier,
                                 charges,
-                            )
+                            ))
                             .await;
 
                             match update_refund {
@@ -1438,7 +1444,7 @@ pub async fn trigger_refund_execute_workflow(
             };
 
             //trigger refund request to gateway
-            let updated_refund = trigger_refund_to_gateway(
+            let updated_refund = Box::pin(trigger_refund_to_gateway(
                 state,
                 &refund,
                 &merchant_account,
@@ -1447,7 +1453,7 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_intent,
                 None,
                 charges,
-            )
+            ))
             .await?;
             add_refund_sync_task(
                 db,

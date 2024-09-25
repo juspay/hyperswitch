@@ -35,6 +35,11 @@ pub struct RoleInfoWithGroupsResponse {
     pub role_scope: RoleScope,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListRolesRequest {
+    pub entity_type: Option<EntityType>,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct RoleInfoResponseNew {
     pub role_id: String,
