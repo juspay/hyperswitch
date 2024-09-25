@@ -336,6 +336,26 @@ where
     Ok(router_data)
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn modify_trackers<F, FData, D>(
+    state: &routes::SessionState,
+    connector: String,
+    payment_data: &mut D,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+    router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
+    is_step_up: bool,
+) -> RouterResult<()>
+where
+    F: Clone + Send,
+    FData: Send,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
@@ -524,7 +544,7 @@ where
             key_manager_state,
             payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id: payment_data.get_payment_attempt().attempt_id.clone(),
+                active_attempt_id: payment_data.get_payment_attempt().get_id().to_owned(),
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },

@@ -168,6 +168,7 @@ pub struct PaymentAttempt {
     pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::AttemptStatus,
     pub net_amount: MinorUnit,
+    pub connector: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -220,6 +221,48 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub id: String,
+}
+
+impl PaymentAttempt {
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method(&self) -> Option<storage_enums::PaymentMethod> {
+        self.payment_method
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_method(&self) -> Option<storage_enums::PaymentMethod> {
+        self.payment_method_type
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
+        self.payment_method_subtype
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_id(&self) -> &str {
+        &self.attempt_id
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_id(&self) -> &str {
+        &self.id
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_connector_payment_id(&self) -> Option<&str> {
+        self.connector_transaction_id.as_deref()
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_connector_payment_id(&self) -> Option<&str> {
+        self.connector_payment_id.as_deref()
+    }
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -1003,6 +1046,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_id,
             shipping_cost,
             order_tax_amount,
+            connector,
         } = self;
 
         Ok(DieselPaymentAttempt {
@@ -1059,6 +1103,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_result,
             authentication_applied,
             external_reference_id,
+            connector,
         })
     }
 
@@ -1126,6 +1171,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 payment_method_subtype: storage_model.payment_method_subtype,
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
+                connector: storage_model.connector,
             })
         }
         .await

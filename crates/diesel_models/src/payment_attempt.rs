@@ -18,6 +18,7 @@ pub struct PaymentAttempt {
     pub payment_id: id_type::GlobalPaymentId,
     pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::AttemptStatus,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,

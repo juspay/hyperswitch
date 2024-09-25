@@ -739,6 +739,8 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         status -> AttemptStatus,
+        #[max_length = 64]
+        connector -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
         surcharge_amount -> Nullable<Int8>,
         #[max_length = 64]

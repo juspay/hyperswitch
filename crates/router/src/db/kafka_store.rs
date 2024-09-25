@@ -3219,6 +3219,7 @@ impl DashboardMetadataInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl BatchSampleDataInterface for KafkaStore {
+    #[cfg(feature = "v1")]
     async fn insert_payment_intents_batch_for_sample_data(
         &self,
         state: &KeyManagerState,
@@ -3242,6 +3243,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(payment_intents_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn insert_payment_attempts_batch_for_sample_data(
         &self,
         batch: Vec<diesel_models::user::sample_data::PaymentAttemptBatchNew>,
@@ -3263,6 +3265,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(payment_attempts_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn insert_refunds_batch_for_sample_data(
         &self,
         batch: Vec<diesel_models::RefundNew>,
@@ -3282,6 +3285,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
         state: &KeyManagerState,
@@ -3305,6 +3309,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(payment_intents_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn delete_payment_attempts_for_sample_data(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -3327,6 +3332,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(payment_attempts_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn delete_refunds_for_sample_data(
         &self,
         merchant_id: &id_type::MerchantId,
