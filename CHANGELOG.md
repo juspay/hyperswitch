@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.25.0
+
+### Features
+
+- **users:** Add entity type filter in list users and list roles API ([#5997](https://github.com/juspay/hyperswitch/pull/5997)) ([`3ddfe53`](https://github.com/juspay/hyperswitch/commit/3ddfe53838c6b039dc5f669ccd23d3035521d691))
+- **v2:** Add cell id in config for v2 ([#5885](https://github.com/juspay/hyperswitch/pull/5885)) ([`aae2343`](https://github.com/juspay/hyperswitch/commit/aae2343910330547ff596aa9307ed1bd5c58b725))
+
+**Full Changelog:** [`2024.09.24.1...2024.09.25.0`](https://github.com/juspay/hyperswitch/compare/2024.09.24.1...2024.09.25.0)
+
+- - -
+
 ## 2024.09.24.1
 
 ### Features
