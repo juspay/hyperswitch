@@ -1097,15 +1097,13 @@ pub async fn create_internal_user(
             }
         })?;
 
+    let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+        consts::user_role::INTERNAL_USER_MERCHANT_ID,
+    );
+
     let internal_merchant = state
         .store
-        .find_merchant_account_by_merchant_id(
-            key_manager_state,
-            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-                consts::user_role::INTERNAL_USER_MERCHANT_ID,
-            ),
-            &key_store,
-        )
+        .find_merchant_account_by_merchant_id(key_manager_state, &internal_merchant_id, &key_store)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1138,8 +1136,9 @@ pub async fn create_internal_user(
             common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
         )
-        .add_entity(domain::InternalLevel {
+        .add_entity(domain::MerchantLevel {
             org_id: internal_merchant.organization_id,
+            merchant_id: internal_merchant_id,
         })
         .insert_in_v1_and_v2(&state)
         .await
