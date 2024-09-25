@@ -2129,8 +2129,7 @@
       "AmountDetails": {
         "type": "object",
         "required": [
-          "currency",
-          "order_tax_amount"
+          "currency"
         ],
         "properties": {
           "order_amount": {
@@ -2152,7 +2151,12 @@
             "nullable": true
           },
           "order_tax_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           },
           "skip_external_tax_calculation": {
             "$ref": "#/components/schemas/TaxCalculationOverride"
