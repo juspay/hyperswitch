@@ -1,3 +1,6 @@
+#[cfg(feature = "v2")]
+use std::marker::PhantomData;
+
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
 use masking::Secret;
@@ -129,21 +132,21 @@ impl From<Option<bool>> for SurchargeCalculationOverride {
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct AmountDetails {
     /// The amount of the order in the lowest denomination of currency
-    order_amount: MinorUnit,
+    pub order_amount: MinorUnit,
     /// The currency of the order
-    currency: common_enums::Currency,
+    pub currency: common_enums::Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
-    shipping_cost: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
     /// Tax details related to the order. This will be calculated by the external tax provider
-    tax_details: Option<TaxDetails>,
+    pub tax_details: Option<TaxDetails>,
     /// The action to whether calculate tax by calling external tax provider or not
-    skip_external_tax_calculation: TaxCalculationOverride,
+    pub skip_external_tax_calculation: TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
-    skip_surcharge_calculation: SurchargeCalculationOverride,
+    pub skip_surcharge_calculation: SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
-    surcharge_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
-    tax_on_surcharge: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -258,4 +261,14 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentIntentData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
 }
