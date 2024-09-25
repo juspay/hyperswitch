@@ -350,7 +350,7 @@ pub struct AmountDetails {
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
-    order_tax_amount: MinorUnit,
+    order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
     #[schema(value_type = TaxCalculationOverride)]
