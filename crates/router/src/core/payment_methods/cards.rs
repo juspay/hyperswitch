@@ -226,7 +226,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: Vec<u8>,
-) -> errors::CustomResult<services::Request, errors::VaultError> {
+) -> errors::CustomResult<Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jws = services::encryption::jws_sign_payload(
@@ -241,7 +241,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
 
     let mut url = locker.host.to_owned();
     url.push_str(R::get_vaulting_request_url());
-    let mut request = services::Request::new(services::Method::Post, &url);
+    let mut request = Request::new(services::Method::Post, &url);
     request.add_header(
         headers::CONTENT_TYPE,
         router_consts::VAULT_HEADER_CONTENT_TYPE.into(),

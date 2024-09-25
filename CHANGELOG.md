@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.25.0
+
+### Features
+
+- **users:** Add entity type filter in list users and list roles API ([#5997](https://github.com/juspay/hyperswitch/pull/5997)) ([`3ddfe53`](https://github.com/juspay/hyperswitch/commit/3ddfe53838c6b039dc5f669ccd23d3035521d691))
+- **v2:** Add cell id in config for v2 ([#5885](https://github.com/juspay/hyperswitch/pull/5885)) ([`aae2343`](https://github.com/juspay/hyperswitch/commit/aae2343910330547ff596aa9307ed1bd5c58b725))
+
+**Full Changelog:** [`2024.09.24.1...2024.09.25.0`](https://github.com/juspay/hyperswitch/compare/2024.09.24.1...2024.09.25.0)
+
+- - -
+
+## 2024.09.24.1
+
+### Features
+
+- **cypress-v2:** Introduce list apis to cypress v2 ([#5973](https://github.com/juspay/hyperswitch/pull/5973)) ([`368cebc`](https://github.com/juspay/hyperswitch/commit/368cebcb49715e05c52787befb7d23b70afe93fa))
+- **router:** Add api_models and openapi changes for payments create intent api for v2 ([#5971](https://github.com/juspay/hyperswitch/pull/5971)) ([`dc6208c`](https://github.com/juspay/hyperswitch/commit/dc6208c5e575a29dc4f6bcf35261c06249d1e2c0))
+
+### Bug Fixes
+
+- **core:** Update pm details in Psync response ([#6003](https://github.com/juspay/hyperswitch/pull/6003)) ([`2ce677f`](https://github.com/juspay/hyperswitch/commit/2ce677f04a1007aefa34ebe8a100d46d80f26ff8))
+
+### Refactors
+
+- **connector:** Move cashtocode,coinbase,cryptopay to crate hyperswitch_connectors ([#5983](https://github.com/juspay/hyperswitch/pull/5983)) ([`371ed5d`](https://github.com/juspay/hyperswitch/commit/371ed5de04eac32e36cd963fe249b8d2c045222c))
+- **core:** Add connector mandate id in `payments_response` based on merchant config ([#5999](https://github.com/juspay/hyperswitch/pull/5999)) ([`af0d2a8`](https://github.com/juspay/hyperswitch/commit/af0d2a8cbdbf8526520da0c3b75c4b0e07cd905e))
+
+**Full Changelog:** [`2024.09.24.0...2024.09.24.1`](https://github.com/juspay/hyperswitch/compare/2024.09.24.0...2024.09.24.1)
+
+- - -
+
 ## 2024.09.24.0
 
 ### Features

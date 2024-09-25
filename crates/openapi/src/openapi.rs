@@ -183,6 +183,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::api_keys::api_key_retrieve,
         routes::api_keys::api_key_update,
         routes::api_keys::api_key_revoke,
+        routes::api_keys::api_key_list,
 
         // Routes for events
         routes::webhook_events::list_initial_webhook_delivery_attempts,

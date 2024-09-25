@@ -1475,7 +1475,7 @@ impl behaviour::Conversion for PaymentIntent {
     type NewDstType = DieselPaymentIntentNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        let PaymentIntent {
+        let Self {
             merchant_id,
             amount_details,
             status,
@@ -1579,7 +1579,7 @@ impl behaviour::Conversion for PaymentIntent {
     async fn convert_back(
         state: &KeyManagerState,
         storage_model: Self::DstType,
-        key: &masking::Secret<Vec<u8>>,
+        key: &Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where

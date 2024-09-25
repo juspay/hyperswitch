@@ -4,7 +4,7 @@ use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount
 use base64::Engine;
 use common_enums::{
     enums,
-    enums::{CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
+    enums::{AttemptStatus, CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
 };
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -161,6 +161,35 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
     amount_convertor
         .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
+pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
+    match status {
+        AttemptStatus::AuthenticationFailed
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::Failure => true,
+        AttemptStatus::Started
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending => false,
+    }
 }
 
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
@@ -1458,6 +1487,18 @@ fn get_header_field(
         .ok_or(report!(
             errors::ConnectorError::WebhookSourceVerificationFailed
         ))?
+}
+
+pub trait CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error>;
+}
+
+impl CryptoData for hyperswitch_domain_models::payment_method_data::CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error> {
+        self.pay_currency
+            .clone()
+            .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
 }
 
 #[macro_export]
