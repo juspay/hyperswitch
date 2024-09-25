@@ -108,7 +108,7 @@ pub enum PaymentMetrics {
     AvgTicketSize,
     RetriesCount,
     ConnectorSuccessRate,
-    SuccessfulPaymentsDistribution
+    SuccessfulPaymentsDistribution,
 }
 
 #[derive(Debug, Default, serde::Serialize)]

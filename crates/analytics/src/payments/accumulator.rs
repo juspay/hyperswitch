@@ -158,21 +158,21 @@ impl PaymentMetricAccumulator for SuccessfulPaymentsDistributionAccumulator {
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         if let Some(success) = metrics
-                    .count
-                    .and_then(|success| u32::try_from(success).ok())
-                {
-                    self.success += success;
-                    if metrics.first_attempt.unwrap_or(false) == true {
-                        self.success_without_retries += success;
-                    }
-                }
-                
-                if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
-                    if metrics.first_attempt.unwrap_or(false) == true {
-                        self.total_without_retries += total;
-                    }
-                    self.total += total;
-                }
+            .count
+            .and_then(|success| u32::try_from(success).ok())
+        {
+            self.success += success;
+            if metrics.first_attempt.unwrap_or(false) == true {
+                self.success_without_retries += success;
+            }
+        }
+
+        if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
+            if metrics.first_attempt.unwrap_or(false) == true {
+                self.total_without_retries += total;
+            }
+            self.total += total;
+        }
     }
 
     fn collect(self) -> Self::MetricOutput {
@@ -183,19 +183,20 @@ impl PaymentMetricAccumulator for SuccessfulPaymentsDistributionAccumulator {
             let success_without_retries = Some(self.success_without_retries);
             let total = Some(self.total);
             let total_without_retries = Some(self.total_without_retries);
-    
+
             // Success rate with retries
             let success_rate = match (success, total) {
                 (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
                 _ => None,
             };
-    
+
             // Success rate without retries
-            let success_without_retries_rate = match (success_without_retries, total_without_retries) {
-                (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
-                _ => None,
-            };
-    
+            let success_without_retries_rate =
+                match (success_without_retries, total_without_retries) {
+                    (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+                    _ => None,
+                };
+
             (
                 success,
                 success_without_retries,
@@ -206,7 +207,6 @@ impl PaymentMetricAccumulator for SuccessfulPaymentsDistributionAccumulator {
             )
         }
     }
-    
 }
 
 impl PaymentMetricAccumulator for CountAccumulator {
@@ -300,7 +300,14 @@ impl PaymentMetricAccumulator for AverageAccumulator {
 impl PaymentMetricsAccumulator {
     pub fn collect(self) -> PaymentMetricsBucketValue {
         let (processed_amount, processed_count) = self.processed_amount.collect();
-        let (successful_payments, successful_payments_without_smart_retries, total_payments_success_distribution, total_payments_without_smart_retries_success_distribution, payments_success_rate_distribution, payments_success_rate_distribution_without_smart_retries) = self.successful_payments_distribution.collect();
+        let (
+            successful_payments,
+            successful_payments_without_smart_retries,
+            total_payments_success_distribution,
+            total_payments_without_smart_retries_success_distribution,
+            payments_success_rate_distribution,
+            payments_success_rate_distribution_without_smart_retries,
+        ) = self.successful_payments_distribution.collect();
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),
             payment_count: self.payment_count.collect(),
