@@ -518,10 +518,15 @@ pub struct Payments;
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/{payment_id}/saved_payment_methods")
-                .route(web::get().to(list_customer_payment_method_for_payment)),
-        );
+        route = route
+            .service(
+                web::resource("/{payment_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_for_payment)),
+            )
+            .service(
+                web::resource("/{payment_id}/create_external_sdk_tokens")
+                    .route(web::post().to(payments_connector_session)),
+            );
 
         route
     }

@@ -4540,6 +4540,19 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
+// #[cfg(all(feature = "v2", feature = "payment_v2"))]
+// impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+//     fn from(item: PaymentsSessionRequest) -> Self {
+//         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
+//         Self {
+//             session_token: vec![],
+//             payment_id: item.payment_id,
+//             client_secret,
+//         }
+//     }
+// }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
     fn from(item: PaymentsSessionRequest) -> Self {
         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
@@ -4787,6 +4800,17 @@ pub struct RedirectResponse {
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionRequest {
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
+    pub client_secret: String,
+    /// The list of the supported wallets
+    #[schema(value_type = Vec<PaymentMethodType>)]
+    pub wallets: Vec<api_enums::PaymentMethodType>,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment

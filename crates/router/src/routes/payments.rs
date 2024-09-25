@@ -529,6 +529,20 @@ pub async fn payments_dynamic_tax_calculation(
     .await
 }
 
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "payment_v2"
+))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
+pub async fn payments_connector_session(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsSessionRequest>,
+) -> impl Responder {
+    "Session Response"
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
 pub async fn payments_connector_session(

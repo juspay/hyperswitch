@@ -140,7 +140,7 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
-
+    // get profile from headers
     let operations::GetTrackerResponse {
         operation,
         customer_details,
@@ -166,6 +166,7 @@ where
 
     let (operation, customer) = operation
         .to_domain()?
+        // get_customer_details
         .get_or_create_customer_details(
             state,
             &mut payment_data,
