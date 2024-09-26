@@ -210,6 +210,8 @@ pub async fn get_metrics(
     }
     let mut total_payment_processed_amount = 0;
     let mut total_payment_processed_count = 0;
+    let mut total_payment_processed_amount_without_smart_retries = 0;
+    let mut total_payment_processed_count_without_smart_retries = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
@@ -220,7 +222,12 @@ pub async fn get_metrics(
             if let Some(count) = collected_values.payment_processed_count {
                 total_payment_processed_count += count;
             }
-
+            if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
+                total_payment_processed_amount_without_smart_retries += amount;
+            }
+            if let Some(count) = collected_values.payment_processed_count_without_smart_retries {
+                total_payment_processed_count_without_smart_retries += count;
+            }
             MetricsBucketResponse {
                 values: collected_values,
                 dimensions: id,
@@ -233,6 +240,12 @@ pub async fn get_metrics(
         meta_data: [PaymentsAnalyticsMetadata {
             total_payment_processed_amount: Some(total_payment_processed_amount),
             total_payment_processed_count: Some(total_payment_processed_count),
+            total_payment_processed_amount_without_smart_retries: Some(
+                total_payment_processed_amount_without_smart_retries,
+            ),
+            total_payment_processed_count_without_smart_retries: Some(
+                total_payment_processed_count_without_smart_retries,
+            ),
         }],
     })
 }

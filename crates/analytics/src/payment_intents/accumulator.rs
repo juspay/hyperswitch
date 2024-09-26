@@ -72,18 +72,20 @@ impl PaymentIntentMetricAccumulator for SmartRetriedAmountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
-        self.amount = match (
-            self.amount,
-            metrics.total.as_ref().and_then(ToPrimitive::to_i64),
-        ) {
-            (None, None) => None,
-            (None, i @ Some(_)) | (i @ Some(_), None) => i,
-            (Some(a), Some(b)) => Some(a + b),
+        if metrics.first_attempt.unwrap_or(0) == 1 {
+            self.amount_without_retries = match (
+                self.amount_without_retries,
+                metrics.total.as_ref().and_then(ToPrimitive::to_i64),
+            ) {
+                (None, None) => None,
+                (None, i @ Some(_)) | (i @ Some(_), None) => i,
+                (Some(a), Some(b)) => Some(a + b),
+            }
         }
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        self.amount.and_then(|i| u64::try_from(i).ok())
+        self.amount.and_then(|i| u64::try_from(i).ok()).or(Some(0))
     }
 }
 
