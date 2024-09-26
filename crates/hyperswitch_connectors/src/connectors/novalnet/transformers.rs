@@ -339,20 +339,20 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
-    pub status_code: u32,
+    pub status_code: u64,
     pub status_text: String,
     pub additional_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponseTransactionData {
-    pub amount: Option<u32>,
+    pub amount: Option<u64>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: Option<NovalnetResponsePaymentData>,
     pub payment_type: Option<String>,
-    pub status_code: Option<u32>,
+    pub status_code: Option<u64>,
     pub txn_secret: Option<String>,
     pub tid: Option<Secret<i64>>,
     pub test_mode: Option<i8>,
@@ -473,7 +473,7 @@ pub struct NovalnetResponseBilling {
 pub struct NovalnetResponseMerchant {
     pub project: Option<i64>,
     pub project_name: Option<String>,
-    pub project_url: Option<<url::Url>,
+    pub project_url: Option<url::Url>,
     pub vendor: Option<i64>,
 }
 
@@ -485,14 +485,14 @@ pub struct NovalnetAuthorizationResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetSyncResponseTransactionData {
-    pub amount: Option<u32>,
+    pub amount: Option<u64>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: NovalnetResponsePaymentData,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u32,
+    pub status_code: u64,
     pub test_mode: u8,
     pub tid: Option<Secret<i64>>,
     pub txn_secret: Option<Secret<String>>,
@@ -641,22 +641,22 @@ pub struct NovalnetRefundSyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundsTransactionData {
-    pub amount: Option<u32>,
+    pub amount: Option<u64>,
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
     pub payment_type: String,
     pub refund: RefundData,
-    pub refunded_amount: u32,
+    pub refunded_amount: u64,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u32,
+    pub status_code: u64,
     pub test_mode: u8,
     pub tid: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u32,
+    amount: u64,
     currency: common_enums::Currency,
     payment_type: String,
     tid: Option<Secret<i64>>,
@@ -833,23 +833,23 @@ impl<F>
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureTransactionData {
-    pub amount: Option<u32>,
+    pub amount: Option<u64>,
     pub capture: CaptureData,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
-    pub status_code: Option<u32>,
+    pub status_code: Option<u64>,
     pub test_mode: Option<u8>,
     pub tid: Secret<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaptureData {
-    amount: Option<u32>,
+    amount: Option<u64>,
     payment_type: Option<String>,
     status: Option<String>,
-    status_code: u32,
+    status_code: u64,
     tid: Option<Secret<i64>>,
 }
 
@@ -1087,7 +1087,7 @@ impl<F>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct NovalnetErrorResponse {
-    pub status_code: u32,
+    pub status_code: u64,
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
