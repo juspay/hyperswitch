@@ -296,6 +296,7 @@ pub async fn get_filters(
             PaymentDimensions::ClientSource => fil.client_source,
             PaymentDimensions::ClientVersion => fil.client_version,
             PaymentDimensions::ProfileId => fil.profile_id,
+            PaymentDimensions::CardNetwork => fil.card_network,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

@@ -489,6 +489,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let card_network: Option<String> = row.try_get("card_network").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             currency,
             status,
@@ -499,6 +503,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             client_source,
             client_version,
             profile_id,
+            card_network,
         })
     }
 }

@@ -280,7 +280,10 @@ impl HealthCheck for OpenSearchClient {
         if health.status != OpenSearchHealthStatus::Red {
             Ok(())
         } else {
-            Err(QueryExecutionError::DatabaseError.into())
+            Err::<(), error_stack::Report<QueryExecutionError>>(
+                QueryExecutionError::DatabaseError.into(),
+            )
+            .attach_printable_lazy(|| format!("Opensearch cluster health is red: {health:?}"))
         }
     }
 }
