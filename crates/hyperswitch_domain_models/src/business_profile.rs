@@ -8,7 +8,7 @@ use common_utils::{
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    BusinessProfileUpdateInternal, WebhookDetails,
+    ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -20,7 +20,7 @@ use crate::{
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
-pub struct BusinessProfile {
+pub struct Profile {
     profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -54,10 +54,12 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
-pub struct BusinessProfileSetter {
+pub struct ProfileSetter {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -90,11 +92,13 @@ pub struct BusinessProfileSetter {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
-impl From<BusinessProfileSetter> for BusinessProfile {
-    fn from(value: BusinessProfileSetter) -> Self {
+impl From<ProfileSetter> for Profile {
+    fn from(value: ProfileSetter) -> Self {
         Self {
             profile_id: value.profile_id,
             merchant_id: value.merchant_id,
@@ -133,11 +137,13 @@ impl From<BusinessProfileSetter> for BusinessProfile {
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
             version: consts::API_VERSION,
+            dynamic_routing_algorithm: value.dynamic_routing_algorithm,
+            is_network_tokenization_enabled: value.is_network_tokenization_enabled,
         }
     }
 }
 
-impl BusinessProfile {
+impl Profile {
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.profile_id
@@ -151,7 +157,7 @@ impl BusinessProfile {
 
 #[cfg(feature = "v1")]
 #[derive(Debug)]
-pub struct BusinessProfileGeneralUpdate {
+pub struct ProfileGeneralUpdate {
     pub profile_name: Option<String>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
@@ -178,15 +184,20 @@ pub struct BusinessProfileGeneralUpdate {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub dynamic_routing_algorithm: Option<serde_json::Value>,
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug)]
-pub enum BusinessProfileUpdate {
-    Update(Box<BusinessProfileGeneralUpdate>),
+pub enum ProfileUpdate {
+    Update(Box<ProfileGeneralUpdate>),
     RoutingAlgorithmUpdate {
         routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
+    },
+    DynamicRoutingAlgorithmUpdate {
+        dynamic_routing_algorithm: Option<serde_json::Value>,
     },
     ExtendedCardInfoUpdate {
         is_extended_card_info_enabled: Option<bool>,
@@ -194,16 +205,19 @@ pub enum BusinessProfileUpdate {
     ConnectorAgnosticMitUpdate {
         is_connector_agnostic_mit_enabled: Option<bool>,
     },
+    NetworkTokenizationUpdate {
+        is_network_tokenization_enabled: Option<bool>,
+    },
 }
 
 #[cfg(feature = "v1")]
-impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
-    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
+impl From<ProfileUpdate> for ProfileUpdateInternal {
+    fn from(profile_update: ProfileUpdate) -> Self {
         let now = date_time::now();
 
-        match business_profile_update {
-            BusinessProfileUpdate::Update(update) => {
-                let BusinessProfileGeneralUpdate {
+        match profile_update {
+            ProfileUpdate::Update(update) => {
+                let ProfileGeneralUpdate {
                     profile_name,
                     return_url,
                     enable_payment_response_hash,
@@ -230,6 +244,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
+                    dynamic_routing_algorithm,
+                    is_network_tokenization_enabled,
                 } = *update;
 
                 Self {
@@ -263,9 +279,11 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
+                    dynamic_routing_algorithm,
+                    is_network_tokenization_enabled,
                 }
             }
-            BusinessProfileUpdate::RoutingAlgorithmUpdate {
+            ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm,
                 payout_routing_algorithm,
             } => Self {
@@ -298,8 +316,45 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::ExtendedCardInfoUpdate {
+            ProfileUpdate::DynamicRoutingAlgorithmUpdate {
+                dynamic_routing_algorithm,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm,
+                is_network_tokenization_enabled: None,
+            },
+            ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
                 profile_name: None,
@@ -331,8 +386,10 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+            ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name: None,
@@ -364,6 +421,43 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
+            },
+            ProfileUpdate::NetworkTokenizationUpdate {
+                is_network_tokenization_enabled,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled,
             },
         }
     }
@@ -371,12 +465,12 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for BusinessProfile {
-    type DstType = diesel_models::business_profile::BusinessProfile;
-    type NewDstType = diesel_models::business_profile::BusinessProfileNew;
+impl super::behaviour::Conversion for Profile {
+    type DstType = diesel_models::business_profile::Profile;
+    type NewDstType = diesel_models::business_profile::ProfileNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfile {
+        Ok(diesel_models::business_profile::Profile {
             profile_id: self.profile_id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -416,6 +510,8 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
+            dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 
@@ -480,6 +576,8 @@ impl super::behaviour::Conversion for BusinessProfile {
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
                 version: item.version,
+                dynamic_routing_algorithm: item.dynamic_routing_algorithm,
+                is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             })
         }
         .await
@@ -489,7 +587,7 @@ impl super::behaviour::Conversion for BusinessProfile {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfileNew {
+        Ok(diesel_models::business_profile::ProfileNew {
             profile_id: self.profile_id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -529,13 +627,14 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
-pub struct BusinessProfile {
+pub struct Profile {
     id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -571,10 +670,11 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
-pub struct BusinessProfileSetter {
+pub struct ProfileSetter {
     pub id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
@@ -609,11 +709,12 @@ pub struct BusinessProfileSetter {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
-impl From<BusinessProfileSetter> for BusinessProfile {
-    fn from(value: BusinessProfileSetter) -> Self {
+impl From<ProfileSetter> for Profile {
+    fn from(value: ProfileSetter) -> Self {
         Self {
             id: value.id,
             merchant_id: value.merchant_id,
@@ -654,11 +755,12 @@ impl From<BusinessProfileSetter> for BusinessProfile {
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
             version: consts::API_VERSION,
+            is_network_tokenization_enabled: value.is_network_tokenization_enabled,
         }
     }
 }
 
-impl BusinessProfile {
+impl Profile {
     pub fn get_is_tax_connector_enabled(&self) -> bool {
         let is_tax_connector_enabled = self.is_tax_connector_enabled;
         match &self.tax_connector_id {
@@ -680,7 +782,7 @@ impl BusinessProfile {
 
 #[cfg(feature = "v2")]
 #[derive(Debug)]
-pub struct BusinessProfileGeneralUpdate {
+pub struct ProfileGeneralUpdate {
     pub profile_name: Option<String>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
@@ -703,12 +805,13 @@ pub struct BusinessProfileGeneralUpdate {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug)]
-pub enum BusinessProfileUpdate {
-    Update(Box<BusinessProfileGeneralUpdate>),
+pub enum ProfileUpdate {
+    Update(Box<ProfileGeneralUpdate>),
     RoutingAlgorithmUpdate {
         routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
         payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
@@ -722,16 +825,19 @@ pub enum BusinessProfileUpdate {
     ConnectorAgnosticMitUpdate {
         is_connector_agnostic_mit_enabled: Option<bool>,
     },
+    NetworkTokenizationUpdate {
+        is_network_tokenization_enabled: Option<bool>,
+    },
 }
 
 #[cfg(feature = "v2")]
-impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
-    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
+impl From<ProfileUpdate> for ProfileUpdateInternal {
+    fn from(profile_update: ProfileUpdate) -> Self {
         let now = date_time::now();
 
-        match business_profile_update {
-            BusinessProfileUpdate::Update(update) => {
-                let BusinessProfileGeneralUpdate {
+        match profile_update {
+            ProfileUpdate::Update(update) => {
+                let ProfileGeneralUpdate {
                     profile_name,
                     return_url,
                     enable_payment_response_hash,
@@ -754,6 +860,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     order_fulfillment_time,
                     order_fulfillment_time_origin,
+                    is_network_tokenization_enabled,
                 } = *update;
                 Self {
                     profile_name,
@@ -788,9 +895,10 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     default_fallback_routing: None,
                     tax_connector_id: None,
                     is_tax_connector_enabled: None,
+                    is_network_tokenization_enabled,
                 }
             }
-            BusinessProfileUpdate::RoutingAlgorithmUpdate {
+            ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm_id,
                 payout_routing_algorithm_id,
             } => Self {
@@ -825,8 +933,9 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 default_fallback_routing: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::ExtendedCardInfoUpdate {
+            ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
                 profile_name: None,
@@ -860,8 +969,9 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 default_fallback_routing: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+            ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name: None,
@@ -895,8 +1005,9 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 default_fallback_routing: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
             },
-            BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
+            ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
             } => Self {
                 profile_name: None,
@@ -930,6 +1041,43 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 default_fallback_routing,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+            },
+            ProfileUpdate::NetworkTokenizationUpdate {
+                is_network_tokenization_enabled,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled,
             },
         }
     }
@@ -937,12 +1085,12 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for BusinessProfile {
-    type DstType = diesel_models::business_profile::BusinessProfile;
-    type NewDstType = diesel_models::business_profile::BusinessProfileNew;
+impl super::behaviour::Conversion for Profile {
+    type DstType = diesel_models::business_profile::Profile;
+    type NewDstType = diesel_models::business_profile::ProfileNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfile {
+        Ok(diesel_models::business_profile::Profile {
             id: self.id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -984,6 +1132,8 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
+            dynamic_routing_algorithm: None,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 
@@ -1050,6 +1200,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
                 version: item.version,
+                is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             })
         }
         .await
@@ -1059,7 +1210,7 @@ impl super::behaviour::Conversion for BusinessProfile {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::business_profile::BusinessProfileNew {
+        Ok(diesel_models::business_profile::ProfileNew {
             id: self.id,
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
@@ -1101,6 +1252,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 }

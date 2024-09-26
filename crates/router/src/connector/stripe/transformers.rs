@@ -11,7 +11,7 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::AcceptanceType;
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Mask, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -27,7 +27,7 @@ use crate::{
     },
     consts,
     core::errors,
-    services,
+    headers, services,
     types::{
         self, api, domain,
         storage::enums,
@@ -1786,61 +1786,67 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             _ => payment_data,
         };
 
-        let customer_acceptance = item
+        let setup_mandate_details = item
             .request
             .setup_mandate_details
             .as_ref()
-            .and_then(|mandate_details| mandate_details.customer_acceptance.clone())
-            .or(item.request.customer_acceptance.clone());
-
-        let setup_mandate_details = customer_acceptance
-            .as_ref()
-            .map(|customer_acceptance| {
-                Ok::<_, error_stack::Report<errors::ConnectorError>>(
-                    match customer_acceptance.acceptance_type {
-                        AcceptanceType::Online => {
-                            let online_mandate = customer_acceptance
-                                .online
-                                .clone()
-                                .get_required_value("online")
-                                .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "online",
-                                })?;
-                            StripeMandateRequest {
-                                mandate_type: StripeMandateType::Online {
-                                    ip_address: online_mandate
-                                        .ip_address
-                                        .get_required_value("ip_address")
+            .and_then(|mandate_details| {
+                mandate_details
+                    .customer_acceptance
+                    .as_ref()
+                    .map(|customer_acceptance| {
+                        Ok::<_, error_stack::Report<errors::ConnectorError>>(
+                            match customer_acceptance.acceptance_type {
+                                AcceptanceType::Online => {
+                                    let online_mandate = customer_acceptance
+                                        .online
+                                        .clone()
+                                        .get_required_value("online")
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "ip_address",
+                                                field_name: "online",
                                             },
-                                        )?,
-                                    user_agent: online_mandate.user_agent,
+                                        )?;
+                                    StripeMandateRequest {
+                                        mandate_type: StripeMandateType::Online {
+                                            ip_address: online_mandate
+                                                .ip_address
+                                                .get_required_value("ip_address")
+                                                .change_context(
+                                                    errors::ConnectorError::MissingRequiredField {
+                                                        field_name: "ip_address",
+                                                    },
+                                                )?,
+                                            user_agent: online_mandate.user_agent,
+                                        },
+                                    }
+                                }
+                                AcceptanceType::Offline => StripeMandateRequest {
+                                    mandate_type: StripeMandateType::Offline,
                                 },
-                            }
-                        }
-                        AcceptanceType::Offline => StripeMandateRequest {
-                            mandate_type: StripeMandateType::Offline,
-                        },
-                    },
-                )
+                            },
+                        )
+                    })
             })
             .transpose()?
-            .or({
+            .or_else(|| {
                 //stripe requires us to send mandate_data while making recurring payment through saved bank debit
-                //check if payment is done through saved payment method
-                match &payment_method_types {
-                    //check if payment method is bank debit
-                    Some(
-                        StripePaymentMethodType::Ach
-                        | StripePaymentMethodType::Sepa
-                        | StripePaymentMethodType::Becs
-                        | StripePaymentMethodType::Bacs,
-                    ) => Some(StripeMandateRequest {
-                        mandate_type: StripeMandateType::Offline,
-                    }),
-                    _ => None,
+                if payment_method.is_some() {
+                    //check if payment is done through saved payment method
+                    match &payment_method_types {
+                        //check if payment method is bank debit
+                        Some(
+                            StripePaymentMethodType::Ach
+                            | StripePaymentMethodType::Sepa
+                            | StripePaymentMethodType::Becs
+                            | StripePaymentMethodType::Bacs,
+                        ) => Some(StripeMandateRequest {
+                            mandate_type: StripeMandateType::Offline,
+                        }),
+                        _ => None,
+                    }
+                } else {
+                    None
                 }
             });
 
@@ -2383,6 +2389,7 @@ impl<F, T>
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
+                mandate_metadata: None,
             }
         });
 
@@ -2577,6 +2584,7 @@ impl<F, T>
                 types::MandateReference {
                     connector_mandate_id,
                     payment_method_id: Some(payment_method_id),
+                    mandate_metadata: None,
                 }
             });
 
@@ -2667,6 +2675,7 @@ impl<F, T>
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
+                mandate_metadata: None,
             }
         });
         let status = enums::AttemptStatus::from(item.response.status);
@@ -4013,6 +4022,21 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             attempt_status: None,
             connector_transaction_id: Some(response_id),
         })
+    }
+}
+
+pub(super) fn transform_headers_for_connect_platform(
+    charge_type: api::enums::PaymentChargeType,
+    transfer_account_id: String,
+    header: &mut Vec<(String, services::request::Maskable<String>)>,
+) {
+    if let api::enums::PaymentChargeType::Stripe(api::enums::StripeChargeType::Direct) = charge_type
+    {
+        let mut customer_account_header = vec![(
+            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+            transfer_account_id.into_masked(),
+        )];
+        header.append(&mut customer_account_header);
     }
 }
 

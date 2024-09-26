@@ -1991,6 +1991,79 @@ mod custom_serde {
     }
 }
 
+impl From<Option<bool>> for super::External3dsAuthenticationRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+/// Get the boolean value of the `External3dsAuthenticationRequest`.
+impl super::External3dsAuthenticationRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl super::EnablePaymentLinkRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::EnablePaymentLinkRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::MitExemptionRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Apply,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl super::MitExemptionRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Apply => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::PresenceOfCustomerDuringPayment {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(false) => Self::Absent,
+            _ => Self::Present,
+        }
+    }
+}
+
+impl super::PresenceOfCustomerDuringPayment {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Present => true,
+            Self::Absent => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

@@ -204,12 +204,17 @@ pub async fn deep_health_check_func(
 
     logger::debug!("Database health check begin");
 
-    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-            component: "Database",
-            message: err.to_string()
-        })
-    })?;
+    let db_status = state
+        .health_check_db()
+        .await
+        .map(|_| true)
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                component: "Database",
+                message,
+            })
+        })?;
 
     logger::debug!("Database health check end");
 
@@ -219,23 +224,26 @@ pub async fn deep_health_check_func(
         .health_check_redis()
         .await
         .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
                 component: "Redis",
-                message: err.to_string()
+                message,
             })
         })?;
 
-    let outgoing_req_check = state
-        .health_check_outgoing()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Outgoing Request",
-                message: err.to_string()
-            })
-        })?;
+    let outgoing_req_check =
+        state
+            .health_check_outgoing()
+            .await
+            .map(|_| true)
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Outgoing Request",
+                    message,
+                })
+            })?;
 
     logger::debug!("Redis health check end");
 
@@ -251,6 +259,7 @@ pub async fn deep_health_check_func(
 #[derive(Debug, Copy, Clone)]
 pub struct WorkflowRunner;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
@@ -355,6 +364,18 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
             },
         };
         Ok(())
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
+    async fn trigger_workflow<'a>(
+        &'a self,
+        _state: &'a routes::SessionState,
+        _process: storage::ProcessTracker,
+    ) -> CustomResult<(), ProcessTrackerError> {
+        todo!()
     }
 }
 

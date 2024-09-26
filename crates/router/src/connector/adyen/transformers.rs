@@ -2083,7 +2083,7 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             domain::WalletData::SamsungPay(samsung_data) => {
                 let data = SamsungPayPmData {
                     payment_type: PaymentType::Samsungpay,
-                    samsung_pay_token: samsung_data.token.to_owned(),
+                    samsung_pay_token: samsung_data.payment_credential.token_data.data.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
@@ -2566,6 +2566,12 @@ impl<'a>
                         })?
                     }
                 }
+            }
+            payments::MandateReferenceId::NetworkTokenWithNTI(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Network tokenization for payment method".to_string(),
+                    connector: "Adyen",
+                })?
             }
         }?;
         Ok(AdyenPaymentRequest {
@@ -3288,6 +3294,7 @@ pub fn get_adyen_response(
         .map(|mandate_id| types::MandateReference {
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
+            mandate_metadata: None,
         });
     let network_txn_id = response.additional_data.and_then(|additional_data| {
         additional_data

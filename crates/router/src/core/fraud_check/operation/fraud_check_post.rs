@@ -85,6 +85,17 @@ where
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPost {
+    #[cfg(feature = "v2")]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: PaymentToFrmData,
+        frm_connector_details: ConnectorDetailsCore,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -99,7 +110,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             .ok();
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.payment_id.clone(),
+                payment_data.payment_intent.get_id().to_owned(),
                 payment_data.merchant_account.get_id().clone(),
             )
             .await
@@ -109,7 +120,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             _ => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: utils::generate_id(consts::ID_LENGTH, "frm"),
-                    payment_id: payment_data.payment_intent.payment_id.clone(),
+                    payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
@@ -202,6 +213,25 @@ where
         }))
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn execute_post_tasks(
+        &self,
+        _state: &SessionState,
+        _req_state: ReqState,
+        _frm_data: &mut FrmData,
+        _merchant_account: &domain::MerchantAccount,
+        _frm_configs: FrmConfigsObject,
+        _frm_suggestion: &mut Option<FrmSuggestion>,
+        _key_store: domain::MerchantKeyStore,
+        _payment_data: &mut D,
+        _customer: &Option<domain::Customer>,
+        _should_continue_capture: &mut bool,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn execute_post_tasks(
         &self,
@@ -225,7 +255,7 @@ where
             *frm_suggestion = Some(FrmSuggestion::FrmCancelTransaction);
 
             let cancel_req = api_models::payments::PaymentsCancelRequest {
-                payment_id: frm_data.payment_intent.payment_id.clone(),
+                payment_id: frm_data.payment_intent.get_id().to_owned(),
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
             };
@@ -278,7 +308,7 @@ where
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
-                payment_id: frm_data.payment_intent.payment_id.clone(),
+                payment_id: frm_data.payment_intent.get_id().to_owned(),
                 merchant_id: None,
                 amount_to_capture: None,
                 refund_uncaptured_amount: None,
@@ -362,6 +392,20 @@ where
         + Sync
         + Clone,
 {
+    #[cfg(feature = "v2")]
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        mut frm_data: FrmData,
+        payment_data: &mut D,
+        frm_suggestion: Option<FrmSuggestion>,
+        frm_router_data: FrmRouterData,
+    ) -> RouterResult<FrmData> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
@@ -372,6 +416,7 @@ where
         frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let frm_check_update = match frm_router_data.response {
             FrmResponse::Sale(response) => match response {
                 Err(err) => Some(FraudCheckUpdate::ErrorUpdate {
@@ -536,15 +581,30 @@ where
                     ),
                 };
 
+            let payment_attempt_update = PaymentAttemptUpdate::RejectUpdate {
+                status: payment_attempt_status,
+                error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
+                error_message,
+                updated_by: frm_data.merchant_account.storage_scheme.to_string(),
+            };
+
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
             let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     payment_data.get_payment_attempt().clone(),
-                    PaymentAttemptUpdate::RejectUpdate {
-                        status: payment_attempt_status,
-                        error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
-                        error_message,
-                        updated_by: frm_data.merchant_account.storage_scheme.to_string(),
-                    },
+                    payment_attempt_update,
+                    frm_data.merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            let payment_attempt = db
+                .update_payment_attempt_with_attempt_id(
+                    key_manager_state,
+                    key_store,
+                    payment_data.get_payment_attempt().clone(),
+                    payment_attempt_update,
                     frm_data.merchant_account.storage_scheme,
                 )
                 .await
@@ -554,7 +614,7 @@ where
 
             let payment_intent = db
                 .update_payment_intent(
-                    &state.into(),
+                    key_manager_state,
                     payment_data.get_payment_intent().clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,

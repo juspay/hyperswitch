@@ -11,6 +11,7 @@ pub mod authentication;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+pub mod payment_methods;
 pub mod pm_auth;
 use masking::Secret;
 pub mod storage;
@@ -496,14 +497,14 @@ impl Default for PollConfig {
 #[derive(Clone, Debug)]
 pub struct RedirectPaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
-    pub business_profile: domain::BusinessProfile,
+    pub business_profile: domain::Profile,
 }
 
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub poll_config: PollConfig,
-    pub business_profile: domain::BusinessProfile,
+    pub business_profile: domain::Profile,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
@@ -906,6 +907,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             refund_id: data.refund_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            additional_merchant_data: data.additional_merchant_data.clone(),
+            header_payload: data.header_payload.clone(),
         }
     }
 }
@@ -968,6 +971,8 @@ impl<F1, F2>
             dispute_id: None,
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            additional_merchant_data: data.additional_merchant_data.clone(),
+            header_payload: data.header_payload.clone(),
         }
     }
 }

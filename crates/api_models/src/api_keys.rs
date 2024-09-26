@@ -154,7 +154,7 @@ pub struct RevokeApiKeyResponse {
 }
 
 /// The constraints that are applicable when listing API Keys associated with a merchant account.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ListApiKeyConstraints {
     /// The maximum number of API Keys to include in the response.

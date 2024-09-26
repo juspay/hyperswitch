@@ -136,6 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.setup_future_usage,
             request.customer_acceptance.clone(),
             request.payment_token.clone(),
+            payment_attempt.payment_method.or(request.payment_method),
         )
         .change_context(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
@@ -328,7 +329,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
+                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None, mandate_metadata:connector_id.mandate_metadata, },
                                 ))
                             }
                          }),
@@ -423,7 +424,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let business_profile = db
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -520,13 +521,17 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        if business_profile.is_tax_connector_enabled {
+        let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+        let skip_external_tax_calculation = payment_data
+            .payment_intent
+            .skip_external_tax_calculation
+            .unwrap_or(false);
+        if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
             let key_manager_state: &KeyManagerState = &state.into();
 
@@ -623,13 +628,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&domain::BusinessProfile>,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        helpers::make_pm_data(
+        Box::pin(helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -637,7 +642,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             customer,
             storage_scheme,
             business_profile,
-        )
+        ))
         .await
     }
 

@@ -269,7 +269,7 @@ pub async fn user_merchant_account_create(
     .await
 }
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn generate_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -575,7 +575,10 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         &http_req,
         (),
         |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth {
+            permission: Permission::ReconAdmin,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

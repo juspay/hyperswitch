@@ -164,7 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     )
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
-                            errors::ApiErrorResponse::BusinessProfileNotFound {
+                            errors::ApiErrorResponse::ProfileNotFound {
                                 id: profile_id.get_string_repr().to_owned(),
                             },
                         )
@@ -524,6 +524,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.setup_future_usage,
             request.customer_acceptance.clone(),
             request.payment_token.clone(),
+            payment_attempt.payment_method.or(request.payment_method),
         )
         .change_context(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
@@ -680,6 +681,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                     ),
                                     payment_method_id: None,
                                     update_history: None,
+                                    mandate_metadata: None,
                                 },
                             ),
                         ),
@@ -775,13 +777,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&domain::BusinessProfile>,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = Box::pin(helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -789,7 +791,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             customer,
             storage_scheme,
             business_profile,
-        )
+        ))
         .await?;
 
         utils::when(payment_method_data.is_none(), || {
@@ -860,7 +862,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -922,12 +924,12 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             Some(helpers::PaymentExternalAuthenticationFlow::PostAuthenticationFlow {
                 authentication_id,
             }) => {
-                let authentication = authentication::perform_post_authentication(
+                let authentication = Box::pin(authentication::perform_post_authentication(
                     state,
                     key_store,
                     business_profile.clone(),
                     authentication_id.clone(),
-                )
+                ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
                 if authentication.authentication_status
@@ -964,7 +966,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         &'a self,
         state: &SessionState,
         payment_id: &common_utils::id_type::PaymentId,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if let (Some(true), Some(domain::PaymentMethodData::Card(card)), Some(merchant_config)) = (
@@ -986,7 +988,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
             };
 
             let encrypted_payload =
-                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek())
+                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek(), services::EncryptionAlgorithm::A256GCM, None)
                         .await
                         .map_err(|err| {
                             logger::error!(jwe_encryption_err=?err,"Error while JWE encrypting extended card info")
@@ -1278,6 +1280,31 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None => (None, None, None),
         };
 
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+
+        let pmt_order_tax_amount =
+            payment_data
+                .payment_intent
+                .tax_details
+                .clone()
+                .and_then(|tax| {
+                    if tax.payment_method_type.clone().map(|a| a.pmt)
+                        == payment_data.payment_attempt.payment_method_type
+                    {
+                        tax.payment_method_type.map(|a| a.order_tax_amount)
+                    } else {
+                        None
+                    }
+                });
+
+        let order_tax_amount = pmt_order_tax_amount.or_else(|| {
+            payment_data
+                .payment_intent
+                .tax_details
+                .clone()
+                .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+        });
+
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -1313,6 +1340,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         client_source,
                         client_version,
                         customer_acceptance: payment_data.payment_attempt.customer_acceptance,
+                        shipping_cost,
+                        order_tax_amount,
                     },
                     storage_scheme,
                 )

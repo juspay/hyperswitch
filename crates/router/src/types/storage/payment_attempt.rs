@@ -85,7 +85,11 @@ impl AttemptStatusExt for enums::AttemptStatus {
 }
 
 #[cfg(test)]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_v2"), // Ignoring tests for v2 since they aren't actively running
+    feature = "dummy_connector"
+))]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
     use tokio::sync::oneshot;
@@ -184,6 +188,8 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
 
         let store = state
@@ -270,6 +276,8 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -369,6 +377,8 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            shipping_cost: Default::default(),
+            order_tax_amount: Default::default(),
         };
         let store = state
             .stores

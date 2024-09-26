@@ -48,7 +48,7 @@ cryptopay.base_url = "https://business.cryptopay.me/"
 cybersource.base_url = "https://api.cybersource.com/"
 datatrans.base_url = "https://api.datatrans.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
-deutschebank.base_url = "https://merch.directpos.de/rest-api/services/v2.1"
+deutschebank.base_url = "https://merch.directpos.de/rest-api"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -278,6 +278,7 @@ credit = { currency = "USD,GBP,EUR" }
 debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
+samsung_pay = { currency = "USD,GBP,EUR" }
 
 [pm_filters.braintree]
 paypal.currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD"
@@ -359,6 +360,7 @@ bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
 payme.payment_method = "card"
+deutschebank = { payment_method = "bank_debit" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -386,3 +388,9 @@ sdk_eligible_payment_methods = "card"
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

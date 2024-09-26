@@ -46,3 +46,24 @@ ADD COLUMN IF NOT EXISTS business_country "CountryAlpha2",
 ALTER TABLE customers
 ADD COLUMN customer_id VARCHAR(64),
     ADD COLUMN address_id VARCHAR(64);
+
+ALTER TABLE payment_intent
+ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
+    ADD COLUMN connector_id VARCHAR(64),
+    ADD COLUMN shipping_address_id VARCHAR(64),
+    ADD COLUMN billing_address_id VARCHAR(64),
+    ADD COLUMN shipping_details VARCHAR(64),
+    ADD COLUMN billing_details VARCHAR(64),
+    ADD COLUMN statement_descriptor_suffix VARCHAR(255),
+    ADD COLUMN business_country "CountryAlpha2",
+    ADD COLUMN business_label VARCHAR(64),
+    ADD COLUMN incremental_authorization_allowed BOOLEAN,
+    ADD COLUMN fingerprint_id VARCHAR(64),
+    ADD COLUMN merchant_decision VARCHAR(64),
+    ADD COLUMN statement_descriptor_name VARCHAR(255),
+    ADD COLUMN amount_to_capture BIGINT,
+    ADD COLUMN off_session BOOLEAN,
+    ADD COLUMN payment_confirm_source "PaymentSource",
+    ADD COLUMN merchant_order_reference_id VARCHAR(255),
+    ADD COLUMN is_payment_processor_token_flow BOOLEAN,
+    ADD COLUMN charges jsonb;

@@ -28,6 +28,16 @@ pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -180,11 +190,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             profile_id,
                         )
                         .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.get_string_repr().to_owned(),
-                            },
-                        )?;
+                        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                            id: profile_id.get_string_repr().to_owned(),
+                        })?;
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
