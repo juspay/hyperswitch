@@ -34,8 +34,6 @@ pub struct PaymentFilters {
     #[serde(default)]
     pub profile_id: Vec<id_type::ProfileId>,
     #[serde(default)]
-    pub card_network: Vec<CardNetwork>,
-    #[serde(default)]
     pub merchant_id: Vec<id_type::MerchantId>,
     #[serde(default)]
     pub card_last_4: Vec<String>,
