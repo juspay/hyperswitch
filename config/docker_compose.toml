@@ -163,6 +163,7 @@ nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
+paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
@@ -318,6 +319,7 @@ cybersource = { payment_method = "card" }
 nmi = { payment_method = "card" }
 payme = { payment_method = "card" }
 deutschebank = { payment_method = "bank_debit" }
+paybox = { payment_method = "card" }
 
 [dummy_connector]
 enabled = true
