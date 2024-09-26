@@ -69,9 +69,17 @@ impl PaymentIntentMetricAccumulator for CountAccumulator {
 }
 
 impl PaymentIntentMetricAccumulator for SmartRetriedAmountAccumulator {
-    type MetricOutput = Option<u64>;
+    type MetricOutput = (Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
+        self.amount = match (
+            self.amount,
+            metrics.total.as_ref().and_then(ToPrimitive::to_i64),
+        ) {
+            (None, None) => None,
+            (None, i @ Some(_)) | (i @ Some(_), None) => i,
+            (Some(a), Some(b)) => Some(a + b),
+        };
         if metrics.first_attempt.unwrap_or(0) == 1 {
             self.amount_without_retries = match (
                 self.amount_without_retries,
@@ -81,11 +89,18 @@ impl PaymentIntentMetricAccumulator for SmartRetriedAmountAccumulator {
                 (None, i @ Some(_)) | (i @ Some(_), None) => i,
                 (Some(a), Some(b)) => Some(a + b),
             }
+        } else {
+            self.amount_without_retries = Some(0);
         }
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        self.amount.and_then(|i| u64::try_from(i).ok()).or(Some(0))
+        let with_retries = self.amount.and_then(|i| u64::try_from(i).ok()).or(Some(0));
+        let without_retries = self
+            .amount_without_retries
+            .and_then(|i| u64::try_from(i).ok())
+            .or(Some(0));
+        (with_retries, without_retries)
     }
 }
 
@@ -161,10 +176,13 @@ impl PaymentIntentMetricsAccumulator {
             payments_success_rate,
             payments_success_rate_without_smart_retries,
         ) = self.payments_success_rate.collect();
+        let (smart_retried_amount, smart_retried_amount_without_smart_retries) =
+            self.smart_retried_amount.collect();
         PaymentIntentMetricsBucketValue {
             successful_smart_retries: self.successful_smart_retries.collect(),
             total_smart_retries: self.total_smart_retries.collect(),
-            smart_retried_amount: self.smart_retried_amount.collect(),
+            smart_retried_amount,
+            smart_retried_amount_without_smart_retries,
             payment_intent_count: self.payment_intent_count.collect(),
             successful_payments,
             successful_payments_without_smart_retries,

@@ -137,6 +137,7 @@ pub async fn get_metrics(
     let mut success = 0;
     let mut success_without_smart_retries = 0;
     let mut total_smart_retried_amount = 0;
+    let mut total_smart_retried_amount_without_smart_retries = 0;
     let mut total = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
@@ -155,7 +156,11 @@ pub async fn get_metrics(
             if let Some(retried_amount) = collected_values.smart_retried_amount {
                 total_smart_retried_amount += retried_amount;
             }
-
+            if let Some(retried_amount) =
+                collected_values.smart_retried_amount_without_smart_retries
+            {
+                total_smart_retried_amount_without_smart_retries += retried_amount;
+            }
             MetricsBucketResponse {
                 values: collected_values,
                 dimensions: id,
@@ -176,6 +181,9 @@ pub async fn get_metrics(
             total_success_rate,
             total_success_rate_without_smart_retries,
             total_smart_retried_amount: Some(total_smart_retried_amount),
+            total_smart_retried_amount_without_smart_retries: Some(
+                total_smart_retried_amount_without_smart_retries,
+            ),
         }],
     })
 }
