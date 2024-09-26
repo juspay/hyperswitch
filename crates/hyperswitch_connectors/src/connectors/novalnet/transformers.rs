@@ -742,8 +742,8 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
         } else {
             NovalnetSyncTransaction {
                 tid: item
-                    .request
-                    .get_connector_transaction_id()
+            .request
+            .get_connector_transaction_id()
                     .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             }
         };
@@ -1102,6 +1102,7 @@ pub enum WebhookEventType {
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
+    Chargeback,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1164,6 +1165,7 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
+        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
     }
 }
 
