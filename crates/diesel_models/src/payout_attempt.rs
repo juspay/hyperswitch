@@ -1,5 +1,7 @@
-use common_utils::types::{UnifiedCode, UnifiedMessage};
-use common_utils::payout_method_utils;
+use common_utils::{
+    payout_method_utils,
+    types::{UnifiedCode, UnifiedMessage},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;

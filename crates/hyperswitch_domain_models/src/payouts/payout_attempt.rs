@@ -1,9 +1,9 @@
 use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use common_utils::{
-    {id_type,
+    id_type, payout_method_utils,
     types::{UnifiedCode, UnifiedMessage},
-}, payout_method_utils};
+};
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;

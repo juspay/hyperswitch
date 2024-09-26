@@ -5,8 +5,8 @@ use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils, payout_method_utils,
     pii::{self, Email},
-    types::{UnifiedCode, UnifiedMessage},
     transformers::ForeignFrom,
+    types::{UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
 use router_derive::FlatStruct;
