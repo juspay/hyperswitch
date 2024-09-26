@@ -54,31 +54,6 @@ pub trait UserRoleInterface {
         user_role: InsertUserRolePayload,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError>;
-
-    async fn find_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError>;
-
-    async fn list_user_roles_by_user_id_and_version(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
-
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
-
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
@@ -128,59 +103,6 @@ impl UserRoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
 
         storage::UserRole::insert_multiple_user_roles(&conn, user_role.convert_to_vec())
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::find_by_user_id(&conn, user_id.to_owned(), version)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn find_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::find_by_user_id_merchant_id(
-            &conn,
-            user_id.to_owned(),
-            merchant_id.to_owned(),
-            version,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    async fn list_user_roles_by_user_id_and_version(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::list_by_user_id(&conn, user_id.to_owned(), version)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::list_by_merchant_id(&conn, merchant_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -333,96 +255,6 @@ impl UserRoleInterface for MockDb {
                 Ok(user_role)
             })
             .collect::<Result<Vec<_>, _>>()
-    }
-
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let user_roles = self.user_roles.lock().await;
-        user_roles
-            .iter()
-            .find(|user_role| user_role.user_id == user_id && user_role.version == version)
-            .cloned()
-            .ok_or(
-                errors::StorageError::ValueNotFound(format!(
-                    "No user role available for user_id = {user_id}"
-                ))
-                .into(),
-            )
-    }
-
-    async fn find_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let user_roles = self.user_roles.lock().await;
-
-        for user_role in user_roles.iter() {
-            let Some(user_role_merchant_id) = &user_role.merchant_id else {
-                continue;
-            };
-            if user_role.user_id == user_id
-                && user_role_merchant_id == merchant_id
-                && user_role.version == version
-            {
-                return Ok(user_role.clone());
-            }
-        }
-
-        Err(errors::StorageError::ValueNotFound(format!(
-            "No user role available for user_id = {} and merchant_id = {}",
-            user_id,
-            merchant_id.get_string_repr()
-        ))
-        .into())
-    }
-
-    async fn list_user_roles_by_user_id_and_version(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let user_roles = self.user_roles.lock().await;
-
-        Ok(user_roles
-            .iter()
-            .cloned()
-            .filter_map(|ele| {
-                if ele.user_id == user_id && ele.version == version {
-                    return Some(ele);
-                }
-                None
-            })
-            .collect())
-    }
-
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let user_roles = self.user_roles.lock().await;
-
-        let filtered_roles: Vec<_> = user_roles
-            .iter()
-            .filter_map(|role| {
-                if let Some(role_merchant_id) = &role.merchant_id {
-                    if role_merchant_id == merchant_id && role.version == version {
-                        Some(role.clone())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        Ok(filtered_roles)
     }
 
     async fn find_user_role_by_user_id_and_lineage(

@@ -32,7 +32,7 @@ use crate::{
     },
     db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
     routes::SessionState,
-    services::{self, authentication::UserFromToken, authorization::info},
+    services::{self, authentication::UserFromToken},
     types::transformers::ForeignFrom,
     utils::user::password,
 };
@@ -1016,37 +1016,6 @@ impl UserFromStorage {
         .and_then(|val| val.try_into_optionaloperation())
         .change_context(UserErrors::InternalServerError)?
         .map(Encryptable::into_inner))
-    }
-}
-
-impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
-    fn from(value: info::ModuleInfo) -> Self {
-        Self {
-            module: value.module.into(),
-            description: value.description,
-            permissions: value.permissions.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<info::PermissionModule> for user_role_api::PermissionModule {
-    fn from(value: info::PermissionModule) -> Self {
-        match value {
-            info::PermissionModule::Payments => Self::Payments,
-            info::PermissionModule::Refunds => Self::Refunds,
-            info::PermissionModule::MerchantAccount => Self::MerchantAccount,
-            info::PermissionModule::Connectors => Self::Connectors,
-            info::PermissionModule::Routing => Self::Routing,
-            info::PermissionModule::Analytics => Self::Analytics,
-            info::PermissionModule::Mandates => Self::Mandates,
-            info::PermissionModule::Customer => Self::Customer,
-            info::PermissionModule::Disputes => Self::Disputes,
-            info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
-            info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
-            info::PermissionModule::AccountCreate => Self::AccountCreate,
-            info::PermissionModule::Payouts => Self::Payouts,
-            info::PermissionModule::Recon => Self::Recon,
-        }
     }
 }
 

@@ -83,45 +83,6 @@ pub async fn create_role(
     ))
 }
 
-pub async fn list_invitable_roles_with_groups(
-    state: SessionState,
-    user_from_token: UserFromToken,
-) -> UserResponse<role_api::ListRolesResponse> {
-    let predefined_roles_map = PREDEFINED_ROLES
-        .iter()
-        .filter(|(_, role_info)| role_info.is_invitable())
-        .map(
-            |(role_id, role_info)| role_api::RoleInfoWithGroupsResponse {
-                groups: role_info.get_permission_groups().to_vec(),
-                role_id: role_id.to_string(),
-                role_name: role_info.get_role_name().to_string(),
-                role_scope: role_info.get_scope(),
-            },
-        );
-
-    let custom_roles_map = state
-        .store
-        .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|role| {
-            let role_info = roles::RoleInfo::from(role);
-            role_info
-                .is_invitable()
-                .then_some(role_api::RoleInfoWithGroupsResponse {
-                    groups: role_info.get_permission_groups().to_vec(),
-                    role_id: role_info.get_role_id().to_string(),
-                    role_name: role_info.get_role_name().to_string(),
-                    role_scope: role_info.get_scope(),
-                })
-        });
-
-    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
-        predefined_roles_map.chain(custom_roles_map).collect(),
-    )))
-}
-
 pub async fn get_role_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,

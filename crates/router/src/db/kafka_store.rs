@@ -3037,37 +3037,6 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store.insert_user_role(user_role).await
     }
 
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id(user_id, version)
-            .await
-    }
-
-    async fn find_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id_merchant_id(user_id, merchant_id, version)
-            .await
-    }
-
-    async fn list_user_roles_by_user_id_and_version(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_user_id_and_version(user_id, version)
-            .await
-    }
-
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
@@ -3124,16 +3093,6 @@ impl UserRoleInterface for KafkaStore {
                 profile_id,
                 version,
             )
-            .await
-    }
-
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_merchant_id(merchant_id, version)
             .await
     }
 
