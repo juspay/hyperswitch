@@ -40,6 +40,10 @@ where
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
 
+        let mut dimensions = dimensions.to_vec();
+
+        dimensions.push(PaymentDimensions::PaymentStatus);
+
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
@@ -49,6 +53,9 @@ where
                 alias: Some("count"),
             })
             .switch()?;
+
+        query_builder.add_select_column("first_attempt").switch()?;
+
         query_builder
             .add_select_column(Aggregate::Sum {
                 field: "amount",
@@ -83,7 +90,10 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
-
+        query_builder
+            .add_group_by_clause("first_attempt")
+            .attach_printable("Error grouping by first_attempt")
+            .switch()?;
         if let Some(granularity) = granularity.as_ref() {
             granularity
                 .set_group_by_clause(&mut query_builder)

@@ -45,8 +45,10 @@ pub struct CountAccumulator {
 
 #[derive(Debug, Default)]
 pub struct SumAccumulator {
-    pub count: Option<i64>,
-    pub total: Option<i64>,
+    pub count_with_retries: Option<i64>,
+    pub total_with_retries: Option<i64>,
+    pub count_without_retries: Option<i64>,
+    pub total_without_retries: Option<i64>,
 }
 
 #[derive(Debug, Default)]
@@ -240,29 +242,57 @@ impl PaymentMetricAccumulator for CountAccumulator {
 }
 
 impl PaymentMetricAccumulator for SumAccumulator {
-    type MetricOutput = (Option<u64>, Option<u64>);
+    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
-        self.total = match (
-            self.total,
+        self.total_with_retries = match (
+            self.total_with_retries,
             metrics.total.as_ref().and_then(ToPrimitive::to_i64),
         ) {
             (None, None) => None,
             (None, i @ Some(_)) | (i @ Some(_), None) => i,
             (Some(a), Some(b)) => Some(a + b),
         };
-        self.count = match (self.count, metrics.count) {
+
+        self.count_with_retries = match (self.count_with_retries, metrics.count) {
             (None, None) => None,
             (None, i @ Some(_)) | (i @ Some(_), None) => i,
             (Some(a), Some(b)) => Some(a + b),
+        };
+
+        if metrics.first_attempt.unwrap_or(false) {
+            self.total_without_retries = match (
+                self.total_without_retries,
+                metrics.total.as_ref().and_then(ToPrimitive::to_i64),
+            ) {
+                (None, None) => None,
+                (None, i @ Some(_)) | (i @ Some(_), None) => i,
+                (Some(a), Some(b)) => Some(a + b),
+            };
+
+            self.count_without_retries = match (self.count_without_retries, metrics.count) {
+                (None, None) => None,
+                (None, i @ Some(_)) | (i @ Some(_), None) => i,
+                (Some(a), Some(b)) => Some(a + b),
+            };
         }
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        let total_output = u64::try_from(self.total.unwrap_or(0)).ok();
-        let count_output = self.count.and_then(|i| u64::try_from(i).ok());
+        let total_with_retries = u64::try_from(self.total_with_retries.unwrap_or(0)).ok();
+        let count_with_retries = self.count_with_retries.and_then(|i| u64::try_from(i).ok());
 
-        (total_output, count_output)
+        let total_without_retries = u64::try_from(self.total_without_retries.unwrap_or(0)).ok();
+        let count_without_retries = self
+            .count_without_retries
+            .and_then(|i| u64::try_from(i).ok());
+
+        (
+            total_with_retries,
+            count_with_retries,
+            total_without_retries,
+            count_without_retries,
+        )
     }
 }
 
@@ -313,7 +343,12 @@ impl PaymentMetricAccumulator for AverageAccumulator {
 
 impl PaymentMetricsAccumulator {
     pub fn collect(self) -> PaymentMetricsBucketValue {
-        let (processed_amount, processed_count) = self.processed_amount.collect();
+        let (
+            payment_processed_amount,
+            payment_processed_count,
+            payment_processed_amount_without_smart_retries,
+            payment_processed_count_without_smart_retries,
+        ) = self.processed_amount.collect();
         let (
             payments_success_rate_distribution,
             payments_success_rate_distribution_without_smart_retries,
@@ -324,8 +359,10 @@ impl PaymentMetricsAccumulator {
             payment_success_rate: self.payment_success_rate.collect(),
             payment_count: self.payment_count.collect(),
             payment_success_count: self.payment_success.collect(),
-            payment_processed_amount: processed_amount,
-            payment_processed_count: processed_count,
+            payment_processed_amount,
+            payment_processed_count,
+            payment_processed_amount_without_smart_retries,
+            payment_processed_count_without_smart_retries,
             avg_ticket_size: self.avg_ticket_size.collect(),
             payment_error_message: self.payment_error_message.collect(),
             retries_count: self.retries_count.collect(),
