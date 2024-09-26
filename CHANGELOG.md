@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.02.0-hotfix5
+
+### Bug Fixes
+
+- Env added for hyperswitch-web ([#6118](https://github.com/juspay/hyperswitch/pull/6118)) ([`466617d`](https://github.com/juspay/hyperswitch/commit/466617dd7a0165568c172f30ea64eda0d2316514))
+
+- - -
+
 ## 2024.08.02.0-hotfix4
 
 ### Refactors
