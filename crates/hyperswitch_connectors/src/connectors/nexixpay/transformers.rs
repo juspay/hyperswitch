@@ -549,7 +549,7 @@ impl From<NexixpayPaymentStatus> for AttemptStatus {
             NexixpayPaymentStatus::Authorized => Self::Authorized,
             NexixpayPaymentStatus::ThreedsValidated => Self::AuthenticationSuccessful,
             NexixpayPaymentStatus::Executed => Self::Charged,
-            NexixpayPaymentStatus::Pending => Self::AuthenticationPending,
+            NexixpayPaymentStatus::Pending => Self::AuthenticationPending, // this is being used in authorization calls only.
             NexixpayPaymentStatus::Canceled | NexixpayPaymentStatus::Voided => Self::Voided,
             NexixpayPaymentStatus::Refunded => Self::AutoRefunded,
         }
@@ -790,11 +790,8 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             description: item.router_data.description.clone(),
             customer_info,
         };
-        let connector_metadata = item.router_data.request.connector_meta.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
-            },
-        )?;
+        let connector_metadata =
+            to_connector_meta(item.router_data.request.connector_meta.clone())?;
         let nexixpay_meta_data =
             serde_json::from_value::<NexixpayConnectorMetaData>(connector_metadata)
                 .change_context(errors::ConnectorError::ParsingFailed)?;
@@ -824,8 +821,26 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     pan: req_card.card_number.clone(),
                     expiry_date: req_card.get_expiry_date_as_mmyy()?,
                 }),
-                _ => {
-                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::Wallet(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::BankRedirect(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Reward
+                | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::NetworkToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("nexixpay"),
+                    )
+                    .into())
                 }
             };
         Ok(Self {
