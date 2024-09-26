@@ -99,7 +99,7 @@ impl PaymentIntent {
         pmt_order_tax_amount.or_else(|| {
             self.tax_details
                 .clone()
-                .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+                .and_then(|tax| tax.default.map(|default_tax| default_tax.order_tax_amount))
         })
     }
     #[cfg(feature = "v2")]
@@ -122,7 +122,7 @@ impl PaymentIntent {
             self.amount_details
                 .tax_details
                 .clone()
-                .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+                .and_then(|tax| tax.default.map(|default_tax| default_tax.order_tax_amount))
         })
     }
 

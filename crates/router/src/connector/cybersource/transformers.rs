@@ -2092,7 +2092,7 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             | CybersourcePaymentStatus::Challenge
             | CybersourcePaymentStatus::Accepted
             | CybersourcePaymentStatus::Pending
-            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Charged,
+            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Pending,
         }
     }
 }
