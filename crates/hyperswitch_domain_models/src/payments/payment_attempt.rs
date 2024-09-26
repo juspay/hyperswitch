@@ -1124,7 +1124,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 merchant_id: storage_model.merchant_id,
                 id: storage_model.id,
                 status: storage_model.status,
-                net_amount: storage_model.net_amount.unwrap(),
+                net_amount: storage_model.net_amount.unwrap_or(MinorUnit::new(0)),
                 tax_on_surcharge: storage_model.tax_on_surcharge,
                 error_message: storage_model.error_message,
                 surcharge_amount: storage_model.surcharge_amount,
