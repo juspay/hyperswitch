@@ -90,8 +90,8 @@ pub struct NexixpayCompleteAuthorizeResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPreProcessingRequest {
-    operation_id: String,
-    three_d_s_auth_response: String,
+    operation_id: Option<String>,
+    three_d_s_auth_response: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,7 +146,7 @@ pub struct NexixpayPaymentsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSAuthResult {
-    authentication_value: Secret<String>,
+    authentication_value: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -160,7 +160,7 @@ pub enum NexixpayPaymentIntent {
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayConnectorMetaData {
     pub three_d_s_auth_result: Option<ThreeDSAuthResult>,
-    pub three_d_s_auth_response: Option<String>,
+    pub three_d_s_auth_response: Option<Secret<String>>,
     pub authorization_operation_id: Option<String>,
     pub capture_operation_id: Option<String>,
     pub cancel_operation_id: Option<String>,
@@ -171,7 +171,7 @@ pub struct NexixpayConnectorMetaData {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateNexixpayConnectorMetaData {
     pub three_d_s_auth_result: Option<ThreeDSAuthResult>,
-    pub three_d_s_auth_response: Option<String>,
+    pub three_d_s_auth_response: Option<Secret<String>>,
     pub authorization_operation_id: Option<String>,
     pub capture_operation_id: Option<String>,
     pub cancel_operation_id: Option<String>,
@@ -188,30 +188,30 @@ fn update_nexi_meta_data(
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
     Ok(serde_json::json!(NexixpayConnectorMetaData {
-        three_d_s_auth_result: update_request
+        three_d_s_auth_result: nexixpay_meta_data
             .three_d_s_auth_result
-            .or(nexixpay_meta_data.three_d_s_auth_result),
-        three_d_s_auth_response: update_request
+            .or(update_request.three_d_s_auth_result),
+        three_d_s_auth_response: nexixpay_meta_data
             .three_d_s_auth_response
-            .or(nexixpay_meta_data.three_d_s_auth_response),
-        authorization_operation_id: update_request
+            .or(update_request.three_d_s_auth_response),
+        authorization_operation_id: nexixpay_meta_data
             .authorization_operation_id
             .clone()
-            .or(nexixpay_meta_data.authorization_operation_id.clone()),
+            .or(update_request.authorization_operation_id.clone()),
         capture_operation_id: {
-            if update_request.is_auto_capture {
-                update_request
-                    .authorization_operation_id
-                    .clone()
-                    .or(nexixpay_meta_data.authorization_operation_id)
-            } else {
-                update_request.capture_operation_id
-            }
-            .or(nexixpay_meta_data.capture_operation_id)
+            nexixpay_meta_data
+                .capture_operation_id
+                .or(if update_request.is_auto_capture {
+                    nexixpay_meta_data
+                        .authorization_operation_id
+                        .or(update_request.authorization_operation_id.clone())
+                } else {
+                    update_request.capture_operation_id
+                })
         },
-        cancel_operation_id: update_request
+        cancel_operation_id: nexixpay_meta_data
             .cancel_operation_id
-            .or(nexixpay_meta_data.cancel_operation_id),
+            .or(update_request.cancel_operation_id),
         psync_flow: update_request
             .psync_flow
             .unwrap_or(nexixpay_meta_data.psync_flow)
@@ -221,8 +221,8 @@ fn update_nexi_meta_data(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSAuthData {
-    three_d_s_auth_response: String,
-    authentication_value: Secret<String>,
+    three_d_s_auth_response: Option<Secret<String>>,
+    authentication_value: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,10 +260,10 @@ pub struct AdditionalData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RedirectPayload {
     #[serde(rename = "PaRes")]
-    pa_res: String,
+    pa_res: Option<Secret<String>>,
 
     #[serde(rename = "paymentId")]
-    payment_id: String,
+    payment_id: Option<String>,
 }
 
 impl TryFrom<&PaymentsPreProcessingRouterData> for NexixpayPreProcessingRequest {
@@ -326,21 +326,17 @@ impl<F>
             .parse_value("RedirectPayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture = item.data.request.is_auto_capture()?;
-        let operation_id = item.response.operation.operation_id;
-        let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
+        let meta_data = to_connector_meta(item.data.request.metadata.clone())?;
+        let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
             three_d_s_auth_result: Some(three_ds_data),
-            three_d_s_auth_response: Some(customer_details_encrypted.pa_res),
-            authorization_operation_id: Some(operation_id.clone()),
+            three_d_s_auth_response: customer_details_encrypted.pa_res,
+            authorization_operation_id: None,
+            capture_operation_id: None,
             cancel_operation_id: None,
-            capture_operation_id: {
-                if is_auto_capture {
-                    Some(operation_id)
-                } else {
-                    None
-                }
-            },
-            psync_flow: NexixpayPaymentIntent::Authorize
-        }));
+            psync_flow: None,
+            meta_data,
+            is_auto_capture,
+        })?);
 
         Ok(Self {
             status: AttemptStatus::from(item.response.operation.operation_result),
@@ -800,19 +796,11 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 field_name: "authorization_operation_id",
             },
         )?;
-        let three_d_s_auth_response = nexixpay_meta_data.three_d_s_auth_response.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "three_d_s_auth_response",
-            },
-        )?;
         let authentication_value = nexixpay_meta_data
             .three_d_s_auth_result
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "three_d_s_auth_result",
-            })?
-            .authentication_value;
+            .and_then(|data| data.authentication_value);
         let three_d_s_auth_data = ThreeDSAuthData {
-            three_d_s_auth_response,
+            three_d_s_auth_response: nexixpay_meta_data.three_d_s_auth_response,
             authentication_value,
         };
         let card: Result<NexixpayCard, error_stack::Report<errors::ConnectorError>> =

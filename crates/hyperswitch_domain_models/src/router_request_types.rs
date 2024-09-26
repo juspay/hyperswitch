@@ -279,6 +279,7 @@ pub struct PaymentsPreProcessingData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub metadata: Option<serde_json::Value>,
 
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
@@ -308,6 +309,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: data.related_transaction_id,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            metadata: data.metadata,
         })
     }
 }
@@ -336,6 +338,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: None,
             redirect_response: data.redirect_response,
             enrolled_for_3ds: true,
+            metadata: data.connector_meta,
         })
     }
 }
