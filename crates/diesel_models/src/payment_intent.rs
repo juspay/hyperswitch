@@ -197,6 +197,7 @@ common_utils::impl_to_sql_from_sql_json!(TaxDetails);
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PaymentMethodTypeTax {
     pub order_tax_amount: MinorUnit,
+    #[serde(alias = "pmt")]
     pub payment_method_type: PaymentMethodType,
 }
 
