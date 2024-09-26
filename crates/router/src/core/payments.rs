@@ -5500,6 +5500,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     fn get_force_sync(&self) -> Option<bool> {
         todo!()
     }
+
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -5548,10 +5552,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_capture_method_in_attempt(&mut self, _capture_method: enums::CaptureMethod) {
-        todo!()
-    }
-
     fn set_frm_message(&mut self, _frm_message: FraudCheck) {
         todo!()
     }
@@ -5584,13 +5584,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         setup_future_usage: storage_enums::FutureUsage,
     ) {
         self.payment_intent.setup_future_usage = Some(setup_future_usage);
-    }
-
-    fn set_straight_through_algorithm_in_payment_attempt(
-        &mut self,
-        _straight_through_algorithm: serde_json::Value,
-    ) {
-        todo!()
     }
 
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {
