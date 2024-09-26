@@ -594,14 +594,8 @@ pub async fn refresh_success_based_routing_cache(
 pub async fn fetch_success_based_routing_configs(
     state: &SessionState,
     business_profile: &domain::Profile,
+    dynamic_routing_algorithm: serde_json::Value,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
-    // error can only be possible when the feature is not enabled.
-    let dynamic_routing_algorithm = business_profile.dynamic_routing_algorithm.clone().ok_or(
-        errors::ApiErrorResponse::GenericNotFoundError {
-            message: "unable to find dynamic_routing_algorithm in business profile".to_string(),
-        },
-    )?;
-
     let dynamic_routing_algorithm_ref = dynamic_routing_algorithm
         .parse_value::<routing_types::DynamicRoutingAlgorithmRef>("DynamicRoutingAlgorithmRef")
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -617,8 +611,7 @@ pub async fn fetch_success_based_routing_configs(
         // error can be possible when the feature is toggled off.
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!(
-                "{} {}",
-                "unable to find algorithm id in success based algorithm config",
+                "unable to find algorithm_id in success based algorithm config as the feature is disabled for profile_id: {}",
                 business_profile.get_id().get_string_repr()
             ),
         })?;
@@ -664,6 +657,7 @@ pub async fn push_metrics_for_success_based_routing(
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
+    dynamic_routing_algorithm: serde_json::Value,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -681,7 +675,7 @@ pub async fn push_metrics_for_success_based_routing(
     )?;
 
     let success_based_routing_configs =
-        fetch_success_based_routing_configs(state, business_profile)
+        fetch_success_based_routing_configs(state, business_profile, dynamic_routing_algorithm)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
