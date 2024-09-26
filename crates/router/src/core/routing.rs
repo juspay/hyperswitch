@@ -1270,7 +1270,7 @@ pub async fn toggle_success_based_routing(
                     .await
                     .map_err(|e| {
                         logger::error!(
-                            "unable to redact the success based routing config cache {e:?}"
+                            "unable to publish into the redact channel for evicting the success based routing config cache {e:?}"
                         )
                     });
 
