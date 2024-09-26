@@ -298,7 +298,7 @@ impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
 }
 
 // PaymentsResponse
-#[derive(Debug, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NovalnetTransactionStatus {
     Success,
@@ -306,17 +306,15 @@ pub enum NovalnetTransactionStatus {
     Confirmed,
     OnHold,
     Pending,
-    #[default]
     Deactivated,
     Progress,
 }
 
-#[derive(Debug, Copy, Display, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[strum(serialize_all = "UPPERCASE")]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NovalnetAPIStatus {
     Success,
-    #[default]
     Failure,
 }
 
@@ -335,7 +333,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
@@ -353,14 +351,14 @@ pub struct NovalnetPaymentsResponseTransactionData {
     pub payment_data: Option<NovalnetResponsePaymentData>,
     pub payment_type: Option<String>,
     pub status_code: Option<u64>,
-    pub txn_secret: Option<String>,
+    pub txn_secret: Option<Secret<String>>,
     pub tid: Option<Secret<i64>>,
     pub test_mode: Option<i8>,
     pub status: Option<NovalnetTransactionStatus>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponse {
     result: ResultData,
     transaction: Option<NovalnetPaymentsResponseTransactionData>,
@@ -471,10 +469,10 @@ pub struct NovalnetResponseBilling {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseMerchant {
-    pub project: Option<i64>,
-    pub project_name: Option<String>,
+    pub project: Option<Secret<i64>>,
+    pub project_name: Option<Secret<String>>,
     pub project_url: Option<url::Url>,
-    pub vendor: Option<i64>,
+    pub vendor: Option<Secret<i64>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -489,7 +487,7 @@ pub struct NovalnetSyncResponseTransactionData {
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
-    pub payment_data: NovalnetResponsePaymentData,
+    pub payment_data: Option<NovalnetResponsePaymentData>,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
@@ -683,7 +681,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                     .response
                     .transaction
                     .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()))
+                    .and_then(|data| data.refund.tid.map(|tid| tid.expose().to_string()))
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 let transaction_status = item
@@ -711,7 +709,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
     status: NovalnetTransactionStatus,
     tid: Secret<String>,
@@ -760,8 +758,10 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
 
 impl NovalnetSyncResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
-        if let Some(data) = transaction_data {
-            match &data.payment_data {
+        if let Some(payment_data) =
+            transaction_data.and_then(|transaction_data| transaction_data.payment_data.clone())
+        {
+            match &payment_data {
                 NovalnetResponsePaymentData::PaymentCard(card_data) => card_data.token.clone(),
             }
         } else {
@@ -1020,7 +1020,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCancelResponse {
     result: ResultData,
     transaction: Option<NovalnetPaymentsResponseTransactionData>,
@@ -1101,6 +1101,7 @@ pub enum WebhookEventType {
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
+    Chargeback,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1143,9 +1144,8 @@ pub fn get_incoming_webhook_event(
             NovalnetTransactionStatus::OnHold => {
                 IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
             }
-            NovalnetTransactionStatus::Pending | NovalnetTransactionStatus::Progress => {
-                IncomingWebhookEvent::PaymentIntentProcessing
-            }
+            NovalnetTransactionStatus::Pending => IncomingWebhookEvent::PaymentIntentProcessing,
+            NovalnetTransactionStatus::Progress => IncomingWebhookEvent::EventNotSupported,
             _ => IncomingWebhookEvent::PaymentIntentFailure,
         },
         WebhookEventType::TransactionCapture => match transaction_status {
@@ -1164,6 +1164,7 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
+        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
     }
 }
 
