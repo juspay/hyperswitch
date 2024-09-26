@@ -524,7 +524,7 @@ where
                 net_amount: amount,
                 payment_id: payment_data.get_payment_attempt().payment_id.clone(),
                 order_tax_amount: Some(order_tax_amount),
-                shipping_cost: Some(order_tax_amount),
+                shipping_cost: Some(shipping_cost),
                 display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
                     amount,
                     Some(shipping_cost),
