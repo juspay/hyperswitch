@@ -775,7 +775,7 @@ impl webhooks::IncomingWebhook for Novalnet {
                 (data.amount, data.currency)
             }
 
-            novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => {
+            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
                 (data.amount, data.currency)
             }
         };
@@ -787,7 +787,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             .unwrap_or("".to_string());
 
         let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
             .attach_printable("Could not convert webhook secret auth to UTF-8")?;
         let reversed_secret_auth = novalnet::reverse_string(&secret_auth);
 
@@ -814,7 +814,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => data.order_no,
-            novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => data.order_no,
+            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => data.order_no,
         };
 
         if novalnet::is_refund_event(&notif.event.event_type) {
@@ -848,7 +848,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         let optional_transaction_status = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
@@ -858,7 +858,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
                 Some(data.status)
             }
-            novalnet::NovalnetWebhookTransactionData::OtherTransactionData(data) => {
+            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
                 Some(data.status)
             }
         };
@@ -877,7 +877,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(notif))
     }
 }

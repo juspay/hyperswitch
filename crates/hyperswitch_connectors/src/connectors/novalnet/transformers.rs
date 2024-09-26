@@ -473,7 +473,7 @@ pub struct NovalnetResponseBilling {
 pub struct NovalnetResponseMerchant {
     pub project: Option<i64>,
     pub project_name: Option<String>,
-    pub project_url: Option<String>,
+    pub project_url: Option<<url::Url>,
     pub vendor: Option<i64>,
 }
 
@@ -1115,16 +1115,14 @@ pub struct NovalnetWebhookEvent {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalnetWebhookTransactionData {
-    OtherTransactionData(NovalnetSyncResponseTransactionData),
+    SyncTransactionData(NovalnetSyncResponseTransactionData),
     CaptureTransactionData(NovalnetCaptureTransactionData),
     CancelTransactionData(NovalnetPaymentsResponseTransactionData),
     RefundsTransactionData(NovalnetRefundsTransactionData),
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NovalnetWebhookNotificationResponse {
-    pub customer: Option<NovalnetResponseCustomer>,
     pub event: NovalnetWebhookEvent,
-    pub merchant: NovalnetResponseMerchant,
     pub result: ResultData,
     pub transaction: NovalnetWebhookTransactionData,
 }
