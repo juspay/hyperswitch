@@ -30,6 +30,8 @@ pub enum PaymentOutcome {
     Refused,
     #[serde(alias = "Sent for Settlement")]
     SentForSettlement,
+    #[serde(alias = "Sent for Refund")]
+    SentForRefund,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

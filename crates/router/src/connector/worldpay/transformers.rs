@@ -190,7 +190,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            // TODO: Remove this later, kept purely for backwards compatability
+            // TODO: Remove this later, kept purely for backwards compatibility
             types::ConnectorAuthType::BodyKey { api_key, key1 } => {
                 let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
@@ -222,6 +222,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             PaymentOutcome::Authorized => Self::Authorized,
             PaymentOutcome::Refused => Self::Failure,
             PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
+            PaymentOutcome::SentForRefund => Self::AutoRefunded,
         }
     }
 }

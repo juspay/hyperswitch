@@ -773,7 +773,7 @@ diesel::table! {
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
         payment_method -> Nullable<Varchar>,
-        #[max_length = 128]
+        #[max_length = 512]
         connector_transaction_id -> Nullable<Varchar>,
         capture_method -> Nullable<CaptureMethod>,
         capture_on -> Nullable<Timestamp>,
@@ -1144,11 +1144,11 @@ diesel::table! {
         payment_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
-        #[max_length = 128]
+        #[max_length = 512]
         connector_transaction_id -> Varchar,
         #[max_length = 64]
         connector -> Varchar,
-        #[max_length = 128]
+        #[max_length = 512]
         connector_refund_id -> Nullable<Varchar>,
         #[max_length = 64]
         external_reference_id -> Nullable<Varchar>,
