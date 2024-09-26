@@ -4,16 +4,14 @@ use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 use hyperswitch_domain_models::{
     errors::StorageError,
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
 
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-
 use super::MockDb;
-
 #[cfg(feature = "v1")]
 use crate::DataModelExt;
 

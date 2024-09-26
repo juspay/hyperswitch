@@ -34,7 +34,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
 };
-
 use hyperswitch_domain_models::{
     behaviour::Conversion,
     errors::StorageError,
@@ -789,8 +788,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        use crate::DataModelExt;
         use futures::{future::try_join_all, FutureExt};
+
+        use crate::DataModelExt;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);

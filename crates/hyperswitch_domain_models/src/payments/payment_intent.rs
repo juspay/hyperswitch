@@ -22,9 +22,7 @@ use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::payment_attempt::PaymentAttempt;
-
 use super::PaymentIntent;
-
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
