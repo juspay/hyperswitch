@@ -2,7 +2,6 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::requests::*;
-
 use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
