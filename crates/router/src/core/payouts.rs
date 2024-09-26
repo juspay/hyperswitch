@@ -2769,7 +2769,7 @@ pub async fn make_payout_data(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating routing info in payout_attempt")?;
+            .attach_printable("Error updating additional payout method data in payout_attempt")?;
     };
 
     let merchant_connector_account =
