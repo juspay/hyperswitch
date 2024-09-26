@@ -1456,7 +1456,7 @@ pub async fn vault_payment_method_in_locker(
         vault_id: pm_types::VaultId::generate(
             existing_vault_id.unwrap_or(uuid::Uuid::now_v7().to_string()),
         ),
-        data: pmd.clone(),
+        data: pmd,
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     }
     .encode_to_vec()

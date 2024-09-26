@@ -1242,7 +1242,7 @@ pub async fn create_pm_additional_data_update(
     vault_id: Option<String>,
     payment_method: Option<api_enums::PaymentMethod>,
     payment_method_type: Option<api_enums::PaymentMethodType>,
-) -> errors::RouterResult<storage::PaymentMethodUpdate> {
+) -> RouterResult<storage::PaymentMethodUpdate> {
     let card = match pmd {
         pm_types::PaymentMethodVaultingData::Card(card) => {
             api::PaymentMethodsData::Card(card.clone().into())
@@ -1277,7 +1277,7 @@ pub async fn vault_payment_method(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     existing_vault_id: Option<String>,
-) -> errors::RouterResult<pm_types::AddVaultResponse> {
+) -> RouterResult<pm_types::AddVaultResponse> {
     let db = &*state.store;
 
     // get fingerprint_id from locker
@@ -1686,12 +1686,11 @@ pub async fn retrieve_payment_method(
     pm: api::PaymentMethodId,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
-) -> errors::RouterResponse<api::PaymentMethodResponse> {
+) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
-    let pm_id =
-        common_utils::id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = db
         .find_payment_method(

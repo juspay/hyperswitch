@@ -103,7 +103,7 @@ impl VaultingInterface for VaultRetrieve {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(api::CardDetail),
 }
@@ -113,7 +113,7 @@ pub enum PaymentMethodVaultingData {
 impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
-            PaymentMethodVaultingData::Card(card) => card.card_number.to_string(),
+            Self::Card(card) => card.card_number.to_string(),
         }
     }
 }
