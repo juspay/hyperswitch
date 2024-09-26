@@ -1823,6 +1823,57 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             payment_method_type,
             currency: payment_data.currency,
+            charges: payment_data
+                .payment_intent
+                .charges
+                .as_ref()
+                .map(|charges| {
+                    charges
+                        .peek()
+                        .clone()
+                        .parse_value("PaymentCharges")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse charges in to PaymentCharges")
+                })
+                .transpose()?,
+            payment_experience: payment_data.payment_attempt.payment_experience,
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
+        Ok(Self {
+            amount,
+            integrity_object: None,
+            mandate_id: payment_data.mandate_id.clone(),
+            connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
+                Some(connector_txn_id) => {
+                    types::ResponseId::ConnectorTransactionId(connector_txn_id)
+                }
+                None => types::ResponseId::NoResponseId,
+            },
+            encoded_data: payment_data.payment_attempt.encoded_data,
+            capture_method: payment_data.payment_attempt.capture_method,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
+            sync_type: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => types::SyncRequestType::MultipleCaptureSync(
+                    multiple_capture_data.get_pending_connector_capture_ids(),
+                ),
+                None => types::SyncRequestType::SinglePaymentSync,
+            },
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            currency: payment_data.currency,
+            charges: None,
             payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }

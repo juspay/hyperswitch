@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.26.0
+
+### Features
+
+- **router:** Add payment_intent_data and modify api models of create intent request and response for v2 ([#6016](https://github.com/juspay/hyperswitch/pull/6016)) ([`9a605af`](https://github.com/juspay/hyperswitch/commit/9a605afe372a0602127090da59e35ac9ca7396e1))
+
+### Bug Fixes
+
+- **api_key:** Fix api key `list` and `update` endpoints for v2 ([#5980](https://github.com/juspay/hyperswitch/pull/5980)) ([`cda690b`](https://github.com/juspay/hyperswitch/commit/cda690bf39bc1c26634ed8ba07539196bed59257))
+- **connector:** Pass Samsung Pay `public_key_hash` in the confirm call ([#6017](https://github.com/juspay/hyperswitch/pull/6017)) ([`4eec6ca`](https://github.com/juspay/hyperswitch/commit/4eec6ca4b05202dea1f5400007c5f143142b65e4))
+
+### Miscellaneous Tasks
+
+- **nix:** Unbreak `flake.nix` ([#5867](https://github.com/juspay/hyperswitch/pull/5867)) ([`4dac86c`](https://github.com/juspay/hyperswitch/commit/4dac86cebfc098dba84b4b1dfedb5712ce04e913))
+- Address some clippy lints arising from v2 code ([#6015](https://github.com/juspay/hyperswitch/pull/6015)) ([`dec0a57`](https://github.com/juspay/hyperswitch/commit/dec0a57f76991e584462a16d9fbdfbc442d08bd5))
+
+**Full Changelog:** [`2024.09.25.0...2024.09.26.0`](https://github.com/juspay/hyperswitch/compare/2024.09.25.0...2024.09.26.0)
+
+- - -
+
 ## 2024.09.25.0
 
 ### Features

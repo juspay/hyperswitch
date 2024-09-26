@@ -3219,6 +3219,28 @@ pub enum DeleteStatus {
     Redacted,
 }
 
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SuccessBasedRoutingConclusiveState {
+    // pc: payment connector
+    // sc: success based routing outcome/first connector
+    // status: payment status
+    //
+    // status = success && pc == sc
+    TruePositive,
+    // status = failed && pc == sc
+    FalsePositive,
+    // status = failed && pc != sc
+    TrueNegative,
+    // status = success && pc != sc
+    FalseNegative,
+    // status = processing
+    NonDeterministic,
+}
+
 /// Whether 3ds authentication is requested or not
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum External3dsAuthenticationRequest {
