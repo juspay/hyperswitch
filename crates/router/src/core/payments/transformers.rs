@@ -1692,23 +1692,24 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
-        let mut amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
 
         let order_tax_amount = payment_data
             .payment_intent
-            .get_order_tax_amount(&payment_data.payment_attempt);
-        let shipping_cost = payment_data.payment_intent.shipping_cost;
+            .get_order_tax_amount(&payment_data.payment_attempt)
+            .unwrap_or(MinorUnit::new(0));
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0));
 
-        if let Some(shipping_cost) = shipping_cost {
-            amount = amount + shipping_cost;
-        }
-        if let Some(tax_amount) = order_tax_amount {
-            amount = amount + tax_amount;
-        }
+        let amount = {
+            let base_amount = payment_data
+                .surcharge_details
+                .as_ref()
+                .map(|surcharge_details| surcharge_details.final_amount)
+                .unwrap_or(payment_data.amount.into());
+            base_amount + shipping_cost + order_tax_amount
+        };
 
         let customer_name = additional_data
             .customer_data
