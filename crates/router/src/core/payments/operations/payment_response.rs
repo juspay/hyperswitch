@@ -924,7 +924,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let tokenization::SavePaymentMethodDataResponse {
-            payment_method_id, ..
+            payment_method_id,
+            mandate_reference_id,
+            ..
         } = Box::pin(tokenization::save_payment_method(
             state,
             connector_name,
