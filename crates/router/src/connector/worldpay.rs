@@ -42,10 +42,16 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut headers = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let mut headers = vec![
+            (
+                headers::ACCEPT.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
         Ok(headers)
@@ -62,7 +68,7 @@ impl ConnectorCommon for Worldpay {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/vnd.worldpay.payments-v6+json"
+        "application/vnd.worldpay.payments-v7+json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -86,10 +92,14 @@ impl ConnectorCommon for Worldpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: WorldpayErrorResponse = res
-            .response
-            .parse_struct("WorldpayErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(raw_response=?res);
+        let response = if res.status_code != 404 {
+            res.response
+                .parse_struct("WorldpayErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+        } else {
+            WorldpayErrorResponse::default()
+        };
 
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -183,7 +193,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/settlements/{}",
+            "{}payments/authorizations/cancellations/{}",
             self.base_url(connectors),
             connector_payment_id
         ))
@@ -361,6 +371,28 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         self.common_get_content_type()
     }
 
+    fn get_url(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}payments/settlements/partials/{}",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = WorldpayPartialRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -372,6 +404,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -409,19 +444,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             }
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         }
-    }
-
-    fn get_url(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}payments/settlements/{}",
-            self.base_url(connectors),
-            connector_payment_id
-        ))
     }
 
     fn get_error_response(
@@ -463,7 +485,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}payments/authorizations",
+            "{}cardPayments/customerInitiatedTransactions",
             self.base_url(connectors)
         ))
     }
@@ -479,7 +501,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let connector_req = WorldpayPaymentsRequest::try_from(&connector_router_data)?;
+        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let connector_req =
+            WorldpayPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -560,7 +585,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = WorldpayRefundRequest::try_from(req)?;
+        let connector_req = WorldpayPartialRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

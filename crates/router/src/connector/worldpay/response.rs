@@ -1,33 +1,42 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use super::requests::*;
+
 use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub exemption: Option<Exemption>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<Issuer>,
-    pub outcome: Option<Outcome>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_instrument: Option<PaymentsResPaymentInstrument>,
+    pub outcome: Option<PaymentOutcome>,
     /// Any risk factors which have been identified for the authorization. This section will not appear if no risks are identified.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<Issuer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scheme: Option<PaymentsResponseScheme>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_instrument: Option<PaymentsResPaymentInstrument>,
     #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
     pub links: Option<PaymentLinks>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Outcome {
+pub enum PaymentOutcome {
+    #[serde(alias = "authorized", alias = "Authorized")]
     Authorized,
     Refused,
+    #[serde(alias = "Sent for Settlement")]
+    SentForSettlement,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum RefundOutcome {
+    #[serde(alias = "Sent for Refund")]
+    SentForRefund,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -41,14 +50,17 @@ pub struct WorldpayEventResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EventType {
+    #[serde(alias = "Authorized", alias = "authorized")]
     Authorized,
     Cancelled,
     Charged,
+    #[serde(rename = "Sent for Refund")]
     SentForRefund,
     RefundFailed,
     Refused,
     Refunded,
     Error,
+    #[serde(rename = "Sent for Settlement")]
     SentForSettlement,
     Expired,
     CaptureFailed,
@@ -57,15 +69,37 @@ pub enum EventType {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct Exemption {
-    pub result: String,
-    pub reason: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentLinks {
-    #[serde(rename = "payments:events", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "cardPayments:events",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub events: Option<PaymentLink>,
+    #[serde(
+        rename = "cardPayments:settle",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub settle_event: Option<PaymentLink>,
+    #[serde(
+        rename = "cardPayments:partialSettle",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub partial_settle_event: Option<PaymentLink>,
+    #[serde(
+        rename = "cardPayments:refund",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub refund_event: Option<PaymentLink>,
+    #[serde(
+        rename = "cardPayments:partialRefund",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub partial_refund_event: Option<PaymentLink>,
+    #[serde(
+        rename = "cardPayments:reverse",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub reverse_event: Option<PaymentLink>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -116,12 +150,6 @@ impl ForeignTryFrom<Option<PaymentLinks>> for types::ResponseId {
     }
 }
 
-impl Exemption {
-    pub fn new(result: String, reason: String) -> Self {
-        Self { result, reason }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Issuer {
@@ -137,103 +165,32 @@ impl Issuer {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentsResPaymentInstrument {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub risk_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<PaymentInstrumentCard>,
+    pub payment_instrument_type: Option<String>,
+    pub card_bin: Option<String>,
+    pub last_four: Option<String>,
+    pub category: Option<String>,
+    pub expiry_date: Option<ExpiryDate>,
+    pub card_brand: Option<String>,
+    pub funding_type: Option<String>,
+    pub issuer_name: Option<String>,
+    pub payment_account_reference: Option<String>,
 }
 
 impl PaymentsResPaymentInstrument {
     pub fn new() -> Self {
         Self {
-            risk_type: None,
-            card: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCard {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub number: Option<PaymentInstrumentCardNumber>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<PaymentInstrumentCardIssuer>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_account_reference: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub country_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub funding_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub brand: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expiry_date: Option<PaymentInstrumentCardExpiryDate>,
-}
-
-impl PaymentInstrumentCard {
-    pub fn new() -> Self {
-        Self {
-            number: None,
-            issuer: None,
-            payment_account_reference: None,
-            country_code: None,
-            funding_type: None,
-            brand: None,
+            payment_instrument_type: None,
+            card_bin: None,
+            last_four: None,
+            category: None,
             expiry_date: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCardExpiryDate {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub month: Option<Secret<i32>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub year: Option<Secret<i32>>,
-}
-
-impl PaymentInstrumentCardExpiryDate {
-    pub fn new() -> Self {
-        Self {
-            month: None,
-            year: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCardIssuer {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-}
-
-impl PaymentInstrumentCardIssuer {
-    pub fn new() -> Self {
-        Self { name: None }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCardNumber {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bin: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last4_digits: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dpan: Option<String>,
-}
-
-impl PaymentInstrumentCardNumber {
-    pub fn new() -> Self {
-        Self {
-            bin: None,
-            last4_digits: None,
-            dpan: None,
+            card_brand: None,
+            funding_type: None,
+            issuer_name: None,
+            payment_account_reference: None,
         }
     }
 }
@@ -282,15 +239,12 @@ pub enum Detail {
 #[derive(
     Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
 )]
+#[serde(rename_all = "camelCase")]
 pub enum Risk {
     #[default]
-    #[serde(rename = "not_checked")]
     NotChecked,
-    #[serde(rename = "not_matched")]
     NotMatched,
-    #[serde(rename = "not_supplied")]
     NotSupplied,
-    #[serde(rename = "verificationFailed")]
     VerificationFailed,
 }
 
@@ -305,12 +259,22 @@ impl PaymentsResponseScheme {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayErrorResponse {
     pub error_name: String,
     pub message: String,
     pub validation_errors: Option<serde_json::Value>,
+}
+
+impl Default for WorldpayErrorResponse {
+    fn default() -> Self {
+        Self {
+            error_name: "Not found".to_string(),
+            message: "Resource not found".to_string(),
+            validation_errors: None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
