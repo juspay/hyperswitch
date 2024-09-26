@@ -339,7 +339,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+        #[cfg(feature = "v1")]
         let payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
@@ -347,7 +347,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_id: payment_id.clone(),
             })?;
 
-        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+        #[cfg(feature = "v2")]
         let payment_attempt = db
             .insert_payment_attempt(
                 key_manager_state,

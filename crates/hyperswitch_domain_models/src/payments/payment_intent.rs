@@ -20,7 +20,11 @@ use masking::{Deserialize, PeekInterface, Secret};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
-use super::{payment_attempt::PaymentAttempt, PaymentIntent};
+#[cfg(all(feature = "v1", feature = "olap"))]
+use super::payment_attempt::PaymentAttempt;
+
+use super::PaymentIntent;
+
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
@@ -46,7 +50,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -56,7 +60,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
@@ -65,11 +69,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -79,11 +79,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -93,11 +89,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -105,11 +97,7 @@ pub trait PaymentIntentInterface {
         constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -119,11 +107,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -140,7 +124,7 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: Option<MinorUnit>,
@@ -165,7 +149,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
@@ -197,7 +181,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -280,7 +264,7 @@ pub enum PaymentIntentUpdate {
 }
 
 // TODO: remove all enum variants and create new variants that should be used for v2
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -353,7 +337,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -386,7 +370,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -430,7 +414,7 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         todo!()
@@ -608,7 +592,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
@@ -809,7 +793,7 @@ use diesel_models::{
     PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         todo!()
@@ -953,7 +937,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         match value {
@@ -1125,7 +1109,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
 }
 
 // TODO: evaluate if we will be using the same update struct for v2 as well, uncomment this and make necessary changes if necessary
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
         todo!()
@@ -1193,7 +1177,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
         let modified_at = common_utils::date_time::now();
@@ -1468,7 +1452,7 @@ where
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;
@@ -1741,7 +1725,7 @@ impl behaviour::Conversion for PaymentIntent {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;

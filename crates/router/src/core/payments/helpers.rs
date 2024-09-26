@@ -3870,7 +3870,7 @@ pub enum AttemptType {
 }
 
 impl AttemptType {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
@@ -3965,7 +3965,7 @@ impl AttemptType {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
@@ -4007,7 +4007,7 @@ impl AttemptType {
                     storage_scheme,
                 );
 
-                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+                #[cfg(feature = "v1")]
                 let new_payment_attempt = db
                     .insert_payment_attempt(new_payment_attempt_to_insert, storage_scheme)
                     .await
@@ -4015,7 +4015,7 @@ impl AttemptType {
                         payment_id: fetched_payment_intent.get_id().to_owned(),
                     })?;
 
-                #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                #[cfg(feature = "v2")]
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         key_manager_state,

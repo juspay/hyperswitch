@@ -1344,7 +1344,7 @@ impl QueueInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for KafkaStore {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: storage::PaymentAttemptNew,
@@ -1366,7 +1366,7 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
         key_manager_state: &KeyManagerState,
@@ -1395,7 +1395,7 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: storage::PaymentAttempt,
@@ -1418,7 +1418,7 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         key_manager_state: &KeyManagerState,
@@ -1449,7 +1449,7 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -1467,7 +1467,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1483,7 +1483,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -1501,7 +1501,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -1513,7 +1513,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
         key_manager_state: &KeyManagerState,
@@ -1531,7 +1531,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -1547,7 +1547,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -1563,7 +1563,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -1579,7 +1579,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn get_filters_for_payments(
         &self,
         pi: &[hyperswitch_domain_models::payments::PaymentIntent],
@@ -1594,7 +1594,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1624,7 +1624,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,

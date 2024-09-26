@@ -1,5 +1,4 @@
-use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
 use diesel_models::{
@@ -16,20 +15,22 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
-    payments::{
-        payment_attempt::{
-            PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
-            PaymentListFilters,
-        },
-        PaymentIntent,
+    payments::payment_attempt::{
+        PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
     },
 };
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
-    behaviour::ReverseConversion, merchant_key_store::MerchantKeyStore,
+    behaviour::{Conversion, ReverseConversion},
+    merchant_key_store::MerchantKeyStore,
+};
+
+#[cfg(feature = "olap")]
+use hyperswitch_domain_models::{
+    payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
@@ -45,7 +46,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
@@ -64,7 +65,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
@@ -93,7 +94,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -112,7 +113,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -145,7 +146,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
@@ -169,7 +170,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
@@ -191,7 +192,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
@@ -213,7 +214,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
@@ -235,7 +236,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -268,6 +269,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
+        use hyperswitch_domain_models::behaviour::Conversion;
+
         let conn = pg_connection_read(self).await?;
         let intents = futures::future::try_join_all(pi.iter().cloned().map(|pi| async {
             Conversion::convert(pi)
@@ -301,7 +304,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             )
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
@@ -324,7 +327,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
@@ -346,7 +349,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             })
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
@@ -365,7 +368,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_id(
         &self,
@@ -397,10 +400,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<Vec<Connector>>,
-        payment_method: Option<Vec<PaymentMethod>>,
-        payment_method_type: Option<Vec<PaymentMethodType>>,
-        authentication_type: Option<Vec<AuthenticationType>>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
@@ -815,7 +818,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
@@ -874,7 +877,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
@@ -936,7 +939,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
@@ -1005,7 +1008,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -1059,7 +1062,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
@@ -1125,7 +1128,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_id(
         &self,
@@ -1145,7 +1148,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
@@ -1214,7 +1217,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
@@ -1264,7 +1267,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn get_filters_for_payments(
         &self,
@@ -1277,16 +1280,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<Vec<Connector>>,
-        payment_method: Option<Vec<PaymentMethod>>,
-        payment_method_type: Option<Vec<PaymentMethodType>>,
-        authentication_type: Option<Vec<AuthenticationType>>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,

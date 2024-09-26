@@ -290,10 +290,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 updated_by: storage_scheme.clone().to_string(),
                             };
 
-                        #[cfg(all(
-                            any(feature = "v1", feature = "v2"),
-                            not(feature = "payment_v2")
-                        ))]
+                        #[cfg(feature = "v1")]
                         let respond = state
                             .store
                             .update_payment_attempt_with_attempt_id(
@@ -303,7 +300,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             )
                             .await;
 
-                        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                        #[cfg(feature = "v2")]
                         let respond = state
                             .store
                             .update_payment_attempt_with_attempt_id(
@@ -387,7 +384,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             {
                 payment_data.payment_attempt = state
                     .store
@@ -400,7 +397,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             }
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             {
                 payment_data.payment_attempt = state
                     .store

@@ -446,7 +446,7 @@ where
                 charge_id,
             };
 
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             db.update_payment_attempt_with_attempt_id(
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
@@ -455,7 +455,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             db.update_payment_attempt_with_attempt_id(
                 key_manager_state,
                 key_store,
@@ -495,7 +495,7 @@ where
                 authentication_type: auth_update,
             };
 
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             db.update_payment_attempt_with_attempt_id(
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
@@ -504,7 +504,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             db.update_payment_attempt_with_attempt_id(
                 key_manager_state,
                 key_store,
@@ -517,14 +517,14 @@ where
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     let payment_attempt = db
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error inserting payment attempt")?;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     let payment_attempt = db
         .insert_payment_attempt(
             key_manager_state,
@@ -559,7 +559,7 @@ where
     Ok(())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     connector: String,
@@ -638,7 +638,7 @@ pub fn make_new_payment_attempt(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     _connector: String,

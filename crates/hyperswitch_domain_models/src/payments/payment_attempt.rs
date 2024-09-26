@@ -1,3 +1,4 @@
+#[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
 use common_utils::{
@@ -16,8 +17,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+#[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 use crate::merchant_key_store::MerchantKeyStore;
 use crate::{
     behaviour, errors,
@@ -27,14 +29,14 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
         key_manager_state: &KeyManagerState,
@@ -43,7 +45,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -51,7 +53,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         key_manager_state: &KeyManagerState,
@@ -61,7 +63,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -70,7 +72,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -78,7 +80,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -86,7 +88,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -94,7 +96,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &id_type::PaymentId,
@@ -103,7 +105,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -111,7 +113,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
         key_manager_state: &KeyManagerState,
@@ -120,7 +122,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -128,7 +130,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -161,7 +163,7 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::GlobalPaymentId,
@@ -265,7 +267,7 @@ impl PaymentAttempt {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::PaymentId,
@@ -337,7 +339,7 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         todo!();
@@ -348,7 +350,7 @@ impl PaymentAttempt {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         self.amount
@@ -372,7 +374,7 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::PaymentId,
@@ -421,7 +423,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::PaymentId,
@@ -493,7 +495,7 @@ pub struct PaymentAttemptNew {
     pub order_tax_amount: Option<MinorUnit>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
@@ -505,7 +507,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
@@ -523,7 +525,7 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
@@ -720,21 +722,21 @@ pub enum PaymentAttemptUpdate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {}
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         todo!()
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         self.attempt_id.clone()
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentAttempt {
     type DstType = DieselPaymentAttempt;
@@ -976,7 +978,7 @@ impl behaviour::Conversion for PaymentAttempt {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentAttempt {
     type DstType = DieselPaymentAttempt;

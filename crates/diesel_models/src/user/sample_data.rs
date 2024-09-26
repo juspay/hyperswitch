@@ -6,16 +6,16 @@ use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::payment_attempt;
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt;
 use crate::{
     enums::{MandateDataType, MandateDetails},
     PaymentAttemptNew,
 };
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -68,7 +68,7 @@ pub struct PaymentAttemptBatchNew {
     pub organization_id: common_utils::id_type::OrganizationId,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[allow(dead_code)]
 impl PaymentAttemptBatchNew {
     // Used to verify compatibility with PaymentAttemptTable
