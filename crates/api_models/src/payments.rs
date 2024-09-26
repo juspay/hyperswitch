@@ -1153,7 +1153,7 @@ impl Card {
         let card_network = self
             .card_network
             .clone()
-            .or_else(|| additional_card_info.card_network.clone())
+            .or(additional_card_info.card_network.clone())
             .map(|network| match self.card_number.is_cobadged_card() {
                 Ok(true) => Ok(Some(network)),
                 Ok(false) => Ok(None),
