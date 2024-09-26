@@ -421,6 +421,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+    pub charges: Option<PaymentCharges>,
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
