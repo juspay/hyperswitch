@@ -924,6 +924,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     tax_connector_id: None,
                     is_tax_connector_enabled: None,
                     is_network_tokenization_enabled,
+                    is_auto_retries_enabled: None,
+                    max_auto_retries_enabled: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -962,6 +964,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -998,6 +1002,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1034,6 +1040,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1070,6 +1078,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1106,6 +1116,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
             },
         }
     }
@@ -1162,6 +1174,8 @@ impl super::behaviour::Conversion for Profile {
             version: self.version,
             dynamic_routing_algorithm: None,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            is_auto_retries_enabled: None,
+            max_auto_retries_enabled: None,
         })
     }
 
@@ -1281,6 +1295,8 @@ impl super::behaviour::Conversion for Profile {
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            is_auto_retries_enabled: None,
+            max_auto_retries_enabled: None,
         })
     }
 }
