@@ -55,6 +55,8 @@ pub struct Profile {
     pub version: common_enums::ApiVersion,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
+    pub is_auto_retries_enabled: Option<bool>,
+    pub max_auto_retries_enabled: Option<i16>,
 }
 
 #[cfg(feature = "v1")]
@@ -96,6 +98,8 @@ pub struct ProfileNew {
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
+    pub is_auto_retries_enabled: Option<bool>,
+    pub max_auto_retries_enabled: Option<i16>,
 }
 
 #[cfg(feature = "v1")]
@@ -134,6 +138,8 @@ pub struct ProfileUpdateInternal {
     pub is_tax_connector_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: Option<bool>,
+    pub is_auto_retries_enabled: Option<bool>,
+    pub max_auto_retries_enabled: Option<i16>,
 }
 
 #[cfg(feature = "v1")]
@@ -171,6 +177,8 @@ impl ProfileUpdateInternal {
             is_tax_connector_enabled,
             dynamic_routing_algorithm,
             is_network_tokenization_enabled,
+            is_auto_retries_enabled,
+            max_auto_retries_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -228,6 +236,8 @@ impl ProfileUpdateInternal {
                 .or(source.dynamic_routing_algorithm),
             is_network_tokenization_enabled: is_network_tokenization_enabled
                 .unwrap_or(source.is_network_tokenization_enabled),
+            is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
+            max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
         }
     }
 }

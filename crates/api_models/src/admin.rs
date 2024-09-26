@@ -1971,6 +1971,12 @@ pub struct ProfileCreate {
     /// If set to `true` is_network_tokenization_enabled will be checked.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
+
+    /// Indicates if is_auto_retries_enabled is enabled or not.
+    pub is_auto_retries_enabled: Option<bool>,
+
+    /// Maximum number of auto retries allowed for a payment
+    pub max_auto_retries_enabled: Option<u8>,
 }
 
 #[nutype::nutype(
@@ -2202,6 +2208,13 @@ pub struct ProfileResponse {
     /// If set to `true` is_network_tokenization_enabled will be checked.
     #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
+
+    /// Indicates if is_auto_retries_enabled is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_auto_retries_enabled: bool,
+
+    /// Maximum number of auto retries allowed for a payment
+    pub max_auto_retries_enabled: Option<i16>,
 }
 
 #[cfg(feature = "v2")]
@@ -2431,6 +2444,12 @@ pub struct ProfileUpdate {
 
     /// Indicates if is_network_tokenization_enabled is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
+
+    /// Indicates if is_auto_retries_enabled is enabled or not.
+    pub is_auto_retries_enabled: Option<bool>,
+
+    /// Maximum number of auto retries allowed for a payment
+    pub max_auto_retries_enabled: Option<u8>,
 }
 
 #[cfg(feature = "v2")]
