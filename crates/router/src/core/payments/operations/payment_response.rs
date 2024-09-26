@@ -846,7 +846,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let tokenization::SavePaymentMethodDataResponse {
-            payment_method_id, ..
+            payment_method_id,
+            mandate_reference_id,
+            ..
         } = Box::pin(tokenization::save_payment_method(
             state,
             connector_name,
@@ -863,7 +865,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             business_profile,
         ))
         .await?;
-
+        println!("<<<<<<Av");
+        payment_data.set_mandate_id(api_models::payments::MandateIds {
+            mandate_id: None,
+            mandate_reference_id,
+        });
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
@@ -876,6 +882,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
         payment_data.payment_attempt.mandate_id = mandate_id;
+
         Ok(())
     }
 }
