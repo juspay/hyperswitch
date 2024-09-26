@@ -110,6 +110,7 @@ pub enum PaymentMetrics {
     RetriesCount,
     ConnectorSuccessRate,
     PaymentsDistribution,
+    FailureReasons,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -282,6 +283,8 @@ pub struct PaymentMetricsBucketValue {
     pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
     pub payments_failure_rate_distribution: Option<f64>,
     pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
+    pub failure_reasons_distribution: Option<Vec<ErrorResult>>,
+    pub failure_reasons_distribution_without_smart_retries: Option<Vec<ErrorResult>>,
 }
 
 #[derive(Debug, serde::Serialize)]

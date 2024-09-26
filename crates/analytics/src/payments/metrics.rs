@@ -15,6 +15,7 @@ use crate::{
 
 mod avg_ticket_size;
 mod connector_success_rate;
+mod failure_reasons;
 mod payment_count;
 mod payment_processed_amount;
 mod payment_success_count;
@@ -24,6 +25,7 @@ mod success_rate;
 
 use avg_ticket_size::AvgTicketSize;
 use connector_success_rate::ConnectorSuccessRate;
+use failure_reasons::FailureReasons;
 use payment_count::PaymentCount;
 use payment_processed_amount::PaymentProcessedAmount;
 use payment_success_count::PaymentSuccessCount;
@@ -133,6 +135,11 @@ where
             }
             Self::PaymentsDistribution => {
                 PaymentsDistribution
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::FailureReasons => {
+                FailureReasons
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

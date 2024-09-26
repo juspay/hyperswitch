@@ -17,6 +17,7 @@ pub struct PaymentMetricsAccumulator {
     pub retries_amount_processed: RetriesAmountAccumulator,
     pub connector_success_rate: SuccessRateAccumulator,
     pub payments_distribution: PaymentsDistributionAccumulator,
+    pub failure_reasons: FailureErrorDistributionAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -27,8 +28,21 @@ pub struct ErrorDistributionRow {
 }
 
 #[derive(Debug, Default)]
+pub struct FailureErrorMetricRow {
+    pub count: i64,
+    pub total: i64,
+    pub error_reason: String,
+}
+
+#[derive(Debug, Default)]
 pub struct ErrorDistributionAccumulator {
     pub error_vec: Vec<ErrorDistributionRow>,
+}
+
+#[derive(Debug, Default)]
+pub struct FailureErrorDistributionAccumulator {
+    pub error_vec: Vec<FailureErrorMetricRow>,
+    pub error_vec_without_retries: Vec<FailureErrorMetricRow>,
 }
 
 #[derive(Debug, Default)]
@@ -123,6 +137,65 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
 
             Some(res)
         }
+    }
+}
+
+impl PaymentMetricAccumulator for FailureErrorDistributionAccumulator {
+    type MetricOutput = (Vec<ErrorResult>, Vec<ErrorResult>);
+
+    fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
+        self.error_vec.push(FailureErrorMetricRow {
+            count: metrics.count.unwrap_or_default(),
+            total: metrics
+                .total
+                .clone()
+                .map(|i| i.to_i64().unwrap_or_default())
+                .unwrap_or_default(),
+            error_reason: metrics.error_reason.clone().unwrap_or("".to_string()),
+        });
+        if metrics.first_attempt.unwrap_or(false) {
+            self.error_vec_without_retries.push(FailureErrorMetricRow {
+                count: metrics.count.unwrap_or_default(),
+                total: metrics
+                    .total
+                    .clone()
+                    .map(|i| i.to_i64().unwrap_or_default())
+                    .unwrap_or_default(),
+                error_reason: metrics.error_reason.clone().unwrap_or("".to_string()),
+            })
+        }
+    }
+
+    fn collect(mut self) -> Self::MetricOutput {
+        self.error_vec.sort_by(|a, b| b.count.cmp(&a.count));
+        let mut res: Vec<ErrorResult> = Vec::new();
+        for val in self.error_vec.into_iter() {
+            if let (Some(count), Some(total)) =
+                (u32::try_from(val.count).ok(), u32::try_from(val.total).ok())
+            {
+                let perc = f64::from(count) * 100.0 / f64::from(total);
+                res.push(ErrorResult {
+                    reason: val.error_reason,
+                    count: val.count,
+                    percentage: (perc * 100.0).round() / 100.0,
+                });
+            }
+        }
+        let mut res_without_retries: Vec<ErrorResult> = Vec::new();
+
+        for val in self.error_vec_without_retries.into_iter() {
+            if let (Some(count), Some(total)) =
+                (u32::try_from(val.count).ok(), u32::try_from(val.total).ok())
+            {
+                let perc = f64::from(count) * 100.0 / f64::from(total);
+                res_without_retries.push(ErrorResult {
+                    reason: val.error_reason,
+                    count: val.count,
+                    percentage: (perc * 100.0).round() / 100.0,
+                });
+            }
+        }
+        (res, res_without_retries)
     }
 }
 
@@ -355,6 +428,8 @@ impl PaymentMetricsAccumulator {
             payments_failure_rate_distribution,
             payments_failure_rate_distribution_without_smart_retries,
         ) = self.payments_distribution.collect();
+        let (failure_reasons_distribution, failure_reasons_distribution_without_smart_retries) =
+            self.failure_reasons.collect();
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),
             payment_count: self.payment_count.collect(),
@@ -372,6 +447,10 @@ impl PaymentMetricsAccumulator {
             payments_success_rate_distribution_without_smart_retries,
             payments_failure_rate_distribution,
             payments_failure_rate_distribution_without_smart_retries,
+            failure_reasons_distribution: Some(failure_reasons_distribution),
+            failure_reasons_distribution_without_smart_retries: Some(
+                failure_reasons_distribution_without_smart_retries,
+            ),
         }
     }
 }

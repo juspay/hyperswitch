@@ -168,6 +168,9 @@ pub async fn get_metrics(
                                 .payments_distribution
                                 .add_metrics_bucket(&value);
                         }
+                        PaymentMetrics::FailureReasons => {
+                            metrics_builder.failure_reasons.add_metrics_bucket(&value);
+                        }
                     }
                 }
 
