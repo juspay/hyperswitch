@@ -4170,11 +4170,13 @@ pub async fn get_additional_payment_data(
                 _ => None,
             };
 
-            let card_network = match card_data.card_number.is_cobadged_card().change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Card cobadge check failed due to an invalid card network regex",
-                    )
-            ? {
+            let card_network = match card_data
+                .card_number
+                .is_cobadged_card()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Card cobadge check failed due to an invalid card network regex",
+                )? {
                 true => card_data.card_network.clone(),
                 false => None,
             };
