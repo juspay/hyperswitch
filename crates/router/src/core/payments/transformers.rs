@@ -502,13 +502,7 @@ where
         }
         let order_tax_amount = payment_data
             .get_payment_intent()
-            .tax_details
-            .clone()
-            .and_then(|tax| {
-                tax.payment_method_type
-                    .map(|a| a.order_tax_amount)
-                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
-            });
+            .get_order_tax_amount(payment_data.get_payment_attempt());
         if let Some(tax_amount) = order_tax_amount {
             amount = amount + tax_amount;
         }
@@ -2055,7 +2049,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
         let payment_data = additional_data.payment_data;
         let order_tax_amount = payment_data
             .payment_intent
-            .get_order_tax_amount(payment_data.payment_attempt)
+            .get_order_tax_amount(&payment_data.payment_attempt)
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;

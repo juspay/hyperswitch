@@ -1284,7 +1284,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let order_tax_amount = payment_data
             .payment_intent
-            .get_order_tax_amount(payment_data.payment_attempt.clone());
+            .get_order_tax_amount(&payment_data.payment_attempt);
 
         if let Some(shipping_cost) = shipping_cost {
             authorized_amount = authorized_amount + shipping_cost;

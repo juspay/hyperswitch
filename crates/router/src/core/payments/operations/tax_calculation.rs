@@ -312,7 +312,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
             payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
                 payment_method_type: Some(diesel_models::PaymentMethodTypeTax {
                     order_tax_amount: tax_response.order_tax_amount,
-                    pmt: payment_method_type,
+                    payment_method_type,
                 }),
                 default: None,
             });
