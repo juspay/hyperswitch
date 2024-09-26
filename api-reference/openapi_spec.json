@@ -24129,6 +24129,17 @@
           }
         ]
       },
+      "WalletAdditionalData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaypalAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/VenmoAdditionalData"
+          }
+        ],
+        "description": "Masked payout method details for wallet payout method"
+      },
       "WalletAdditionalDataForCard": {
         "type": "object",
         "required": [
@@ -24150,17 +24161,6 @@
             "description": "The type of payment method"
           }
         }
-      },
-      "WalletAdditionalData": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/PaypalAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/VenmoAdditionalData"
-          }
-        ],
-        "description": "Masked payout method details for wallet payout method"
       },
       "WalletData": {
         "oneOf": [
