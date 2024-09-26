@@ -502,7 +502,7 @@ fn create_samsung_pay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     header_payload: api_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
-    let samsung_pay_wallet_details = router_data
+    let samsung_pay_session_token_data = router_data
         .connector_wallets_details
         .clone()
         .parse_value::<payment_types::SamsungPaySessionTokenData>("SamsungPaySessionTokenData")
@@ -527,18 +527,30 @@ fn create_samsung_pay_session_token(
         .get_required_value("samsung pay domain")
         .attach_printable("Failed to get domain for samsung pay session call")?;
 
+    let samsung_pay_wallet_details = match samsung_pay_session_token_data.data {
+        payment_types::SamsungPayCombinedMetadata::MerchantCredentials(
+            samsung_pay_merchant_credentials,
+        ) => samsung_pay_merchant_credentials,
+        payment_types::SamsungPayCombinedMetadata::ApplicationCredentials(
+            _samsung_pay_application_credentials,
+        ) => Err(errors::ApiErrorResponse::NotSupported {
+            message: "Samsung Pay decryption flow with application credentials is not implemented"
+                .to_owned(),
+        })?,
+    };
+
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::SamsungPay(Box::new(
                 payment_types::SamsungPaySessionTokenResponse {
                     version: "2".to_string(),
-                    service_id: samsung_pay_wallet_details.data.service_id,
+                    service_id: samsung_pay_wallet_details.service_id,
                     order_number: router_data.payment_id.clone(),
                     merchant_payment_information:
                         payment_types::SamsungPayMerchantPaymentInformation {
-                            name: samsung_pay_wallet_details.data.merchant_display_name,
+                            name: samsung_pay_wallet_details.merchant_display_name,
                             url: merchant_domain,
-                            country_code: samsung_pay_wallet_details.data.merchant_business_country,
+                            country_code: samsung_pay_wallet_details.merchant_business_country,
                         },
                     amount: payment_types::SamsungPayAmountDetails {
                         amount_format: payment_types::SamsungPayAmountFormat::FormatTotalPriceOnly,
@@ -546,7 +558,7 @@ fn create_samsung_pay_session_token(
                         total_amount: samsung_pay_amount,
                     },
                     protocol: payment_types::SamsungPayProtocolType::Protocol3ds,
-                    allowed_brands: samsung_pay_wallet_details.data.allowed_brands,
+                    allowed_brands: samsung_pay_wallet_details.allowed_brands,
                 },
             )),
         }),
