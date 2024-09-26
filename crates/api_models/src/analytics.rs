@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+pub use common_utils::types::TimeRange;
 use common_utils::{events::ApiEventMetric, pii::EmailStrategy, types::authentication::AuthInfo};
 use masking::Secret;
 
@@ -14,8 +15,6 @@ use self::{
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
-pub use crate::payments::TimeRange;
-
 pub mod active_payments;
 pub mod api_event;
 pub mod auth_events;

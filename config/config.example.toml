@@ -375,10 +375,12 @@ wildcard_origin = false                 # If true, allows any origin to make req
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
-sender_email = "example@example.com" # Sender email
-aws_region = ""                      # AWS region used by AWS SES
-allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
-active_email_client = "SES"          # The currently active email client
+sender_email = "example@example.com"                 # Sender email
+aws_region = ""                                      # AWS region used by AWS SES
+allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+active_email_client = "SES"                          # The currently active email client
+recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
+prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
 # Configuration for aws ses, applicable when the active email client is SES
 [email.aws_ses]
@@ -532,6 +534,7 @@ credit = { currency = "USD,GBP,EUR" }
 debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
+samsung_pay = { currency = "USD,GBP,EUR" }
 
 [pm_filters.stax]
 credit = { currency = "USD" }
@@ -731,6 +734,9 @@ connector_list = ""
 [recipient_emails]
 recon = "test@example.com"
 
+[cell_information]
+id = "12345" # Default CellID for Global Cell Information
+
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard" # Supported card networks for network tokenization
 
@@ -746,3 +752,7 @@ check_token_status_url= ""    # base url to check token status from token servic
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource" # Supported connectors for network tokenization
+
+[grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
+host = "localhost" # Client Host
+port = 7000        # Client Port

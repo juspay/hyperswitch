@@ -5,6 +5,7 @@ use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils,
     pii::{self, Email},
+    types::{UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
 use router_derive::FlatStruct;
@@ -383,7 +384,7 @@ pub struct Venmo {
     pub telephone_number: Option<Secret<String>>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize)]
+#[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -535,6 +536,18 @@ pub struct PayoutCreateResponse {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    /// (This field is not live yet)
+    /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutCreateResponse)]
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_000")]
+    pub unified_code: Option<UnifiedCode>,
+
+    /// (This field is not live yet)
+    /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutCreateResponse)]
+    #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(
@@ -568,10 +581,16 @@ pub struct PayoutAttemptResponse {
     pub connector_transaction_id: Option<String>,
     /// If the payout was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
-    /// error code unified across the connectors is received here if there was an error while calling connector
-    pub unified_code: Option<String>,
-    /// error message unified across the connectors is received here if there was an error while calling connector
-    pub unified_message: Option<String>,
+    /// (This field is not live yet)
+    /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutAttemptResponse)]
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_000")]
+    pub unified_code: Option<UnifiedCode>,
+    /// (This field is not live yet)
+    /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutAttemptResponse)]
+    #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
@@ -685,7 +704,7 @@ pub struct PayoutListConstraints {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
-    pub time_range: Option<payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -713,7 +732,7 @@ pub struct PayoutListFilterConstraints {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
-    pub time_range: Option<payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
     /// The list of connectors to filter payouts list
     #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
@@ -819,8 +838,8 @@ pub struct PayoutLinkStatusDetails {
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<url::Url>,
     pub status: api_enums::PayoutStatus,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
+    pub error_code: Option<UnifiedCode>,
+    pub error_message: Option<UnifiedMessage>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub test_mode: bool,

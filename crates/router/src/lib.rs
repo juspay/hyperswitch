@@ -83,6 +83,8 @@ pub mod headers {
     pub const BROWSER_NAME: &str = "x-browser-name";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
     pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
+    pub const X_APP_ID: &str = "x-app-id";
+    pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
 }
 
@@ -121,8 +123,8 @@ pub fn mk_app(
             // This is a more specific route as compared to `MerchantConnectorAccount`
             // so it is registered before `MerchantConnectorAccount`.
             server_app = server_app
-                .service(routes::BusinessProfileNew::server(state.clone()))
-                .service(routes::BusinessProfile::server(state.clone()))
+                .service(routes::ProfileNew::server(state.clone()))
+                .service(routes::Profile::server(state.clone()))
         }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))

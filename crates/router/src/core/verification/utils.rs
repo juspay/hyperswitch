@@ -130,13 +130,23 @@ pub fn log_applepay_verification_response_if_error(
             .map_err(|error| logger::error!(applepay_domain_verification_error= ?error))
     });
 }
+
+#[cfg(feature = "v2")]
+pub async fn check_if_profile_id_is_present_in_payment_intent(
+    payment_id: PaymentId,
+    state: &SessionState,
+    auth_data: &AuthenticationData,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
     auth_data: &AuthenticationData,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
-    #[cfg(feature = "v1")]
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &state.into(),
@@ -148,15 +158,5 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-    #[cfg(feature = "v2")]
-    let payment_intent = db
-        .find_payment_intent_by_id(
-            &state.into(),
-            &payment_id,
-            &auth_data.key_store,
-            auth_data.merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)?;
     utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
 }

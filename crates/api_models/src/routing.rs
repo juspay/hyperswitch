@@ -197,7 +197,9 @@ pub enum RoutableChoiceSerde {
 impl std::fmt::Display for RoutableConnectorChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let base = self.connector.to_string();
-
+        if let Some(mca_id) = &self.merchant_connector_id {
+            return write!(f, "{}:{}", base, mca_id.get_string_repr());
+        }
         write!(f, "{}", base)
     }
 }
@@ -248,6 +250,21 @@ impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
                 connector: value.connector,
                 merchant_connector_id: value.merchant_connector_id,
             },
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RoutableConnectorChoiceWithStatus {
+    pub routable_connector_choice: RoutableConnectorChoice,
+    pub status: bool,
+}
+
+impl RoutableConnectorChoiceWithStatus {
+    pub fn new(routable_connector_choice: RoutableConnectorChoice, status: bool) -> Self {
+        Self {
+            routable_connector_choice,
+            status,
         }
     }
 }
@@ -565,7 +582,7 @@ impl Default for SuccessBasedRoutingConfig {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
 pub enum SuccessBasedRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,

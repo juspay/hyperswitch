@@ -310,15 +310,11 @@ pub async fn create_jwe_body_for_vault(
 
     let public_key = jwekey.vault_encryption_key.peek().as_bytes();
 
-    let jwe_encrypted = encryption::encrypt_jwe(
-        &payload,
-        public_key,
-        encryption::EncryptionAlgorithm::A256GCM,
-        None,
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Error on jwe encrypt")?;
+    let jwe_encrypted =
+        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
 
     let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
@@ -546,7 +542,7 @@ pub fn generate_payment_method_response(
     let resp = api::PaymentMethodResponse {
         merchant_id: pm.merchant_id.to_owned(),
         customer_id: pm.customer_id.to_owned(),
-        payment_method_id: pm.id.get_string_repr(),
+        payment_method_id: pm.id.get_string_repr().to_owned(),
         payment_method: pm.payment_method,
         payment_method_type: pm.payment_method_type,
         metadata: pm.metadata.clone(),

@@ -185,10 +185,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::FailedToObtainAuthType
             | errors::ConnectorError::FailedToObtainCertificate
             | errors::ConnectorError::NoConnectorMetaData
+            | errors::ConnectorError::NoConnectorWalletDetails
             | errors::ConnectorError::FailedToObtainCertificateKey
             | errors::ConnectorError::FlowNotSupported { .. }
             | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID
+            | errors::ConnectorError::MissingConnectorMandateMetadata
             | errors::ConnectorError::MissingConnectorTransactionID
             | errors::ConnectorError::MissingConnectorRefundID
             | errors::ConnectorError::MissingApplePayTokenData
@@ -284,10 +286,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidWallet |
                 errors::ConnectorError::ResponseHandlingFailed |
                 errors::ConnectorError::FailedToObtainCertificate |
-                errors::ConnectorError::NoConnectorMetaData |
+                errors::ConnectorError::NoConnectorMetaData | errors::ConnectorError::NoConnectorWalletDetails |
                 errors::ConnectorError::FailedToObtainCertificateKey |
                 errors::ConnectorError::CaptureMethodNotSupported |
                 errors::ConnectorError::MissingConnectorMandateID |
+                errors::ConnectorError::MissingConnectorMandateMetadata |
                 errors::ConnectorError::MissingConnectorTransactionID |
                 errors::ConnectorError::MissingConnectorRefundID |
                 errors::ConnectorError::MissingApplePayTokenData |
@@ -370,12 +373,14 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::FailedToObtainAuthType
                 | errors::ConnectorError::FailedToObtainCertificate
                 | errors::ConnectorError::NoConnectorMetaData
+                | errors::ConnectorError::NoConnectorWalletDetails
                 | errors::ConnectorError::FailedToObtainCertificateKey
                 | errors::ConnectorError::NotImplemented(_)
                 | errors::ConnectorError::NotSupported { .. }
                 | errors::ConnectorError::FlowNotSupported { .. }
                 | errors::ConnectorError::CaptureMethodNotSupported
                 | errors::ConnectorError::MissingConnectorMandateID
+                | errors::ConnectorError::MissingConnectorMandateMetadata
                 | errors::ConnectorError::MissingConnectorTransactionID
                 | errors::ConnectorError::MissingConnectorRefundID
                 | errors::ConnectorError::MissingApplePayTokenData

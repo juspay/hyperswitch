@@ -1,10 +1,12 @@
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
-    payments::TimeRange,
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
-use common_utils::errors::{CustomResult, ErrorSwitch};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    types::TimeRange,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use opensearch::{

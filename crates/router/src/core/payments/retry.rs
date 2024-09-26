@@ -43,7 +43,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -286,7 +286,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -501,9 +501,8 @@ where
     let payment_attempt = db
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error inserting payment attempt")?;
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
     let payment_attempt = db
@@ -514,9 +513,8 @@ where
             storage_scheme,
         )
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error inserting payment attempt")?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data
     payment_data.set_payment_attempt(payment_attempt);

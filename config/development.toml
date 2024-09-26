@@ -301,6 +301,8 @@ sender_email = "example@example.com"
 aws_region = ""
 allowed_unverified_days = 1
 active_email_client = "SES"
+recon_recipient_email = "recon@example.com"
+prod_intent_recipient_email = "business@example.com"
 
 [email.aws_ses]
 email_role_arn = ""
@@ -447,6 +449,7 @@ credit = { currency = "USD,GBP,EUR" }
 debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
+samsung_pay = { currency = "USD,GBP,EUR" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -732,8 +735,8 @@ encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC69
 [locker_based_open_banking_connectors]
 connector_list = ""
 
-[recipient_emails]
-recon = "recon@example.com"
+[cell_information]
+id = "12345"
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard"

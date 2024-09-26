@@ -86,7 +86,7 @@ impl PayoutsInterface for MockDb {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _time_range: &api_models::payments::TimeRange,
+        _time_range: &common_utils::types::TimeRange,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`

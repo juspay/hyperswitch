@@ -15,6 +15,8 @@ pub struct PlaidLinkTokenRequest {
     language: String,
     products: Vec<String>,
     user: User,
+    android_package_name: Option<String>,
+    redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -41,6 +43,30 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                         field_name: "country_codes",
                     },
                 )?,
+            },
+            android_package_name: match item.request.client_platform {
+                api_models::enums::ClientPlatform::Android => {
+                    Some(item.request.android_package_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "android_package_name",
+                        },
+                    )?)
+                }
+                api_models::enums::ClientPlatform::Ios
+                | api_models::enums::ClientPlatform::Web
+                | api_models::enums::ClientPlatform::Unknown => None,
+            },
+            redirect_uri: match item.request.client_platform {
+                api_models::enums::ClientPlatform::Ios => {
+                    Some(item.request.redirect_uri.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "redirect_uri",
+                        },
+                    )?)
+                }
+                api_models::enums::ClientPlatform::Android
+                | api_models::enums::ClientPlatform::Web
+                | api_models::enums::ClientPlatform::Unknown => None,
             },
         })
     }

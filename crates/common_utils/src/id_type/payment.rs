@@ -1,7 +1,7 @@
 use crate::{
     errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
-    id_type::{global_id, AlphaNumericId, LengthId},
+    id_type::{AlphaNumericId, LengthId},
 };
 
 crate::id_type!(
@@ -15,22 +15,9 @@ crate::impl_debug_id_type!(PaymentId);
 crate::impl_default_id_type!(PaymentId, "pay");
 crate::impl_try_from_cow_str_id_type!(PaymentId, "payment_id");
 
+// Database related implementations so that this field can be used directly in the database tables
 crate::impl_queryable_id_type!(PaymentId);
 crate::impl_to_sql_from_sql_id_type!(PaymentId);
-
-/// A global id that can be used to identify a payment
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    diesel::expression::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Text)]
-pub struct PaymentGlobalId(global_id::GlobalId);
 
 impl PaymentId {
     /// Get the hash key to be stored in redis
@@ -80,6 +67,13 @@ impl PaymentId {
         Self::try_from(std::borrow::Cow::from(payment_id_string))
     }
 }
+
+crate::id_type!(PaymentReferenceId, "A type for payment_reference_id");
+crate::impl_id_type_methods!(PaymentReferenceId, "payment_reference_id");
+
+// This is to display the `PaymentReferenceId` as PaymentReferenceId(abcd)
+crate::impl_debug_id_type!(PaymentReferenceId);
+crate::impl_try_from_cow_str_id_type!(PaymentReferenceId, "payment_reference_id");
 
 #[cfg(feature = "metrics")]
 /// This is implemented so that we can use payment id directly as attribute in metrics

@@ -785,7 +785,7 @@ impl MerchantConnectorAccountInterface for Store {
                         format!("{}_{}", _profile_id.get_string_repr(), _connector_name).into(),
                     ),
                     cache::CacheKind::Accounts(
-                        format!("{}", _merchant_connector_id.get_string_repr()).into(),
+                        _merchant_connector_id.get_string_repr().to_string().into(),
                     ),
                     cache::CacheKind::CGraph(
                         format!(

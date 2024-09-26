@@ -146,3 +146,11 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+
+/// Max length allowed for Description
+pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
+
+/// Max length allowed for Statement Descriptor
+pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
+/// Payout flow identifier used for performing GSM operations
+pub const PAYOUT_FLOW_STR: &str = "payout_flow";
