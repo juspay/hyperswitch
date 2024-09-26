@@ -394,7 +394,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         email_porteur: item.router_data.request.get_email()?,
                         first_name: address.get_first_name()?.clone(),
                         last_name: address.get_last_name()?.clone(),
-                        address1: address.get_combined_address_line()?.clone(),
+                        address1: address.get_line1()?.clone(),
                         zip_code: address.get_zip()?.clone(),
                         city: address.get_city()?.clone(),
                         country_code: *address.get_country()?,
