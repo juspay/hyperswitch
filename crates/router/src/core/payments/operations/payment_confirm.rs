@@ -1225,48 +1225,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let shipping_cost = payment_data
-            .payment_intent
-            .shipping_cost
-            .unwrap_or(MinorUnit::new(0));
-
-        let pmt_order_tax_amount =
-            payment_data
-                .payment_intent
-                .tax_details
-                .clone()
-                .and_then(|tax| {
-                    if tax
-                        .payment_method_type
-                        .clone()
-                        .map(|a| a.payment_method_type)
-                        == payment_data.payment_attempt.payment_method_type
-                    {
-                        tax.payment_method_type.map(|a| a.order_tax_amount)
-                    } else {
-                        None
-                    }
-                });
-
-        let order_tax_amount = pmt_order_tax_amount
-            .or_else(|| {
-                payment_data
-                    .payment_intent
-                    .tax_details
-                    .clone()
-                    .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
-            })
-            .unwrap_or(MinorUnit::new(0));
-
-        let authorized_amount = {
-            let base_amount = payment_data
-                .surcharge_details
-                .as_ref()
-                .map(|surcharge_details| surcharge_details.final_amount)
-                .unwrap_or(payment_data.payment_attempt.amount);
-            base_amount + shipping_cost + order_tax_amount
-        };
-
         let client_source = header_payload
             .client_source
             .clone()
@@ -1317,6 +1275,48 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 Some(authentication.authentication_id.clone()),
             ),
             None => (None, None, None),
+        };
+
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0));
+
+        let pmt_order_tax_amount =
+            payment_data
+                .payment_intent
+                .tax_details
+                .clone()
+                .and_then(|tax| {
+                    if tax
+                        .payment_method_type
+                        .clone()
+                        .map(|a| a.payment_method_type)
+                        == payment_data.payment_attempt.payment_method_type
+                    {
+                        tax.payment_method_type.map(|a| a.order_tax_amount)
+                    } else {
+                        None
+                    }
+                });
+
+        let order_tax_amount = pmt_order_tax_amount
+            .or_else(|| {
+                payment_data
+                    .payment_intent
+                    .tax_details
+                    .clone()
+                    .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+            })
+            .unwrap_or(MinorUnit::new(0));
+
+        let authorized_amount = {
+            let base_amount = payment_data
+                .surcharge_details
+                .as_ref()
+                .map(|surcharge_details| surcharge_details.final_amount)
+                .unwrap_or(payment_data.payment_attempt.amount);
+            base_amount + shipping_cost + order_tax_amount
         };
 
         let payment_attempt_fut = tokio::spawn(
