@@ -374,7 +374,7 @@ pub struct PaymentMethodUpdate {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
     /// payment method data to be passed
-    pub payment_method_data: Option<PaymentMethodUpdateData>,
+    pub payment_method_data: PaymentMethodUpdateData,
 
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
@@ -986,6 +986,27 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<CardDetail> for CardDetailFromLocker {
+    fn from(item: CardDetail) -> Self {
+        Self {
+            issuer_country: item.card_issuing_country,
+            last4_digits: Some(item.card_number.get_last4()),
+            card_number: Some(item.card_number),
+            expiry_month: Some(item.card_exp_month),
+            expiry_year: Some(item.card_exp_year),
+            card_holder_name: item.card_holder_name,
+            nick_name: item.nick_name,
+            card_isin: None,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type.map(|card| card.to_string()),
+            saved_to_locker: true,
+            card_fingerprint: None,
         }
     }
 }
