@@ -16,10 +16,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct SuccessfulPaymentsDistribution;
+pub(super) struct PaymentsDistribution;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for SuccessfulPaymentsDistribution
+impl<T> super::PaymentMetric<T> for PaymentsDistribution
 where
     T: AnalyticsDataSource + super::PaymentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -38,6 +38,10 @@ where
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
+
+        let mut dimensions = dimensions.to_vec();
+
+        dimensions.push(PaymentDimensions::PaymentStatus);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;

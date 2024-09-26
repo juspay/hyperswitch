@@ -108,7 +108,7 @@ pub enum PaymentMetrics {
     AvgTicketSize,
     RetriesCount,
     ConnectorSuccessRate,
-    SuccessfulPaymentsDistribution,
+    PaymentsDistribution,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -275,12 +275,10 @@ pub struct PaymentMetricsBucketValue {
     pub retries_count: Option<u64>,
     pub retries_amount_processed: Option<u64>,
     pub connector_success_rate: Option<f64>,
-    pub successful_payments: Option<u32>,
-    pub successful_payments_without_smart_retries: Option<u32>,
-    pub total_payments_success_distribution: Option<u32>,
-    pub total_payments_without_smart_retries_success_distribution: Option<u32>,
     pub payments_success_rate_distribution: Option<f64>,
     pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_failure_rate_distribution: Option<f64>,
+    pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

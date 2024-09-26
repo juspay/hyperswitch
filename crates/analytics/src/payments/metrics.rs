@@ -18,17 +18,17 @@ mod connector_success_rate;
 mod payment_count;
 mod payment_processed_amount;
 mod payment_success_count;
+mod payments_distribution;
 mod retries_count;
 mod success_rate;
-mod successful_payments_distribution;
 
 use avg_ticket_size::AvgTicketSize;
 use connector_success_rate::ConnectorSuccessRate;
 use payment_count::PaymentCount;
 use payment_processed_amount::PaymentProcessedAmount;
 use payment_success_count::PaymentSuccessCount;
+use payments_distribution::PaymentsDistribution;
 use success_rate::PaymentSuccessRate;
-use successful_payments_distribution::SuccessfulPaymentsDistribution;
 
 use self::retries_count::RetriesCount;
 
@@ -131,8 +131,8 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
-            Self::SuccessfulPaymentsDistribution => {
-                SuccessfulPaymentsDistribution
+            Self::PaymentsDistribution => {
+                PaymentsDistribution
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
