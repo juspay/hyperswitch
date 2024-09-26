@@ -34,5 +34,6 @@ pub const EMAIL_SUBJECT_UNLOCK: &str = "Unlock Hyperswitch: Use Your Magic Link 
 pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset Your Password Now";
 pub const EMAIL_SUBJECT_API_KEY_EXPIRY: &str = "API Key Expiry Notice";
 pub const EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST: &str = "Dashboard Pro Feature Request by";
-pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str = "Approval of Recon Request - Access Granted to Recon Dashboard";
+pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
+    "Approval of Recon Request - Access Granted to Recon Dashboard";
 pub const EMAIL_SUBJECT_NEW_PROD: &str = "New Prod Intent";
