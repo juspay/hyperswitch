@@ -78,7 +78,7 @@ impl VaultingInterface for GetVaultFingerprint {
 impl VaultingDataInterface for api::PaymentMethodCreateData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
-            api::PaymentMethodCreateData::Card(card) => card.card_number.to_string(),
+            Self::Card(card) => card.card_number.to_string(),
         }
     }
 }

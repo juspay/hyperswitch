@@ -90,6 +90,7 @@ impl_api_event_type!(
         CardInfoResponse,
         CreateApiKeyResponse,
         CreateApiKeyRequest,
+        ListApiKeyConstraints,
         MerchantConnectorDeleteResponse,
         MerchantConnectorUpdate,
         MerchantConnectorCreate,

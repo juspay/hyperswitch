@@ -1433,6 +1433,60 @@
         ]
       }
     },
+    "/v2/api_keys/list": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - List",
+        "description": "List all the API Keys associated to a merchant account.",
+        "operationId": "List all API Keys associated with a merchant account",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of API Keys to include in the response",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "The number of API Keys to skip when retrieving the list of API keys.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API Keys retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/customers": {
       "post": {
         "tags": [
@@ -2150,10 +2204,10 @@
             ],
             "nullable": true
           },
-          "tax_details": {
+          "order_tax_amount": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/TaxDetails"
+                "$ref": "#/components/schemas/MinorUnit"
               }
             ],
             "nullable": true
@@ -6343,17 +6397,6 @@
           },
           "payment_method_id": {
             "type": "string"
-          }
-        }
-      },
-      "DefaultTax": {
-        "type": "object",
-        "required": [
-          "order_tax_amount"
-        ],
-        "properties": {
-          "order_tax_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
           }
         }
       },
@@ -12290,21 +12333,6 @@
           "open_banking_pis"
         ]
       },
-      "PaymentMethodTypeTax": {
-        "type": "object",
-        "required": [
-          "order_tax_amount",
-          "pmt"
-        ],
-        "properties": {
-          "order_tax_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "pmt": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          }
-        }
-      },
       "PaymentMethodUpdate": {
         "type": "object",
         "properties": {
@@ -12911,7 +12939,12 @@
             "nullable": true
           },
           "capture_method": {
-            "$ref": "#/components/schemas/CaptureMethod"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           },
           "authentication_type": {
             "allOf": [
@@ -12919,7 +12952,8 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "no_three_ds"
+            "default": "no_three_ds",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -12946,7 +12980,12 @@
             "minLength": 1
           },
           "customer_present": {
-            "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "nullable": true
           },
           "description": {
             "type": "string",
@@ -12961,10 +13000,20 @@
             "nullable": true
           },
           "setup_future_usage": {
-            "$ref": "#/components/schemas/FutureUsage"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
           },
           "apply_mit_exemption": {
-            "$ref": "#/components/schemas/MitExemptionRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitExemptionRequest"
+              }
+            ],
+            "nullable": true
           },
           "statement_descriptor": {
             "type": "string",
@@ -13012,7 +13061,12 @@
             "nullable": true
           },
           "payment_link_enabled": {
-            "$ref": "#/components/schemas/EnablePaymentLinkRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EnablePaymentLinkRequest"
+              }
+            ],
+            "nullable": true
           },
           "payment_link_config": {
             "allOf": [
@@ -13023,7 +13077,12 @@
             "nullable": true
           },
           "request_incremental_authorization": {
-            "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+              }
+            ],
+            "nullable": true
           },
           "session_expiry": {
             "type": "integer",
@@ -13039,7 +13098,12 @@
             "nullable": true
           },
           "request_external_three_ds_authentication": {
-            "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13047,7 +13111,16 @@
       "PaymentsCreateIntentResponse": {
         "type": "object",
         "required": [
-          "amount_details"
+          "amount_details",
+          "client_secret",
+          "capture_method",
+          "authentication_type",
+          "customer_present",
+          "setup_future_usage",
+          "apply_mit_exemption",
+          "payment_link_enabled",
+          "request_incremental_authorization",
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "amount_details": {
@@ -13056,8 +13129,7 @@
           "client_secret": {
             "type": "string",
             "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
-            "nullable": true
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
           },
           "merchant_reference_id": {
             "type": "string",
@@ -13190,7 +13262,7 @@
           "session_expiry": {
             "type": "integer",
             "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
             "minimum": 0
@@ -19233,27 +19305,6 @@
           "Skip",
           "Calculate"
         ]
-      },
-      "TaxDetails": {
-        "type": "object",
-        "properties": {
-          "default": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/DefaultTax"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodTypeTax"
-              }
-            ],
-            "nullable": true
-          }
-        }
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
