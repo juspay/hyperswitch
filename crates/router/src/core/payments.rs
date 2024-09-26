@@ -70,6 +70,8 @@ use super::{
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     connector::utils::missing_field_err,
@@ -294,6 +296,11 @@ where
             };
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(connector) => {
+                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                    let routable_connectors =
+                        convert_connector_data_to_routable_connectors(&[connector.clone()])
+                            .map_err(|e| logger::error!(routable_connector_error=?e))
+                            .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -361,6 +368,10 @@ where
                             &key_store,
                             merchant_account.storage_scheme,
                             &locale,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            routable_connectors,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            &business_profile,
                         )
                         .await?;
 
@@ -383,6 +394,12 @@ where
                 }
 
                 ConnectorCallType::Retryable(connectors) => {
+                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                    let routable_connectors =
+                        convert_connector_data_to_routable_connectors(&connectors)
+                            .map_err(|e| logger::error!(routable_connector_error=?e))
+                            .unwrap_or_default();
+
                     let mut connectors = connectors.into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
@@ -486,6 +503,10 @@ where
                             &key_store,
                             merchant_account.storage_scheme,
                             &locale,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            routable_connectors,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            &business_profile,
                         )
                         .await?;
 
