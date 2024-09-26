@@ -7,7 +7,8 @@ use common_utils::id_type;
 
 use super::{NameDescription, TimeRange};
 use crate::enums::{
-    AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod, PaymentMethodType, CardNetwork
+    AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
+    PaymentMethodType,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -33,7 +34,7 @@ pub struct PaymentFilters {
     #[serde(default)]
     pub profile_id: Vec<id_type::ProfileId>,
     #[serde(default)]
-    pub card_network: Vec<String>,
+    pub card_network: Vec<CardNetwork>,
     #[serde(default)]
     pub merchant_id: Vec<id_type::MerchantId>,
     #[serde(default)]
