@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt, ops::Deref, str::FromStr};
 use common_utils::errors::ValidationError;
 use error_stack::report;
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
-use regex::bytes::Regex;
+use regex::Regex;
 use router_env::once_cell::sync::Lazy;
 #[cfg(not(target_arch = "wasm32"))]
 use router_env::{logger, which as router_env_which, Env};
@@ -55,7 +55,7 @@ impl CardNumber {
         static CARD_NETWORK_REGEX: Lazy<HashMap<&str, Result<Regex, regex::Error>>> = Lazy::new(
             || {
                 let mut map = HashMap::new();
-                map.insert("Mastercard", Regex::new(r"^5[1-5][0-9]{14}$"));
+                map.insert("Mastercard", Regex::new(r"^(5[1-5][0-9]{14}|2(2(2[1-9]|[3-9][0-9])|[3-6][0-9][0-9]|7([0-1][0-9]|20))[0-9]{12})$"));
                 map.insert("American Express", Regex::new(r"^3[47][0-9]{13}$"));
                 map.insert("Visa", Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
                 map.insert("Discover", Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
@@ -89,10 +89,10 @@ impl CardNumber {
                 })),
             }?;
 
-            if card_regex.is_match(card_number_str.as_bytes()) {
+            if card_regex.is_match(&card_number_str) {
                 no_of_supported_card_networks += 1;
                 if no_of_supported_card_networks > 1 {
-                    return Ok(true);
+                    break;
                 }
             }
         }

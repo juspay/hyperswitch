@@ -1132,7 +1132,6 @@ pub enum CardBrand {
     Laser,
     Maestro,
     Maestrouk,
-    Mc,
     Mcalphabankbonus,
     Mir,
     Naranja,
@@ -1967,7 +1966,7 @@ impl<'a> TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'a> {
 fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<CardBrand> {
     match card_network {
         common_enums::CardNetwork::Visa => Some(CardBrand::Visa),
-        common_enums::CardNetwork::Mastercard => Some(CardBrand::Mc),
+        common_enums::CardNetwork::Mastercard => Some(CardBrand::MC),
         common_enums::CardNetwork::CartesBancaires => Some(CardBrand::Cartebancaire),
         common_enums::CardNetwork::AmericanExpress => Some(CardBrand::Amex),
         common_enums::CardNetwork::JCB => Some(CardBrand::Jcb),
