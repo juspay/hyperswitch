@@ -1230,9 +1230,32 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .shipping_cost
             .unwrap_or(MinorUnit::new(0));
 
-        let order_tax_amount = payment_data
-            .payment_intent
-            .get_order_tax_amount(&payment_data.payment_attempt)
+        let pmt_order_tax_amount =
+            payment_data
+                .payment_intent
+                .tax_details
+                .clone()
+                .and_then(|tax| {
+                    if tax
+                        .payment_method_type
+                        .clone()
+                        .map(|a| a.payment_method_type)
+                        == payment_data.payment_attempt.payment_method_type
+                    {
+                        tax.payment_method_type.map(|a| a.order_tax_amount)
+                    } else {
+                        None
+                    }
+                });
+
+        let order_tax_amount = pmt_order_tax_amount
+            .or_else(|| {
+                payment_data
+                    .payment_intent
+                    .tax_details
+                    .clone()
+                    .and_then(|tax| tax.default.map(|a| a.order_tax_amount))
+            })
             .unwrap_or(MinorUnit::new(0));
 
         let authorized_amount = {

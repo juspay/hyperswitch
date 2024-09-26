@@ -501,7 +501,12 @@ where
             .unwrap_or(MinorUnit::new(0));
         let order_tax_amount = payment_data
             .get_payment_intent()
-            .get_order_tax_amount(payment_data.get_payment_attempt())
+            .tax_details
+            .clone()
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            })
             .unwrap_or(MinorUnit::new(0));
 
         let amount = {
@@ -1111,8 +1116,19 @@ where
         });
 
         let order_tax_amount = payment_data
-            .get_payment_intent()
-            .get_order_tax_amount(payment_data.get_payment_attempt());
+            .get_payment_attempt()
+            .order_tax_amount
+            .or_else(|| {
+                payment_data
+                    .get_payment_intent()
+                    .tax_details
+                    .clone()
+                    .and_then(|tax| {
+                        tax.payment_method_type
+                            .map(|a| a.order_tax_amount)
+                            .or_else(|| tax.default.map(|a| a.order_tax_amount))
+                    })
+            });
         let connector_mandate_id = payment_data.get_mandate_id().and_then(|mandate| {
             mandate
                 .mandate_reference_id
@@ -1685,7 +1701,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
-        let payment_method_data = payment_data.payment_method_data.or_else(|| {
+        let payment_method_data = payment_data.payment_method_data.clone().or_else(|| {
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)
             } else {
@@ -1694,11 +1710,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         });
 
         let order_tax_amount = payment_data
-            .payment_intent
-            .get_order_tax_amount(&payment_data.payment_attempt)
+            .get_payment_attempt()
+            .order_tax_amount
             .unwrap_or(MinorUnit::new(0));
         let shipping_cost = payment_data
-            .payment_intent
+            .get_payment_attempt()
             .shipping_cost
             .unwrap_or(MinorUnit::new(0));
 
@@ -2035,7 +2051,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
         let payment_data = additional_data.payment_data;
         let order_tax_amount = payment_data
             .payment_intent
-            .get_order_tax_amount(&payment_data.payment_attempt)
+            .tax_details
+            .clone()
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            })
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;

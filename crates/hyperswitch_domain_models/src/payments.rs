@@ -80,51 +80,6 @@ impl PaymentIntent {
     pub fn get_id(&self) -> &id_type::PaymentId {
         &self.payment_id
     }
-    #[cfg(feature = "v1")]
-    pub fn get_order_tax_amount(&self, payment_attempt: &PaymentAttempt) -> Option<MinorUnit> {
-        let pmt_order_tax_amount = self.tax_details.clone().and_then(|tax| {
-            if tax
-                .payment_method_type
-                .clone()
-                .map(|payment_method_type_tax| payment_method_type_tax.payment_method_type)
-                == payment_attempt.payment_method_type
-            {
-                tax.payment_method_type
-                    .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
-            } else {
-                None
-            }
-        });
-
-        pmt_order_tax_amount.or_else(|| {
-            self.tax_details
-                .clone()
-                .and_then(|tax| tax.default.map(|default_tax| default_tax.order_tax_amount))
-        })
-    }
-    #[cfg(feature = "v2")]
-    pub fn get_order_tax_amount(&self, payment_attempt: &PaymentAttempt) -> Option<MinorUnit> {
-        let pmt_order_tax_amount = self.amount_details.tax_details.clone().and_then(|tax| {
-            if tax
-                .payment_method_type
-                .clone()
-                .map(|payment_method_type_tax| payment_method_type_tax.payment_method_type)
-                == payment_attempt.payment_method_type
-            {
-                tax.payment_method_type
-                    .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
-            } else {
-                None
-            }
-        });
-
-        pmt_order_tax_amount.or_else(|| {
-            self.amount_details
-                .tax_details
-                .clone()
-                .and_then(|tax| tax.default.map(|default_tax| default_tax.order_tax_amount))
-        })
-    }
 
     #[cfg(all(feature = "v2", feature = "payment_v2",))]
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
