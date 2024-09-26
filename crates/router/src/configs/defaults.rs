@@ -9894,6 +9894,15 @@ impl Default for super::settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
+                                                    "shipping.address.city".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.city".to_string(),
+                                                        display_name: "city".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressCity,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
                                                     "shipping.address.country".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "shipping.address.country".to_string(),
