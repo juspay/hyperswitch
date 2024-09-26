@@ -1109,19 +1109,8 @@ where
         });
 
         let order_tax_amount = payment_data
-            .get_payment_attempt()
-            .order_tax_amount
-            .or_else(|| {
-                payment_data
-                    .get_payment_intent()
-                    .tax_details
-                    .clone()
-                    .and_then(|tax| {
-                        tax.payment_method_type
-                            .map(|a| a.order_tax_amount)
-                            .or_else(|| tax.default.map(|a| a.order_tax_amount))
-                    })
-            });
+            .get_payment_intent()
+            .get_order_tax_amount(payment_data.get_payment_attempt());
         let connector_mandate_id = payment_data.get_mandate_id().and_then(|mandate| {
             mandate
                 .mandate_reference_id
@@ -1709,13 +1698,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let order_tax_amount = payment_data
             .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax| {
-                tax.payment_method_type
-                    .map(|a| a.order_tax_amount)
-                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
-            });
+            .get_order_tax_amount(&payment_data.payment_attempt);
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
         if let Some(shipping_cost) = shipping_cost {
