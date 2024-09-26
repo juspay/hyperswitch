@@ -495,17 +495,19 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
-        let mut amount = payment_data.get_payment_intent().amount;
-        let shipping_cost = payment_data.get_payment_intent().shipping_cost;
-        if let Some(shipping_cost) = shipping_cost {
-            amount = amount + shipping_cost;
-        }
+        let shipping_cost = payment_data
+            .get_payment_intent()
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0));
         let order_tax_amount = payment_data
             .get_payment_intent()
-            .get_order_tax_amount(payment_data.get_payment_attempt());
-        if let Some(tax_amount) = order_tax_amount {
-            amount = amount + tax_amount;
-        }
+            .get_order_tax_amount(payment_data.get_payment_attempt())
+            .unwrap_or(MinorUnit::new(0));
+
+        let amount = {
+            let base_amount = payment_data.get_payment_intent().amount;
+            base_amount + shipping_cost + order_tax_amount
+        };
 
         let currency = payment_data
             .get_payment_attempt()
@@ -516,12 +518,12 @@ where
             Self {
                 net_amount: amount,
                 payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                order_tax_amount,
-                shipping_cost,
+                order_tax_amount: Some(order_tax_amount),
+                shipping_cost: Some(order_tax_amount),
                 display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
                     amount,
-                    shipping_cost,
-                    order_tax_amount,
+                    Some(shipping_cost),
+                    Some(order_tax_amount),
                     currency,
                 ))?,
             },

@@ -10,7 +10,10 @@ use api_models::{
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::{payment_methods::PaymentMethodsData, payments::AdditionalPaymentData};
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -1222,11 +1225,24 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let mut authorized_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.payment_attempt.amount);
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0));
+
+        let order_tax_amount = payment_data
+            .payment_intent
+            .get_order_tax_amount(&payment_data.payment_attempt)
+            .unwrap_or(MinorUnit::new(0));
+
+        let authorized_amount = {
+            let base_amount = payment_data
+                .surcharge_details
+                .as_ref()
+                .map(|surcharge_details| surcharge_details.final_amount)
+                .unwrap_or(payment_data.payment_attempt.amount);
+            base_amount + shipping_cost + order_tax_amount
+        };
 
         let client_source = header_payload
             .client_source
@@ -1280,19 +1296,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             None => (None, None, None),
         };
 
-        let shipping_cost = payment_data.payment_intent.shipping_cost;
-
-        let order_tax_amount = payment_data
-            .payment_intent
-            .get_order_tax_amount(&payment_data.payment_attempt);
-
-        if let Some(shipping_cost) = shipping_cost {
-            authorized_amount = authorized_amount + shipping_cost;
-        }
-        if let Some(tax_amount) = order_tax_amount {
-            authorized_amount = authorized_amount + tax_amount;
-        }
-
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -1328,8 +1331,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         client_source,
                         client_version,
                         customer_acceptance: payment_data.payment_attempt.customer_acceptance,
-                        shipping_cost,
-                        order_tax_amount,
+                        shipping_cost: Some(shipping_cost),
+                        order_tax_amount: Some(order_tax_amount),
                     },
                     storage_scheme,
                 )
