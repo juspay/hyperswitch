@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 default = ["olap", "oltp"]
+dynamic_routing = []
 oltp = []
 olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
