@@ -1372,7 +1372,7 @@ pub async fn success_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to redact the success based routing config cache {e:?}"));
+    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
