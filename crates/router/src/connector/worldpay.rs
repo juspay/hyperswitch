@@ -105,8 +105,7 @@ impl ConnectorCommon for Worldpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        router_env::logger::info!(raw_response=?res);
-        let response = if res.status_code != 404 {
+        let response = if res.response.len() > 0 {
             res.response
                 .parse_struct("WorldpayErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
