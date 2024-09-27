@@ -67,6 +67,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 let created_attempt = PayoutAttempt {
                     payout_attempt_id: new_payout_attempt.payout_attempt_id.clone(),
                     payout_id: new_payout_attempt.payout_id.clone(),
+                    additional_payout_method_data: new_payout_attempt
+                        .additional_payout_method_data
+                        .clone(),
                     customer_id: new_payout_attempt.customer_id.clone(),
                     merchant_id: new_payout_attempt.merchant_id.clone(),
                     address_id: new_payout_attempt.address_id.clone(),
@@ -529,6 +532,7 @@ impl DataModelExt for PayoutAttempt {
             routing_info: self.routing_info,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
+            additional_payout_method_data: self.additional_payout_method_data,
         }
     }
 
@@ -555,6 +559,7 @@ impl DataModelExt for PayoutAttempt {
             routing_info: storage_model.routing_info,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
+            additional_payout_method_data: storage_model.additional_payout_method_data,
         }
     }
 }
@@ -584,6 +589,7 @@ impl DataModelExt for PayoutAttemptNew {
             routing_info: self.routing_info,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
+            additional_payout_method_data: self.additional_payout_method_data,
         }
     }
 
@@ -610,6 +616,7 @@ impl DataModelExt for PayoutAttemptNew {
             routing_info: storage_model.routing_info,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
+            additional_payout_method_data: storage_model.additional_payout_method_data,
         }
     }
 }
@@ -656,6 +663,11 @@ impl DataModelExt for PayoutAttemptUpdate {
                 connector,
                 routing_info,
                 merchant_connector_id,
+            },
+            Self::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => DieselPayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
             },
         }
     }

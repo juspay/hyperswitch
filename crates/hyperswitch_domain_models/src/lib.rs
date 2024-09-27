@@ -3,6 +3,7 @@ pub mod behaviour;
 pub mod business_profile;
 pub mod consts;
 pub mod customer;
+pub mod disputes;
 pub mod errors;
 pub mod mandates;
 pub mod merchant_account;

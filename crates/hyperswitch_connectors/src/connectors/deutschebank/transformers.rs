@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{ext_traits::ValueExt, pii::Email, types::MinorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -13,7 +14,9 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsSyncData,
         ResponseId,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
@@ -26,8 +29,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        AddressDetailsData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData, RouterData as OtherRouterData,
+        self, AddressDetailsData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -113,12 +116,19 @@ pub enum DeutschebankSEPAApproval {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub struct DeutschebankPaymentsRequest {
+pub struct DeutschebankMandatePostRequest {
     approval_by: DeutschebankSEPAApproval,
     email_address: Email,
     iban: Secret<String>,
     first_name: Secret<String>,
     last_name: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum DeutschebankPaymentsRequest {
+    MandatePost(DeutschebankMandatePostRequest),
+    DirectDebit(DeutschebankDirectDebitRequest),
 }
 
 impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
@@ -128,16 +138,71 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &DeutschebankRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let billing_address = item.router_data.get_billing_address()?;
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban, .. }) => Ok(Self {
-                approval_by: DeutschebankSEPAApproval::Click,
-                email_address: item.router_data.request.get_email()?,
-                iban,
-                first_name: billing_address.get_first_name()?.clone(),
-                last_name: billing_address.get_last_name()?.clone(),
-            }),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_id| mandate_id.mandate_reference_id)
+        {
+            None => {
+                if item.router_data.request.is_mandate_payment() {
+                    match item.router_data.request.payment_method_data.clone() {
+                        PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                            iban, ..
+                        }) => {
+                            let billing_address = item.router_data.get_billing_address()?;
+                            Ok(Self::MandatePost(DeutschebankMandatePostRequest {
+                                approval_by: DeutschebankSEPAApproval::Click,
+                                email_address: item.router_data.request.get_email()?,
+                                iban: Secret::from(iban.peek().replace(" ", "")),
+                                first_name: billing_address.get_first_name()?.clone(),
+                                last_name: billing_address.get_last_name()?.clone(),
+                            }))
+                        }
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("deutschebank"),
+                        )
+                        .into()),
+                    }
+                } else {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_future_usage or customer_acceptance.acceptance_type",
+                    }
+                    .into())
+                }
+            }
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let mandate_metadata: DeutschebankMandateMetadata = mandate_data
+                    .mandate_metadata
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
+                    .clone()
+                    .parse_value("DeutschebankMandateMetadata")
+                    .change_context(errors::ConnectorError::ParsingFailed)?;
+                Ok(Self::DirectDebit(DeutschebankDirectDebitRequest {
+                    amount_total: DeutschebankAmount {
+                        amount: item.amount,
+                        currency: item.router_data.request.currency,
+                    },
+                    means_of_payment: DeutschebankMeansOfPayment {
+                        bank_account: DeutschebankBankAccount {
+                            account_holder: mandate_metadata.account_holder,
+                            iban: mandate_metadata.iban,
+                        },
+                    },
+                    mandate: DeutschebankMandate {
+                        reference: mandate_metadata.reference,
+                        signed_on: mandate_metadata.signed_on,
+                    },
+                }))
+            }
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("deutschebank"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -177,6 +242,14 @@ impl From<DeutschebankSEPAMandateStatus> for common_enums::AttemptStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeutschebankMandateMetadata {
+    account_holder: Secret<String>,
+    iban: Secret<String>,
+    reference: Secret<String>,
+    signed_on: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DeutschebankMandatePostResponse {
     rc: String,
     message: String,
@@ -207,14 +280,14 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let signed_on = match item.response.approval_date {
+        let signed_on = match item.response.approval_date.clone() {
             Some(date) => date.chars().take(10).collect(),
             None => time::OffsetDateTime::now_utc().date().to_string(),
         };
-        match item.response.reference {
+        match item.response.reference.clone() {
             Some(reference) => Ok(Self {
                 status: if item.response.rc == "0" {
-                    match item.response.state {
+                    match item.response.state.clone() {
                         Some(state) => common_enums::AttemptStatus::from(state),
                         None => common_enums::AttemptStatus::Failure,
                     }
@@ -227,11 +300,29 @@ impl
                         endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
                         form_fields: HashMap::from([
-                            ("reference".to_string(), reference),
-                            ("signed_on".to_string(), signed_on),
+                            ("reference".to_string(), reference.clone()),
+                            ("signed_on".to_string(), signed_on.clone()),
                         ]),
                     }),
-                    mandate_reference: None,
+                    mandate_reference: Some(MandateReference {
+                        connector_mandate_id: item.response.mandate_id,
+                        payment_method_id: None,
+                        mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
+                            account_holder: item.data.get_billing_address()?.get_full_name()?,
+                            iban: match item.data.request.payment_method_data.clone() {
+                                PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                                    iban,
+                                    ..
+                                }) => Ok(Secret::from(iban.peek().replace(" ", ""))),
+                                _ => Err(errors::ConnectorError::MissingRequiredField {
+                                    field_name:
+                                        "payment_method_data.bank_debit.sepa_bank_debit.iban"
+                                }),
+                            }?,
+                            reference: Secret::from(reference),
+                            signed_on,
+                        })),
+                    }),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -245,6 +336,49 @@ impl
                 ..item.data
             }),
         }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Authorize,
+            DeutschebankPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Authorize,
+            DeutschebankPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: if item.response.rc == "0" {
+                match item.data.request.is_auto_capture()? {
+                    true => common_enums::AttemptStatus::Charged,
+                    false => common_enums::AttemptStatus::Authorized,
+                }
+            } else {
+                common_enums::AttemptStatus::Failure
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -268,7 +402,7 @@ pub struct DeutschebankBankAccount {
 #[derive(Debug, Serialize, PartialEq)]
 pub struct DeutschebankMandate {
     reference: Secret<String>,
-    signed_on: Secret<String>,
+    signed_on: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -319,14 +453,12 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 })?
                 .to_owned(),
         );
-        let signed_on = Secret::from(
-            queries_params
-                .get("signed_on")
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "signed_on",
-                })?
-                .to_owned(),
-        );
+        let signed_on = queries_params
+            .get("signed_on")
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "signed_on",
+            })?
+            .to_owned();
 
         match item.router_data.request.payment_method_data.clone() {
             Some(PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban, .. })) => {
@@ -338,7 +470,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     means_of_payment: DeutschebankMeansOfPayment {
                         bank_account: DeutschebankBankAccount {
                             account_holder,
-                            iban,
+                            iban: Secret::from(iban.peek().replace(" ", "")),
                         },
                     },
                     mandate: {
@@ -349,7 +481,10 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     },
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("deutschebank"),
+            )
+            .into()),
         }
     }
 }

@@ -138,8 +138,8 @@ esnekpos.base_url = "https://posservicetest.esnekpos.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
-fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
-fiuu.third_base_url="https://api.merchant.razer.com/"
+fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
+fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -382,7 +382,7 @@ open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,M
 upi_collect = { country = "IN", currency = "INR" }
 
 [pm_filters.plaid]
-open_banking_pis = {currency = "EUR,GBP"}
+open_banking_pis = { currency = "EUR,GBP" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -416,6 +416,7 @@ credit = { currency = "USD,GBP,EUR" }
 debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
+samsung_pay = { currency = "USD,GBP,EUR" }
 
 [pm_filters.helcim]
 credit = { currency = "USD" }
@@ -504,7 +505,7 @@ database_name = "default"
 [analytics.sqlx]
 username = "db_user"
 password = "db_pass"
-host = "localhost"
+host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
@@ -553,7 +554,7 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
@@ -592,6 +593,9 @@ ach = { country = "US", currency = "USD" }
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[cell_information]
+id = "12345"
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard"

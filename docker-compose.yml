@@ -162,6 +162,7 @@ services:
       - SELF_SERVER_URL=http://localhost:5252
       - SDK_ENV=local
       - ENV_LOGGING_URL=http://localhost:3103
+      - ENV_BACKEND_URL=http://localhost:8080
     labels:
       logs: "promtail"
 

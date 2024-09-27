@@ -819,12 +819,17 @@ pub async fn perform_session_flow_routing(
 {
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
+
+    #[cfg(feature = "v1")]
     let profile_id = session_input
         .payment_intent
         .profile_id
         .clone()
         .get_required_value("profile_id")
         .change_context(errors::RoutingError::ProfileIdMissing)?;
+
+    #[cfg(feature = "v2")]
+    let profile_id = session_input.payment_intent.profile_id.clone();
 
     let business_profile = session_input
         .state
@@ -885,28 +890,7 @@ pub async fn perform_session_flow_routing(
     };
 
     #[cfg(feature = "v2")]
-    let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
-        currency: session_input
-            .payment_intent
-            .currency
-            .get_required_value("Currency")
-            .change_context(errors::RoutingError::DslMissingRequiredField {
-                field_name: "currency".to_string(),
-            })?,
-        authentication_type: session_input.payment_attempt.authentication_type,
-        card_bin: None,
-        capture_method: session_input
-            .payment_attempt
-            .capture_method
-            .and_then(|cm| cm.foreign_into()),
-        business_country: None,
-        business_label: None,
-        billing_country: session_input
-            .country
-            .map(storage_enums::Country::from_alpha2),
-        setup_future_usage: session_input.payment_intent.setup_future_usage,
-    };
+    let payment_input = todo!();
 
     let metadata = session_input
         .payment_intent
@@ -1155,9 +1139,9 @@ async fn perform_session_routing_for_pm_type(
 
 #[cfg(feature = "v2")]
 pub fn make_dsl_input_for_surcharge(
-    payment_attempt: &oss_storage::PaymentAttempt,
-    payment_intent: &oss_storage::PaymentIntent,
-    billing_address: Option<Address>,
+    _payment_attempt: &oss_storage::PaymentAttempt,
+    _payment_intent: &oss_storage::PaymentIntent,
+    _billing_address: Option<Address>,
 ) -> RoutingResult<dsl_inputs::BackendInput> {
     todo!()
 }

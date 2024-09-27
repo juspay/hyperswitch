@@ -1358,6 +1358,8 @@ pub enum IntentStatus {
 }
 
 /// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
+/// - On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment
+/// - Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.
 #[derive(
     Clone,
     Copy,
@@ -1818,6 +1820,7 @@ pub enum CardNetwork {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1914,6 +1917,7 @@ pub enum CountryAlpha2 {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -2481,6 +2485,7 @@ pub enum ClientPlatform {
     #[default]
     Web,
     Ios,
+    Android,
     #[serde(other)]
     Unknown,
 }
@@ -3140,7 +3145,6 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal = 3,
     Organization = 2,
     Merchant = 1,
     Profile = 0,
@@ -3213,4 +3217,83 @@ pub enum UIWidgetFormLayout {
 pub enum DeleteStatus {
     Active,
     Redacted,
+}
+
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SuccessBasedRoutingConclusiveState {
+    // pc: payment connector
+    // sc: success based routing outcome/first connector
+    // status: payment status
+    //
+    // status = success && pc == sc
+    TruePositive,
+    // status = failed && pc == sc
+    FalsePositive,
+    // status = failed && pc != sc
+    TrueNegative,
+    // status = success && pc != sc
+    FalseNegative,
+    // status = processing
+    NonDeterministic,
+}
+
+/// Whether 3ds authentication is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum External3dsAuthenticationRequest {
+    /// Request for 3ds authentication
+    Enable,
+    /// Skip 3ds authentication
+    #[default]
+    Skip,
+}
+
+/// Whether payment link is requested to be enabled or not for this transaction
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum EnablePaymentLinkRequest {
+    /// Request for enabling payment link
+    Enable,
+    /// Skip enabling payment link
+    #[default]
+    Skip,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum MitExemptionRequest {
+    /// Request for applying MIT exemption
+    Apply,
+    /// Skip applying MIT exemption
+    #[default]
+    Skip,
+}
+
+/// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum PresenceOfCustomerDuringPayment {
+    /// Customer is present during the payment. This is the default value
+    #[default]
+    Present,
+    /// Customer is absent during the payment
+    Absent,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum TaxCalculationOverride {
+    /// Skip calling the external tax provider
+    #[default]
+    Skip,
+    /// Calculate tax by calling the external tax provider
+    Calculate,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum SurchargeCalculationOverride {
+    /// Skip calculating surcharge
+    #[default]
+    Skip,
+    /// Calculate surcharge
+    Calculate,
 }

@@ -329,7 +329,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
+                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None, mandate_metadata:connector_id.mandate_metadata, },
                                 ))
                             }
                          }),
@@ -749,6 +749,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     .await
             })
             .await
+            .transpose()?
+            .flatten();
+
+        let encoded_pm_data = additional_pm_data
             .as_ref()
             .map(Encode::encode_to_value)
             .transpose()
@@ -785,7 +789,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     authentication_type: None,
                     payment_method,
                     payment_token: payment_data.token.clone(),
-                    payment_method_data: additional_pm_data,
+                    payment_method_data: encoded_pm_data,
                     payment_experience,
                     payment_method_type,
                     business_sub_label,

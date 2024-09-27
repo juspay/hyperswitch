@@ -673,6 +673,7 @@ pub async fn delete_user_role(
 pub async fn list_users_in_lineage(
     state: SessionState,
     user_from_token: auth::UserFromToken,
+    request: user_role_api::ListUsersInEntityRequest,
 ) -> UserResponse<Vec<user_role_api::ListUsersInEntityResponse>> {
     let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
         &state,
@@ -683,53 +684,56 @@ pub async fn list_users_in_lineage(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
-    let user_roles_set: HashSet<_> = match requestor_role_info.get_entity_type() {
-        EntityType::Organization => state
-            .store
-            .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
-                user_id: None,
-                org_id: &user_from_token.org_id,
-                merchant_id: None,
-                profile_id: None,
-                version: None,
-            })
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .collect(),
-        EntityType::Merchant => state
-            .store
-            .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
-                user_id: None,
-                org_id: &user_from_token.org_id,
-                merchant_id: Some(&user_from_token.merchant_id),
-                profile_id: None,
-                version: None,
-            })
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .collect(),
+    let user_roles_set: HashSet<_> = match utils::user_role::get_min_entity(
+        requestor_role_info.get_entity_type(),
+        request.entity_type,
+    )? {
+        EntityType::Organization => {
+            utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: None,
+                    profile_id: None,
+                    version: None,
+                },
+                request.entity_type,
+            )
+            .await?
+        }
+        EntityType::Merchant => {
+            utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: None,
+                    version: None,
+                },
+                request.entity_type,
+            )
+            .await?
+        }
         EntityType::Profile => {
             let Some(profile_id) = user_from_token.profile_id.as_ref() else {
                 return Err(UserErrors::JwtProfileIdMissing.into());
             };
 
-            state
-                .store
-                .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+            utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
                     user_id: None,
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(profile_id),
                     version: None,
-                })
-                .await
-                .change_context(UserErrors::InternalServerError)?
-                .into_iter()
-                .collect()
+                },
+                request.entity_type,
+            )
+            .await?
         }
-        EntityType::Internal => HashSet::new(),
     };
 
     let mut email_map = state
@@ -854,10 +858,13 @@ pub async fn list_invitations_for_user(
                         .clone()
                         .ok_or(UserErrors::InternalServerError)?,
                 )),
-                EntityType::Internal => return Err(report!(UserErrors::InternalServerError)),
             }
 
-            Ok((org_ids, merchant_ids, profile_ids_with_merchant_ids))
+            Ok::<_, error_stack::Report<UserErrors>>((
+                org_ids,
+                merchant_ids,
+                profile_ids_with_merchant_ids,
+            ))
         },
     )?;
 
@@ -948,7 +955,6 @@ pub async fn list_invitations_for_user(
                     .as_ref()
                     .map(|profile_id| profile_name_map.get(profile_id).cloned())
                     .ok_or(UserErrors::InternalServerError)?,
-                EntityType::Internal => return Err(report!(UserErrors::InternalServerError)),
             };
 
             Ok(user_role_api::ListInvitationForUserResponse {

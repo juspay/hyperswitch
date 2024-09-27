@@ -11,7 +11,7 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::AcceptanceType;
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Mask, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -27,7 +27,7 @@ use crate::{
     },
     consts,
     core::errors,
-    services,
+    headers, services,
     types::{
         self, api, domain,
         storage::enums,
@@ -86,6 +86,14 @@ pub enum Auth3ds {
     #[default]
     Automatic,
     Any,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCardNetwork {
+    CartesBancaires,
+    Mastercard,
+    Visa,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -220,6 +228,8 @@ pub struct StripeCardData {
     pub payment_method_data_card_cvc: Option<Secret<String>>,
     #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
     pub payment_method_auth_type: Option<Auth3ds>,
+    #[serde(rename = "payment_method_options[card][network]")]
+    pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
@@ -1344,6 +1354,22 @@ fn create_stripe_payment_method(
     }
 }
 
+fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<StripeCardNetwork> {
+    match card_network {
+        common_enums::CardNetwork::Visa => Some(StripeCardNetwork::Visa),
+        common_enums::CardNetwork::Mastercard => Some(StripeCardNetwork::Mastercard),
+        common_enums::CardNetwork::CartesBancaires => Some(StripeCardNetwork::CartesBancaires),
+        common_enums::CardNetwork::AmericanExpress
+        | common_enums::CardNetwork::JCB
+        | common_enums::CardNetwork::DinersClub
+        | common_enums::CardNetwork::Discover
+        | common_enums::CardNetwork::UnionPay
+        | common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::RuPay
+        | common_enums::CardNetwork::Maestro => None,
+    }
+}
+
 impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
     type Error = errors::ConnectorError;
     fn try_from(
@@ -1356,6 +1382,10 @@ impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
             payment_method_data_card_exp_year: card.card_exp_year.clone(),
             payment_method_data_card_cvc: Some(card.card_cvc.clone()),
             payment_method_auth_type: Some(payment_method_auth_type),
+            payment_method_data_card_preferred_network: card
+                .card_network
+                .clone()
+                .and_then(get_stripe_card_network),
         }))
     }
 }
@@ -1699,6 +1729,10 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                 payment_method_data_card_exp_year: card.card_exp_year.clone(),
                                 payment_method_data_card_cvc: None,
                                 payment_method_auth_type: None,
+                                payment_method_data_card_preferred_network: card
+                                    .card_network
+                                    .clone()
+                                    .and_then(get_stripe_card_network),
                             })
                         }
                         domain::payments::PaymentMethodData::CardRedirect(_)
@@ -2389,6 +2423,7 @@ impl<F, T>
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
+                mandate_metadata: None,
             }
         });
 
@@ -2583,6 +2618,7 @@ impl<F, T>
                 types::MandateReference {
                     connector_mandate_id,
                     payment_method_id: Some(payment_method_id),
+                    mandate_metadata: None,
                 }
             });
 
@@ -2673,6 +2709,7 @@ impl<F, T>
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
+                mandate_metadata: None,
             }
         });
         let status = enums::AttemptStatus::from(item.response.status);
@@ -4019,6 +4056,21 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             attempt_status: None,
             connector_transaction_id: Some(response_id),
         })
+    }
+}
+
+pub(super) fn transform_headers_for_connect_platform(
+    charge_type: api::enums::PaymentChargeType,
+    transfer_account_id: String,
+    header: &mut Vec<(String, services::request::Maskable<String>)>,
+) {
+    if let api::enums::PaymentChargeType::Stripe(api::enums::StripeChargeType::Direct) = charge_type
+    {
+        let mut customer_account_header = vec![(
+            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+            transfer_account_id.into_masked(),
+        )];
+        header.append(&mut customer_account_header);
     }
 }
 

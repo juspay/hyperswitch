@@ -473,7 +473,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let additional_pm_data_fut = tokio::spawn(
             async move {
                 Ok(n_request_payment_method_data
-                    .async_and_then(|payment_method_data| async move {
+                    .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
                             &payment_method_data.into(),
                             store.as_ref(),
@@ -555,11 +555,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         );
 
         // Parallel calls - level 2
-        let (mandate_details, additional_pm_data, payment_method_billing) = tokio::try_join!(
+        let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
             utils::flatten_join_error(payment_method_billing_future),
         )?;
+
+        let additional_pm_data = additional_pm_info.transpose()?.flatten();
 
         let m_helpers::MandateGenericData {
             token,
@@ -640,7 +642,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .zip(additional_pm_data)
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
-            });
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()
@@ -681,6 +686,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                     ),
                                     payment_method_id: None,
                                     update_history: None,
+                                    mandate_metadata: None,
                                 },
                             ),
                         ),
@@ -1162,6 +1168,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     .await
             })
             .await
+            .transpose()?
+            .flatten();
+
+        let encoded_additional_pm_data = additional_pm_data
             .as_ref()
             .map(Encode::encode_to_value)
             .transpose()
@@ -1250,7 +1260,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_connector = connector.clone();
         let m_capture_method = capture_method;
         let m_payment_token = payment_token.clone();
-        let m_additional_pm_data = additional_pm_data.clone().or(encode_additional_pm_to_value);
+        let m_additional_pm_data = encoded_additional_pm_data
+            .clone()
+            .or(encode_additional_pm_to_value);
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();

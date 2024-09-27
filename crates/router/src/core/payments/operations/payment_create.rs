@@ -398,7 +398,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
                                     payment_method_id: connector_id.payment_method_id,
-                                    update_history: None
+                                    update_history: None,
+                                    mandate_metadata: None,
                                 }
                                 ))
                             }
@@ -437,6 +438,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                         ),
                                         payment_method_id: None,
                                         update_history: None,
+                                        mandate_metadata: None,
                                     },
                                 ),
                             ),
@@ -489,7 +491,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
-            });
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
         let amount = payment_attempt.get_total_amount().into();
 
@@ -950,6 +955,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
             )?;
         }
 
+        if let Some(charges) = &request.charges {
+            let amount = request.amount.get_required_value("amount")?;
+            helpers::validate_platform_fees_for_marketplace(amount, charges)?;
+        };
+
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
             .routing
             .clone()
@@ -1044,7 +1054,7 @@ impl PaymentCreate {
             .and_then(|payment_method_data_request| {
                 payment_method_data_request.payment_method_data.clone()
             })
-            .async_and_then(|payment_method_data| async {
+            .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     &payment_method_data.into(),
                     &*state.store,
@@ -1052,7 +1062,9 @@ impl PaymentCreate {
                 )
                 .await
             })
-            .await;
+            .await
+            .transpose()?
+            .flatten();
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object

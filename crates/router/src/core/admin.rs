@@ -114,14 +114,16 @@ fn add_publishable_key_to_decision_service(
 #[cfg(feature = "olap")]
 pub async fn create_organization(
     state: SessionState,
-    req: api::OrganizationRequest,
+    req: api::OrganizationCreateRequest,
 ) -> RouterResponse<api::OrganizationResponse> {
     let db_organization = ForeignFrom::foreign_from(req);
     state
         .store
         .insert_organization(db_organization)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: "Organization with the given organization_name already exists".to_string(),
+        })
         .attach_printable("Error when creating organization")
         .map(ForeignFrom::foreign_from)
         .map(service_api::ApplicationResponse::Json)
@@ -131,7 +133,7 @@ pub async fn create_organization(
 pub async fn update_organization(
     state: SessionState,
     org_id: api::OrganizationId,
-    req: api::OrganizationRequest,
+    req: api::OrganizationUpdateRequest,
 ) -> RouterResponse<api::OrganizationResponse> {
     let organization_update = diesel_models::organization::OrganizationUpdate::Update {
         organization_name: req.organization_name,
@@ -2131,10 +2133,14 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             } else {
                 None
             },
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
-                state, &key_store, &metadata,
-            )
-            .await?,
+            connector_wallets_details:
+                helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(
+                    state,
+                    &key_store,
+                    &metadata,
+                    &self.connector_wallets_details,
+                )
+                .await?,
         })
     }
 }
@@ -2308,10 +2314,14 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             } else {
                 None
             },
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
-                state, &key_store, &metadata,
-            )
-            .await?,
+            connector_wallets_details:
+                helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(
+                    state,
+                    &key_store,
+                    &metadata,
+                    &self.connector_wallets_details,
+                )
+                .await?,
         })
     }
 }
@@ -2442,7 +2452,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(state, &key_store, &self.metadata).await?,
+            connector_wallets_details: helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(state, &key_store, &self.metadata, &self.connector_wallets_details).await?,
             additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {
                 Some(domain_types::crypto_operation(
                     key_manager_state,
@@ -2607,7 +2617,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
-            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(state, &key_store, &self.metadata).await?,
+            connector_wallets_details: helpers::get_encrypted_connector_wallets_details_with_apple_pay_certificates(state, &key_store, &self.metadata, &self.connector_wallets_details).await?,
             test_mode: self.test_mode,
             business_country: self.business_country,
             business_label: self.business_label.clone(),
