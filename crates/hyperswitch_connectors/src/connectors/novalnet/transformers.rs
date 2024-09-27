@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PaymentMethodData, WalletData as WalletDataPaymentMethod},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,TokenizationRouterData
     },
 };
 use hyperswitch_interfaces::errors;
@@ -34,7 +34,7 @@ use crate::{
     utils::{
         self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
-        RouterData as OtherRouterData,
+        RouterData as OtherRouterData,WalletData,
     },
 };
 
@@ -52,9 +52,155 @@ impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "method")]
+#[derive(serde::Deserialize)]
+pub enum NovalnetTokenRequest {
+    Googlepay(CheckoutGooglePayData),
+    Applepay(CheckoutApplePayData),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutGooglePayData {
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutApplePayData {
+    version: Secret<String>,
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: CheckoutApplePayHeader,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutApplePayHeader {
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NovalnetTokenResponse {
+    token: Option<Secret<String>>,
+    error: Option<String>,
+}
+
+impl TryFrom<&TokenizationRouterData> for NovalnetTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                WalletDataPaymentMethod::GooglePay(_data) => {
+                    let json_wallet_data: CheckoutGooglePayData =
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?; 
+                    Ok(Self::Googlepay(json_wallet_data))
+                }
+                WalletDataPaymentMethod::ApplePay(_data) => {
+                    let json_wallet_data: CheckoutApplePayData =
+                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
+                    Ok(Self::Applepay(json_wallet_data))
+                }
+                WalletDataPaymentMethod::AliPayQr(_)
+                | WalletDataPaymentMethod::AliPayRedirect(_)
+                | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                | WalletDataPaymentMethod::MomoRedirect(_)
+                | WalletDataPaymentMethod::KakaoPayRedirect(_)
+                | WalletDataPaymentMethod::GoPayRedirect(_)
+                | WalletDataPaymentMethod::GcashRedirect(_)
+                | WalletDataPaymentMethod::ApplePayRedirect(_)
+                | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
+                | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GooglePayRedirect(_)
+                | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
+                | WalletDataPaymentMethod::MbWayRedirect(_)
+                | WalletDataPaymentMethod::MobilePayRedirect(_)
+                | WalletDataPaymentMethod::PaypalRedirect(_)
+                | WalletDataPaymentMethod::PaypalSdk(_)
+                | WalletDataPaymentMethod::SamsungPay(_)
+                | WalletDataPaymentMethod::TwintRedirect {}
+                | WalletDataPaymentMethod::VippsRedirect {}
+                | WalletDataPaymentMethod::TouchNGoRedirect(_)
+                | WalletDataPaymentMethod::WeChatPayRedirect(_)
+                | WalletDataPaymentMethod::CashappQr(_)
+                | WalletDataPaymentMethod::SwishQr(_)
+                | WalletDataPaymentMethod::WeChatPayQr(_)
+                | WalletDataPaymentMethod::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+            },
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, NovalnetTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, NovalnetTokenResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let token = item.response.token.clone();
+        match token {
+            Some(token) => Ok(Self {
+                response: Ok(PaymentsResponseData::TokenizationResponse {
+                    token: token.expose(),
+                }),
+                ..item.data
+            }),
+            None => {
+                let error_reason = item
+                    .response
+                    .error
+                    .unwrap_or("Tokenization failed".to_string());
+                let http_code = item.http_code;
+                let response = Err(ErrorResponse {
+                    code: http_code.clone().to_string(),
+                    message: error_reason.clone(),
+                    reason: Some(error_reason),
+                    status_code: http_code.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                });
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
 #[derive(Debug, Copy, Serialize, Deserialize, Clone)]
 pub enum NovalNetPaymentTypes {
     CREDITCARD,
+    PAYPAL,
+    GOOGLEPAY,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -115,7 +261,7 @@ pub struct NovalnetPaymentsRequestTransaction {
     amount: StringMinorUnit,
     currency: common_enums::Currency,
     order_no: String,
-    payment_data: NovalNetPaymentData,
+    payment_data: Option<NovalNetPaymentData>,
     hook_url: Option<String>,
     return_url: Option<String>,
     error_return_url: Option<String>,
@@ -182,6 +328,12 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string());
         let custom = NovalnetCustom { lang };
         let hook_url = item.router_data.request.get_webhook_url()?;
+        let return_url = item.router_data.request.get_return_url()?;
+        let create_token = if item.router_data.request.is_mandate_payment() {
+            Some(1)
+        } else {
+            None
+        };
 
         match item
             .router_data
@@ -199,12 +351,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         card_cvc: req_card.card_cvc.clone(),
                         card_holder: item.router_data.get_billing_full_name()?,
                     });
-                    let create_token = if item.router_data.request.is_mandate_payment() {
-                        Some(1)
-                    } else {
-                        None
-                    };
-                    let return_url = item.router_data.request.get_return_url()?;
 
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
@@ -215,7 +361,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         hook_url: Some(hook_url),
                         return_url: Some(return_url.clone()),
                         error_return_url: Some(return_url.clone()),
-                        payment_data: novalnet_card,
+                        payment_data: Some(novalnet_card),
                         enforce_3d,
                         create_token,
                     };
@@ -227,6 +373,62 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         custom,
                     })
                 }
+                
+                PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                    WalletDataPaymentMethod::GooglePay(_)
+                    | WalletDataPaymentMethod::ApplePay(_)
+                    | WalletDataPaymentMethod::AliPayQr(_)
+                    | WalletDataPaymentMethod::AliPayRedirect(_)
+                    | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                    | WalletDataPaymentMethod::MomoRedirect(_)
+                    | WalletDataPaymentMethod::KakaoPayRedirect(_)
+                    | WalletDataPaymentMethod::GoPayRedirect(_)
+                    | WalletDataPaymentMethod::GcashRedirect(_)
+                    | WalletDataPaymentMethod::ApplePayRedirect(_)
+                    | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
+                    | WalletDataPaymentMethod::DanaRedirect {}
+                    | WalletDataPaymentMethod::GooglePayRedirect(_)
+                    | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
+                    | WalletDataPaymentMethod::MbWayRedirect(_)
+                    | WalletDataPaymentMethod::MobilePayRedirect(_)
+                    | WalletDataPaymentMethod::PaypalRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    )
+                    .into()),
+                    WalletDataPaymentMethod::PaypalSdk(_) => {
+                        let transaction = NovalnetPaymentsRequestTransaction {
+                            test_mode,
+                            payment_type: NovalNetPaymentTypes::PAYPAL,
+                            amount: item.amount.clone(),
+                            currency: item.router_data.request.currency,
+                            order_no: item.router_data.connector_request_reference_id.clone(),
+                            hook_url: Some(hook_url),
+                            return_url: Some(return_url.clone()),
+                            error_return_url: Some(return_url.clone()),
+                            payment_data: None,
+                            enforce_3d,
+                            create_token,
+                        };
+                        Ok(Self {
+                            merchant,
+                            transaction,
+                            customer,
+                            custom,
+                        })
+                    }
+                    WalletDataPaymentMethod::SamsungPay(_)
+                    | WalletDataPaymentMethod::TwintRedirect {}
+                    | WalletDataPaymentMethod::VippsRedirect {}
+                    | WalletDataPaymentMethod::TouchNGoRedirect(_)
+                    | WalletDataPaymentMethod::WeChatPayRedirect(_)
+                    | WalletDataPaymentMethod::CashappQr(_)
+                    | WalletDataPaymentMethod::SwishQr(_)
+                    | WalletDataPaymentMethod::WeChatPayQr(_)
+                    | WalletDataPaymentMethod::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    )
+                    .into()),
+                },
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                 )
@@ -252,7 +454,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     hook_url: Some(hook_url),
                     return_url: None,
                     error_return_url: None,
-                    payment_data: novalnet_mandate_data,
+                    payment_data: Some(novalnet_mandate_data),
                     enforce_3d,
                     create_token: None,
                 };
@@ -487,7 +689,7 @@ pub struct NovalnetSyncResponseTransactionData {
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
-    pub payment_data: Option<NovalnetResponsePaymentData>,
+    pub payment_data: NovalnetResponsePaymentData,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
@@ -683,7 +885,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                     .response
                     .transaction
                     .clone()
-                    .and_then(|data| data.refund.tid.map(|tid| tid.expose().to_string()))
+                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()))
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 let transaction_status = item
@@ -761,10 +963,8 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
 
 impl NovalnetSyncResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
-        if let Some(payment_data) =
-            transaction_data.and_then(|transaction_data| transaction_data.payment_data.clone())
-        {
-            match &payment_data {
+        if let Some(data) = transaction_data {
+            match &data.payment_data {
                 NovalnetResponsePaymentData::PaymentCard(card_data) => card_data.token.clone(),
             }
         } else {
