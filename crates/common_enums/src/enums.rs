@@ -209,6 +209,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Datatrans,
     Deutschebank,
+    Digitalvirgo,
     Dlocal,
     Ebanx,
     Fiserv,

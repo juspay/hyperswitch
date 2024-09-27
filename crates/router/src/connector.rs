@@ -61,11 +61,12 @@ pub mod zsl;
 pub use hyperswitch_connectors::connectors::{
     bambora, bambora::Bambora, bitpay, bitpay::Bitpay, cashtocode, cashtocode::Cashtocode,
     coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, deutschebank,
-    deutschebank::Deutschebank, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
-    fiuu::Fiuu, globepay, globepay::Globepay, helcim, helcim::Helcim, mollie, mollie::Mollie,
-    nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet, powertranz, powertranz::Powertranz,
-    stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt,
-    volt::Volt, worldline, worldline::Worldline,
+    deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, fiserv, fiserv::Fiserv,
+    fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay, globepay::Globepay, helcim,
+    helcim::Helcim, mollie, mollie::Mollie, nexixpay, nexixpay::Nexixpay, novalnet,
+    novalnet::Novalnet, powertranz, powertranz::Powertranz, stax, stax::Stax, taxjar,
+    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
+    worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]

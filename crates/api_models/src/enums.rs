@@ -95,6 +95,7 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
+    Digitalvirgo,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -233,6 +234,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
 			| Self::Deutschebank
+			| Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
