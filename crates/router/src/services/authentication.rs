@@ -90,7 +90,7 @@ pub enum AuthenticationType {
     },
     OrganizationJwt {
         org_id: id_type::OrganizationId,
-        user_id: Option<String>,
+        user_id: String,
     },
     MerchantJwt {
         merchant_id: id_type::MerchantId,
@@ -1164,7 +1164,7 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        // Check if token has access to Organization that has been requested through query param
+        // Check if token has access to Organization that has been requested in the route
         if payload.org_id != self.organization_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
@@ -1172,7 +1172,7 @@ where
             (),
             AuthenticationType::OrganizationJwt {
                 org_id: payload.org_id,
-                user_id: Some(payload.user_id),
+                user_id: payload.user_id,
             },
         ))
     }
