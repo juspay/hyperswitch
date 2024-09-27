@@ -16,7 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, PaymentMethodData},
+    payment_method_data::{ApplePayWalletData, Card, PaymentMethodData},
     router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
@@ -915,7 +915,6 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
     }
-
 }
 
 pub trait ApplePay {
@@ -925,13 +924,11 @@ pub trait ApplePay {
 impl ApplePay for ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
         let token = Secret::new(
-            String::from_utf8(
-                BASE64_ENGINE
-                    .decode(&self.payment_data)
-                    .change_context(errors::ConnectorError::InvalidWalletToken {
-                        wallet_name: "Apple Pay".to_string(),
-                    })?,
-            )
+            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
+                errors::ConnectorError::InvalidWalletToken {
+                    wallet_name: "Apple Pay".to_string(),
+                },
+            )?)
             .change_context(errors::ConnectorError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
             })?,
