@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.27.0-hotfix1
+
+### Features
+
+- **router:** Revert support for co-badged cards ([#6148](https://github.com/juspay/hyperswitch/pull/6148)) ([`239b063`](https://github.com/juspay/hyperswitch/commit/239b063b67fba6e55df20e94d9b1a718fe1afb0b))
+
+- - -
+
 ## 2024.09.27.0
 
 ### Features
