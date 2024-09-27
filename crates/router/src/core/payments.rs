@@ -3324,13 +3324,19 @@ pub async fn get_aggregates_for_payments(
     time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api::PaymentsAggregateResponse> {
     let db = state.store.as_ref();
+
     let intent_status_with_count = db
         .get_intent_status_with_count(merchant.get_id(), profile_id_list, &time_range)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .map_err(|err| {
+          
+            errors::ApiErrorResponse::InternalServerError
+                .attach_printable(format!("Error fetching payment aggregates: {:?}", err))
+        })?;
 
     let mut status_map: HashMap<enums::IntentStatus, i64> =
         intent_status_with_count.into_iter().collect();
+
     for status in enums::IntentStatus::iter() {
         status_map.entry(status).or_default();
     }
