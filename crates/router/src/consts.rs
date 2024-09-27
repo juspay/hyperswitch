@@ -86,6 +86,11 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
+pub const EMAIL_SUBJECT_API_KEY_EXPIRY: &str = "API Key Expiry Notice";
+pub const EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST: &str = "Dashboard Pro Feature Request by";
+pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
+    "Approval of Recon Request - Access Granted to Recon Dashboard";
+
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
 
 #[cfg(feature = "olap")]

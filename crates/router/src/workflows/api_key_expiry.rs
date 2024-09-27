@@ -81,7 +81,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
                 );
                 errors::ProcessTrackerError::EApiErrorResponse
             })?,
-            subject: consts::user::EMAIL_SUBJECT_API_KEY_EXPIRY,
+            subject: consts::EMAIL_SUBJECT_API_KEY_EXPIRY,
             expires_in: *expires_in,
             api_key_name,
             prefix,

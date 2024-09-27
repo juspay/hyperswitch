@@ -40,7 +40,7 @@ pub async fn send_recon_request(
         settings: state.conf.clone(),
         subject: format!(
             "{} {}",
-            consts::user::EMAIL_SUBJECT_DASHBOARD_REQUEST,
+            consts::EMAIL_SUBJECT_DASHBOARD_REQUEST,
             user_email.expose().peek()
         ),
     };
@@ -146,7 +146,7 @@ pub async fn recon_merchant_account_update(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
         settings: state.conf.clone(),
-        subject: consts::user::EMAIL_SUBJECT_APPROVAL_RECON_REQUEST,
+        subject: consts::EMAIL_SUBJECT_APPROVAL_RECON_REQUEST,
     };
 
     if req.recon_status == enums::ReconStatus::Active {

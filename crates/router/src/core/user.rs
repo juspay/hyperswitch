@@ -204,7 +204,7 @@ pub async fn connect_account(
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
-            subject: consts::user::EMAIL_SUBJECT_UNLOCK,
+            subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
         };
 
@@ -254,7 +254,7 @@ pub async fn connect_account(
         let email_contents = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
-            subject: consts::user::EMAIL_SUBJECT_WELCOME,
+            subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
         };
 
@@ -1832,7 +1832,7 @@ pub async fn send_verification_mail(
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
-        subject: consts::user::EMAIL_SUBJECT_WELCOME,
+        subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
     };
 
