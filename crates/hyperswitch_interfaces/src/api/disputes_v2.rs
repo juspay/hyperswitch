@@ -8,17 +8,11 @@ use hyperswitch_domain_models::{
     router_response_types::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse},
 };
 
-use crate::{api::ConnectorIntegrationV2, errors};
+use crate::api::ConnectorIntegrationV2;
 
 /// trait AcceptDisputeV2
 pub trait AcceptDisputeV2:
-    ConnectorIntegrationV2<
-    Accept,
-    DisputesFlowData,
-    AcceptDisputeRequestData,
-    AcceptDisputeResponse,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Accept, DisputesFlowData, AcceptDisputeRequestData, AcceptDisputeResponse>
 {
 }
 
@@ -29,20 +23,13 @@ pub trait SubmitEvidenceV2:
     DisputesFlowData,
     SubmitEvidenceRequestData,
     SubmitEvidenceResponse,
-    Error = errors::ConnectorError,
 >
 {
 }
 
 /// trait DefendDisputeV2
 pub trait DefendDisputeV2:
-    ConnectorIntegrationV2<
-    Defend,
-    DisputesFlowData,
-    DefendDisputeRequestData,
-    DefendDisputeResponse,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Defend, DisputesFlowData, DefendDisputeRequestData, DefendDisputeResponse>
 {
 }
 

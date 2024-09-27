@@ -299,7 +299,6 @@ pub trait ConnectorMandateRevokeV2:
     MandateRevokeFlowData,
     MandateRevokeRequestData,
     MandateRevokeResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -312,13 +311,7 @@ pub trait ConnectorAccessToken:
 
 /// trait ConnectorAccessTokenV2
 pub trait ConnectorAccessTokenV2:
-    ConnectorIntegrationV2<
-    AccessTokenAuth,
-    AccessTokenFlowData,
-    AccessTokenRequestData,
-    AccessToken,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<AccessTokenAuth, AccessTokenFlowData, AccessTokenRequestData, AccessToken>
 {
 }
 
@@ -339,7 +332,6 @@ pub trait ConnectorVerifyWebhookSourceV2:
     WebhookSourceVerifyData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }

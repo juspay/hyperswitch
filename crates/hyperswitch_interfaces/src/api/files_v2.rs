@@ -11,25 +11,13 @@ use crate::api::{errors, files::FilePurpose, ConnectorCommon, ConnectorIntegrati
 
 /// trait UploadFileV2
 pub trait UploadFileV2:
-    ConnectorIntegrationV2<
-    Upload,
-    FilesFlowData,
-    UploadFileRequestData,
-    UploadFileResponse,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Upload, FilesFlowData, UploadFileRequestData, UploadFileResponse>
 {
 }
 
 /// trait RetrieveFileV2
 pub trait RetrieveFileV2:
-    ConnectorIntegrationV2<
-    Retrieve,
-    FilesFlowData,
-    RetrieveFileRequestData,
-    RetrieveFileResponse,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Retrieve, FilesFlowData, RetrieveFileRequestData, RetrieveFileResponse>
 {
 }
 

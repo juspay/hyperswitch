@@ -18,20 +18,11 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
 
-use crate::{
-    api::{ConnectorCommon, ConnectorIntegrationV2, ConnectorValidation},
-    errors,
-};
+use crate::api::{ConnectorCommon, ConnectorIntegrationV2, ConnectorValidation};
 
 /// trait PaymentAuthorizeV2
 pub trait PaymentAuthorizeV2:
-    ConnectorIntegrationV2<
-    Authorize,
-    PaymentFlowData,
-    PaymentsAuthorizeData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
 {
 }
 
@@ -42,92 +33,49 @@ pub trait PaymentAuthorizeSessionTokenV2:
     PaymentFlowData,
     AuthorizeSessionTokenData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
 
 /// trait PaymentSyncV2
 pub trait PaymentSyncV2:
-    ConnectorIntegrationV2<
-    PSync,
-    PaymentFlowData,
-    PaymentsSyncData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
 }
 
 /// trait PaymentVoidV2
 pub trait PaymentVoidV2:
-    ConnectorIntegrationV2<
-    Void,
-    PaymentFlowData,
-    PaymentsCancelData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Void, PaymentFlowData, PaymentsCancelData, PaymentsResponseData>
 {
 }
 
 /// trait PaymentApproveV2
 pub trait PaymentApproveV2:
-    ConnectorIntegrationV2<
-    Approve,
-    PaymentFlowData,
-    PaymentsApproveData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Approve, PaymentFlowData, PaymentsApproveData, PaymentsResponseData>
 {
 }
 
 /// trait PaymentRejectV2
 pub trait PaymentRejectV2:
-    ConnectorIntegrationV2<
-    Reject,
-    PaymentFlowData,
-    PaymentsRejectData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Reject, PaymentFlowData, PaymentsRejectData, PaymentsResponseData>
 {
 }
 
 /// trait PaymentCaptureV2
 pub trait PaymentCaptureV2:
-    ConnectorIntegrationV2<
-    Capture,
-    PaymentFlowData,
-    PaymentsCaptureData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
 }
 
 /// trait PaymentSessionV2
 pub trait PaymentSessionV2:
-    ConnectorIntegrationV2<
-    Session,
-    PaymentFlowData,
-    PaymentsSessionData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Session, PaymentFlowData, PaymentsSessionData, PaymentsResponseData>
 {
 }
 
 /// trait MandateSetupV2
 pub trait MandateSetupV2:
-    ConnectorIntegrationV2<
-    SetupMandate,
-    PaymentFlowData,
-    SetupMandateRequestData,
-    PaymentsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<SetupMandate, PaymentFlowData, SetupMandateRequestData, PaymentsResponseData>
 {
 }
 
@@ -138,7 +86,6 @@ pub trait PaymentIncrementalAuthorizationV2:
     PaymentFlowData,
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -150,7 +97,6 @@ pub trait TaxCalculationV2:
     PaymentFlowData,
     PaymentsTaxCalculationData,
     TaxCalculationResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -162,7 +108,6 @@ pub trait PaymentSessionUpdateV2:
     PaymentFlowData,
     SdkPaymentsSessionUpdateData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -174,7 +119,6 @@ pub trait PaymentsCompleteAuthorizeV2:
     PaymentFlowData,
     CompleteAuthorizeData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -186,7 +130,6 @@ pub trait PaymentTokenV2:
     PaymentFlowData,
     PaymentMethodTokenizationData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -198,7 +141,6 @@ pub trait ConnectorCustomerV2:
     PaymentFlowData,
     ConnectorCustomerData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -210,7 +152,6 @@ pub trait PaymentsPreProcessingV2:
     PaymentFlowData,
     PaymentsPreProcessingData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }
@@ -222,7 +163,6 @@ pub trait PaymentsPostProcessingV2:
     PaymentFlowData,
     PaymentsPostProcessingData,
     PaymentsResponseData,
-    Error = errors::ConnectorError,
 >
 {
 }

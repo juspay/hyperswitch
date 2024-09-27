@@ -7,32 +7,17 @@ use hyperswitch_domain_models::{
     router_response_types::RefundsResponseData,
 };
 
-use crate::{
-    api::{ConnectorCommon, ConnectorIntegrationV2},
-    errors,
-};
+use crate::api::{ConnectorCommon, ConnectorIntegrationV2};
 
 /// trait RefundExecuteV2
 pub trait RefundExecuteV2:
-    ConnectorIntegrationV2<
-    Execute,
-    RefundFlowData,
-    RefundsData,
-    RefundsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<Execute, RefundFlowData, RefundsData, RefundsResponseData>
 {
 }
 
 /// trait RefundSyncV2
 pub trait RefundSyncV2:
-    ConnectorIntegrationV2<
-    RSync,
-    RefundFlowData,
-    RefundsData,
-    RefundsResponseData,
-    Error = errors::ConnectorError,
->
+    ConnectorIntegrationV2<RSync, RefundFlowData, RefundsData, RefundsResponseData>
 {
 }
 
