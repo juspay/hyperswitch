@@ -245,7 +245,7 @@ pub struct NovalnetMandate {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalNetPaymentData {
-    PaymentCard(NovalnetCard),
+    Card(NovalnetCard),
     MandatePayment(NovalnetMandate),
 }
 
@@ -344,7 +344,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         {
             None => match item.router_data.request.payment_method_data {
                 PaymentMethodData::Card(ref req_card) => {
-                    let novalnet_card = NovalNetPaymentData::PaymentCard(NovalnetCard {
+                    let novalnet_card = NovalNetPaymentData::Card(NovalnetCard {
                         card_number: req_card.card_number.clone(),
                         card_expiry_month: req_card.card_exp_month.clone(),
                         card_expiry_year: req_card.card_exp_year.clone(),
@@ -390,12 +390,11 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::GooglePayRedirect(_)
                     | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                     | WalletDataPaymentMethod::MbWayRedirect(_)
-                    | WalletDataPaymentMethod::MobilePayRedirect(_)
-                    | WalletDataPaymentMethod::PaypalRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+                    | WalletDataPaymentMethod::MobilePayRedirect(_) => Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("novalnet"),
                     )
                     .into()),
-                    WalletDataPaymentMethod::PaypalSdk(_) => {
+                    | WalletDataPaymentMethod::PaypalRedirect(_) => {
                         let transaction = NovalnetPaymentsRequestTransaction {
                             test_mode,
                             payment_type: NovalNetPaymentTypes::PAYPAL,
@@ -416,7 +415,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             custom,
                         })
                     }
-                    WalletDataPaymentMethod::SamsungPay(_)
+                    WalletDataPaymentMethod::PaypalSdk(_) 
+                    | WalletDataPaymentMethod::SamsungPay(_)
                     | WalletDataPaymentMethod::TwintRedirect {}
                     | WalletDataPaymentMethod::VippsRedirect {}
                     | WalletDataPaymentMethod::TouchNGoRedirect(_)
@@ -689,7 +689,7 @@ pub struct NovalnetSyncResponseTransactionData {
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
-    pub payment_data: NovalnetResponsePaymentData,
+    pub payment_data: Option<NovalnetResponsePaymentData>,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
@@ -704,7 +704,8 @@ pub struct NovalnetSyncResponseTransactionData {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalnetResponsePaymentData {
-    PaymentCard(NovalnetResponseCard),
+    Card(NovalnetResponseCard),
+    Paypal(NovalnetResponsePaypal),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -716,6 +717,13 @@ pub struct NovalnetResponseCard {
     pub card_number: Secret<String>,
     pub cc_3d: Option<Secret<u8>>,
     pub last_four: Option<Secret<String>>,
+    pub token: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct NovalnetResponsePaypal{
+    pub paypal_account: Option<Email>,
+    pub paypal_transaction_id: Option<Secret<String>>,
     pub token: Option<String>,
 }
 
@@ -965,7 +973,9 @@ impl NovalnetSyncResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
         if let Some(data) = transaction_data {
             match &data.payment_data {
-                NovalnetResponsePaymentData::PaymentCard(card_data) => card_data.token.clone(),
+                Some(NovalnetResponsePaymentData::Card(card_data)) => card_data.token.clone(),
+                Some(NovalnetResponsePaymentData::Paypal(paypal_data)) => paypal_data.token.clone(),
+               None  => None,
             }
         } else {
             None
@@ -1372,3 +1382,4 @@ pub fn get_incoming_webhook_event(
 pub fn reverse_string(s: &str) -> String {
     s.chars().rev().collect()
 }
+
