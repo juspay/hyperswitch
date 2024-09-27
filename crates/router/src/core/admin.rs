@@ -1332,12 +1332,12 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Esnekpos => {
-                esnekpos::transformers::EsnekposAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
             api_enums::Connector::Ebanx => {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Esnekpos => {
+                esnekpos::transformers::EsnekposAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Fiserv => {

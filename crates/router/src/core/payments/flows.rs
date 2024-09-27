@@ -2044,7 +2044,6 @@ impl<const T: u8>
 
 default_imp_for_reject!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2063,6 +2062,7 @@ default_imp_for_reject!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Gocardless,
@@ -2118,7 +2118,6 @@ impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2140,6 +2139,7 @@ default_imp_for_fraud_check!(
     connector::Deutschebank,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Fiserv,
     connector::Fiservemea,
     connector::Fiuu,
@@ -2225,7 +2225,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2244,6 +2243,7 @@ default_imp_for_frm_sale!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Gocardless,
