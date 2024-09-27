@@ -742,8 +742,8 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
         } else {
             NovalnetSyncTransaction {
                 tid: item
-            .request
-            .get_connector_transaction_id()
+                    .request
+                    .get_connector_transaction_id()
                     .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             }
         };
