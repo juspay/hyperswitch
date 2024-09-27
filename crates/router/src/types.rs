@@ -101,7 +101,7 @@ use crate::{
     consts,
     core::{
         errors::{self},
-        payments::PaymentData,
+        payments::{OperationSessionGetters, PaymentData},
     },
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
@@ -271,10 +271,7 @@ impl Capturable for PaymentsAuthorizeData {
     where
         F: Clone,
     {
-        match payment_data
-            .payment_attempt
-            .capture_method
-            .unwrap_or_default()
+        match payment_data.get_capture_method().unwrap_or_default()
         {
             common_enums::CaptureMethod::Automatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
@@ -349,8 +346,7 @@ impl Capturable for CompleteAuthorizeData {
         F: Clone,
     {
         match payment_data
-            .payment_attempt
-            .capture_method
+            .get_capture_method()
             .unwrap_or_default()
         {
             common_enums::CaptureMethod::Automatic => {

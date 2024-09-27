@@ -6,7 +6,6 @@ use hyperswitch_domain_models::{
     errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{
-        payment_attempt::PaymentAttempt,
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
         PaymentIntent,
     },
@@ -16,11 +15,7 @@ use super::MockDb;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         _state: &KeyManagerState,
@@ -32,11 +27,8 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         _state: &KeyManagerState,
@@ -48,11 +40,8 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_intent_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -62,11 +51,8 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -76,11 +62,8 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         _state: &KeyManagerState,
@@ -88,7 +71,13 @@ impl PaymentIntentInterface for MockDb {
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
+    ) -> error_stack::Result<
+        Vec<(
+            PaymentIntent,
+            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        )>,
+        StorageError,
+    > {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
@@ -141,7 +130,7 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -163,7 +152,7 @@ impl PaymentIntentInterface for MockDb {
             .unwrap())
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
         _state: &KeyManagerState,
@@ -180,25 +169,5 @@ impl PaymentIntentInterface for MockDb {
             ))?;
 
         Ok(payment_intent.clone())
-    }
-
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut PaymentIntent,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, StorageError> {
-        match payment.active_attempt.clone() {
-            hyperswitch_domain_models::RemoteStorageObject::ForeignID(id) => {
-                let attempts = self.payment_attempts.lock().await;
-                let attempt = attempts
-                    .iter()
-                    .find(|pa| pa.attempt_id == id && pa.merchant_id == payment.merchant_id)
-                    .ok_or(StorageError::ValueNotFound("Attempt not found".to_string()))?;
-
-                payment.active_attempt = attempt.clone().into();
-                Ok(attempt.clone())
-            }
-            hyperswitch_domain_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
-        }
     }
 }

@@ -938,7 +938,7 @@ pub async fn perform_session_flow_routing(
         let session_pm_input = SessionRoutingPmTypeInput {
             state: session_input.state,
             key_store: session_input.key_store,
-            attempt_id: &session_input.payment_attempt.attempt_id,
+            attempt_id: session_input.payment_attempt.get_id(),
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
