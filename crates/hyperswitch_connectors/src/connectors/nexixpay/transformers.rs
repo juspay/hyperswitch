@@ -158,6 +158,15 @@ pub enum NexixpayPaymentIntent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NexixpayRedirectionRequest {
+    pub three_d_s_auth_url: String,
+    pub three_ds_request: String,
+    pub return_url: String,
+    pub transaction_id: String
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NexixpayConnectorMetaData {
     pub three_d_s_auth_result: Option<ThreeDSAuthResult>,
     pub three_d_s_auth_response: Option<Secret<String>>,
@@ -587,12 +596,12 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let complete_authorize_url = item.data.request.get_complete_authorize_url()?;
         let operation_id: String = item.response.operation.operation_id;
-        let redirection_form = nexixpay_threeds_link((
-            item.response.three_d_s_auth_url.expose().to_string(),
-            item.response.three_d_s_auth_request.clone(),
-            complete_authorize_url.clone(),
-            operation_id.clone(),
-        ))?;
+        let redirection_form = nexixpay_threeds_link(NexixpayRedirectionRequest{
+            three_d_s_auth_url:item.response.three_d_s_auth_url.expose().to_string(),
+            three_ds_request:item.response.three_d_s_auth_request.clone(),
+            return_url:complete_authorize_url.clone(),
+            transaction_id:operation_id.clone(),
+    })?;
         let is_auto_capture = item.data.request.is_auto_capture()?;
         let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
             three_d_s_auth_result: None,
@@ -628,20 +637,15 @@ impl<F>
 }
 
 fn nexixpay_threeds_link(
-    (three_d_s_auth_url, three_ds_request, return_url, transaction_id): (
-        String,
-        String,
-        String,
-        String,
-    ),
+    request: NexixpayRedirectionRequest,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
     let mut form_fields = HashMap::<String, String>::new();
-    form_fields.insert(String::from("ThreeDsRequest"), three_ds_request);
-    form_fields.insert(String::from("ReturnUrl"), return_url);
-    form_fields.insert(String::from("transactionId"), transaction_id);
+    form_fields.insert(String::from("ThreeDsRequest"), request.three_ds_request);
+    form_fields.insert(String::from("ReturnUrl"), request.return_url);
+    form_fields.insert(String::from("transactionId"), request.transaction_id);
 
     Ok(RedirectForm::Form {
-        endpoint: three_d_s_auth_url,
+        endpoint: request.three_d_s_auth_url,
         method: Method::Post,
         form_fields,
     })
