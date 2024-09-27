@@ -122,8 +122,8 @@ pub enum ConnectorError {
     #[error("Generic Error")]
     GenericError {
         error_message: String,
-        error_object: serde_json::Value
-    }
+        error_object: serde_json::Value,
+    },
 }
 
 impl ConnectorError {

@@ -218,8 +218,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::RequestTimeoutReceived
             | errors::ConnectorError::CurrencyNotSupported { .. }
             | errors::ConnectorError::InvalidConnectorConfig { .. }
-            | errors::ConnectorError::AmountConversionFailed { .. } 
-            | errors::ConnectorError::GenericError {..}=> {
+            | errors::ConnectorError::AmountConversionFailed { .. }
+            | errors::ConnectorError::GenericError { .. } => {
                 err.change_context(errors::ApiErrorResponse::RefundFailed { data: None })
             }
         })
@@ -409,8 +409,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::RequestTimeoutReceived
                 | errors::ConnectorError::CurrencyNotSupported { .. }
                 | errors::ConnectorError::ProcessingStepFailed(None)
-                | errors::ConnectorError::AmountConversionFailed { .. } 
-                | errors::ConnectorError::GenericError {..}=> {
+                | errors::ConnectorError::AmountConversionFailed { .. }
+                | errors::ConnectorError::GenericError { .. } => {
                     logger::error!(%error,"Setup Mandate flow failed");
                     errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
                 }
