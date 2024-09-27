@@ -924,7 +924,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let tokenization::SavePaymentMethodDataResponse {
-            payment_method_id, ..
+            payment_method_id,
+            mandate_reference_id,
+            ..
         } = Box::pin(tokenization::save_payment_method(
             state,
             connector_name,
@@ -954,6 +956,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
         payment_data.payment_attempt.mandate_id = mandate_id;
+        payment_data.set_mandate_id(api_models::payments::MandateIds {
+            mandate_id: None,
+            mandate_reference_id,
+        });
         Ok(())
     }
 }
@@ -1710,23 +1716,27 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        let state = state.clone();
-        let business_profile = business_profile.clone();
-        let payment_attempt = payment_attempt.clone();
-        tokio::spawn(
-            async move {
-                push_metrics_for_success_based_routing(
-                    &state,
-                    &payment_attempt,
-                    routable_connectors,
-                    &business_profile,
-                )
-                .await
-                .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-                .ok();
-            }
-            .in_current_span(),
-        );
+        if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
+        {
+            let state = state.clone();
+            let business_profile = business_profile.clone();
+            let payment_attempt = payment_attempt.clone();
+            tokio::spawn(
+                async move {
+                    push_metrics_for_success_based_routing(
+                        &state,
+                        &payment_attempt,
+                        routable_connectors,
+                        &business_profile,
+                        dynamic_routing_algorithm,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                    .ok();
+                }
+                .in_current_span(),
+            );
+        }
     }
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
