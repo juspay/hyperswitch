@@ -1,4 +1,5 @@
 pub use hyperswitch_domain_models::router_request_types::authentication::MessageCategory;
+use hyperswitch_interfaces::errors;
 
 use super::authentication::{
     Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
@@ -11,6 +12,7 @@ pub trait ConnectorAuthenticationV2:
     types::ExternalAuthenticationFlowData,
     types::authentication::ConnectorAuthenticationRequestData,
     types::authentication::AuthenticationResponseData,
+    Error = errors::ConnectorError,
 >
 {
 }
@@ -21,6 +23,7 @@ pub trait ConnectorPreAuthenticationV2:
     types::ExternalAuthenticationFlowData,
     types::authentication::PreAuthNRequestData,
     types::authentication::AuthenticationResponseData,
+    Error = errors::ConnectorError,
 >
 {
 }
@@ -31,6 +34,7 @@ pub trait ConnectorPreAuthenticationVersionCallV2:
     types::ExternalAuthenticationFlowData,
     types::authentication::PreAuthNRequestData,
     types::authentication::AuthenticationResponseData,
+    Error = errors::ConnectorError,
 >
 {
 }
@@ -41,6 +45,7 @@ pub trait ConnectorPostAuthenticationV2:
     types::ExternalAuthenticationFlowData,
     types::authentication::ConnectorPostAuthenticationRequestData,
     types::authentication::AuthenticationResponseData,
+    Error = errors::ConnectorError,
 >
 {
 }

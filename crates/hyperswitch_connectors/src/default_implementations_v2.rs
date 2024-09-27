@@ -82,6 +82,7 @@ use hyperswitch_interfaces::{
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
+    errors,
 };
 
 use crate::connectors;
@@ -109,28 +110,28 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<PSync,PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<Void, PaymentFlowData, PaymentsCancelData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<Approve,PaymentFlowData, PaymentsApproveData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<Reject,PaymentFlowData, PaymentsRejectData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<Capture,PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<Session,PaymentFlowData, PaymentsSessionData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<SetupMandate,PaymentFlowData, SetupMandateRequestData, PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<
             IncrementalAuthorization,
@@ -138,59 +139,59 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 PaymentsIncrementalAuthorizationData,
                 PaymentsResponseData,
             >
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<
             CompleteAuthorize,
             PaymentFlowData,
                 CompleteAuthorizeData,
                 PaymentsResponseData,
-            >            for $path::$connector{}
+            >            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<
             PaymentMethodToken,
             PaymentFlowData,
                 PaymentMethodTokenizationData,
                 PaymentsResponseData,
-            > for   $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<
             CreateConnectorCustomer,
             PaymentFlowData,
                 ConnectorCustomerData,
                 PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl ConnectorIntegrationV2<
             PreProcessing,
             PaymentFlowData,
                 PaymentsPreProcessingData,
                 PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl ConnectorIntegrationV2<
             PostProcessing,
             PaymentFlowData,
                 PaymentsPostProcessingData,
                 PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<
                 AuthorizeSessionToken,
                 PaymentFlowData,
                 AuthorizeSessionTokenData,
                 PaymentsResponseData
-        > for $path::$connector{}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
         impl ConnectorIntegrationV2<
             CalculateTax,
             PaymentFlowData,
             PaymentsTaxCalculationData,
             TaxCalculationResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
          impl ConnectorIntegrationV2<
             SdkSessionUpdate,
             PaymentFlowData,
             SdkPaymentsSessionUpdateData,
             PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -227,10 +228,10 @@ macro_rules! default_imp_for_new_connector_integration_refund {
             impl RefundSyncV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Execute, RefundFlowData, RefundsData, RefundsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             ConnectorIntegrationV2<RSync, RefundFlowData, RefundsData, RefundsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -265,7 +266,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
             impl ConnectorAccessTokenV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<AccessTokenAuth, AccessTokenFlowData, AccessTokenRequestData, AccessToken>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -305,8 +306,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
                 DisputesFlowData,
                 AcceptDisputeRequestData,
                 AcceptDisputeResponse,
-            > for $path::$connector
-            {}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -345,8 +345,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
                 DisputesFlowData,
                 SubmitEvidenceRequestData,
                 SubmitEvidenceResponse,
-            > for $path::$connector
-            {}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -385,8 +384,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
                 DisputesFlowData,
                 DefendDisputeRequestData,
                 DefendDisputeResponse,
-            > for $path::$connector
-            {}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
         )*
     };
 }
@@ -426,8 +424,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
                 FilesFlowData,
                 UploadFileRequestData,
                 UploadFileResponse,
-            > for $path::$connector
-            {}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl RetrieveFileV2 for $path::$connector {}
             impl
                 ConnectorIntegrationV2<
@@ -435,8 +432,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
                 FilesFlowData,
                 RetrieveFileRequestData,
                 RetrieveFileResponse,
-            > for $path::$connector
-            {}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -476,8 +472,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -518,8 +513,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -560,8 +554,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -602,8 +595,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -644,8 +636,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -686,8 +677,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -728,8 +718,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -770,8 +759,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
             PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -811,8 +799,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
             WebhookSourceVerifyData,
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -852,8 +839,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
             FrmFlowData,
             FraudCheckSaleData,
             FraudCheckResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -894,8 +880,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
             FrmFlowData,
             FraudCheckCheckoutData,
             FraudCheckResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -936,8 +921,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
             FrmFlowData,
             FraudCheckTransactionData,
             FraudCheckResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -978,8 +962,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
             FrmFlowData,
             FraudCheckFulfillmentData,
             FraudCheckResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -1020,8 +1003,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
             FrmFlowData,
             FraudCheckRecordReturnData,
             FraudCheckResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -1060,8 +1042,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
             MandateRevokeFlowData,
             MandateRevokeRequestData,
             MandateRevokeResponseData,
-        > for $path::$connector
-        {}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }

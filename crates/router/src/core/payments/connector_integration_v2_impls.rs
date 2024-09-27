@@ -1,3 +1,5 @@
+use hyperswitch_interfaces::errors;
+
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
 use crate::{
@@ -7,6 +9,8 @@ use crate::{
 
 #[cfg(feature = "dummy_connector")]
 mod dummy_connector_default_impl {
+    use hyperswitch_interfaces::errors;
+
     #[cfg(feature = "frm")]
     use super::frm_types;
     use super::{api, connector, services, types};
@@ -54,6 +58,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -64,6 +69,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -74,6 +80,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -84,6 +91,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -94,6 +102,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -104,6 +113,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -114,6 +124,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -124,6 +135,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -134,6 +146,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -144,6 +157,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -154,6 +168,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -164,6 +179,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -174,6 +190,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -184,6 +201,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
     impl<const T: u8>
         services::ConnectorIntegrationV2<
@@ -193,6 +211,7 @@ mod dummy_connector_default_impl {
             types::TaxCalculationResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
     impl<const T: u8>
         services::ConnectorIntegrationV2<
@@ -202,6 +221,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -212,6 +232,7 @@ mod dummy_connector_default_impl {
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
     impl<const T: u8> api::RefundV2 for connector::DummyConnector<T> {}
     impl<const T: u8> api::RefundExecuteV2 for connector::DummyConnector<T> {}
@@ -225,6 +246,7 @@ mod dummy_connector_default_impl {
             types::RefundsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -235,6 +257,7 @@ mod dummy_connector_default_impl {
             types::RefundsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
     impl<const T: u8> api::ConnectorAccessTokenV2 for connector::DummyConnector<T> {}
     impl<const T: u8>
@@ -245,6 +268,7 @@ mod dummy_connector_default_impl {
             types::AccessToken,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::DisputeV2 for connector::DummyConnector<T> {}
@@ -259,6 +283,7 @@ mod dummy_connector_default_impl {
             types::AcceptDisputeResponse,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::DefendDisputeV2 for connector::DummyConnector<T> {}
@@ -271,6 +296,7 @@ mod dummy_connector_default_impl {
             types::DefendDisputeResponse,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::SubmitEvidenceV2 for connector::DummyConnector<T> {}
@@ -283,6 +309,7 @@ mod dummy_connector_default_impl {
             types::SubmitEvidenceResponse,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::FileUploadV2 for connector::DummyConnector<T> {}
@@ -297,6 +324,7 @@ mod dummy_connector_default_impl {
             types::UploadFileResponse,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::RetrieveFileV2 for connector::DummyConnector<T> {}
@@ -309,6 +337,7 @@ mod dummy_connector_default_impl {
             types::RetrieveFileResponse,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::PayoutsV2 for connector::DummyConnector<T> {}
@@ -325,6 +354,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -338,6 +368,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -351,6 +382,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -364,6 +396,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -377,6 +410,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -390,6 +424,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -403,6 +438,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "payouts")]
@@ -416,6 +452,7 @@ mod dummy_connector_default_impl {
             types::PayoutsResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::ConnectorVerifyWebhookSourceV2 for connector::DummyConnector<T> {}
@@ -428,6 +465,7 @@ mod dummy_connector_default_impl {
             types::VerifyWebhookSourceResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::FraudCheckV2 for connector::DummyConnector<T> {}
@@ -443,6 +481,7 @@ mod dummy_connector_default_impl {
             frm_types::FraudCheckResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "frm")]
@@ -456,6 +495,7 @@ mod dummy_connector_default_impl {
             frm_types::FraudCheckResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "frm")]
@@ -469,6 +509,7 @@ mod dummy_connector_default_impl {
             frm_types::FraudCheckResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "frm")]
@@ -482,6 +523,7 @@ mod dummy_connector_default_impl {
             frm_types::FraudCheckResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     #[cfg(feature = "frm")]
@@ -495,6 +537,7 @@ mod dummy_connector_default_impl {
             frm_types::FraudCheckResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::ConnectorMandateRevokeV2 for connector::DummyConnector<T> {}
@@ -507,6 +550,7 @@ mod dummy_connector_default_impl {
             types::MandateRevokeResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8> api::ExternalAuthenticationV2 for connector::DummyConnector<T> {}
@@ -527,6 +571,7 @@ mod dummy_connector_default_impl {
             types::authentication::AuthenticationResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -537,6 +582,7 @@ mod dummy_connector_default_impl {
             types::authentication::AuthenticationResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -547,6 +593,7 @@ mod dummy_connector_default_impl {
             types::authentication::AuthenticationResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 
     impl<const T: u8>
@@ -557,6 +604,7 @@ mod dummy_connector_default_impl {
             types::authentication::AuthenticationResponseData,
         > for connector::DummyConnector<T>
     {
+        type Error = errors::ConnectorError;
     }
 }
 
@@ -583,28 +631,28 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::PaymentSessionUpdateV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::PSync,types::PaymentFlowData, types::PaymentsSyncData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::Void, types::PaymentFlowData, types::PaymentsCancelData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::Approve,types::PaymentFlowData, types::PaymentsApproveData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::Reject,types::PaymentFlowData, types::PaymentsRejectData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::Capture,types::PaymentFlowData, types::PaymentsCaptureData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::Session,types::PaymentFlowData, types::PaymentsSessionData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::SetupMandate,types::PaymentFlowData, types::SetupMandateRequestData, types::PaymentsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<
             api::IncrementalAuthorization,
@@ -612,60 +660,60 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 types::PaymentsIncrementalAuthorizationData,
                 types::PaymentsResponseData,
             >
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<
             api::CompleteAuthorize,
             types::PaymentFlowData,
                 types::CompleteAuthorizeData,
                 types::PaymentsResponseData,
-            >            for $path::$connector{}
+            >            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<
             api::PaymentMethodToken,
             types::PaymentFlowData,
                 types::PaymentMethodTokenizationData,
                 types::PaymentsResponseData,
-            > for   $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<
             api::CreateConnectorCustomer,
             types::PaymentFlowData,
                 types::ConnectorCustomerData,
                 types::PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl services::ConnectorIntegrationV2<
             api::PreProcessing,
             types::PaymentFlowData,
                 types::PaymentsPreProcessingData,
                 types::PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl services::ConnectorIntegrationV2<
             api::PostProcessing,
             types::PaymentFlowData,
                 types::PaymentsPostProcessingData,
                 types::PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<
                 api::AuthorizeSessionToken,
                 types::PaymentFlowData,
                 types::AuthorizeSessionTokenData,
                 types::PaymentsResponseData
-        > for $path::$connector{}
+        > for $path::$connector{ type Error = errors::ConnectorError; }
         impl services::ConnectorIntegrationV2<
             api::CalculateTax,
             types::PaymentFlowData,
                 types::PaymentsTaxCalculationData,
                 types::TaxCalculationResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
 
             impl services::ConnectorIntegrationV2<
             api::SdkSessionUpdate,
             types::PaymentFlowData,
                 types::SdkPaymentsSessionUpdateData,
                 types::PaymentsResponseData,
-            > for $path::$connector{}
+            > for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -737,10 +785,10 @@ macro_rules! default_imp_for_new_connector_integration_refund {
             impl api::RefundSyncV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Execute, types::RefundFlowData, types::RefundsData, types::RefundsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
             impl
             services::ConnectorIntegrationV2<api::RSync, types::RefundFlowData, types::RefundsData, types::RefundsResponseData>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -809,7 +857,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
             impl api::ConnectorAccessTokenV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::AccessTokenAuth, types::AccessTokenFlowData, types::AccessTokenRequestData, types::AccessToken>
-            for $path::$connector{}
+            for $path::$connector{ type Error = errors::ConnectorError; }
     )*
     };
 }
@@ -884,7 +932,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
                 types::AcceptDisputeRequestData,
                 types::AcceptDisputeResponse,
             > for $path::$connector
-            {}
+            { type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -900,7 +948,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
                 types::SubmitEvidenceRequestData,
                 types::SubmitEvidenceResponse,
             > for $path::$connector
-            {}
+            { type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -974,7 +1022,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
                 types::DefendDisputeRequestData,
                 types::DefendDisputeResponse,
             > for $path::$connector
-            {}
+            {type Error = errors::ConnectorError;}
         )*
     };
 }
@@ -1105,7 +1153,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
                 types::UploadFileRequestData,
                 types::UploadFileResponse,
             > for $path::$connector
-            {}
+            {type Error = errors::ConnectorError;}
             impl api::RetrieveFileV2 for $path::$connector {}
             impl
                 services::ConnectorIntegrationV2<
@@ -1114,7 +1162,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
                 types::RetrieveFileRequestData,
                 types::RetrieveFileResponse,
             > for $path::$connector
-            {}
+            {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1276,7 +1324,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1352,7 +1400,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1428,7 +1476,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1504,7 +1552,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1580,7 +1628,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1656,7 +1704,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1732,7 +1780,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1808,7 +1856,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -1883,7 +1931,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
             types::VerifyWebhookSourceRequestData,
             types::VerifyWebhookSourceResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2045,7 +2093,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
             frm_types::FraudCheckSaleData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2121,7 +2169,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
             frm_types::FraudCheckCheckoutData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2197,7 +2245,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
             frm_types::FraudCheckTransactionData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2273,7 +2321,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
             frm_types::FraudCheckFulfillmentData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2349,7 +2397,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
             frm_types::FraudCheckRecordReturnData,
             frm_types::FraudCheckResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2423,7 +2471,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
             types::MandateRevokeRequestData,
             types::MandateRevokeResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
@@ -2500,7 +2548,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
             types::authentication::ConnectorAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
         impl
             services::ConnectorIntegrationV2<
             api::PreAuthentication,
@@ -2508,7 +2556,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
             types::authentication::PreAuthNRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
         impl
             services::ConnectorIntegrationV2<
             api::PreAuthenticationVersionCall,
@@ -2516,7 +2564,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
             types::authentication::PreAuthNRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
         impl
             services::ConnectorIntegrationV2<
             api::PostAuthentication,
@@ -2524,7 +2572,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
             types::authentication::ConnectorPostAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
-        {}
+        {type Error = errors::ConnectorError;}
     )*
     };
 }
