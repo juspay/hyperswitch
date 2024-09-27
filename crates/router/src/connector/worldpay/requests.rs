@@ -12,7 +12,7 @@ pub struct BillingAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
+    pub state: Option<Secret<String>>,
     pub postal_code: Secret<String>,
     pub country_code: common_enums::CountryAlpha2,
 }
@@ -188,7 +188,7 @@ pub struct ExpiryDate {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentValue {
     pub amount: i64,
-    pub currency: String,
+    pub currency: api_models::enums::Currency,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

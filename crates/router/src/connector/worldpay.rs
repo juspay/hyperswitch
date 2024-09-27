@@ -2,9 +2,12 @@ mod requests;
 mod response;
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use transformers as worldpay;
@@ -30,8 +33,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Worldpay;
+#[derive(Clone)]
+pub struct Worldpay {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Worldpay {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldpay
 where
@@ -193,9 +206,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/authorizations/cancellations/{}",
+            "{}payments/authorizations/cancellations/{connector_payment_id}",
             self.base_url(connectors),
-            connector_payment_id
         ))
     }
 
@@ -389,7 +401,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = WorldpayPartialRequest::try_from(req)?;
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_req = WorldpayPartialRequest::try_from((req, amount_to_capture))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -498,7 +515,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            req.request.minor_amount,
             req,
         ))?;
         let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
@@ -585,7 +602,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = WorldpayPartialRequest::try_from(req)?;
+        let amount_to_refund = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_req = WorldpayPartialRequest::try_from((req, amount_to_refund))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

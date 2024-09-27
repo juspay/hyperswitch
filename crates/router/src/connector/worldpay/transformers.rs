@@ -1,6 +1,9 @@
+use api_models::payments::Address;
 use base64::Engine;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::OptionExt, types::MinorUnit};
 use diesel_models::enums;
+use error_stack::ResultExt;
+use hyperswitch_connectors::utils::RouterData;
 use masking::{PeekInterface, Secret};
 use serde::Serialize;
 
@@ -23,37 +26,61 @@ impl<T>
     TryFrom<(
         &types::api::CurrencyUnit,
         types::storage::enums::Currency,
-        i64,
+        MinorUnit,
         T,
     )> for WorldpayRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
+        (_currency_unit, _currency, minor_amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
-            i64,
+            MinorUnit,
             T,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount,
+            amount: minor_amount.get_amount_as_i64(),
             router_data: item,
         })
     }
 }
 fn fetch_payment_instrument(
     payment_method: domain::PaymentMethodData,
+    billing_address: Option<&Address>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+            payment_type: PaymentType::Card,
             expiry_date: ExpiryDate {
                 month: utils::CardData::get_expiry_month_as_i8(&card)?,
                 year: utils::CardData::get_expiry_year_as_i32(&card)?,
             },
             card_number: card.card_number,
             cvc: card.card_cvc,
-            ..CardPayment::default()
+            card_holder_name: card.nick_name,
+            billing_address: if let Some(address) =
+                billing_address.and_then(|addr| addr.address.clone())
+            {
+                Some(BillingAddress {
+                    address1: address.line1,
+                    address2: address.line2,
+                    address3: address.line3,
+                    city: address.city,
+                    state: address.state,
+                    postal_code: address.zip.get_required_value("zip").change_context(
+                        errors::ConnectorError::MissingRequiredField { field_name: "zip" },
+                    )?,
+                    country_code: address
+                        .country
+                        .get_required_value("country_code")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "country_code",
+                        })?,
+                })
+            } else {
+                None
+            },
         })),
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::GooglePay(data) => {
@@ -155,7 +182,7 @@ impl
                 },
                 value: PaymentValue {
                     amount: item.amount,
-                    currency: item.router_data.request.currency.to_string(),
+                    currency: item.router_data.request.currency,
                 },
                 narrative: InstructionNarrative {
                     line1: item
@@ -167,6 +194,7 @@ impl
                 },
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
+                    item.router_data.get_optional_billing(),
                 )?,
                 debt_repayment: None,
             },
@@ -294,27 +322,29 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
     }
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for WorldpayPartialRequest {
+impl TryFrom<(&types::PaymentsCaptureRouterData, MinorUnit)> for WorldpayPartialRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(req: (&types::PaymentsCaptureRouterData, MinorUnit)) -> Result<Self, Self::Error> {
+        let (item, amount) = req;
         Ok(Self {
             reference: item.payment_id.clone().replace("_", "-"),
             value: PaymentValue {
-                amount: item.request.amount_to_capture,
-                currency: item.request.currency.to_string(),
+                amount: amount.get_amount_as_i64(),
+                currency: item.request.currency,
             },
         })
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldpayPartialRequest {
+impl<F> TryFrom<(&types::RefundsRouterData<F>, MinorUnit)> for WorldpayPartialRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(req: (&types::RefundsRouterData<F>, MinorUnit)) -> Result<Self, Self::Error> {
+        let (item, amount) = req;
         Ok(Self {
             reference: item.request.refund_id.clone().replace("_", "-"),
             value: PaymentValue {
-                amount: item.request.refund_amount,
-                currency: item.request.currency.to_string(),
+                amount: amount.get_amount_as_i64(),
+                currency: item.request.currency,
             },
         })
     }
