@@ -52,7 +52,7 @@ pub async fn organization_update(
             &auth::AdminApiAuth,
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
-                required_permission: Permission::MerchantAccountRead,
+                required_permission: Permission::MerchantAccountWrite,
                 minimum_entity_level: EntityType::Organization,
             },
             req.headers(),
