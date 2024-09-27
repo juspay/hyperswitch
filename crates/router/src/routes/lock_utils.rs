@@ -219,16 +219,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
             | Flow::SwitchOrg
-            | Flow::SwitchMerchant
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
-            | Flow::UserMerchantAccountList
             | Flow::GetUserDetails
             | Flow::GetUserRoleDetails
-            | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
             | Flow::RotatePassword
@@ -259,18 +256,14 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListInvitationsForUser
             | Flow::AuthSelect => Self::User,
 
-            Flow::ListRoles
-            | Flow::ListRolesV2
+            Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
-            | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
-            | Flow::AcceptInvitation
             | Flow::AcceptInvitationsV2
-            | Flow::MerchantSelect
             | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
             | Flow::CreateRole
