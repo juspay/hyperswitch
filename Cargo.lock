@@ -1846,7 +1846,6 @@ dependencies = [
  "common_utils",
  "error-stack",
  "masking",
- "regex",
  "router_env",
  "serde",
  "serde_json",
