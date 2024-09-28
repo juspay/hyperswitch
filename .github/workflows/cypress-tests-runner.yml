@@ -140,9 +140,7 @@ jobs:
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          cd "cypress-tests"
-          npm ci
-          cd -
+          npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
         if: ${{ env.RUN_TESTS == 'true' }}
