@@ -151,6 +151,6 @@ pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 
 /// Max length allowed for Statement Descriptor
-pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 255;
+pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";

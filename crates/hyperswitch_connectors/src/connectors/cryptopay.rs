@@ -4,35 +4,44 @@ use base64::Engine;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     date_time,
+    errors::CustomResult,
     ext_traits::ByteSliceExt,
-    request::RequestContent,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hex::encode;
-use masking::PeekInterface;
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
+    webhooks,
+};
+use masking::{Mask, PeekInterface};
 use transformers as cryptopay;
 
 use self::cryptopay::CryptopayWebhookDetails;
-use super::utils;
 use crate::{
-    configs::settings,
-    consts,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignTryFrom,
-        ErrorResponse, Response,
-    },
-    utils::BytesExt,
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, ForeignTryFrom},
 };
 
 #[derive(Clone)]
@@ -61,12 +70,8 @@ impl api::RefundExecute for Cryptopay {}
 impl api::RefundSync for Cryptopay {}
 impl api::PaymentToken for Cryptopay {}
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Cryptopay
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Cryptopay
 {
     // Not Implemented (R)
 }
@@ -77,16 +82,13 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let method = self.get_http_method();
         let payload = match method {
-            common_utils::request::Method::Get => String::default(),
-            common_utils::request::Method::Post
-            | common_utils::request::Method::Put
-            | common_utils::request::Method::Delete
-            | common_utils::request::Method::Patch => {
+            Method::Get => String::default(),
+            Method::Post | Method::Put | Method::Delete | Method::Patch => {
                 let body = self
                     .get_request_body(req, connectors)?
                     .get_inner_value()
@@ -121,7 +123,7 @@ where
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to sign the message")?;
-        let authz = consts::BASE64_ENGINE.encode(authz);
+        let authz = common_utils::consts::BASE64_ENGINE.encode(authz);
         let auth_string: String = format!("HMAC {}:{}", auth.api_key.peek(), authz);
 
         let headers = vec![
@@ -152,14 +154,14 @@ impl ConnectorCommon for Cryptopay {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.cryptopay.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = cryptopay::CryptopayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -192,32 +194,18 @@ impl ConnectorCommon for Cryptopay {
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Cryptopay
-{
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Cryptopay {}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Cryptopay
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Cryptopay {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Cryptopay
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Cryptopay
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Cryptopay".to_string())
                 .into(),
@@ -225,14 +213,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Cryptopay
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Cryptopay {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -242,16 +228,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/api/invoices", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
             self.amount_converter,
@@ -265,20 +251,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -287,10 +269,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: cryptopay::CryptopayPaymentsResponse = res
             .response
             .parse_struct("Cryptopay PaymentsAuthorizeResponse")
@@ -305,8 +287,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             )?),
             None => None,
         };
-        types::RouterData::foreign_try_from((
-            types::ResponseRouterData {
+        RouterData::foreign_try_from((
+            ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
@@ -327,7 +309,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorValidation for Cryptopay {
     fn validate_psync_reference_id(
         &self,
-        _data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: common_enums::enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
@@ -337,14 +319,12 @@ impl ConnectorValidation for Cryptopay {
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Cryptopay
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Cryptopay {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -352,14 +332,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         self.common_get_content_type()
     }
 
-    fn get_http_method(&self) -> services::Method {
-        services::Method::Get
+    fn get_http_method(&self) -> Method {
+        Method::Get
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let custom_id = req.connector_request_reference_id.clone();
         Ok(format!(
@@ -370,25 +350,25 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .headers(PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: cryptopay::CryptopayPaymentsResponse = res
             .response
             .parse_struct("cryptopay PaymentsSyncResponse")
@@ -403,8 +383,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             )?),
             None => None,
         };
-        types::RouterData::foreign_try_from((
-            types::ResponseRouterData {
+        RouterData::foreign_try_from((
+            ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
@@ -422,38 +402,26 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Cryptopay
-{
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Cryptopay {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Cryptopay
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cryptopay {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Cryptopay
-{
-}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cryptopay {}
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Cryptopay
-{
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cryptopay {}
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Cryptopay {
+impl webhooks::IncomingWebhook for Cryptopay {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
@@ -464,7 +432,7 @@ impl api::IncomingWebhook for Cryptopay {
 
     fn get_webhook_source_verification_message(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -475,7 +443,7 @@ impl api::IncomingWebhook for Cryptopay {
 
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif: CryptopayWebhookDetails =
             request
@@ -494,8 +462,8 @@ impl api::IncomingWebhook for Cryptopay {
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif: CryptopayWebhookDetails =
             request
                 .body
@@ -503,21 +471,21 @@ impl api::IncomingWebhook for Cryptopay {
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         match notif.data.status {
             cryptopay::CryptopayPaymentStatus::Completed => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
             }
             cryptopay::CryptopayPaymentStatus::Unresolved => {
-                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentActionRequired)
             }
             cryptopay::CryptopayPaymentStatus::Cancelled => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
         }
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif: CryptopayWebhookDetails =
             request

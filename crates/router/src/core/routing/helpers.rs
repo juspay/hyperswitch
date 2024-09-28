@@ -2,10 +2,21 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::str::FromStr;
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
+use std::sync::Arc;
+
 use api_models::routing as routing_types;
-use common_utils::{ext_traits::Encode, types::keymanager::KeyManagerState};
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 use error_stack::ResultExt;
+#[cfg(feature = "dynamic_routing")]
+use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use router_env::{instrument, metrics::add_attributes, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
@@ -18,6 +29,8 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::{core::metrics as core_metrics, routes::metrics};
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -273,10 +286,7 @@ pub struct RoutingAlgorithmHelpers<'h> {
 
 #[derive(Clone, Debug)]
 pub struct ConnectNameAndMCAIdForProfile<'a>(
-    pub  FxHashSet<(
-        &'a String,
-        common_utils::id_type::MerchantConnectorAccountId,
-    )>,
+    pub FxHashSet<(&'a String, id_type::MerchantConnectorAccountId)>,
 );
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
@@ -288,7 +298,7 @@ pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
 #[cfg(feature = "v2")]
 impl MerchantConnectorAccounts {
     pub async fn get_all_mcas(
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         state: &SessionState,
     ) -> RouterResult<Self> {
@@ -327,7 +337,7 @@ impl MerchantConnectorAccounts {
 
     pub fn filter_by_profile<'a, T>(
         &'a self,
-        profile_id: &'a common_utils::id_type::ProfileId,
+        profile_id: &'a id_type::ProfileId,
         func: impl Fn(&'a MerchantConnectorAccount) -> T,
     ) -> FxHashSet<T>
     where
@@ -422,8 +432,8 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    merchant_id: &common_utils::id_type::MerchantId,
-    profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
     let all_mcas = &*state
@@ -541,5 +551,327 @@ pub fn get_default_config_key(
         storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
         #[cfg(feature = "payouts")]
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
+    }
+}
+
+/// Retrieves cached success_based routing configs specific to tenant and profile
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn get_cached_success_based_routing_config_for_profile<'a>(
+    state: &SessionState,
+    key: &str,
+) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {
+    cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+        .get_val::<Arc<routing_types::SuccessBasedRoutingConfig>>(cache::CacheKey {
+            key: key.to_string(),
+            prefix: state.tenant.redis_key_prefix.clone(),
+        })
+        .await
+}
+
+/// Refreshes the cached success_based routing configs specific to tenant and profile
+#[cfg(feature = "v1")]
+pub async fn refresh_success_based_routing_cache(
+    state: &SessionState,
+    key: &str,
+    success_based_routing_config: routing_types::SuccessBasedRoutingConfig,
+) -> Arc<routing_types::SuccessBasedRoutingConfig> {
+    let config = Arc::new(success_based_routing_config);
+    cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+        .push(
+            cache::CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.redis_key_prefix.clone(),
+            },
+            config.clone(),
+        )
+        .await;
+    config
+}
+
+/// Checked fetch of success based routing configs
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn fetch_success_based_routing_configs(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    dynamic_routing_algorithm: serde_json::Value,
+) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
+    let dynamic_routing_algorithm_ref = dynamic_routing_algorithm
+        .parse_value::<routing_types::DynamicRoutingAlgorithmRef>("DynamicRoutingAlgorithmRef")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse dynamic_routing_algorithm_ref")?;
+
+    let success_based_routing_id = dynamic_routing_algorithm_ref
+        .success_based_algorithm
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "success_based_algorithm not found in dynamic_routing_algorithm_ref"
+                .to_string(),
+        })?
+        .algorithm_id
+        // error can be possible when the feature is toggled off.
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "unable to find algorithm_id in success based algorithm config as the feature is disabled for profile_id: {}",
+                business_profile.get_id().get_string_repr()
+            ),
+        })?;
+
+    let key = format!(
+        "{}_{}",
+        business_profile.get_id().get_string_repr(),
+        success_based_routing_id.get_string_repr()
+    );
+
+    if let Some(config) =
+        get_cached_success_based_routing_config_for_profile(state, key.as_str()).await
+    {
+        Ok(config.as_ref().clone())
+    } else {
+        let success_rate_algorithm = state
+            .store
+            .find_routing_algorithm_by_profile_id_algorithm_id(
+                business_profile.get_id(),
+                &success_based_routing_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+            .attach_printable("unable to retrieve success_rate_algorithm for profile from db")?;
+
+        let success_rate_config = success_rate_algorithm
+            .algorithm_data
+            .parse_value::<routing_types::SuccessBasedRoutingConfig>("SuccessBasedRoutingConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse success_based_routing_config struct")?;
+
+        refresh_success_based_routing_cache(state, key.as_str(), success_rate_config.clone()).await;
+
+        Ok(success_rate_config)
+    }
+}
+
+/// metrics for success based dynamic routing
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn push_metrics_for_success_based_routing(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+    routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
+    business_profile: &domain::Profile,
+    dynamic_routing_algorithm: serde_json::Value,
+) -> RouterResult<()> {
+    let client = state
+        .grpc_client
+        .dynamic_routing
+        .success_rate_client
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "success_rate gRPC client not found".to_string(),
+        })?;
+
+    let payment_connector = &payment_attempt.connector.clone().ok_or(
+        errors::ApiErrorResponse::GenericNotFoundError {
+            message: "unable to derive payment connector from payment attempt".to_string(),
+        },
+    )?;
+
+    let success_based_routing_configs =
+        fetch_success_based_routing_configs(state, business_profile, dynamic_routing_algorithm)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+
+    let tenant_business_profile_id = format!(
+        "{}:{}",
+        state.tenant.redis_key_prefix,
+        business_profile.get_id().get_string_repr()
+    );
+
+    let success_based_connectors = client
+        .calculate_success_rate(
+            tenant_business_profile_id.clone(),
+            success_based_routing_configs.clone(),
+            routable_connectors.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to calculate/fetch success rate from dynamic routing service")?;
+
+    let payment_status_attribute =
+        get_desired_payment_status_for_success_routing_metrics(&payment_attempt.status);
+
+    let first_success_based_connector_label = &success_based_connectors
+        .labels_with_score
+        .first()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
+        )?
+        .label
+        .to_string();
+
+    let (first_success_based_connector, merchant_connector_id) = first_success_based_connector_label
+        .split_once(':')
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
+        )?;
+
+    let outcome = get_success_based_metrics_outcome_for_payment(
+        &payment_status_attribute,
+        payment_connector.to_string(),
+        first_success_based_connector.to_string(),
+    );
+
+    core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([
+            ("tenant", state.tenant.name.clone()),
+            (
+                "merchant_id",
+                payment_attempt.merchant_id.get_string_repr().to_string(),
+            ),
+            (
+                "profile_id",
+                payment_attempt.profile_id.get_string_repr().to_string(),
+            ),
+            ("merchant_connector_id", merchant_connector_id.to_string()),
+            (
+                "payment_id",
+                payment_attempt.payment_id.get_string_repr().to_string(),
+            ),
+            (
+                "success_based_routing_connector",
+                first_success_based_connector.to_string(),
+            ),
+            ("payment_connector", payment_connector.to_string()),
+            (
+                "currency",
+                payment_attempt
+                    .currency
+                    .map_or_else(|| "None".to_string(), |currency| currency.to_string()),
+            ),
+            (
+                "payment_method",
+                payment_attempt.payment_method.map_or_else(
+                    || "None".to_string(),
+                    |payment_method| payment_method.to_string(),
+                ),
+            ),
+            (
+                "payment_method_type",
+                payment_attempt.payment_method_type.map_or_else(
+                    || "None".to_string(),
+                    |payment_method_type| payment_method_type.to_string(),
+                ),
+            ),
+            (
+                "capture_method",
+                payment_attempt.capture_method.map_or_else(
+                    || "None".to_string(),
+                    |capture_method| capture_method.to_string(),
+                ),
+            ),
+            (
+                "authentication_type",
+                payment_attempt.authentication_type.map_or_else(
+                    || "None".to_string(),
+                    |authentication_type| authentication_type.to_string(),
+                ),
+            ),
+            ("payment_status", payment_attempt.status.to_string()),
+            ("conclusive_classification", outcome.to_string()),
+        ]),
+    );
+
+    client
+        .update_success_rate(
+            tenant_business_profile_id,
+            success_based_routing_configs,
+            vec![routing_types::RoutableConnectorChoiceWithStatus::new(
+                routing_types::RoutableConnectorChoice {
+                    choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                    connector: common_enums::RoutableConnectors::from_str(
+                        payment_connector.as_str(),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                    merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                },
+                payment_status_attribute == common_enums::AttemptStatus::Charged,
+            )],
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to update success based routing window in dynamic routing service",
+        )?;
+    Ok(())
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+fn get_desired_payment_status_for_success_routing_metrics(
+    attempt_status: &common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match attempt_status {
+        common_enums::AttemptStatus::Charged
+        | common_enums::AttemptStatus::Authorized
+        | common_enums::AttemptStatus::PartialCharged
+        | common_enums::AttemptStatus::PartialChargedAndChargeable => {
+            common_enums::AttemptStatus::Charged
+        }
+        common_enums::AttemptStatus::Failure
+        | common_enums::AttemptStatus::AuthorizationFailed
+        | common_enums::AttemptStatus::AuthenticationFailed
+        | common_enums::AttemptStatus::CaptureFailed
+        | common_enums::AttemptStatus::RouterDeclined => common_enums::AttemptStatus::Failure,
+        common_enums::AttemptStatus::Started
+        | common_enums::AttemptStatus::AuthenticationPending
+        | common_enums::AttemptStatus::AuthenticationSuccessful
+        | common_enums::AttemptStatus::Authorizing
+        | common_enums::AttemptStatus::CodInitiated
+        | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidInitiated
+        | common_enums::AttemptStatus::CaptureInitiated
+        | common_enums::AttemptStatus::VoidFailed
+        | common_enums::AttemptStatus::AutoRefunded
+        | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::PaymentMethodAwaited
+        | common_enums::AttemptStatus::ConfirmationAwaited
+        | common_enums::AttemptStatus::DeviceDataCollectionPending => {
+            common_enums::AttemptStatus::Pending
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+fn get_success_based_metrics_outcome_for_payment(
+    payment_status_attribute: &common_enums::AttemptStatus,
+    payment_connector: String,
+    first_success_based_connector: String,
+) -> common_enums::SuccessBasedRoutingConclusiveState {
+    match payment_status_attribute {
+        common_enums::AttemptStatus::Charged
+            if *first_success_based_connector == *payment_connector =>
+        {
+            common_enums::SuccessBasedRoutingConclusiveState::TruePositive
+        }
+        common_enums::AttemptStatus::Failure
+            if *first_success_based_connector == *payment_connector =>
+        {
+            common_enums::SuccessBasedRoutingConclusiveState::FalsePositive
+        }
+        common_enums::AttemptStatus::Failure
+            if *first_success_based_connector != *payment_connector =>
+        {
+            common_enums::SuccessBasedRoutingConclusiveState::TrueNegative
+        }
+        common_enums::AttemptStatus::Charged
+            if *first_success_based_connector != *payment_connector =>
+        {
+            common_enums::SuccessBasedRoutingConclusiveState::FalseNegative
+        }
+        _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
     }
 }

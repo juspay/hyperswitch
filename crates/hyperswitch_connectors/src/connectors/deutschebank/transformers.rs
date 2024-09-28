@@ -155,7 +155,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                             Ok(Self::MandatePost(DeutschebankMandatePostRequest {
                                 approval_by: DeutschebankSEPAApproval::Click,
                                 email_address: item.router_data.request.get_email()?,
-                                iban,
+                                iban: Secret::from(iban.peek().replace(" ", "")),
                                 first_name: billing_address.get_first_name()?.clone(),
                                 last_name: billing_address.get_last_name()?.clone(),
                             }))
@@ -313,7 +313,7 @@ impl
                                 PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
                                     iban,
                                     ..
-                                }) => Ok(iban),
+                                }) => Ok(Secret::from(iban.peek().replace(" ", ""))),
                                 _ => Err(errors::ConnectorError::MissingRequiredField {
                                     field_name:
                                         "payment_method_data.bank_debit.sepa_bank_debit.iban"
@@ -470,7 +470,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     means_of_payment: DeutschebankMeansOfPayment {
                         bank_account: DeutschebankBankAccount {
                             account_holder,
-                            iban,
+                            iban: Secret::from(iban.peek().replace(" ", "")),
                         },
                     },
                     mandate: {

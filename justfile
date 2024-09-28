@@ -19,7 +19,7 @@ clippy *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
@@ -35,7 +35,7 @@ clippy_v2 *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
@@ -44,14 +44,14 @@ clippy_v2 *FLAGS:
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}"  {{ FLAGS }}
+    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 check_v2 *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
@@ -60,7 +60,7 @@ check_v2 *FLAGS:
     ')"
 
     set -x
-    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 run_v2:
@@ -82,7 +82,7 @@ check *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
@@ -91,7 +91,7 @@ check *FLAGS:
     ')"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 alias cl := clippy
@@ -114,7 +114,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets --exclude-features "v2 payment_v2"'
+doc_flags := '--all-features --all-targets --exclude-features "v2"'
 
 # Generate documentation
 doc *FLAGS:
