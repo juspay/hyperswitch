@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+    PaymentAttempt, PaymentAttemptUpdate,
 };
 
 use crate::{
@@ -124,6 +124,8 @@ mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
     use tokio::sync::oneshot;
     use uuid::Uuid;
+
+    use hyperspace_domain_models::payments::payment_attempt::PaymentAttemptNew;
 
     use super::*;
     use crate::{

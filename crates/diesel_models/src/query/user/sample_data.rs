@@ -12,11 +12,11 @@ use crate::schema_v2::{
     payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
 };
 use crate::{
-    errors, schema::refund::dsl as refund_dsl, user::sample_data::PaymentAttemptBatchNew,
-    PaymentAttempt, PaymentIntent, PaymentIntentNew, PgPooledConn, Refund, RefundNew,
-    StorageResult,
+    errors, schema::refund::dsl as refund_dsl, PaymentAttempt, PaymentIntent, PaymentIntentNew,
+    PgPooledConn, Refund, RefundNew, StorageResult,
 };
 
+#[cfg(feature = "v1")]
 pub async fn insert_payment_intents(
     conn: &PgPooledConn,
     batch: Vec<PaymentIntentNew>,
@@ -31,9 +31,11 @@ pub async fn insert_payment_intents(
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment intents")
 }
+
+#[cfg(feature = "v1")]
 pub async fn insert_payment_attempts(
     conn: &PgPooledConn,
-    batch: Vec<PaymentAttemptBatchNew>,
+    batch: Vec<crate::user::sample_data::PaymentAttemptBatchNew>,
 ) -> StorageResult<Vec<PaymentAttempt>> {
     let query = diesel::insert_into(<PaymentAttempt>::table()).values(batch);
 

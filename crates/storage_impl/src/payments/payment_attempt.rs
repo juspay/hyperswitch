@@ -22,10 +22,12 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
-    payments::payment_attempt::{
-        PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
-    },
+    payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
+
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
+
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,

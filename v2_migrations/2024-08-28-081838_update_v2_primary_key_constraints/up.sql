@@ -91,12 +91,6 @@ ALTER TABLE payment_intent DROP CONSTRAINT payment_intent_pkey;
 ALTER TABLE payment_intent
 ADD PRIMARY KEY (id);
 
------------------------- Payment Attempt -----------------------
-ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
-
-ALTER TABLE payment_attempt
-ADD PRIMARY KEY (id);
-
 -- This migration is to make fields mandatory in payment_intent table
 ALTER TABLE payment_intent
 ALTER COLUMN profile_id
@@ -104,4 +98,15 @@ SET NOT NULL,
     ALTER COLUMN currency
 SET NOT NULL,
     ALTER COLUMN client_secret
+SET NOT NULL;
+
+------------------------ Payment Attempt -----------------------
+ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
+
+ALTER TABLE payment_attempt
+ADD PRIMARY KEY (id);
+
+-- This migration is to make fields mandatory in payment_attempt table
+ALTER TABLE payment_attempt
+ALTER COLUMN net_amount
 SET NOT NULL;

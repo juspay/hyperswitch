@@ -1,6 +1,6 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
+use diesel_models::RefundNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 
@@ -41,7 +41,7 @@ pub async fn generate_sample_data_for_user(
 
     let (payment_intents, payment_attempts, refunds): (
         Vec<PaymentIntent>,
-        Vec<PaymentAttemptBatchNew>,
+        Vec<diesel_models::user::sample_data::PaymentAttemptBatchNew>,
         Vec<RefundNew>,
     ) = sample_data.into_iter().fold(
         (Vec::new(), Vec::new(), Vec::new()),

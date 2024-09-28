@@ -17,6 +17,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
+
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
@@ -163,50 +166,52 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct AmountDetails {
+    /// The total amount for this payment attempt. This includes all the surcharge and tax amounts.
+    pub net_amount: MinorUnit,
+    pub amount_to_capture: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
+    pub amount_capturable: MinorUnit,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+}
+
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::GlobalPaymentId,
     pub merchant_id: id_type::MerchantId,
+    pub amount_details: AmountDetails,
     pub status: storage_enums::AttemptStatus,
-    pub net_amount: MinorUnit,
     pub connector: Option<String>,
-    pub amount_to_capture: Option<MinorUnit>,
     pub error_message: Option<String>,
-    pub surcharge_amount: Option<MinorUnit>,
-    pub tax_on_surcharge: Option<MinorUnit>,
-    pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<pii::SecretSerdeValue>,
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub routing_result: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
-    // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
-    pub amount_capturable: MinorUnit,
     pub updated_by: String,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<Secret<String>>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
@@ -215,13 +220,12 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
-    pub payment_method_id: Option<String>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub connector_payment_id: Option<String>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
+    pub payment_method_billing_address: common_utils::crypto::OptionalEncryptableValue,
     pub id: String,
 }
 
@@ -374,54 +378,54 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaymentAttemptNew {
-    pub payment_id: id_type::PaymentId,
-    pub merchant_id: id_type::MerchantId,
-    pub status: storage_enums::AttemptStatus,
-    pub error_message: Option<String>,
-    pub surcharge_amount: Option<MinorUnit>,
-    pub tax_amount: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
-    pub created_at: PrimitiveDateTime,
-    pub modified_at: PrimitiveDateTime,
-    pub last_synced: Option<PrimitiveDateTime>,
-    pub cancellation_reason: Option<String>,
-    pub browser_info: Option<serde_json::Value>,
-    pub payment_token: Option<String>,
-    pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
-    pub preprocessing_step_id: Option<String>,
-    pub error_reason: Option<String>,
-    pub connector_response_reference_id: Option<String>,
-    pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: MinorUnit,
-    pub updated_by: String,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
-    pub external_three_ds_authentication_attempted: Option<bool>,
-    pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
-    pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
-    pub charge_id: Option<String>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub profile_id: id_type::ProfileId,
-    pub organization_id: id_type::OrganizationId,
-    pub card_network: Option<String>,
-}
+// #[cfg(feature = "v2")]
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct PaymentAttemptNew {
+//     pub payment_id: id_type::PaymentId,
+//     pub merchant_id: id_type::MerchantId,
+//     pub status: storage_enums::AttemptStatus,
+//     pub error_message: Option<String>,
+//     pub surcharge_amount: Option<MinorUnit>,
+//     pub tax_amount: Option<MinorUnit>,
+//     pub payment_method_id: Option<String>,
+//     pub confirm: bool,
+//     pub authentication_type: Option<storage_enums::AuthenticationType>,
+//     pub created_at: PrimitiveDateTime,
+//     pub modified_at: PrimitiveDateTime,
+//     pub last_synced: Option<PrimitiveDateTime>,
+//     pub cancellation_reason: Option<String>,
+//     pub browser_info: Option<serde_json::Value>,
+//     pub payment_token: Option<String>,
+//     pub error_code: Option<String>,
+//     pub connector_metadata: Option<serde_json::Value>,
+//     pub payment_experience: Option<storage_enums::PaymentExperience>,
+//     pub payment_method_data: Option<serde_json::Value>,
+//     pub straight_through_algorithm: Option<serde_json::Value>,
+//     pub preprocessing_step_id: Option<String>,
+//     pub error_reason: Option<String>,
+//     pub connector_response_reference_id: Option<String>,
+//     pub multiple_capture_count: Option<i16>,
+//     pub amount_capturable: MinorUnit,
+//     pub updated_by: String,
+//     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+//     pub authentication_data: Option<serde_json::Value>,
+//     pub encoded_data: Option<String>,
+//     pub unified_code: Option<String>,
+//     pub unified_message: Option<String>,
+//     pub net_amount: Option<MinorUnit>,
+//     pub external_three_ds_authentication_attempted: Option<bool>,
+//     pub authentication_connector: Option<String>,
+//     pub authentication_id: Option<String>,
+//     pub fingerprint_id: Option<String>,
+//     pub payment_method_billing_address_id: Option<String>,
+//     pub charge_id: Option<String>,
+//     pub client_source: Option<String>,
+//     pub client_version: Option<String>,
+//     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+//     pub profile_id: id_type::ProfileId,
+//     pub organization_id: id_type::OrganizationId,
+//     pub card_network: Option<String>,
+// }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -493,18 +497,6 @@ pub struct PaymentAttemptNew {
     pub organization_id: id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        todo!()
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -985,10 +977,12 @@ impl behaviour::Conversion for PaymentAttempt {
     type NewDstType = DieselPaymentAttemptNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        use common_utils::encryption::Encryption;
+
         let card_network = self
             .payment_method_data
             .as_ref()
-            .and_then(|data| data.as_object())
+            .and_then(|data| data.peek().as_object())
             .and_then(|card| card.get("card"))
             .and_then(|data| data.as_object())
             .and_then(|card| card.get("card_network"))
@@ -999,11 +993,8 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_id,
             merchant_id,
             status,
-            net_amount,
             error_message,
-            surcharge_amount,
-            tax_on_surcharge,
-            confirm,
+            amount_details,
             authentication_type,
             created_at,
             modified_at,
@@ -1020,7 +1011,6 @@ impl behaviour::Conversion for PaymentAttempt {
             error_reason,
             multiple_capture_count,
             connector_response_reference_id,
-            amount_capturable,
             updated_by,
             authentication_data,
             encoded_data,
@@ -1030,7 +1020,6 @@ impl behaviour::Conversion for PaymentAttempt {
             external_three_ds_authentication_attempted,
             authentication_connector,
             authentication_id,
-            payment_method_billing_address_id,
             fingerprint_id,
             charge_id,
             client_source,
@@ -1044,12 +1033,20 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_applied,
             external_reference_id,
             id,
-            amount_to_capture,
             payment_method_id,
-            shipping_cost,
-            order_tax_amount,
+            payment_method_billing_address,
             connector,
         } = self;
+
+        let AmountDetails {
+            net_amount,
+            tax_on_surcharge,
+            surcharge_amount,
+            order_tax_amount,
+            shipping_cost,
+            amount_capturable,
+            amount_to_capture,
+        } = amount_details;
 
         Ok(DieselPaymentAttempt {
             payment_id,
@@ -1057,12 +1054,9 @@ impl behaviour::Conversion for PaymentAttempt {
             id,
             status,
             error_message,
-            surcharge_amount,
-            tax_on_surcharge,
             payment_method_id,
             payment_method_type_v2: payment_method_type,
             connector_payment_id,
-            confirm,
             authentication_type,
             created_at,
             modified_at,
@@ -1087,12 +1081,11 @@ impl behaviour::Conversion for PaymentAttempt {
             encoded_data,
             unified_code,
             unified_message,
-            net_amount: Some(net_amount),
+            net_amount,
             external_three_ds_authentication_attempted,
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            payment_method_billing_address_id,
             charge_id,
             client_source,
             client_version,
@@ -1106,38 +1099,59 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_applied,
             external_reference_id,
             connector,
+            surcharge_amount,
+            tax_on_surcharge,
+            payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
         })
     }
 
     async fn convert_back(
-        _state: &KeyManagerState,
+        state: &KeyManagerState,
         storage_model: Self::DstType,
-        _key: &Secret<Vec<u8>>,
-        _key_manager_identifier: keymanager::Identifier,
+        key: &Secret<Vec<u8>>,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         async {
+            let amount_details = AmountDetails {
+                net_amount: storage_model.net_amount,
+                tax_on_surcharge: storage_model.tax_on_surcharge,
+                surcharge_amount: storage_model.surcharge_amount,
+                order_tax_amount: storage_model.order_tax_amount,
+                shipping_cost: storage_model.shipping_cost,
+                amount_capturable: storage_model.amount_capturable,
+                amount_to_capture: storage_model.amount_to_capture,
+            };
+
+            let inner_decrypt = |inner| async {
+                crate::type_encryption::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self::DstType),
+                    crate::type_encryption::CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
                 id: storage_model.id,
                 status: storage_model.status,
-                net_amount: storage_model.net_amount.unwrap_or(MinorUnit::new(0)),
-                tax_on_surcharge: storage_model.tax_on_surcharge,
+                amount_details,
                 error_message: storage_model.error_message,
-                surcharge_amount: storage_model.surcharge_amount,
                 payment_method_id: storage_model.payment_method_id,
                 payment_method_type: storage_model.payment_method_type_v2,
                 connector_payment_id: storage_model.connector_payment_id,
-                confirm: storage_model.confirm,
                 authentication_type: storage_model.authentication_type,
                 created_at: storage_model.created_at,
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
                 cancellation_reason: storage_model.cancellation_reason,
-                amount_to_capture: storage_model.amount_to_capture,
                 browser_info: storage_model.browser_info,
                 error_code: storage_model.error_code,
                 payment_token: storage_model.payment_token,
@@ -1149,7 +1163,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 error_reason: storage_model.error_reason,
                 multiple_capture_count: storage_model.multiple_capture_count,
                 connector_response_reference_id: storage_model.connector_response_reference_id,
-                amount_capturable: storage_model.amount_capturable,
                 updated_by: storage_model.updated_by,
                 authentication_data: storage_model.authentication_data,
                 encoded_data: storage_model.encoded_data,
@@ -1160,7 +1173,6 @@ impl behaviour::Conversion for PaymentAttempt {
                     .external_three_ds_authentication_attempted,
                 authentication_connector: storage_model.authentication_connector,
                 authentication_id: storage_model.authentication_id,
-                payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
                 fingerprint_id: storage_model.fingerprint_id,
                 charge_id: storage_model.charge_id,
                 client_source: storage_model.client_source,
@@ -1168,12 +1180,14 @@ impl behaviour::Conversion for PaymentAttempt {
                 customer_acceptance: storage_model.customer_acceptance,
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
-                order_tax_amount: storage_model.order_tax_amount,
-                shipping_cost: storage_model.shipping_cost,
                 payment_method_subtype: storage_model.payment_method_subtype,
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
+                payment_method_billing_address: inner_decrypt(
+                    storage_model.payment_method_billing_address,
+                )
+                .await?,
             })
         }
         .await
@@ -1183,10 +1197,12 @@ impl behaviour::Conversion for PaymentAttempt {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        use common_utils::encryption::Encryption;
+
         let card_network = self
             .payment_method_data
             .as_ref()
-            .and_then(|data| data.as_object())
+            .and_then(|data| data.peek().as_object())
             .and_then(|card| card.get("card"))
             .and_then(|data| data.as_object())
             .and_then(|card| card.get("card_network"))
@@ -1198,10 +1214,9 @@ impl behaviour::Conversion for PaymentAttempt {
             merchant_id: self.merchant_id,
             status: self.status,
             error_message: self.error_message,
-            surcharge_amount: self.surcharge_amount,
-            tax_on_surcharge: self.tax_on_surcharge,
+            surcharge_amount: self.amount_details.surcharge_amount,
+            tax_on_surcharge: self.amount_details.tax_on_surcharge,
             payment_method_id: self.payment_method_id,
-            confirm: self.confirm,
             authentication_type: self.authentication_type,
             created_at: self.created_at,
             modified_at: self.modified_at,
@@ -1217,20 +1232,19 @@ impl behaviour::Conversion for PaymentAttempt {
             error_reason: self.error_reason,
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
-            amount_capturable: self.amount_capturable,
+            amount_capturable: self.amount_details.amount_capturable,
             updated_by: self.updated_by,
             merchant_connector_id: self.merchant_connector_id,
             authentication_data: self.authentication_data,
             encoded_data: self.encoded_data,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
-            net_amount: Some(self.net_amount),
+            net_amount: self.amount_details.net_amount,
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             fingerprint_id: self.fingerprint_id,
-            payment_method_billing_address_id: self.payment_method_billing_address_id,
             charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
@@ -1238,9 +1252,12 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
-            order_tax_amount: self.order_tax_amount,
-            shipping_cost: self.shipping_cost,
-            amount_to_capture: self.amount_to_capture,
+            order_tax_amount: self.amount_details.order_tax_amount,
+            shipping_cost: self.amount_details.shipping_cost,
+            amount_to_capture: self.amount_details.amount_to_capture,
+            payment_method_billing_address: self
+                .payment_method_billing_address
+                .map(Encryption::from),
         })
     }
 }

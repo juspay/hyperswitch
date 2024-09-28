@@ -745,7 +745,6 @@ diesel::table! {
         surcharge_amount -> Nullable<Int8>,
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
-        confirm -> Bool,
         authentication_type -> Nullable<AuthenticationType>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
@@ -778,7 +777,7 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
-        net_amount -> Nullable<Int8>,
+        net_amount -> Int8,
         external_three_ds_authentication_attempted -> Nullable<Bool>,
         #[max_length = 64]
         authentication_connector -> Nullable<Varchar>,
@@ -786,8 +785,6 @@ diesel::table! {
         authentication_id -> Nullable<Varchar>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        payment_method_billing_address_id -> Nullable<Varchar>,
         #[max_length = 64]
         charge_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -811,6 +808,7 @@ diesel::table! {
         #[max_length = 128]
         external_reference_id -> Nullable<Varchar>,
         tax_on_surcharge -> Nullable<Int8>,
+        payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,

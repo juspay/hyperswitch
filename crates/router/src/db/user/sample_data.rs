@@ -3,8 +3,11 @@ use diesel_models::{
     errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
     refund::{Refund, RefundNew},
-    user::sample_data::PaymentAttemptBatchNew,
 };
+
+#[cfg(feature = "v1")]
+use diesel_models::user::sample_data::PaymentIntentBatchNew;
+
 use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};
 use hyperswitch_domain_models::{

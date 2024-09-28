@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii, types::MinorUnit};
+use common_utils::{crypto::OptionalEncryptableValue, id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -21,8 +21,7 @@ pub struct PaymentAttempt {
     pub connector: Option<String>,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -32,12 +31,12 @@ pub struct PaymentAttempt {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<pii::SecretSerdeValue>,
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -45,16 +44,15 @@ pub struct PaymentAttempt {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
+    pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -69,6 +67,7 @@ pub struct PaymentAttempt {
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
+    pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub id: String,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
@@ -181,8 +180,7 @@ pub struct PaymentAttemptNew {
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -192,12 +190,12 @@ pub struct PaymentAttemptNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<pii::SecretSerdeValue>,
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
@@ -205,16 +203,16 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
+    pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
+    pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -320,24 +318,24 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(feature = "v2")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
+// #[cfg(feature = "v2")]
+// impl PaymentAttemptNew {
+//     /// returns amount + surcharge_amount + tax_amount
+//     pub fn calculate_net_amount(&self) -> MinorUnit {
+//         todo!();
+//     }
 
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
+//     pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
+//         self.net_amount
+//             .unwrap_or_else(|| self.calculate_net_amount())
+//     }
 
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
-}
+//     pub fn populate_derived_fields(self) -> Self {
+//         let mut payment_attempt_new = self;
+//         payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
+//         payment_attempt_new
+//     }
+// }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -755,7 +753,6 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_connector: Option<String>,
     authentication_id: Option<String>,
     fingerprint_id: Option<String>,
-    payment_method_billing_address_id: Option<String>,
     charge_id: Option<String>,
     client_source: Option<String>,
     client_version: Option<String>,

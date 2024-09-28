@@ -95,4 +95,7 @@ SET attempt_id = id
 WHERE attempt_id IS NULL;
 
 ALTER TABLE payment_attempt
+ALTER COLUMN net_amount DROP NOT NULL;
+
+ALTER TABLE payment_attempt
 ADD PRIMARY KEY (attempt_id, merchant_id);
