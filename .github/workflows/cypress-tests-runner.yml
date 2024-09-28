@@ -16,7 +16,7 @@ env:
   CONNECTORS: stripe
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
-  SKIP_TESTS: ${{ !((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) && !(github.event_name == 'merge_group')}}
+  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 10485760
 
@@ -52,14 +52,14 @@ jobs:
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
-        if: ${{ !env.SKIP_TESTS }}
+        if: ${{ !env.RUN_TESTS }}
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Download Encrypted TOML from S3 and Decrypt
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -76,13 +76,13 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -96,28 +96,28 @@ jobs:
           make-default: true
 
       - name: Install Rust
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: clippy
 
       - name: Install sccache
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: sccache
           checksum: true
 
       - name: Install cargo-nextest
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: cargo-nextest
           checksum: true
 
       - name: Install Diesel CLI
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         uses: baptiste0928/cargo-install@v3.1.1
         with:
           crate: diesel_cli
@@ -142,18 +142,18 @@ jobs:
           cd -
 
       - name: Run database migrations
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Build project
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         run: cargo build --package router --bin router
 
       - name: Setup Local Server
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         run: |
           # Start the server in the background
           target/debug/router &
@@ -175,7 +175,7 @@ jobs:
           done
 
       - name: Run Cypress tests
-        if: ${{ env.SKIP_TESTS }}
+        if: ${{ env.RUN_TESTS }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
         shell: bash -leuo pipefail {0}
