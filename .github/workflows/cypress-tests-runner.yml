@@ -128,7 +128,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2.41.10
         with:
-          crate: just
+          tool: just
+          checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
