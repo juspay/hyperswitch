@@ -5285,6 +5285,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
