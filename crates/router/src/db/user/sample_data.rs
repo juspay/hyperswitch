@@ -6,7 +6,7 @@ use diesel_models::{
 };
 
 #[cfg(feature = "v1")]
-use diesel_models::user::sample_data::PaymentIntentBatchNew;
+use diesel_models::user::sample_data::PaymentAttemptBatchNew;
 
 use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};

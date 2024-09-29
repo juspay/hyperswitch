@@ -1,4 +1,4 @@
-use common_utils::{crypto::OptionalEncryptableValue, id_type, pii, types::MinorUnit};
+use common_utils::{id_type, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

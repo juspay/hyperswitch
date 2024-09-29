@@ -1892,7 +1892,8 @@ impl ConnectorTransactionId for Helcim {
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         if payment_attempt.get_connector_payment_id().is_none() {
-            let metadata = Self::connector_transaction_id(self, payment_attempt.connector_metadata);
+            let metadata =
+                Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
             metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
         } else {
             Ok(payment_attempt
@@ -1911,6 +1912,7 @@ impl ConnectorTransactionId for Helcim {
                 self,
                 payment_attempt
                     .connector_metadata
+                    .as_ref()
                     .map(|connector_metadata| connector_metadata.peek()),
             );
             metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
@@ -1942,6 +1944,7 @@ impl ConnectorTransactionId for Nexinets {
             self,
             payment_attempt
                 .connector_metadata
+                .as_ref()
                 .map(|connector_metadata| connector_metadata.peek()),
         );
         metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
