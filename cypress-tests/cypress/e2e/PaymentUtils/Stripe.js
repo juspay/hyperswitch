@@ -62,6 +62,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "on_session",
         },
       },
     },
@@ -75,6 +76,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -91,10 +93,29 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: {
+            card: {
+              last4: "3155",
+              card_type: "CREDIT",
+              card_network: null,
+              card_issuer: "INTL HDQTRS-CENTER OWNED",
+              card_issuing_country: "UNITEDSTATES",
+              card_isin: "400000",
+              card_extended_bin: null,
+              card_exp_month: "10",
+              card_exp_year: "25",
+              card_holder_name: null,
+              payment_checks: null,
+              authentication_data: null,
+            },
+            billing: null,
+          },
         },
       },
     },
+
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
@@ -109,6 +130,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: {
+            card: {
+              last4: "3155",
+              card_type: "CREDIT",
+              card_network: null,
+              card_issuer: "INTL HDQTRS-CENTER OWNED",
+              card_issuing_country: "UNITEDSTATES",
+              card_isin: "400000",
+              card_extended_bin: null,
+              card_exp_month: "10",
+              card_exp_year: "25",
+              card_holder_name: null,
+              payment_checks: null,
+              authentication_data: null,
+            },
+            billing: null,
+          },
         },
       },
     },
@@ -126,6 +165,29 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: {
+            card: {
+              last4: "4242",
+              card_type: "CREDIT",
+              card_network: null,
+              card_issuer: "STRIPE PAYMENTS UK LIMITED",
+              card_issuing_country: "UNITEDKINGDOM",
+              card_isin: "424242",
+              card_extended_bin: null,
+              card_exp_month: "10",
+              card_exp_year: "25",
+              card_holder_name: null,
+              payment_checks: {
+                cvc_check: "pass",
+                address_line1_check: "pass",
+                address_postal_code_check: "pass",
+              },
+              authentication_data: null,
+            },
+            billing: null,
+          },
         },
       },
     },
@@ -143,6 +205,29 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: {
+            card: {
+              last4: "4242",
+              card_type: "CREDIT",
+              card_network: null,
+              card_issuer: "STRIPE PAYMENTS UK LIMITED",
+              card_issuing_country: "UNITEDKINGDOM",
+              card_isin: "424242",
+              card_extended_bin: null,
+              card_exp_month: "10",
+              card_exp_year: "25",
+              card_holder_name: null,
+              payment_checks: {
+                cvc_check: "pass",
+                address_line1_check: "pass",
+                address_postal_code_check: "pass",
+              },
+              authentication_data: null,
+            },
+            billing: null,
+          },
         },
       },
     },
