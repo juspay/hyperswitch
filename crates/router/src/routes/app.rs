@@ -1081,7 +1081,12 @@ impl PaymentMethods {
             .service(
                 web::resource("/{id}/confirm-intent")
                     .route(web::post().to(confirm_payment_method_intent_api)),
-            );
+            )
+            .service(
+                web::resource("/{id}/update_saved_payment_method")
+                    .route(web::patch().to(payment_method_update_api)),
+            )
+            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)));
 
         route
     }

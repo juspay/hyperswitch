@@ -1002,6 +1002,7 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        additional_payout_method_data -> Nullable<Jsonb>,
     }
 }
 

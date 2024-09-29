@@ -1253,6 +1253,27 @@ pub async fn toggle_success_based_routing(
                         ),
                     };
 
+                    // redact cache for success based routing configs
+                    let cache_key = format!(
+                        "{}_{}",
+                        business_profile.get_id().get_string_repr(),
+                        algorithm_id.get_string_repr()
+                    );
+                    let cache_entries_to_redact =
+                        vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+                            cache_key.into(),
+                        )];
+                    let _ = cache::publish_into_redact_channel(
+                        state.store.get_cache_store().as_ref(),
+                        cache_entries_to_redact,
+                    )
+                    .await
+                    .map_err(|e| {
+                        logger::error!(
+                            "unable to publish into the redact channel for evicting the success based routing config cache {e:?}"
+                        )
+                    });
+
                     let record = db
                         .find_routing_algorithm_by_profile_id_algorithm_id(
                             business_profile.get_id(),
@@ -1351,7 +1372,7 @@ pub async fn success_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to redact the success based routing config cache {e:?}"));
+    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 

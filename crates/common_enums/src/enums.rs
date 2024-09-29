@@ -3144,7 +3144,6 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal = 3,
     Organization = 2,
     Merchant = 1,
     Profile = 0,

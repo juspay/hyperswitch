@@ -734,7 +734,6 @@ pub async fn list_users_in_lineage(
             )
             .await?
         }
-        EntityType::Internal => HashSet::new(),
     };
 
     let mut email_map = state
@@ -859,10 +858,13 @@ pub async fn list_invitations_for_user(
                         .clone()
                         .ok_or(UserErrors::InternalServerError)?,
                 )),
-                EntityType::Internal => return Err(report!(UserErrors::InternalServerError)),
             }
 
-            Ok((org_ids, merchant_ids, profile_ids_with_merchant_ids))
+            Ok::<_, error_stack::Report<UserErrors>>((
+                org_ids,
+                merchant_ids,
+                profile_ids_with_merchant_ids,
+            ))
         },
     )?;
 
@@ -953,7 +955,6 @@ pub async fn list_invitations_for_user(
                     .as_ref()
                     .map(|profile_id| profile_name_map.get(profile_id).cloned())
                     .ok_or(UserErrors::InternalServerError)?,
-                EntityType::Internal => return Err(report!(UserErrors::InternalServerError)),
             };
 
             Ok(user_role_api::ListInvitationForUserResponse {
