@@ -8,8 +8,10 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     type_name,
-    types::keymanager::{Identifier, ToEncryptable},
-    types::{keymanager::KeyManagerState, MinorUnit},
+    types::{
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        MinorUnit,
+    },
 };
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
