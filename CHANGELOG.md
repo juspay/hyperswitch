@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.27.0-hotfix2
+
+### Bug Fixes
+
+- **payments_list:** Remove time range to filter payments attempts ([#6162](https://github.com/juspay/hyperswitch/pull/6162)) ([`8b8e40f`](https://github.com/juspay/hyperswitch/commit/8b8e40f52681ff1ba7a34b48bf492f9425ca01fa))
+
+- - -
+
 ## 2024.09.27.0-hotfix1
 
 ### Features
