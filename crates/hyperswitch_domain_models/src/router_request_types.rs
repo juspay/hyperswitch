@@ -421,6 +421,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+    pub charges: Option<PaymentCharges>,
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
@@ -526,6 +527,7 @@ impl SurchargeDetails {
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     From<(
         &RequestSurchargeDetails,
@@ -550,6 +552,23 @@ impl
             tax_on_surcharge_amount,
             final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    From<(
+        &RequestSurchargeDetails,
+        &payments::payment_attempt::PaymentAttempt,
+    )> for SurchargeDetails
+{
+    fn from(
+        (request_surcharge_details, payment_attempt): (
+            &RequestSurchargeDetails,
+            &payments::payment_attempt::PaymentAttempt,
+        ),
+    ) -> Self {
+        todo!()
     }
 }
 

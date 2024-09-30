@@ -1,5 +1,7 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::generate_id;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::Secret;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
@@ -21,6 +23,21 @@ pub trait VaultingDataInterface {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultId(String);
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl VaultId {
+    pub fn get_string_repr(&self) -> &String {
+        &self.0
+    }
+
+    pub fn generate(id: String) -> Self {
+        Self(id)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequest {
     pub data: String,
     pub key: String,
@@ -36,7 +53,7 @@ pub struct VaultFingerprintResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
+    pub vault_id: VaultId,
     pub data: D,
     pub ttl: i64,
 }
@@ -45,7 +62,7 @@ pub struct AddVaultRequest<D> {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: String,
+    pub vault_id: VaultId,
     pub fingerprint_id: Option<String>,
 }
 
@@ -56,6 +73,10 @@ pub struct AddVault;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetVaultFingerprint;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieve;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
@@ -75,10 +96,24 @@ impl VaultingInterface for GetVaultFingerprint {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[async_trait::async_trait]
-impl VaultingDataInterface for api::PaymentMethodCreateData {
+impl VaultingInterface for VaultRetrieve {
+    fn get_vaulting_request_url() -> &'static str {
+        consts::VAULT_RETRIEVE_REQUEST_URL
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum PaymentMethodVaultingData {
+    Card(api::CardDetail),
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
-            api::PaymentMethodCreateData::Card(card) => card.card_number.to_string(),
+            Self::Card(card) => card.card_number.to_string(),
         }
     }
 }
@@ -100,4 +135,17 @@ pub struct SavedPMLPaymentsInfo {
     pub requires_cvv: bool,
     pub off_session_payment_flag: bool,
     pub is_connector_agnostic_mit_enabled: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieveRequest {
+    pub entity_id: common_utils::id_type::MerchantId,
+    pub vault_id: VaultId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieveResponse {
+    pub data: Secret<String>,
 }

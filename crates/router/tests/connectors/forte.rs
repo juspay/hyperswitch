@@ -163,6 +163,7 @@ async fn should_sync_authorized_payment() {
                 payment_experience: None,
                 integrity_object: None,
                 amount: MinorUnit::new(100),
+                ..Default::default()
             }),
             get_default_payment_info(),
         )

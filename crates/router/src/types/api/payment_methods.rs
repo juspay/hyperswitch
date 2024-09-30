@@ -8,8 +8,8 @@ pub use api_models::payment_methods::{
     PaymentMethodIntentConfirm, PaymentMethodIntentConfirmInternal, PaymentMethodIntentCreate,
     PaymentMethodList, PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
     PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
-    PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
+    TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -69,25 +69,25 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
                 self.payment_method_type,
             ),
             || {
-                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()
                 })
-                .attach_printable("Invalid payment method type"));
+                .attach_printable("Invalid payment method type"))
             },
-        );
+        )?;
 
         utils::when(
-            !PaymentMethodCreate::validate_payment_method_data_against_payment_method(
+            !Self::validate_payment_method_data_against_payment_method(
                 self.payment_method,
                 self.payment_method_data.clone(),
             ),
             || {
-                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_data' provided".to_string()
                 })
-                .attach_printable("Invalid payment method data"));
+                .attach_printable("Invalid payment method data"))
             },
-        );
+        )?;
         Ok(())
     }
 }
@@ -101,25 +101,25 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
                 self.payment_method_type,
             ),
             || {
-                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()
                 })
-                .attach_printable("Invalid payment method type"));
+                .attach_printable("Invalid payment method type"))
             },
-        );
+        )?;
 
         utils::when(
-            !PaymentMethodIntentConfirm::validate_payment_method_data_against_payment_method(
+            !Self::validate_payment_method_data_against_payment_method(
                 self.payment_method,
                 self.payment_method_data.clone(),
             ),
             || {
-                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_data' provided".to_string()
                 })
-                .attach_printable("Invalid payment method data"));
+                .attach_printable("Invalid payment method data"))
             },
-        );
+        )?;
         Ok(())
     }
 }

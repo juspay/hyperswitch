@@ -1288,6 +1288,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
     fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
         Self {
@@ -1476,6 +1477,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
         Option<&storage::PaymentAttempt>,

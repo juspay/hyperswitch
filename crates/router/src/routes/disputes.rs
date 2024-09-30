@@ -87,10 +87,10 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<dispute_models::DisputeListConstraints>,
+    query: web::Query<dispute_models::DisputeListGetConstraints>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
-    let payload = payload.into_inner();
+    let payload = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -140,7 +140,7 @@ pub async fn retrieve_disputes_list(
 pub async fn retrieve_disputes_list_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<dispute_models::DisputeListConstraints>,
+    payload: web::Query<dispute_models::DisputeListGetConstraints>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
     let payload = payload.into_inner();
@@ -155,6 +155,81 @@ pub async fn retrieve_disputes_list_profile(
                 auth.merchant_account,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Disputes - Disputes Filters
+#[utoipa::path(
+    get,
+    path = "/disputes/filter",
+    responses(
+        (status = 200, description = "List of filters", body = DisputeListFilters),
+    ),
+    tag = "Disputes",
+    operation_id = "List all filters for disputes",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesFilters))]
+pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::DisputesFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| disputes::get_filters_for_disputes(state, auth.merchant_account, None),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Disputes - Disputes Filters Profile
+#[utoipa::path(
+    get,
+    path = "/disputes/profile/filter",
+    responses(
+        (status = 200, description = "List of filters", body = DisputeListFilters),
+    ),
+    tag = "Disputes",
+    operation_id = "List all filters for disputes",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesFilters))]
+pub async fn get_disputes_filters_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::DisputesFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| {
+            disputes::get_filters_for_disputes(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
         auth::auth_type(

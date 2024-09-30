@@ -75,7 +75,7 @@ impl_api_event_type!(
         RetrievePaymentLinkRequest,
         PaymentLinkListConstraints,
         MandateId,
-        DisputeListConstraints,
+        DisputeListGetConstraints,
         RetrieveApiKeyResponse,
         ProfileResponse,
         ProfileUpdate,
@@ -90,6 +90,7 @@ impl_api_event_type!(
         CardInfoResponse,
         CreateApiKeyResponse,
         CreateApiKeyRequest,
+        ListApiKeyConstraints,
         MerchantConnectorDeleteResponse,
         MerchantConnectorUpdate,
         MerchantConnectorCreate,
@@ -169,5 +170,11 @@ impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
 impl ApiEventMetric for PaymentMethodIntentCreate {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethodCreate)
+    }
+}
+
+impl ApiEventMetric for DisputeListFilters {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }

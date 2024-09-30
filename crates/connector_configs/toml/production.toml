@@ -2939,10 +2939,11 @@ key1="Public Api Key"
   payment_method_type = "Discover"
 [[paybox.debit]]
   payment_method_type = "CartesBancaires"
-[paybox.connector_auth.SignatureKey]
+[paybox.connector_auth.MultiAuthKey]
 api_key="SITE Key"
 key1="Rang Identifier"
 api_secret="CLE Secret"
+key2 ="Merchant Id"
 
 [datatrans]
 [[datatrans.credit]]

@@ -8,8 +8,12 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
+#[cfg(feature = "v1")]
+use router_env::logger;
 use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
+#[cfg(feature = "v1")]
+use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
@@ -34,6 +38,7 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
     #[cfg(feature = "payouts")]
@@ -1248,6 +1253,27 @@ pub async fn toggle_success_based_routing(
                         ),
                     };
 
+                    // redact cache for success based routing configs
+                    let cache_key = format!(
+                        "{}_{}",
+                        business_profile.get_id().get_string_repr(),
+                        algorithm_id.get_string_repr()
+                    );
+                    let cache_entries_to_redact =
+                        vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+                            cache_key.into(),
+                        )];
+                    let _ = cache::publish_into_redact_channel(
+                        state.store.get_cache_store().as_ref(),
+                        cache_entries_to_redact,
+                    )
+                    .await
+                    .map_err(|e| {
+                        logger::error!(
+                            "unable to publish into the redact channel for evicting the success based routing config cache {e:?}"
+                        )
+                    });
+
                     let record = db
                         .find_routing_algorithm_by_profile_id_algorithm_id(
                             business_profile.get_id(),
@@ -1298,6 +1324,7 @@ pub async fn success_based_routing_update_configs(
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
     let db = state.store.as_ref();
+
     let dynamic_routing_algo_to_update = db
         .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
         .await
@@ -1311,10 +1338,10 @@ pub async fn success_based_routing_update_configs(
 
     config_to_update.update(request);
 
-    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
     let algo = RoutingAlgorithm {
-        algorithm_id,
+        algorithm_id: updated_algorithm_id,
         profile_id: dynamic_routing_algo_to_update.profile_id,
         merchant_id: dynamic_routing_algo_to_update.merchant_id,
         name: dynamic_routing_algo_to_update.name,
@@ -1330,6 +1357,22 @@ pub async fn success_based_routing_update_configs(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    // redact cache for success based routing configs
+    let cache_key = format!(
+        "{}_{}",
+        profile_id.get_string_repr(),
+        algorithm_id.get_string_repr()
+    );
+    let cache_entries_to_redact = vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+        cache_key.into(),
+    )];
+    let _ = cache::publish_into_redact_channel(
+        state.store.get_cache_store().as_ref(),
+        cache_entries_to_redact,
+    )
+    .await
+    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 

@@ -188,6 +188,17 @@ impl MultipleCaptureData {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
+    type Error = TryFromIntError;
+    fn foreign_try_from(
+        (surcharge_details, payment_attempt): (&SurchargeDetails, &PaymentAttempt),
+    ) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
     type Error = TryFromIntError;
     fn foreign_try_from(

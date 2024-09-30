@@ -274,6 +274,8 @@ pub enum Flow {
     DisputesRetrieve,
     /// Dispute List flow
     DisputesList,
+    /// Dispute Filters flow
+    DisputesFilters,
     /// Cards Info flow
     CardsInfo,
     /// Create File flow

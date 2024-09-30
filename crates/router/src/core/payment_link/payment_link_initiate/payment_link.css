@@ -99,7 +99,6 @@ body {
   overflow-y: scroll;
   max-width: 35vw;
   max-height: 10vh;
-  min-height: 80px;
 }
 
 .hyper-checkout-payment-horizontal-line {
@@ -721,7 +720,6 @@ body {
     max-width: 100%;
     overflow-y: scroll;
     max-height: 10vh;
-    min-height: 80px;
   }
   
   .hyper-checkout-payment-horizontal-line {
