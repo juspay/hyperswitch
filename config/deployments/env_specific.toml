@@ -302,6 +302,9 @@ public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "p
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
 
+[cell_information]
+id = "12345" # Default CellID for Global Cell Information
+
 [network_tokenization_service] # Network Tokenization Service Configuration
 generate_token_url= ""        # base url to generate token
 fetch_token_url= ""           # base url to fetch token

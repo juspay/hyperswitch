@@ -144,6 +144,10 @@ pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
 
+/// Vault Retrieve request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/vault/retrieve";
+
 /// Vault Header content type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";

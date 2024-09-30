@@ -33,11 +33,6 @@ impl UserRole {
                 let org_id = self.org_id.clone()?.get_string_repr().to_string();
                 Some((org_id, EntityType::Organization))
             }
-            (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER)
-            | (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_ADMIN) => {
-                let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
-                Some((merchant_id, EntityType::Internal))
-            }
             (enums::UserRoleVersion::V1, _) => {
                 let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
                 Some((merchant_id, EntityType::Merchant))

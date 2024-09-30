@@ -1137,11 +1137,6 @@ pub struct ProfileLevel {
 }
 
 #[derive(Clone)]
-pub struct InternalLevel {
-    pub org_id: id_type::OrganizationId,
-}
-
-#[derive(Clone)]
 pub struct NewUserRole<E: Clone> {
     pub user_id: String,
     pub role_id: String,
@@ -1310,29 +1305,6 @@ impl NewUserRole<MerchantLevel> {
             profile_id: None,
             entity_id: entity.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
-        });
-
-        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
-    }
-}
-
-impl NewUserRole<InternalLevel> {
-    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-        let internal_merchant_id = id_type::MerchantId::get_internal_user_merchant_id(
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
-        );
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), internal_merchant_id.clone());
-
-        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: Some(internal_merchant_id.clone()),
-            profile_id: None,
-            entity_id: internal_merchant_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Internal,
         });
 
         Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await

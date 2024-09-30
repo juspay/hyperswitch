@@ -63,15 +63,18 @@ impl From<AlphaNumericIdError> for CellIdError {
 
 impl CellId {
     /// Create a new cell id from a string
-    fn from_str(cell_id_string: &str) -> Result<Self, CellIdError> {
-        let trimmed_input_string = cell_id_string.trim().to_string();
+    fn from_str(cell_id_string: impl AsRef<str>) -> Result<Self, CellIdError> {
+        let trimmed_input_string = cell_id_string.as_ref().trim().to_string();
         let alphanumeric_id = AlphaNumericId::from(trimmed_input_string.into())?;
         let length_id = LengthId::from_alphanumeric_id(alphanumeric_id)?;
         Ok(Self(length_id))
     }
 
-    pub fn from_string(input_string: String) -> error_stack::Result<Self, errors::ValidationError> {
-        Self::from_str(&input_string).change_context(
+    /// Create a new cell id from a string
+    pub fn from_string(
+        input_string: impl AsRef<str>,
+    ) -> error_stack::Result<Self, errors::ValidationError> {
+        Self::from_str(input_string).change_context(
             errors::ValidationError::IncorrectValueProvided {
                 field_name: "cell_id",
             },
@@ -81,6 +84,16 @@ impl CellId {
     /// Get the string representation of the cell id
     fn get_string_repr(&self) -> &str {
         &self.0 .0 .0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CellId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Self::from_str(deserialized_string.as_str()).map_err(serde::de::Error::custom)
     }
 }
 
@@ -113,7 +126,7 @@ impl GlobalId {
     pub(crate) fn from_string(
         input_string: std::borrow::Cow<'static, str>,
     ) -> Result<Self, GlobalIdError> {
-        let length_id = LengthId::from(input_string.into())?;
+        let length_id = LengthId::from(input_string)?;
         let input_string = &length_id.0 .0;
         let (cell_id, remaining) = input_string
             .split_once("_")

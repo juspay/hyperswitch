@@ -11,7 +11,7 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::AcceptanceType;
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Mask, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -27,7 +27,7 @@ use crate::{
     },
     consts,
     core::errors,
-    services,
+    headers, services,
     types::{
         self, api, domain,
         storage::enums,
@@ -4022,6 +4022,21 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             attempt_status: None,
             connector_transaction_id: Some(response_id),
         })
+    }
+}
+
+pub(super) fn transform_headers_for_connect_platform(
+    charge_type: api::enums::PaymentChargeType,
+    transfer_account_id: String,
+    header: &mut Vec<(String, services::request::Maskable<String>)>,
+) {
+    if let api::enums::PaymentChargeType::Stripe(api::enums::StripeChargeType::Direct) = charge_type
+    {
+        let mut customer_account_header = vec![(
+            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+            transfer_account_id.into_masked(),
+        )];
+        header.append(&mut customer_account_header);
     }
 }
 
