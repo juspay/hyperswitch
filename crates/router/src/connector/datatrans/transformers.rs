@@ -1,25 +1,27 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::types::MinorUnit;
+use common_utils::{pii::Email, types::MinorUnit};
+use hyperswitch_domain_models::{
+    payment_method_data::Card,
+    router_flow_types::{Execute, RSync},
+};
+use hyperswitch_interfaces::consts;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::{
-        utils as connector_utils,
-        utils::{CardData, PaymentsAuthorizeRequestData},
+    connector::utils::{
+        self as connector_utils, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     core::errors,
-    types::{
-        self,
-        api::{self, enums},
-        domain,
-        transformers::ForeignFrom,
-    },
+    services::{self},
+    types::{self, api::enums, domain, transformers::ForeignFrom},
 };
-
 const TRANSACTION_ALREADY_CANCELLED: &str = "transaction already canceled";
 const TRANSACTION_ALREADY_SETTLED: &str = "already settled";
+const REDIRECTION_SBX_URL: &str = "https://pay.sandbox.datatrans.com";
+const REDIRECTION_PROD_URL: &str = "https://pay.datatrans.com";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct DatatransErrorResponse {
@@ -35,7 +37,7 @@ pub struct DatatransRouterData<T> {
     pub router_data: T,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransPaymentsRequest {
     pub amount: MinorUnit,
@@ -43,16 +45,25 @@ pub struct DatatransPaymentsRequest {
     pub card: PlainCardDetails,
     pub refno: String,
     pub auto_settle: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect: Option<RedirectUrls>,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedirectUrls {
+    pub success_url: Option<String>,
+    pub cancel_url: Option<String>,
+    pub error_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionType {
     Payment,
     Credit,
     CardCheck,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionStatus {
     Initialized,
@@ -82,16 +93,30 @@ pub enum DataTransCancelResponse {
     Empty,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncResponse {
     pub transaction_id: String,
     #[serde(rename = "type")]
     pub res_type: TransactionType,
     pub status: TransactionStatus,
+    pub detail: SyncDetails,
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncDetails {
+    fail: Option<FailDetails>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FailDetails {
+    reason: Option<String>,
+    message: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PlainCardDetails {
     #[serde(rename = "type")]
@@ -99,6 +124,32 @@ pub struct PlainCardDetails {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "3D")]
+    pub three_ds: Option<ThreedsInfo>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ThreedsInfo {
+    cardholder: CardHolder,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardHolder {
+    cardholder_name: Secret<String>,
+    email: Email,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_post_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize, Default, Deserialize)]
@@ -112,6 +163,7 @@ pub struct DatatransError {
 pub enum DatatransResponse {
     TransactionResponse(DatatransSuccessResponse),
     ErrorResponse(DatatransError),
+    ThreeDSResponse(Datatrans3DSResponse),
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +171,20 @@ pub enum DatatransResponse {
 pub struct DatatransSuccessResponse {
     pub transaction_id: String,
     pub acquirer_authorization_code: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Datatrans3DSResponse {
+    pub transaction_id: String,
+    #[serde(rename = "3D")]
+    pub three_ds_enrolled: ThreeDSEnolled,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSEnolled {
+    pub enrolled: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -162,17 +228,17 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
             domain::PaymentMethodData::Card(req_card) => Ok(Self {
                 amount: item.amount,
                 currency: item.router_data.request.currency,
-                card: PlainCardDetails {
-                    res_type: "PLAIN".to_string(),
-                    number: req_card.card_number.clone(),
-                    expiry_month: req_card.card_exp_month.clone(),
-                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
-                },
+                card: create_card_details(item, &req_card)?,
                 refno: item.router_data.connector_request_reference_id.clone(),
-                auto_settle: matches!(
-                    item.router_data.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic)
-                ),
+                auto_settle: item.router_data.request.is_auto_capture()?,
+                redirect: match item.router_data.is_three_ds() {
+                    true => Some(RedirectUrls {
+                        success_url: item.router_data.request.router_return_url.clone(),
+                        cancel_url: item.router_data.request.router_return_url.clone(),
+                        error_url: item.router_data.request.router_return_url.clone(),
+                    }),
+                    false => None,
+                },
             }),
             domain::PaymentMethodData::Wallet(_)
             | domain::PaymentMethodData::PayLater(_)
@@ -196,6 +262,37 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
             }
         }
     }
+}
+
+fn create_card_details(
+    item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
+    card: &Card,
+) -> Result<PlainCardDetails, error_stack::Report<errors::ConnectorError>> {
+    let mut details = PlainCardDetails {
+        res_type: "PLAIN".to_string(),
+        number: card.card_number.clone(),
+        expiry_month: card.card_exp_month.clone(),
+        expiry_year: card.get_card_expiry_year_2_digit()?,
+        cvv: card.card_cvc.clone(),
+        three_ds: None,
+    };
+
+    if item.router_data.is_three_ds() {
+        let billing = item.router_data.get_billing_address()?;
+        details.three_ds = Some(ThreedsInfo {
+            cardholder: CardHolder {
+                cardholder_name: item.router_data.get_billing_full_name()?,
+                email: item.router_data.request.get_email()?,
+                bill_addr_line1: billing.get_line1().ok().cloned(),
+                bill_addr_post_code: billing.get_zip().ok().cloned(),
+                bill_addr_city: billing.get_city().ok().cloned(),
+                bill_addr_state: billing.get_state().ok().cloned(),
+                bill_addr_country: billing.get_country().ok().cloned(),
+            },
+        });
+    }
+
+    Ok(details)
 }
 impl TryFrom<&types::ConnectorAuthType> for DatatransAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -221,6 +318,7 @@ impl ForeignFrom<(&DatatransResponse, bool)> for enums::AttemptStatus {
                     Self::Authorized
                 }
             }
+            DatatransResponse::ThreeDSResponse(_) => Self::AuthenticationPending,
         }
     }
 }
@@ -297,6 +395,31 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: Some(
+                        status == enums::AttemptStatus::Authorized,
+                    ),
+                    charge_id: None,
+                })
+            }
+            DatatransResponse::ThreeDSResponse(response) => {
+                let redirection_link = match item.data.test_mode {
+                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
+                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                };
+                let redirection_data = Some(services::RedirectForm::Form {
+                    endpoint: format!("{}/{}", redirection_link, response.transaction_id),
+                    method: services::Method::Get,
+                    form_fields: HashMap::new(),
+                });
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 })
@@ -323,12 +446,12 @@ impl<F> TryFrom<&DatatransRouterData<&types::RefundsRouterData<F>>> for Datatran
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, DatatransRefundsResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<types::RefundsResponseRouterData<Execute, DatatransRefundsResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, DatatransRefundsResponse>,
+        item: types::RefundsResponseRouterData<Execute, DatatransRefundsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             DatatransRefundsResponse::Error(error) => Ok(Self {
@@ -353,12 +476,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, DatatransRefundsResp
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, DatatransSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<RSync, DatatransSyncResponse>>
+    for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, DatatransSyncResponse>,
+        item: types::RefundsResponseRouterData<RSync, DatatransSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             DatatransSyncResponse::Error(error) => Err(types::ErrorResponse {
@@ -403,21 +526,50 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     ..item.data
                 })
             }
-            DatatransSyncResponse::Response(response) => {
-                let resource_id =
-                    types::ResponseId::ConnectorTransactionId(response.transaction_id.to_string());
-                Ok(Self {
-                    status: enums::AttemptStatus::from(response),
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id,
+            DatatransSyncResponse::Response(sync_response) => {
+                let status = enums::AttemptStatus::from(sync_response.clone());
+                let response = if status == enums::AttemptStatus::Failure {
+                    let (code, message) = match sync_response.detail.fail {
+                        Some(fail_details) => (
+                            fail_details
+                                .reason
+                                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                            fail_details
+                                .message
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        ),
+                        None => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            consts::NO_ERROR_MESSAGE.to_string(),
+                        ),
+                    };
+                    Err(types::ErrorResponse {
+                        code,
+                        message: message.clone(),
+                        reason: Some(message),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    })
+                } else {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            sync_response.transaction_id.to_string(),
+                        ),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
+                        incremental_authorization_allowed: Some(
+                            status == enums::AttemptStatus::Authorized,
+                        ),
                         charge_id: None,
-                    }),
+                    })
+                };
+                Ok(Self {
+                    status,
+                    response,
                     ..item.data
                 })
             }
@@ -501,6 +653,83 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<DataTransCancelResponse>>
         };
         Ok(Self {
             status,
+            ..item.data
+        })
+    }
+}
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransIncrementalAuthorizationPaymentRequest {
+    pub amount: MinorUnit,
+    pub currency: enums::Currency,
+    pub refno: String,
+}
+
+impl TryFrom<&DatatransRouterData<&types::PaymentsIncrementalAuthorizationRouterData>>
+    for DatatransIncrementalAuthorizationPaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &DatatransRouterData<&types::PaymentsIncrementalAuthorizationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            refno: item.router_data.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum DatatransIncrementalAuthorizationResponse {
+    Error(DatatransError),
+    Success(IncrementalAuthorizationResponse),
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementalAuthorizationResponse {
+    pub increased_amount: MinorUnit,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            DatatransIncrementalAuthorizationResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            DatatransIncrementalAuthorizationResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: match item.response {
+                DatatransIncrementalAuthorizationResponse::Error(error) => Ok(
+                    types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: common_enums::AuthorizationStatus::Failure,
+                        error_code: Some(error.code.clone()),
+                        error_message: Some(error.message),
+                        connector_authorization_id: None,
+                    },
+                ),
+                DatatransIncrementalAuthorizationResponse::Success(_) => Ok(
+                    types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: common_enums::AuthorizationStatus::Success,
+                        error_code: None,
+                        error_message: None,
+                        connector_authorization_id: None,
+                    },
+                ),
+            },
             ..item.data
         })
     }
