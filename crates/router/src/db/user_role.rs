@@ -138,7 +138,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id(&conn, user_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -151,7 +151,7 @@ impl UserRoleInterface for Store {
         merchant_id: &id_type::MerchantId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_merchant_id(
             &conn,
             user_id.to_owned(),
@@ -167,7 +167,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::list_by_user_id(&conn, user_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -179,7 +179,7 @@ impl UserRoleInterface for Store {
         merchant_id: &id_type::MerchantId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::list_by_merchant_id(&conn, merchant_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -194,7 +194,7 @@ impl UserRoleInterface for Store {
         profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_org_id_merchant_id_profile_id(
             &conn,
             user_id.to_owned(),

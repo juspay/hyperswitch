@@ -63,7 +63,7 @@ impl BlocklistInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Blocklist::find_by_merchant_id_fingerprint_id(&conn, merchant_id, fingerprint_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -74,7 +74,7 @@ impl BlocklistInterface for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Blocklist::list_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -88,7 +88,7 @@ impl BlocklistInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Blocklist::list_by_merchant_id_data_kind(
             &conn,
             merchant_id,

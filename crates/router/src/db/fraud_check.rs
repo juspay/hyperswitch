@@ -66,7 +66,7 @@ impl FraudCheckInterface for Store {
         payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         FraudCheck::get_with_payment_id(&conn, payment_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -78,7 +78,7 @@ impl FraudCheckInterface for Store {
         payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         FraudCheck::get_with_payment_id_if_present(&conn, payment_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))

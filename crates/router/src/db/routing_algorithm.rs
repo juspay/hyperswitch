@@ -79,7 +79,7 @@ impl RoutingAlgorithmInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         algorithm_id: &common_utils::id_type::RoutingId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         routing_storage::RoutingAlgorithm::find_by_algorithm_id_profile_id(
             &conn,
             algorithm_id,
@@ -95,7 +95,7 @@ impl RoutingAlgorithmInterface for Store {
         algorithm_id: &common_utils::id_type::RoutingId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
             &conn,
             algorithm_id,
@@ -111,7 +111,7 @@ impl RoutingAlgorithmInterface for Store {
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         routing_storage::RoutingAlgorithm::find_metadata_by_algorithm_id_profile_id(
             &conn,
             algorithm_id,
@@ -128,7 +128,7 @@ impl RoutingAlgorithmInterface for Store {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_profile_id(
             &conn, profile_id, limit, offset,
         )
@@ -143,7 +143,7 @@ impl RoutingAlgorithmInterface for Store {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_merchant_id(
             &conn,
             merchant_id,
@@ -161,7 +161,7 @@ impl RoutingAlgorithmInterface for Store {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_merchant_id_transaction_type(
             &conn,
             merchant_id,
