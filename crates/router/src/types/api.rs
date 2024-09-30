@@ -390,9 +390,10 @@ impl ConnectorData {
                 enums::Connector::Deutschebank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
                 }
-                enums::Connector::Digitalvirgo => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
-                }
+                // tempplate code for future usage
+                // enums::Connector::Digitalvirgo => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
+                // }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(

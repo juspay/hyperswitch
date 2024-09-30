@@ -67,7 +67,7 @@ impl TryFrom<&DigitalvirgoRouterData<&PaymentsAuthorizeRouterData>>
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
