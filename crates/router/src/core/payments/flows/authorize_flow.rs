@@ -20,6 +20,82 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for PaymentConfirmData<api::Authorize>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<api_models::payments::HeaderPayload>,
+    ) -> RouterResult<
+        types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+        >(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let payment_method = &self
+            .payment_attempt
+            .get_payment_method()
+            .get_required_value("PaymentMethod")?;
+
+        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                key_store,
+                connector,
+                state,
+                merchant_account,
+            )
+            .await?
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
+}
+
 #[async_trait]
 impl
     ConstructFlowSpecificData<
@@ -91,6 +167,7 @@ impl
         Ok(data)
     }
 }
+
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(

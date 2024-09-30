@@ -510,6 +510,8 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    /// Payments confirm intent
+    PaymentsConfirmIntent,
 }
 
 ///

@@ -26,6 +26,9 @@ pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
 
+#[cfg(feature = "v2")]
+pub mod payment_confirm_intent;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -43,6 +46,10 @@ pub use self::{
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
+
+#[cfg(feature = "v2")]
+pub use self::payment_confirm_intent::PaymentsIntentConfirm;
+
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
@@ -115,8 +122,11 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub mandate_type: Option<api::MandateTransactionType>,
 }
 
+/// This trait is used to fetch / create all the tracker related information for a payment
+/// This functions returns the session data that is used by subsequent functions
 #[async_trait]
 pub trait GetTracker<F: Clone, D, R>: Send {
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -128,8 +138,22 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         auth_flow: services::AuthFlow,
         header_payload: &api::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
-}
 
+    // TODO: this need not return the operation, since operation does not change in v2
+    // Operation remains the same from start to finish
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+        mechant_key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
+        header_payload: &api::HeaderPayload,
+    ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
+}
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
     /// This will fetch customer details, (this operation is flow specific)

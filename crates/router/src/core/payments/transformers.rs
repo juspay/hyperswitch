@@ -40,6 +40,9 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
+
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
@@ -142,12 +145,12 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data<'a, F, T>(
     _state: &'a SessionState,
-    _payment_data: PaymentData<F>,
-    _connector_id: &str,
-    _merchant_account: &domain::MerchantAccount,
+    payment_data: PaymentConfirmData<F>,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
-    _customer: &'a Option<domain::Customer>,
-    _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     _header_payload: Option<api_models::payments::HeaderPayload>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
@@ -158,7 +161,92 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    todo!()
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
+
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let customer_id = customer.to_owned().map(|customer| customer.id.clone());
+
+    let payment_method = payment_data
+        .payment_attempt
+        .payment_method_type
+        .get_required_value("payment_method_type")?;
+
+    router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id,
+        connector: connector_id.to_owned(),
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
+        attempt_id: payment_data.payment_attempt.get_id().to_owned(),
+        status: payment_data.payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: payment_data.payment_intent.description.clone(),
+        return_url: payment_data.payment_intent.return_url.clone(),
+        address: unified_address,
+        auth_type: payment_data
+            .payment_attempt
+            .authentication_type
+            .unwrap_or_default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        request: T::try_from(additional_data)?,
+        response,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_token: payment_data
+            .pm_token
+            .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
+        connector_customer: payment_data.connector_customer_id,
+        recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
+        connector_request_reference_id: core_utils::get_connector_request_reference_id(
+            &state.conf,
+            merchant_account.get_id(),
+            &payment_data.payment_attempt,
+        ),
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode,
+        payment_method_balance: None,
+        connector_api_version,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: merchant_recipient_data.map(|data| {
+            api_models::admin::AdditionalMerchantData::foreign_from(
+                types::AdditionalMerchantData::OpenBankingRecipientData(data),
+            )
+        }),
+        header_payload,
+    };
+
+    Err(errors::ApiErrorResponse::InternalServerError)?
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]

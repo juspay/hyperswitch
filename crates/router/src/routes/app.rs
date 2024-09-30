@@ -57,7 +57,7 @@ use super::{
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, payments::*};
+use super::{configs::*, customers::*, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -518,8 +518,7 @@ impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route.service(
-            web::resource("/{payment_id}/saved_payment_methods")
-                .route(web::get().to(list_customer_payment_method_for_payment)),
+            web::resource("/{payment_id}").route(web::post().to(payments::payment_confirm_intent)),
         );
 
         route
@@ -536,103 +535,111 @@ impl Payments {
             route = route
                 .service(
                     web::resource("/list")
-                        .route(web::get().to(payments_list))
-                        .route(web::post().to(payments_list_by_filter)),
+                        .route(web::get().to(payments::payments_list))
+                        .route(web::post().to(payments::payments_list_by_filter)),
                 )
                 .service(
                     web::resource("/profile/list")
-                        .route(web::get().to(profile_payments_list))
-                        .route(web::post().to(profile_payments_list_by_filter)),
+                        .route(web::get().to(payments::profile_payments_list))
+                        .route(web::post().to(payments::profile_payments_list_by_filter)),
                 )
-                .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
-                .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
-                .service(web::resource("/aggregate").route(web::get().to(get_payments_aggregates)))
+                .service(
+                    web::resource("/filter")
+                        .route(web::post().to(payments::get_filters_for_payments)),
+                )
+                .service(
+                    web::resource("/v2/filter").route(web::get().to(payments::get_payment_filters)),
+                )
+                .service(
+                    web::resource("/aggregate")
+                        .route(web::get().to(payments::get_payments_aggregates)),
+                )
                 .service(
                     web::resource("/profile/aggregate")
-                        .route(web::get().to(get_payments_aggregates_profile)),
+                        .route(web::get().to(payments::get_payments_aggregates_profile)),
                 )
                 .service(
                     web::resource("/v2/profile/filter")
-                        .route(web::get().to(get_payment_filters_profile)),
+                        .route(web::get().to(payments::get_payment_filters_profile)),
                 )
                 .service(
                     web::resource("/{payment_id}/manual-update")
-                        .route(web::put().to(payments_manual_update)),
+                        .route(web::put().to(payments::payments_manual_update)),
                 )
         }
         #[cfg(feature = "oltp")]
         {
             route = route
-                .service(web::resource("").route(web::post().to(payments_create)))
+                .service(web::resource("").route(web::post().to(payments::payments_create)))
                 .service(
                     web::resource("/session_tokens")
-                        .route(web::post().to(payments_connector_session)),
+                        .route(web::post().to(payments::payments_connector_session)),
                 )
                 .service(
                     web::resource("/sync")
-                        .route(web::post().to(payments_retrieve_with_gateway_creds)),
+                        .route(web::post().to(payments::payments_retrieve_with_gateway_creds)),
                 )
                 .service(
                     web::resource("/{payment_id}")
-                        .route(web::get().to(payments_retrieve))
-                        .route(web::post().to(payments_update)),
+                        .route(web::get().to(payments::payments_retrieve))
+                        .route(web::post().to(payments::payments_update)),
                 )
                 .service(
-                    web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
+                    web::resource("/{payment_id}/confirm").route(web::post().to(payments::payments_confirm)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel").route(web::post().to(payments_cancel)),
+                    web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
-                    web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
+                    web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/approve")
-                        .route(web::post().to(payments_approve)),
+                        .route(web::post().to(payments::payments_approve)),
                 )
                 .service(
                     web::resource("/{payment_id}/reject")
-                        .route(web::post().to(payments_reject)),
+                        .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
-                        .route(web::get().to(payments_start)),
+                        .route(web::get().to(payments::payments_start)),
                 )
                 .service(
                     web::resource(
                         "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
                     )
-                    .route(web::get().to(payments_redirect_response_with_creds_identifier)),
+                    .route(web::get().to(payments::payments_redirect_response_with_creds_identifier)),
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
-                        .route(web::get().to(payments_redirect_response))
-                        .route(web::post().to(payments_redirect_response))
+                        .route(web::get().to(payments::payments_redirect_response))
+                        .route(web::post().to(payments::payments_redirect_response))
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments_complete_authorize_redirect))
-                        .route(web::post().to(payments_complete_authorize_redirect)),
+                        .route(web::get().to(payments::payments_complete_authorize_redirect))
+                        .route(web::post().to(payments::payments_complete_authorize_redirect)),
                 )
                 .service(
                     web::resource("/{payment_id}/complete_authorize")
-                        .route(web::post().to(payments_complete_authorize)),
+                        .route(web::post().to(payments::payments_complete_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments_incremental_authorization)),
+                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/authorize/{connector}").route(web::post().to(post_3ds_payments_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments_external_authentication)),
+                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
                 )
                 .service(
-                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
+                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(payments::retrieve_extended_card_info)),
                 )
                 .service(
                 web::resource("{payment_id}/calculate_tax")
-                    .route(web::post().to(payments_dynamic_tax_calculation)),
+                    .route(web::post().to(payments::payments_dynamic_tax_calculation)),
                 );
         }
         route

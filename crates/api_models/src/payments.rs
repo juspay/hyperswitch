@@ -4221,8 +4221,12 @@ pub struct PaymentsResponse {
     pub connector_mandate_id: Option<String>,
 }
 
+// Serialize is implemented because, this will be serialized in the api events.
+// Usually request types should not have serialize implemented.
+//
+/// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     /// If this url is not passed, the url configured in the business profile will be used

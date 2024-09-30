@@ -272,3 +272,15 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
 }
+
+// TODO: Check if this can be merged with existing payment data
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentConfirmData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}

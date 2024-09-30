@@ -15,9 +15,18 @@ pub enum ApiEventsType {
     Payout {
         payout_id: String,
     },
+
+    #[cfg(feature = "v1")]
     Payment {
         payment_id: id_type::PaymentId,
     },
+
+    // TODO: not able to use the same name due to feature flag conflict
+    #[cfg(feature = "v2")]
+    PaymentV2 {
+        payment_id: id_type::GlobalPaymentId,
+    },
+
     Refund {
         payment_id: Option<id_type::PaymentId>,
         refund_id: String,
@@ -82,9 +91,19 @@ pub enum ApiEventsType {
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for id_type::PaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for id_type::GlobalPaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentV2 {
             payment_id: self.clone(),
         })
     }
