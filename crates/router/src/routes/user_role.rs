@@ -16,6 +16,7 @@ use crate::{
     },
 };
 
+// TODO: To be deprecated
 pub async fn get_authorization_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,

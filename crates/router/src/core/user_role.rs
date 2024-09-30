@@ -26,6 +26,7 @@ pub mod role;
 use common_enums::{EntityType, PermissionGroup};
 use strum::IntoEnumIterator;
 
+// TODO: To be deprecated
 pub async fn get_authorization_info_with_groups(
     _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {

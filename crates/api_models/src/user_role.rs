@@ -64,6 +64,7 @@ pub enum AuthorizationInfo {
     GroupWithTag(ParentInfo),
 }
 
+// TODO: To be deprecated
 #[derive(Debug, serde::Serialize)]
 pub struct GroupInfo {
     pub group: PermissionGroup,

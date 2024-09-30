@@ -1795,6 +1795,7 @@ impl User {
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
             )
+            // TODO: To be deprecated
             .service(
                 web::resource("/permission_info")
                     .route(web::get().to(user_role::get_authorization_info)),
