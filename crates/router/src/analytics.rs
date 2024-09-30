@@ -21,7 +21,7 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
-    use common_utils::id_type::{MerchantId, OrganizationId};
+    use common_utils::{id_type::{MerchantId, OrganizationId}, types::TimeRange};
     use error_stack::{report, ResultExt};
 
     use crate::{
@@ -2146,4 +2146,104 @@ pub mod routes {
         ))
         .await
     }
+    
+    pub async fn get_merchant_sannkey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSannKey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::payment_intents::get_sannkey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::Analytics,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_org_sannkey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSannKey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
+                };
+                analytics::payment_intents::get_sannkey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::Analytics,
+                minimum_entity_level: EntityType::Organization,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_sannkey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSannKey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
+                };
+                analytics::payment_intents::get_sannkey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::Analytics,
+                minimum_entity_level: EntityType::Profile,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
 }

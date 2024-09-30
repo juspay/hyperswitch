@@ -3,6 +3,7 @@ mod core;
 pub mod filters;
 pub mod metrics;
 pub mod types;
+pub mod sannkey;
 pub use accumulator::{PaymentIntentMetricAccumulator, PaymentIntentMetricsAccumulator};
 
 pub trait PaymentIntentAnalytics:
@@ -10,4 +11,4 @@ pub trait PaymentIntentAnalytics:
 {
 }
 
-pub use self::core::{get_filters, get_metrics};
+pub use self::core::{get_filters, get_metrics, get_sannkey};
