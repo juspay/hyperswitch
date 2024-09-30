@@ -27,9 +27,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        get_unimplemented_payment_method_error_message, to_connector_meta, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as _,
+        get_unimplemented_payment_method_error_message, to_connector_meta,
+        to_connector_meta_from_secret, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 
@@ -162,7 +162,7 @@ pub struct NexixpayRedirectionRequest {
     pub three_d_s_auth_url: String,
     pub three_ds_request: String,
     pub return_url: String,
-    pub transaction_id: String
+    pub transaction_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -335,7 +335,7 @@ impl<F>
             .parse_value("RedirectPayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture = item.data.request.is_auto_capture()?;
-        let meta_data = to_connector_meta(item.data.request.metadata.clone())?;
+        let meta_data = to_connector_meta_from_secret(item.data.request.metadata.clone())?;
         let connector_metadata = Some(update_nexi_meta_data(UpdateNexixpayConnectorMetaData {
             three_d_s_auth_result: Some(three_ds_data),
             three_d_s_auth_response: customer_details_encrypted.pa_res,
@@ -596,12 +596,12 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let complete_authorize_url = item.data.request.get_complete_authorize_url()?;
         let operation_id: String = item.response.operation.operation_id;
-        let redirection_form = nexixpay_threeds_link(NexixpayRedirectionRequest{
-            three_d_s_auth_url:item.response.three_d_s_auth_url.expose().to_string(),
-            three_ds_request:item.response.three_d_s_auth_request.clone(),
-            return_url:complete_authorize_url.clone(),
-            transaction_id:operation_id.clone(),
-    })?;
+        let redirection_form = nexixpay_threeds_link(NexixpayRedirectionRequest {
+            three_d_s_auth_url: item.response.three_d_s_auth_url.expose().to_string(),
+            three_ds_request: item.response.three_d_s_auth_request.clone(),
+            return_url: complete_authorize_url.clone(),
+            transaction_id: operation_id.clone(),
+        })?;
         let is_auto_capture = item.data.request.is_auto_capture()?;
         let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
             three_d_s_auth_result: None,
