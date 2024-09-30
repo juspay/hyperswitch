@@ -16,6 +16,28 @@ use crate::{
     },
 };
 
+pub async fn get_authorization_info(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetAuthorizationInfo;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, _: (), _, _| async move {
+            user_role_core::get_authorization_info_with_groups(state).await
+        },
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetRoleFromToken;
 

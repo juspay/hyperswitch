@@ -55,13 +55,33 @@ pub enum ParentGroup {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct AuthorizationInfoResponse(pub Vec<ParentInfo>);
+pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum AuthorizationInfo {
+    Group(GroupInfo),
+    GroupWithTag(ParentInfo),
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GroupInfo {
+    pub group: PermissionGroup,
+    pub description: &'static str,
+    pub permissions: Vec<PermissionInfo>,
+}
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ParentInfo {
     pub name: ParentGroup,
     pub description: &'static str,
     pub groups: Vec<PermissionGroup>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PermissionInfo {
+    pub enum_name: Permission,
+    pub description: &'static str,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

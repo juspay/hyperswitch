@@ -262,6 +262,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRole
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
+            | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
             | Flow::AcceptInvitationsV2
             | Flow::AcceptInvitationsPreAuth

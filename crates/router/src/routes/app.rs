@@ -1796,6 +1796,10 @@ impl User {
                     .route(web::post().to(user::user_merchant_account_create)),
             )
             .service(
+                web::resource("/permission_info")
+                    .route(web::get().to(user_role::get_authorization_info)),
+            )
+            .service(
                 web::resource("/module/list").route(web::get().to(user_role::get_role_information)),
             )
             .service(

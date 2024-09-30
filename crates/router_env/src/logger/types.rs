@@ -368,6 +368,8 @@ pub enum Flow {
     SwitchMerchantV2,
     /// Switch profile
     SwitchProfile,
+    /// Get permission info
+    GetAuthorizationInfo,
     /// Get Roles info
     GetRolesInfo,
     /// List roles v2

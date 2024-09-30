@@ -1,5 +1,61 @@
-use api_models::user_role::ParentGroup;
+use api_models::user_role::{GroupInfo, ParentGroup, PermissionInfo};
 use common_enums::PermissionGroup;
+use strum::IntoEnumIterator;
+
+use super::{permission_groups::get_permissions_vec, permissions::Permission};
+
+pub fn get_group_authorization_info() -> Vec<GroupInfo> {
+    PermissionGroup::iter()
+        .map(get_group_info_from_permission_group)
+        .collect()
+}
+
+pub fn get_permission_info_from_permissions(permissions: &[Permission]) -> Vec<PermissionInfo> {
+    permissions
+        .iter()
+        .map(|&per| PermissionInfo {
+            description: Permission::get_permission_description(&per),
+            enum_name: per.into(),
+        })
+        .collect()
+}
+
+fn get_group_info_from_permission_group(group: PermissionGroup) -> GroupInfo {
+    let description = get_group_description(group);
+    GroupInfo {
+        group,
+        description,
+        permissions: get_permission_info_from_permissions(get_permissions_vec(&group)),
+    }
+}
+
+fn get_group_description(group: PermissionGroup) -> &'static str {
+    match group {
+        PermissionGroup::OperationsView => {
+            "View Payments, Refunds, Payouts, Mandates, Disputes and Customers"
+        }
+        PermissionGroup::OperationsManage => {
+            "Create, modify and delete Payments, Refunds, Payouts, Mandates, Disputes and Customers"
+        }
+        PermissionGroup::ConnectorsView => {
+            "View connected Payment Processors, Payout Processors and Fraud & Risk Manager details"
+        }
+        PermissionGroup::ConnectorsManage => "Create, modify and delete connectors like Payment Processors, Payout Processors and Fraud & Risk Manager",
+        PermissionGroup::WorkflowsView => {
+            "View Routing, 3DS Decision Manager, Surcharge Decision Manager"
+        }
+        PermissionGroup::WorkflowsManage => {
+            "Create, modify and delete Routing, 3DS Decision Manager, Surcharge Decision Manager"
+        }
+        PermissionGroup::AnalyticsView => "View Analytics",
+        PermissionGroup::UsersView => "View Users",
+        PermissionGroup::UsersManage => "Manage and invite Users to the Team",
+        PermissionGroup::MerchantDetailsView => "View Merchant Details",
+        PermissionGroup::MerchantDetailsManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
+        PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+        PermissionGroup::ReconOps => "View and manage reconciliation reports",
+    }
+}
 
 pub fn get_parent_name(group: PermissionGroup) -> ParentGroup {
     match group {
