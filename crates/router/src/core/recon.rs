@@ -40,7 +40,7 @@ pub async fn send_recon_request(
         settings: state.conf.clone(),
         subject: format!(
             "{} {}",
-            consts::EMAIL_SUBJECT_DASHBOARD_REQUEST,
+            consts::EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST,
             user_email.expose().peek()
         ),
     };
