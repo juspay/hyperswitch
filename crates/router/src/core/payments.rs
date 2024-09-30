@@ -103,6 +103,43 @@ use crate::{
     types::{api::authentication, BrowserInformation},
 };
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn payments_operation_core<F, Req, Op, FData, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    call_connector_action: CallConnectorAction,
+    auth_flow: services::AuthFlow,
+    eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
+    header_payload: HeaderPayload,
+) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
+where
+    F: Send + Clone + Sync,
+    Req: Authenticate + Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, FData, Data = D>,
+    FData: Send + Sync + Clone,
+{
+    todo!()
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]

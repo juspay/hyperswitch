@@ -365,6 +365,7 @@ pub struct AmountDetails {
     tax_on_surcharge: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(
     Default,
     Debug,
@@ -676,6 +677,7 @@ fn are_optional_values_invalid<T: PartialEq>(
     }
 }
 
+#[cfg(feature = "v1")]
 impl PaymentsRequest {
     /// Get the customer id
     ///
@@ -727,8 +729,70 @@ impl PaymentsRequest {
             None
         }
     }
+
+    pub fn get_total_capturable_amount(&self) -> Option<MinorUnit> {
+        let surcharge_amount = self
+            .surcharge_details
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        self.amount
+            .map(|amount| MinorUnit::from(amount) + surcharge_amount)
+    }
+
+    pub fn get_feature_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<serde_json::Value>,
+        common_utils::errors::ParsingError,
+    > {
+        self.feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+    }
+
+    pub fn get_connector_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<serde_json::Value>,
+        common_utils::errors::ParsingError,
+    > {
+        self.connector_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+    }
+
+    pub fn get_allowed_payment_method_types_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<serde_json::Value>,
+        common_utils::errors::ParsingError,
+    > {
+        self.allowed_payment_method_types
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+    }
+
+    pub fn get_order_details_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<Vec<pii::SecretSerdeValue>>,
+        common_utils::errors::ParsingError,
+    > {
+        self.order_details
+            .as_ref()
+            .map(|od| {
+                od.iter()
+                    .map(|order| order.encode_to_value().map(Secret::new))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()
+    }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_request_test {
     use common_utils::generate_customer_id_of_default_length;
@@ -813,17 +877,6 @@ pub struct PaymentChargeRequest {
     pub transfer_account_id: String,
 }
 
-impl PaymentsRequest {
-    pub fn get_total_capturable_amount(&self) -> Option<MinorUnit> {
-        let surcharge_amount = self
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .unwrap_or_default();
-        self.amount
-            .map(|amount| MinorUnit::from(amount) + surcharge_amount)
-    }
-}
-
 /// Details of surcharge applied on this payment, if applicable
 #[derive(
     Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema, PartialEq,
@@ -835,7 +888,7 @@ pub struct RequestSurchargeDetails {
 }
 
 /// Browser information to be used for 3DS 2.0
-#[derive(ToSchema)]
+#[derive(ToSchema, Debug, serde::Deserialize)]
 pub struct BrowserInformation {
     /// Color depth supported by the browser
     pub color_depth: Option<u8>,
@@ -1001,60 +1054,6 @@ pub struct CaptureResponse {
     pub error_reason: Option<String>,
     /// Reference to the capture at connector side
     pub reference_id: Option<String>,
-}
-
-impl PaymentsRequest {
-    pub fn get_feature_metadata_as_value(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Option<serde_json::Value>,
-        common_utils::errors::ParsingError,
-    > {
-        self.feature_metadata
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-    }
-
-    pub fn get_connector_metadata_as_value(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Option<serde_json::Value>,
-        common_utils::errors::ParsingError,
-    > {
-        self.connector_metadata
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-    }
-
-    pub fn get_allowed_payment_method_types_as_value(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Option<serde_json::Value>,
-        common_utils::errors::ParsingError,
-    > {
-        self.allowed_payment_method_types
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-    }
-
-    pub fn get_order_details_as_value(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Option<Vec<pii::SecretSerdeValue>>,
-        common_utils::errors::ParsingError,
-    > {
-        self.order_details
-            .as_ref()
-            .map(|od| {
-                od.iter()
-                    .map(|order| order.encode_to_value().map(Secret::new))
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()
-    }
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -1638,6 +1637,7 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
     }
 }
 
+#[cfg(feature = "v1")]
 /// Custom serializer and deserializer for PaymentMethodData
 mod payment_method_data_serde {
 
@@ -1779,12 +1779,25 @@ mod payment_method_data_serde {
     }
 }
 
+#[cfg(feature = "v1")]
 /// The payment method information provided for making a payment
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
     pub payment_method_data: Option<PaymentMethodData>,
     /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct PaymentMethodDataRequest {
+    /// Details of the payment instrument
+    pub payment_method_data: PaymentMethodData,
+
+    /// Billing details for the payment method.
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
     pub billing: Option<Address>,
@@ -4181,6 +4194,42 @@ pub struct PaymentsResponse {
     pub connector_mandate_id: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, ToSchema)]
+pub struct PaymentsConfirmIntentRequest {
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    /// If this url is not passed, the url configured in the business profile will be used
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<common_utils::types::Url>,
+
+    /// The payment instrument data to be used for the payment
+    #[schema(example = "bank_transfer")]
+    pub payment_method_data: PaymentMethodDataRequest,
+
+    /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodSubType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
+    pub shipping: Option<Address>,
+
+    /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<CustomerAcceptance>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
+
+    /// It's a token used for client side verification.
+    #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: common_utils::types::ClientSecret,
+}
+
 /// Fee information to be charged on the payment being collected
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentChargeResponse {
@@ -4462,6 +4511,7 @@ pub struct MandateValidationFields {
     pub off_session: Option<bool>,
 }
 
+#[cfg(feature = "v1")]
 impl From<&PaymentsRequest> for MandateValidationFields {
     fn from(req: &PaymentsRequest) -> Self {
         let recurring_details = req
@@ -4510,6 +4560,7 @@ impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<PaymentsStartRequest> for PaymentsRequest {
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
@@ -6034,6 +6085,7 @@ pub struct ExtendedCardInfoResponse {
     pub payload: String,
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_request_api_contract {
     #![allow(clippy::unwrap_used)]

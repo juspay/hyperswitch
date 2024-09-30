@@ -10,11 +10,15 @@ pub use api_models::payments::{
     PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
     PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
+
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentsRequest;
+
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
@@ -36,8 +40,6 @@ pub use super::payments_v2::{
     TaxCalculationV2,
 };
 use crate::core::errors;
-
-impl super::Router for PaymentsRequest {}
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(
@@ -84,6 +86,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
     #![allow(clippy::expect_used, clippy::unwrap_used)]

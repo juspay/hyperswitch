@@ -16,7 +16,7 @@ use crate::{
         PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
-        ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
+        self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
         PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
         PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
@@ -24,10 +24,11 @@ use crate::{
         PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
         PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsRejectRequest,
-        PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, RedirectionResponse,
+        PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        RedirectionResponse,
     },
 };
+
 impl ApiEventMetric for PaymentsRetrieveRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         match self.resource_id {
@@ -97,7 +98,8 @@ impl ApiEventMetric for PaymentsRejectRequest {
     }
 }
 
-impl ApiEventMetric for PaymentsRequest {
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         match self.payment_id {
             Some(PaymentIdType::PaymentIntentId(ref id)) => Some(ApiEventsType::Payment {
