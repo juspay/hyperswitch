@@ -516,7 +516,9 @@ fn create_paze_session_token(
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Paze(Box::new(
                 payment_types::PazeSessionTokenResponse {
-                    something: paze_wallet_details.data.some_data,
+                    client_id: paze_wallet_details.data.client_id,
+                    client_name: paze_wallet_details.data.client_name,
+                    client_profile_id: paze_wallet_details.data.client_profile_id,
                 },
             )),
         }),

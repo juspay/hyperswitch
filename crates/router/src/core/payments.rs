@@ -1700,6 +1700,9 @@ where
                 ),
             );
         }
+        TokenizationAction::DecryptPazeToken(payment_processing_details) => {
+            // Write decryption flow here.
+        }
         _ => (),
     };
 
@@ -2631,6 +2634,7 @@ pub enum TokenizationAction {
     SkipConnectorTokenization,
     DecryptApplePayToken(payments_api::PaymentProcessingDetails),
     TokenizeInConnectorAndApplepayPreDecrypt(payments_api::PaymentProcessingDetails),
+    DecryptPazeToken(payments_api::PazePaymentProcessingDetails),
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2691,15 +2695,35 @@ where
                 payment_data.get_payment_attempt().merchant_id.clone(),
             );
 
-            let payment_method_action = decide_payment_method_tokenize_action(
-                state,
-                &connector,
-                payment_method,
-                payment_data.get_token(),
-                is_connector_tokenization_enabled,
-                apple_pay_flow,
-            )
-            .await?;
+            let payment_method_action = if let Some(storage_enums::PaymentMethodType::Paze) =
+                payment_method_type
+            {
+                // Paze generates a one time use network token which should not be tokenized in the connector or router.
+                TokenizationAction::DecryptPazeToken(payments_api::PazePaymentProcessingDetails {
+                    paze_private_key: state
+                        .conf
+                        .paze_decrypt_keys
+                        .get_inner()
+                        .paze_private_key
+                        .clone(),
+                    paze_private_key_passphrase: state
+                        .conf
+                        .paze_decrypt_keys
+                        .get_inner()
+                        .paze_private_key_passphrase
+                        .clone(),
+                })
+            } else {
+                decide_payment_method_tokenize_action(
+                    state,
+                    &connector,
+                    payment_method,
+                    payment_data.get_token(),
+                    is_connector_tokenization_enabled,
+                    apple_pay_flow,
+                )
+                .await?
+            };
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
@@ -2753,6 +2777,9 @@ where
                 ) => TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
                     payment_processing_details,
                 ),
+                TokenizationAction::DecryptPazeToken(paze_payment_processing_details) => {
+                    TokenizationAction::DecryptPazeToken(paze_payment_processing_details)
+                }
             };
             (payment_data.to_owned(), connector_tokenization_action)
         }

@@ -4968,7 +4968,9 @@ pub struct PazeSessionTokenData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PazeMetadata {
-    pub some_data: String,
+    pub client_id: String,
+    pub client_name: String,
+    pub client_profile_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -5137,6 +5139,14 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate_key: Secret<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+pub struct PazePaymentProcessingDetails {
+    #[schema(value_type = String)]
+    pub paze_private_key: Secret<String>,
+    #[schema(value_type = String)]
+    pub paze_private_key_passphrase: Secret<String>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
@@ -5169,8 +5179,12 @@ pub enum SessionToken {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PazeSessionTokenResponse {
-    /// Random
-    pub something: String,
+    /// Paze Client ID
+    pub client_id: String,
+    /// Client Name to be displayed on the Paze screen
+    pub client_name: String,
+    /// Paze Client Profile ID
+    pub client_profile_id: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
