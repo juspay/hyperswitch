@@ -21,7 +21,10 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
-    use common_utils::{id_type::{MerchantId, OrganizationId}, types::TimeRange};
+    use common_utils::{
+        id_type::{MerchantId, OrganizationId},
+        types::TimeRange,
+    };
     use error_stack::{report, ResultExt};
 
     use crate::{
@@ -2146,7 +2149,7 @@ pub mod routes {
         ))
         .await
     }
-    
+
     pub async fn get_merchant_sannkey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2245,5 +2248,4 @@ pub mod routes {
         ))
         .await
     }
-
 }

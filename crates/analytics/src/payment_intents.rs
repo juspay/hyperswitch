@@ -2,8 +2,8 @@ pub mod accumulator;
 mod core;
 pub mod filters;
 pub mod metrics;
-pub mod types;
 pub mod sannkey;
+pub mod types;
 pub use accumulator::{PaymentIntentMetricAccumulator, PaymentIntentMetricsAccumulator};
 
 pub trait PaymentIntentAnalytics:

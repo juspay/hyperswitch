@@ -1,5 +1,8 @@
 use common_enums::enums;
-use common_utils::{errors::{ErrorSwitch, ParsingError}, types::{authentication::AuthInfo, TimeRange}};
+use common_utils::{
+    errors::{ErrorSwitch, ParsingError},
+    types::{authentication::AuthInfo, TimeRange},
+};
 use error_stack::ResultExt;
 use sqlx::query_builder;
 use time::PrimitiveDateTime;
@@ -44,7 +47,7 @@ pub struct SannkeyRow {
     pub status: DBEnumWrapper<enums::IntentStatus>,
     pub refunds_status: DBEnumWrapper<SessionizerRefundStatus>,
     pub attempt_count: i64,
-    pub count: i64
+    pub count: i64,
 }
 
 impl TryInto<SannkeyRow> for serde_json::Value {
@@ -60,9 +63,10 @@ impl TryInto<SannkeyRow> for serde_json::Value {
 pub async fn get_sankey_data(
     clickhouse_client: &ClickhouseClient,
     auth: &AuthInfo,
-    time_range: &TimeRange
+    time_range: &TimeRange,
 ) -> MetricsResult<Vec<SannkeyRow>> {
-    let mut query_builder = QueryBuilder::<ClickhouseClient>::new(AnalyticsCollection::PaymentIntent);
+    let mut query_builder =
+        QueryBuilder::<ClickhouseClient>::new(AnalyticsCollection::PaymentIntent);
     query_builder
         .add_select_column(Aggregate::<String>::Count {
             field: None,
@@ -84,16 +88,20 @@ pub async fn get_sankey_data(
     auth.set_filter_clause(&mut query_builder)
         .change_context(MetricsError::QueryBuildingError)?;
 
-    time_range.set_filter_clause(&mut query_builder)
+    time_range
+        .set_filter_clause(&mut query_builder)
         .change_context(MetricsError::QueryBuildingError)?;
 
-    query_builder.add_group_by_clause("status")
+    query_builder
+        .add_group_by_clause("status")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
-    query_builder.add_group_by_clause("refunds_status")
+    query_builder
+        .add_group_by_clause("refunds_status")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
-    query_builder.add_group_by_clause("attempt_count")
+    query_builder
+        .add_group_by_clause("attempt_count")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
 

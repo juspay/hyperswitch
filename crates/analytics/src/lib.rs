@@ -996,7 +996,7 @@ pub enum AnalyticsFlow {
     GetSearchResults,
     GetDisputeFilters,
     GetDisputeMetrics,
-    GetSannKey
+    GetSannKey,
 }
 
 impl FlowMetric for AnalyticsFlow {}

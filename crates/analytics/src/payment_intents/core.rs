@@ -7,7 +7,8 @@ use api_models::analytics::{
         PaymentIntentMetricsBucketIdentifier,
     },
     GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, PaymentIntentFilterValue,
-    PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse, SannKeyResponse,
+    PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse,
+    SannKeyResponse,
 };
 use common_enums::IntentStatus;
 use common_utils::{errors::CustomResult, types::TimeRange};
@@ -20,7 +21,10 @@ use router_env::{
 };
 
 use super::{
-    filters::{get_payment_intent_filter_for_dimension, PaymentIntentFilterRow}, metrics::PaymentIntentMetricRow, sannkey::{get_sankey_data, SessionizerRefundStatus}, PaymentIntentMetricsAccumulator
+    filters::{get_payment_intent_filter_for_dimension, PaymentIntentFilterRow},
+    metrics::PaymentIntentMetricRow,
+    sannkey::{get_sankey_data, SessionizerRefundStatus},
+    PaymentIntentMetricsAccumulator,
 };
 use crate::{
     enums::AuthInfo,
@@ -45,34 +49,66 @@ pub enum TaskType {
 pub async fn get_sannkey(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
-    req: TimeRange
+    req: TimeRange,
 ) -> AnalyticsResult<SannKeyResponse> {
     match pool {
-        AnalyticsProvider::Sqlx(_) => {
-            Err(AnalyticsError::NotImplemented(
-                "Sann key not implemented for sqlx"
-            ))?
-        }
-        AnalyticsProvider::Clickhouse(ckh_pool) |
-        AnalyticsProvider::CombinedCkh(_, ckh_pool) |
-        AnalyticsProvider::CombinedSqlx(_, ckh_pool) => {
-            let sankey_rows = get_sankey_data(&ckh_pool, auth, &req).await.change_context(AnalyticsError::UnknownError)?;
+        AnalyticsProvider::Sqlx(_) => Err(AnalyticsError::NotImplemented(
+            "Sann key not implemented for sqlx",
+        ))?,
+        AnalyticsProvider::Clickhouse(ckh_pool)
+        | AnalyticsProvider::CombinedCkh(_, ckh_pool)
+        | AnalyticsProvider::CombinedSqlx(_, ckh_pool) => {
+            let sankey_rows = get_sankey_data(&ckh_pool, auth, &req)
+                .await
+                .change_context(AnalyticsError::UnknownError)?;
             let mut sankey_response = SannKeyResponse::default();
             for i in sankey_rows {
-                match (i.status.as_ref(), i.refunds_status.as_ref(), i.attempt_count) {
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::Refunded, _) => sankey_response.refunded += i.count,
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartiallyRefunded, _) => sankey_response.partial_refunded += i.count,
-                    (IntentStatus::Succeeded | IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable | IntentStatus::RequiresCapture, SessionizerRefundStatus::NotRefunded, 1) => sankey_response.normal_success += i.count,
-                    (IntentStatus::Succeeded | IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable | IntentStatus::RequiresCapture, SessionizerRefundStatus::NotRefunded, _) => sankey_response.smart_retried_success += i.count,
+                match (
+                    i.status.as_ref(),
+                    i.refunds_status.as_ref(),
+                    i.attempt_count,
+                ) {
+                    (IntentStatus::Succeeded, SessionizerRefundStatus::Refunded, _) => {
+                        sankey_response.refunded += i.count
+                    }
+                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartiallyRefunded, _) => {
+                        sankey_response.partial_refunded += i.count
+                    }
+                    (
+                        IntentStatus::Succeeded
+                        | IntentStatus::PartiallyCaptured
+                        | IntentStatus::PartiallyCapturedAndCapturable
+                        | IntentStatus::RequiresCapture,
+                        SessionizerRefundStatus::NotRefunded,
+                        1,
+                    ) => sankey_response.normal_success += i.count,
+                    (
+                        IntentStatus::Succeeded
+                        | IntentStatus::PartiallyCaptured
+                        | IntentStatus::PartiallyCapturedAndCapturable
+                        | IntentStatus::RequiresCapture,
+                        SessionizerRefundStatus::NotRefunded,
+                        _,
+                    ) => sankey_response.smart_retried_success += i.count,
                     (IntentStatus::Failed, _, 1) => sankey_response.normal_failure += i.count,
-                    (IntentStatus::Failed, _, _) => sankey_response.smart_retried_failure += i.count,
+                    (IntentStatus::Failed, _, _) => {
+                        sankey_response.smart_retried_failure += i.count
+                    }
                     (IntentStatus::Cancelled, _, _) => sankey_response.cancelled += i.count,
                     (IntentStatus::Processing, _, _) => sankey_response.pending += i.count,
-                    (IntentStatus::RequiresCustomerAction, _, _) => sankey_response.customer_awaited += i.count,
-                    (IntentStatus::RequiresMerchantAction, _, _) => sankey_response.pending += i.count,
-                    (IntentStatus::RequiresPaymentMethod, _, _) => sankey_response.customer_awaited += i.count,
-                    (IntentStatus::RequiresConfirmation, _, _) => sankey_response.pm_awaited += i.count,
-                    i@(_, _, _) => {
+                    (IntentStatus::RequiresCustomerAction, _, _) => {
+                        sankey_response.customer_awaited += i.count
+                    }
+                    (IntentStatus::RequiresMerchantAction, _, _) => {
+                        sankey_response.pending += i.count
+                    }
+                    (IntentStatus::RequiresPaymentMethod, _, _) => {
+                        sankey_response.customer_awaited += i.count
+                    }
+                    (IntentStatus::RequiresConfirmation, _, _) => {
+                        sankey_response.pm_awaited += i.count
+                    }
+                    i @ (_, _, _) => {
                         router_env::logger::error!(status=?i, "Unknown status in sankey data");
                     }
                 }
