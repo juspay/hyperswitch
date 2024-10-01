@@ -570,7 +570,7 @@ pub async fn send_request(
                     .await
                 }
                 None => {
-                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not cloneable");
                     Err(error)
                 }
             }
