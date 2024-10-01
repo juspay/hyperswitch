@@ -399,7 +399,7 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   const paymentStatus = urlParams.get('status');
 
   // Check for valid statuses
-  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'partially_captured') {
+  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'requires_capture') {
     throw new Error(`Payment failed after redirection with status: ${paymentStatus}`);
   }
 
