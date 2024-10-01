@@ -2475,7 +2475,16 @@ pub fn get_connector_metadata(
                 let (sepa_bank_instructions, bacs_bank_instructions) =
                     bank_instructions.map_or((None, None), |financial_address| {
                         (
-                            financial_address.iban.to_owned(),
+                            financial_address
+                                .iban
+                                .to_owned()
+                                .map(|ele| SepaFinancialDetails {
+                                    account_holder_name: ele.account_holder_name,
+                                    bic: ele.bic,
+                                    country: ele.country,
+                                    iban: ele.iban,
+                                    reference: response.reference.to_owned(),
+                                }),
                             financial_address.sort_code.to_owned(),
                         )
                     });
@@ -2880,6 +2889,7 @@ pub struct SepaFinancialDetails {
     pub bic: Secret<String>,
     pub country: Secret<String>,
     pub iban: Secret<String>,
+    pub reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
