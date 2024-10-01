@@ -1612,7 +1612,7 @@ impl behaviour::Conversion for PaymentIntent {
                 client_secret: storage_model.client_secret,
                 active_attempt: storage_model
                     .active_attempt_id
-                    .map(|active_attempt_id| RemoteStorageObject::ForeignID(active_attempt_id)),
+                    .map(RemoteStorageObject::ForeignID),
                 order_details: storage_model.order_details,
                 allowed_payment_method_types: storage_model.allowed_payment_method_types,
                 connector_metadata: storage_model.connector_metadata,
