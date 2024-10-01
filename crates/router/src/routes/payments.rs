@@ -1869,13 +1869,13 @@ pub async fn payment_confirm_intent(
     // }
 
     let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
         global_payment_id,
         payload: json_payload.into_inner(),
     };
 
-    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {
@@ -1921,7 +1921,7 @@ pub async fn payment_confirm_intent(
                 payment_id,
                 AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
-                header_payload,
+                header_payload.clone(),
             )
             .await
         },

@@ -11,6 +11,13 @@ use hyperswitch_domain_models::{
     merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore,
 };
 
+use api_models::{
+    admin::ExtendedCardInfoConfig,
+    enums::FrmSuggestion,
+    // payment_methods::PaymentMethodsData,
+    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
+};
+
 use crate::{
     core::{
         authentication,
@@ -96,6 +103,19 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentsInt
     }
 }
 
+impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+    for PaymentsIntentConfirm
+{
+    #[instrument(skip_all)]
+    fn validate_request<'a, 'b>(
+        &'b self,
+        request: &PaymentsConfirmIntentRequest,
+        merchant_account: &'a domain::MerchantAccount,
+    ) -> RouterResult<(BoxedConfirmOperation<'b, F>, operations::ValidateResult)> {
+        todo!()
+    }
+}
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentsIntentConfirm
@@ -164,6 +184,30 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        todo!()
+    }
+}
+
+#[async_trait]
+impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+    for PaymentsIntentConfirm
+{
+    #[instrument(skip_all)]
+    async fn update_trackers<'b>(
+        &'b self,
+        state: &'b SessionState,
+        req_state: ReqState,
+        mut payment_data: PaymentConfirmData<F>,
+        customer: Option<domain::Customer>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        updated_customer: Option<storage::CustomerUpdate>,
+        key_store: &domain::MerchantKeyStore,
+        frm_suggestion: Option<FrmSuggestion>,
+        header_payload: api::HeaderPayload,
+    ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
+    where
+        F: 'b + Send,
+    {
         todo!()
     }
 }

@@ -49,10 +49,7 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        Box::pin(transformers::construct_payment_router_data::<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-        >(
+        Box::pin(transformers::construct_payment_router_data_for_authorize(
             state,
             self.clone(),
             connector_id,
@@ -96,6 +93,7 @@ impl
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl
     ConstructFlowSpecificData<

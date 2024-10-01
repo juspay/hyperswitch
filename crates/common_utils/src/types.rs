@@ -603,6 +603,13 @@ impl StringMajorUnit {
 /// This domain type can be used for any url
 pub struct Url(url::Url);
 
+impl Url {
+    /// Get string representation of the url
+    pub fn get_string_repr(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
 impl<DB> ToSql<sql_types::Text, DB> for Url
 where
     DB: Backend,
@@ -1070,6 +1077,11 @@ impl Description {
     /// Create a new Description Domain type without any length check from a static str
     pub fn from_str_unchecked(input_str: &'static str) -> Self {
         Self(LengthString::new_unchecked(input_str.to_owned()))
+    }
+
+    // TODO: Remove this function in future once description in router data is updated to domain type
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
     }
 }
 

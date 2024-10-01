@@ -518,7 +518,8 @@ impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route.service(
-            web::resource("/{payment_id}").route(web::post().to(payments::payment_confirm_intent)),
+            web::resource("/{payment_id}/confirm-intent")
+                .route(web::post().to(payments::payment_confirm_intent)),
         );
 
         route

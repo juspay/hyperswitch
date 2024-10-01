@@ -1148,7 +1148,7 @@ pub fn create_startpay_url(
 pub fn create_redirect_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
@@ -1174,7 +1174,7 @@ pub fn create_authentication_url(
 pub fn create_authorize_url(
     router_base_url: &str,
     payment_attempt: &PaymentAttempt,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/payments/{}/{}/authorize/{}",
@@ -1188,7 +1188,7 @@ pub fn create_authorize_url(
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &id_type::MerchantId,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
@@ -1200,7 +1200,7 @@ pub fn create_webhook_url(
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/payments/{}/{}/redirect/complete/{}",
