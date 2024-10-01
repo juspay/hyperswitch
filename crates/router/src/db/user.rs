@@ -59,7 +59,7 @@ impl UserInterface for Store {
         &self,
         user_data: storage::UserNew,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_connection_write(self).await?;
         user_data
             .insert(&conn)
             .await
