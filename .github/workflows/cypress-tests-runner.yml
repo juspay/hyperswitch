@@ -13,7 +13,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  CONNECTORS: stripe
+  PAYMENTS: "adyen bankofamerica bluesnap cybersource iatapay nmi paypal stripe trustpay"
+  PAYOUTS: "adyen adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -186,29 +187,10 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
+          ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          cd cypress-tests
-
-          RED='\033[0;31m'
-          RESET='\033[0m'
-
-          failed_connectors=()
-
-          for connector in $(echo "${CONNECTORS}" | tr "," "\n"); do
-            echo "${connector}"
-            for service in "payments" "payouts"; do
-              if ! ROUTER__SERVER__WORKERS=4 CYPRESS_CONNECTOR="${connector}" npm run cypress:"${service}"; then
-                failed_connectors+=("${connector}-${service}")
-              fi
-            done
-          done
-
-          if [ ${#failed_connectors[@]} -gt 0 ]; then
-            echo -e "${RED}One or more connectors failed to run:${RESET}"
-            printf '%s\n' "${failed_connectors[@]}"
-            exit 1
-          fi
+          . scripts/execute_cypress.sh --parallel
 
           kill "${{ env.PID }}"
 
