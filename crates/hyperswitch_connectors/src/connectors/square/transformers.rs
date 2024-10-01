@@ -1,14 +1,3 @@
-// use error_stack::ResultExt;
-// use masking::{ExposeInterface, PeekInterface, Secret};
-// use serde::{Deserialize, Serialize};
-
-// use crate::{
-//     connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
-//     core::errors,
-//     types::{self, api, domain, storage::enums},
-//     unimplemented_payment_method,
-// };
-
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use error_stack::ResultExt;

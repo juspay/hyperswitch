@@ -42,9 +42,6 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, Maskable, PeekInterface};
-// use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-// use error_stack::ResultExt;
-// use masking::PeekInterface;
 use transformers::{
     self as square, SquareAuthType, SquarePaymentsRequest, SquareRefundRequest, SquareTokenRequest,
 };
@@ -54,25 +51,6 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, get_header_key_value, RefundsRequestData},
 };
-// use super::utils::{self as super_utils, RefundsRequestData};
-// use crate::{
-//     configs::settings,
-//     consts,
-//     core::errors::{self, CustomResult},
-//     events::connector_api_logs::ConnectorEvent,
-//     headers,
-//     services::{
-//         self,
-//         request::{self, Mask},
-//         ConnectorIntegration, ConnectorValidation,
-//     },
-//     types::{
-//         self,
-//         api::{self, ConnectorCommon, ConnectorCommonExt},
-//         ErrorResponse, Response,
-//     },
-//     utils::BytesExt,
-// };
 
 #[derive(Debug, Clone)]
 pub struct Square;
