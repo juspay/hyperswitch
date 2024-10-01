@@ -565,6 +565,7 @@ impl
                         | common_enums::PaymentMethodType::Dana
                         | common_enums::PaymentMethodType::DanamonVa
                         | common_enums::PaymentMethodType::Debit
+                        | common_enums::PaymentMethodType::DirectCarrierBilling
                         | common_enums::PaymentMethodType::Efecty
                         | common_enums::PaymentMethodType::Eps
                         | common_enums::PaymentMethodType::Evoucher
@@ -648,6 +649,7 @@ impl
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)

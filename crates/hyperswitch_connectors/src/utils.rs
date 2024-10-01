@@ -1812,6 +1812,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    DirectCarrierBilling,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -1995,6 +1996,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
+            },
+            PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
             },
         }
     }

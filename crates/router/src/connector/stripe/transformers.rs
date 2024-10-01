@@ -697,6 +697,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Alma
             | enums::PaymentMethodType::ClassicReward
             | enums::PaymentMethodType::Dana
+            | enums::PaymentMethodType::DirectCarrierBilling
             | enums::PaymentMethodType::Efecty
             | enums::PaymentMethodType::Evoucher
             | enums::PaymentMethodType::GoPay
@@ -1342,6 +1343,7 @@ fn create_stripe_payment_method(
 
         domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::RealTimePayment(_)
+        | domain::PaymentMethodData::MobilePayment(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::OpenBanking(_)
         | domain::PaymentMethodData::CardToken(_)
@@ -1745,6 +1747,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         | domain::payments::PaymentMethodData::MandatePayment
                         | domain::payments::PaymentMethodData::Reward
                         | domain::payments::PaymentMethodData::RealTimePayment(_)
+                        | domain::payments::PaymentMethodData::MobilePayment(_)
                         | domain::payments::PaymentMethodData::Upi(_)
                         | domain::payments::PaymentMethodData::Voucher(_)
                         | domain::payments::PaymentMethodData::GiftCard(_)
@@ -3334,6 +3337,7 @@ impl
             | Some(domain::PaymentMethodData::Crypto(..))
             | Some(domain::PaymentMethodData::Reward)
             | Some(domain::PaymentMethodData::RealTimePayment(..))
+            | Some(domain::PaymentMethodData::MobilePayment(..))
             | Some(domain::PaymentMethodData::MandatePayment)
             | Some(domain::PaymentMethodData::Upi(..))
             | Some(domain::PaymentMethodData::GiftCard(..))
@@ -3790,6 +3794,7 @@ impl
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardRedirect(_)

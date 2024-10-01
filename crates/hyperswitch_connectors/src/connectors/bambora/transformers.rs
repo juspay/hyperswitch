@@ -221,6 +221,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)

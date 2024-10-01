@@ -992,6 +992,7 @@ where
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -1198,6 +1199,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
             | Some(domain::PaymentMethodData::CardRedirect(..))
             | Some(domain::PaymentMethodData::Reward)
             | Some(domain::PaymentMethodData::RealTimePayment(..))
+            | Some(domain::PaymentMethodData::MobilePayment(..))
             | Some(domain::PaymentMethodData::Upi(..))
             | Some(domain::PaymentMethodData::OpenBanking(_))
             | Some(domain::PaymentMethodData::CardToken(..))

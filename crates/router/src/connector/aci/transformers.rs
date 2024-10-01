@@ -433,6 +433,7 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | domain::PaymentMethodData::BankTransfer(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Upi(_)

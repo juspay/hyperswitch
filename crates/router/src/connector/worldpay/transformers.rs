@@ -104,6 +104,7 @@ fn fetch_payment_instrument(
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::Reward
         | domain::PaymentMethodData::RealTimePayment(_)
+        | domain::PaymentMethodData::MobilePayment(_)
         | domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::Voucher(_)
         | domain::PaymentMethodData::CardRedirect(_)

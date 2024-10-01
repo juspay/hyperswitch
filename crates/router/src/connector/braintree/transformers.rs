@@ -305,6 +305,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -340,6 +341,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             | api_models::enums::PaymentMethod::BankDebit
             | api_models::enums::PaymentMethod::Reward
             | api_models::enums::PaymentMethod::RealTimePayment
+            | api_models::enums::PaymentMethod::MobilePayment
             | api_models::enums::PaymentMethod::Upi
             | api_models::enums::PaymentMethod::OpenBanking
             | api_models::enums::PaymentMethod::Voucher
@@ -1100,6 +1102,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1705,6 +1708,7 @@ fn get_braintree_redirect_form(
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)

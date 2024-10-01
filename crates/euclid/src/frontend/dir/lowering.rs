@@ -143,6 +143,14 @@ impl From<enums::CardRedirectType> for global_enums::PaymentMethodType {
     }
 }
 
+impl From<enums::MobilePaymentType> for global_enums::PaymentMethodType {
+    fn from(value: enums::MobilePaymentType) -> Self {
+        match value {
+            enums::MobilePaymentType::DirectCarrierBilling => Self::DirectCarrierBilling,
+        }
+    }
+}
+
 impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
     fn from(value: enums::BankRedirectType) -> Self {
         match value {
@@ -247,6 +255,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::BusinessLabel(bl) => EuclidValue::BusinessLabel(bl),
         dir::DirValue::SetupFutureUsage(sfu) => EuclidValue::SetupFutureUsage(sfu),
         dir::DirValue::OpenBankingType(ob) => EuclidValue::PaymentMethodType(ob.into()),
+        dir::DirValue::MobilePaymentType(mp) => EuclidValue::PaymentMethodType(mp.into()),
     })
 }
 

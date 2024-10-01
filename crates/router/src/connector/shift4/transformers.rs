@@ -246,6 +246,7 @@ where
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
@@ -470,6 +471,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
             | Some(domain::PaymentMethodData::Voucher(_))
             | Some(domain::PaymentMethodData::Reward)
             | Some(domain::PaymentMethodData::RealTimePayment(_))
+            | Some(domain::PaymentMethodData::MobilePayment(_))
             | Some(domain::PaymentMethodData::Upi(_))
             | Some(domain::PaymentMethodData::OpenBanking(_))
             | Some(domain::PaymentMethodData::CardToken(_))

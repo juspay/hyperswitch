@@ -543,6 +543,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             }
             domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::OpenBanking(_)
