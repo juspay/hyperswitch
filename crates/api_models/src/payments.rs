@@ -5,6 +5,8 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use common_utils::types::ClientSecret;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -14,8 +16,6 @@ use common_utils::{
     pii::{self, Email, EmailStrategy},
     types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-use common_utils::types::ClientSecret;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
