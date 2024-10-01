@@ -99,7 +99,7 @@ export const connectorDetails = {
             card: {
               last4: "3155",
               card_type: "CREDIT",
-              card_network: null,
+              card_network: "Visa",
               card_issuer: "INTL HDQTRS-CENTER OWNED",
               card_issuing_country: "UNITEDSTATES",
               card_isin: "400000",
@@ -135,7 +135,7 @@ export const connectorDetails = {
             card: {
               last4: "3155",
               card_type: "CREDIT",
-              card_network: null,
+              card_network: "Visa",
               card_issuer: "INTL HDQTRS-CENTER OWNED",
               card_issuing_country: "UNITEDSTATES",
               card_isin: "400000",
@@ -171,7 +171,7 @@ export const connectorDetails = {
             card: {
               last4: "4242",
               card_type: "CREDIT",
-              card_network: null,
+              card_network: "Visa",
               card_issuer: "STRIPE PAYMENTS UK LIMITED",
               card_issuing_country: "UNITEDKINGDOM",
               card_isin: "424242",
@@ -211,7 +211,7 @@ export const connectorDetails = {
             card: {
               last4: "4242",
               card_type: "CREDIT",
-              card_network: null,
+              card_network: "Visa",
               card_issuer: "STRIPE PAYMENTS UK LIMITED",
               card_issuing_country: "UNITEDKINGDOM",
               card_isin: "424242",
