@@ -395,6 +395,15 @@ function upiRedirection(
 }
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
+  const urlParams = new URLSearchParams(redirection_url.search);
+  const paymentStatus = urlParams.get('status');
+
+  // Check for valid statuses
+  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing') {
+    throw new Error(`Test failed: Unexpected payment status: ${paymentStatus}`);
+  }
+
+  // Proceed with normal redirection validation
   if (forward_flow) {
     // Handling redirection
     if (redirection_url.host.endsWith(expected_url.host)) {
@@ -412,6 +421,7 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
     }
   }
 }
+
 
 async function fetchAndParseQRCode(url) {
   const response = await fetch(url, { encoding: "binary" });
