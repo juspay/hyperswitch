@@ -33,6 +33,12 @@ use serde::Serializer;
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    BASE64_ENGINE
+        .decode(data)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+
 pub(crate) fn construct_not_supported_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &'static str,
@@ -77,6 +83,17 @@ pub(crate) fn get_amount_as_f64(
             .into(),
     };
     Ok(amount)
+}
+
+pub fn to_boolean(string: String) -> bool {
+    let str = string.as_str();
+    match str {
+        "true" => true,
+        "false" => false,
+        "yes" => true,
+        "no" => false,
+        _ => false,
+    }
 }
 
 pub(crate) fn to_currency_base_unit_asf64(
@@ -1229,6 +1246,90 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
     }
 }
 
+pub trait PaymentsPreProcessingData {
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
+}
+
+impl PaymentsPreProcessingData
+    for hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData
+{
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
+        self.payment_method_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
+    }
+
+    // New minor amount function for amount framework
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
+        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    }
+
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.connector_mandate_id.clone()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
+}
+
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
@@ -1636,6 +1737,49 @@ pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayWalletData {
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    pub description: String,
+    pub info: GooglePayPaymentMethodInfo,
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentMethodInfo {
+    pub card_network: String,
+    pub card_details: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GpayTokenizationData {
+    #[serde(rename = "type")]
+    pub token_type: String,
+    pub token: Secret<String>,
+}
+
+impl From<hyperswitch_domain_models::payment_method_data::GooglePayWalletData>
+    for GooglePayWalletData
+{
+    fn from(data: hyperswitch_domain_models::payment_method_data::GooglePayWalletData) -> Self {
+        Self {
+            pm_type: data.pm_type,
+            description: data.description,
+            info: GooglePayPaymentMethodInfo {
+                card_network: data.info.card_network,
+                card_details: data.info.card_details,
+            },
+            tokenization_data: GpayTokenizationData {
+                token_type: data.tokenization_data.token_type,
+                token: Secret::new(data.tokenization_data.token),
+            },
+        }
+    }
 }
 
 #[derive(Debug)]

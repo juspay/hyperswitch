@@ -28,7 +28,6 @@ pub mod netcetera;
 pub mod nexinets;
 pub mod nmi;
 pub mod noon;
-pub mod nuvei;
 pub mod opayo;
 pub mod opennode;
 pub mod paybox;
@@ -61,9 +60,10 @@ pub use hyperswitch_connectors::connectors::{
     coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, deutschebank,
     deutschebank::Deutschebank, dlocal, dlocal::Dlocal, fiserv, fiserv::Fiserv, fiservemea,
     fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay, globepay::Globepay, helcim, helcim::Helcim,
-    mollie, mollie::Mollie, nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet, powertranz,
-    powertranz::Powertranz, square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar,
-    thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline,
+    mollie, mollie::Mollie, nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet, nuvei,
+    nuvei::Nuvei, powertranz, powertranz::Powertranz, square, square::Square, stax, stax::Stax,
+    taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
+    worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -75,7 +75,7 @@ pub use self::{
     cybersource::Cybersource, datatrans::Datatrans, ebanx::Ebanx, forte::Forte,
     globalpay::Globalpay, gocardless::Gocardless, gpayments::Gpayments, iatapay::Iatapay,
     itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, multisafepay::Multisafepay,
-    netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo,
+    netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon, opayo::Opayo,
     opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme, payone::Payone,
     paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,

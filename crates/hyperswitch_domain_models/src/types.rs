@@ -2,14 +2,14 @@ use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
         AccessTokenAuth, Authorize, AuthorizeSessionToken, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, SetupMandate,
-        Void,
+        CompleteAuthorize, CreateConnectorCustomer, Execute, PSync, PaymentMethodToken,
+        PreProcessing, RSync, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, PaymentsTaxCalculationData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
+        PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
@@ -23,8 +23,11 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
 pub type PaymentsSyncRouterData = RouterData<PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsPreProcessingRouterData =
+    RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
+pub type RefundExecuteRouterData = RouterData<Execute, RefundsData, RefundsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<RSync, RefundsData, RefundsResponseData>;
 pub type TokenizationRouterData =

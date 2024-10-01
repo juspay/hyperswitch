@@ -1,15 +1,18 @@
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
-    router_flow_types::{AccessTokenAuth, Capture, PSync, Void},
+    router_flow_types::{AccessTokenAuth, Capture, PSync, PreProcessing, Void},
     router_request_types::{
-        AccessTokenRequestData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        RefundsData,
+        AccessTokenRequestData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSyncData, RefundsData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
 
 pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<PSync, R, PaymentsSyncData, PaymentsResponseData>;
+
+pub type PaymentsPreprocessingResponseRouterData<R> =
+    ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<Capture, R, PaymentsCaptureData, PaymentsResponseData>;

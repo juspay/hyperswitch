@@ -13,6 +13,7 @@ pub mod helcim;
 pub mod mollie;
 pub mod nexixpay;
 pub mod novalnet;
+pub mod nuvei;
 pub mod powertranz;
 pub mod square;
 pub mod stax;
@@ -26,6 +27,6 @@ pub use self::{
     bambora::Bambora, bitpay::Bitpay, cashtocode::Cashtocode, coinbase::Coinbase,
     cryptopay::Cryptopay, deutschebank::Deutschebank, dlocal::Dlocal, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay, helcim::Helcim, mollie::Mollie,
-    nexixpay::Nexixpay, novalnet::Novalnet, powertranz::Powertranz, square::Square, stax::Stax,
-    taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
+    nexixpay::Nexixpay, novalnet::Novalnet, nuvei::Nuvei, powertranz::Powertranz, square::Square,
+    stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
 };
