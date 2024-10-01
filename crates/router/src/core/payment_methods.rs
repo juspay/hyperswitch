@@ -1851,7 +1851,7 @@ impl pm_types::SavedPMLPaymentsInfo {
 
         let off_session_payment_flag = matches!(
             payment_intent.setup_future_usage,
-            Some(common_enums::FutureUsage::OffSession)
+            common_enums::FutureUsage::OffSession
         );
 
         let profile_id = &payment_intent.profile_id;

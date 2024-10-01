@@ -667,6 +667,78 @@ where
     ))
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn payments_intent_operation_core<F, Req, Op, D>(
+    state: &SessionState,
+    _req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResult<(D, Req, Option<domain::Customer>)>
+where
+    F: Send + Clone + Sync,
+    Req: Authenticate + Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+
+    tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
+
+    let (operation, validate_result) = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
+
+    tracing::Span::current().record(
+        "global_payment_id",
+        validate_result.payment_id.get_string_repr(),
+    );
+
+    let operations::GetTrackerResponse {
+        operation,
+        customer_details,
+        mut payment_data,
+        business_profile,
+        mandate_type,
+    } = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            &validate_result.payment_id,
+            &req,
+            &merchant_account,
+            &key_store,
+            auth_flow,
+            &header_payload,
+        )
+        .await?;
+
+    utils::validate_profile_id_from_auth_layer(
+        profile_id_from_auth_layer,
+        &payment_data.get_payment_intent().clone(),
+    )?;
+
+    let (_operation, customer) = operation
+        .to_domain()?
+        .get_or_create_customer_details(
+            state,
+            &mut payment_data,
+            customer_details,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while fetching/creating customer")?;
+    Ok((payment_data, req, customer))
+}
+
 #[instrument(skip_all)]
 #[cfg(feature = "v1")]
 pub async fn call_decision_manager<F, D>(
@@ -969,6 +1041,52 @@ where
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
+        header_payload.x_hs_latency,
+    )
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn payments_intent_core<F, Res, Req, Op, D>(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResponse<Res>
+where
+    F: Send + Clone + Sync,
+    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Req: Debug + Authenticate + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    Res: transformers::ToResponse<F, D, Op>,
+{
+    let (payment_data, _req, customer) = payments_intent_operation_core::<_, _, _, _>(
+        &state,
+        req_state,
+        merchant_account,
+        profile_id,
+        key_store,
+        operation.clone(),
+        req,
+        auth_flow,
+        header_payload.clone(),
+    )
+    .await?;
+
+    Res::generate_response(
+        payment_data,
+        customer,
+        auth_flow,
+        &state.base_url,
+        operation,
+        &state.conf.connector_request_reference_id_config,
+        None,
+        None,
         header_payload.x_hs_latency,
     )
 }
@@ -5281,7 +5399,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     #[cfg(feature = "v2")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        self.payment_intent.capture_method
+        Some(self.payment_intent.capture_method)
     }
 }
 
@@ -5362,11 +5480,20 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.mandate_id = Some(mandate_id);
     }
 
+    #[cfg(feature = "v1")]
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
     ) {
         self.payment_intent.setup_future_usage = Some(setup_future_usage);
+    }
+
+    #[cfg(feature = "v2")]
+    fn set_setup_future_usage_in_payment_intent(
+        &mut self,
+        setup_future_usage: storage_enums::FutureUsage,
+    ) {
+        self.payment_intent.setup_future_usage = setup_future_usage;
     }
 
     #[cfg(feature = "v1")]
@@ -5583,7 +5710,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
     ) {
-        self.payment_intent.setup_future_usage = Some(setup_future_usage);
+        self.payment_intent.setup_future_usage = setup_future_usage;
     }
 
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {

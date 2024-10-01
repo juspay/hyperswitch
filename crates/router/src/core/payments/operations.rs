@@ -26,6 +26,9 @@ pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
 
+#[cfg(feature = "v2")]
+pub mod payment_create_intent;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -33,6 +36,8 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+pub use self::payment_create_intent::PaymentCreateIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
@@ -90,10 +95,20 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct ValidateResult {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: api::PaymentIdType,
+    pub storage_scheme: enums::MerchantStorageScheme,
+    pub requeue: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct ValidateResult {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
 }
@@ -115,6 +130,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub mandate_type: Option<api::MandateTransactionType>,
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 pub trait GetTracker<F: Clone, D, R>: Send {
     #[allow(clippy::too_many_arguments)]
@@ -122,6 +138,22 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+        mechant_key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
+        header_payload: &api::HeaderPayload,
+    ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+pub trait GetTracker<F: Clone, D, R>: Send {
+    #[allow(clippy::too_many_arguments)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &R,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,

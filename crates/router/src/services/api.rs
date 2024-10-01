@@ -1255,6 +1255,10 @@ impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequ
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsCreateIntentRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsCreateIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,

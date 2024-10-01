@@ -1518,9 +1518,9 @@ impl behaviour::Conversion for PaymentIntent {
             created_at,
             modified_at,
             last_synced,
-            setup_future_usage,
+            setup_future_usage: Some(setup_future_usage),
             client_secret,
-            active_attempt_id: active_attempt.get_id(),
+            active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -1531,7 +1531,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_id,
             updated_by,
 
-            request_incremental_authorization,
+            request_incremental_authorization: Some(request_incremental_authorization),
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1541,9 +1541,9 @@ impl behaviour::Conversion for PaymentIntent {
             customer_details: customer_details.map(Encryption::from),
             billing_address: billing_address.map(Encryption::from),
             shipping_address: shipping_address.map(Encryption::from),
-            capture_method,
+            capture_method: Some(capture_method),
             id,
-            authentication_type,
+            authentication_type: Some(authentication_type),
             prerouting_algorithm,
             merchant_reference_id,
             surcharge_amount: amount_details.surcharge_amount,
@@ -1608,9 +1608,11 @@ impl behaviour::Conversion for PaymentIntent {
                 created_at: storage_model.created_at,
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
-                setup_future_usage: storage_model.setup_future_usage,
+                setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 client_secret: storage_model.client_secret,
-                active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
+                active_attempt: storage_model
+                    .active_attempt_id
+                    .map(|active_attempt_id| RemoteStorageObject::ForeignID(active_attempt_id)),
                 order_details: storage_model.order_details,
                 allowed_payment_method_types: storage_model.allowed_payment_method_types,
                 connector_metadata: storage_model.connector_metadata,
@@ -1620,7 +1622,9 @@ impl behaviour::Conversion for PaymentIntent {
                 frm_merchant_decision: storage_model.frm_merchant_decision,
                 payment_link_id: storage_model.payment_link_id,
                 updated_by: storage_model.updated_by,
-                request_incremental_authorization: storage_model.request_incremental_authorization,
+                request_incremental_authorization: storage_model
+                    .request_incremental_authorization
+                    .unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication:
@@ -1640,11 +1644,11 @@ impl behaviour::Conversion for PaymentIntent {
                     .shipping_address
                     .async_lift(inner_decrypt)
                     .await?,
-                capture_method: storage_model.capture_method,
+                capture_method: storage_model.capture_method.unwrap_or_default(),
                 id: storage_model.id,
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
-                authentication_type: storage_model.authentication_type,
+                authentication_type: storage_model.authentication_type.unwrap_or_default(),
                 prerouting_algorithm: storage_model.prerouting_algorithm,
                 enable_payment_link: common_enums::EnablePaymentLinkRequest::from(
                     storage_model.enable_payment_link,
@@ -1684,9 +1688,9 @@ impl behaviour::Conversion for PaymentIntent {
             created_at: self.created_at,
             modified_at: self.modified_at,
             last_synced: self.last_synced,
-            setup_future_usage: self.setup_future_usage,
+            setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.get_id(),
+            active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
             order_details: self.order_details,
             allowed_payment_method_types: self.allowed_payment_method_types,
             connector_metadata: self.connector_metadata,
@@ -1697,7 +1701,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_id: self.payment_link_id,
             updated_by: self.updated_by,
 
-            request_incremental_authorization: self.request_incremental_authorization,
+            request_incremental_authorization: Some(self.request_incremental_authorization),
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1707,10 +1711,10 @@ impl behaviour::Conversion for PaymentIntent {
             customer_details: self.customer_details.map(Encryption::from),
             billing_address: self.billing_address.map(Encryption::from),
             shipping_address: self.shipping_address.map(Encryption::from),
-            capture_method: self.capture_method,
+            capture_method: Some(self.capture_method),
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
-            authentication_type: self.authentication_type,
+            authentication_type: Some(self.authentication_type),
             prerouting_algorithm: self.prerouting_algorithm,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,

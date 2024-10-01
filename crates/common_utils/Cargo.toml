@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["v1"]
+default = []
 keymanager = ["dep:router_env"]
 keymanager_mtls = ["reqwest/rustls-tls"]
 encryption_service = ["dep:router_env"]

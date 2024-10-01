@@ -1,4 +1,6 @@
-use crate::errors;
+use error_stack::ResultExt;
+
+use crate::{errors, generate_id_with_default_len};
 
 /// A global id that can be used to identify a payment
 #[derive(
@@ -17,10 +19,25 @@ pub struct GlobalPaymentId(super::GlobalId);
 // Database related implementations so that this field can be used directly in the database tables
 crate::impl_queryable_id_type!(GlobalPaymentId);
 
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum GlobalPaymentIdError {
+    #[error("Failed to construct GlobalPaymentId")]
+    ConstructionError,
+}
+
 impl GlobalPaymentId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+
+    /// Generate a new GlobalPaymentId from a cell id
+    pub fn generate(cell_id: &str) -> error_stack::Result<Self, GlobalPaymentIdError> {
+        let cell_id = super::CellId::from_str(cell_id)
+            .change_context(GlobalPaymentIdError::ConstructionError)
+            .attach_printable("Error generating GlobalPaymentId")?;
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
+        Ok(Self(global_id))
     }
 }
 

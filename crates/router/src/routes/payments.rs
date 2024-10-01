@@ -104,6 +104,62 @@ pub async fn payments_create(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateIntent, payment_id))]
+pub async fn payments_create_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCreateIntentRequest>,
+) -> impl Responder {
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsCreateIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, req_state| {
+            payments::payments_intent_core::<
+                api_types::CreateIntent,
+                payment_types::PaymentsCreateIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::CreateIntent>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                payments::operations::PaymentCreateIntent,
+                req,
+                api::AuthFlow::Client,
+                header_payload.clone(),
+            )
+        },
+        match env::which() {
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            _ => auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::JWTAuth {
+                    permission: Permission::PaymentWrite,
+                    minimum_entity_level: EntityType::Profile,
+                },
+                req.headers(),
+            ),
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
 pub async fn payments_start(
