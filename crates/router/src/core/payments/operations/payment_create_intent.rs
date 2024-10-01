@@ -77,6 +77,7 @@ impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for PaymentCreat
     }
 }
 
+#[async_trait::async_trait]
 pub trait PaymentsCreateIntentBridge {
     async fn create_domain_model_from_request(
         &self,
@@ -92,6 +93,7 @@ pub trait PaymentsCreateIntentBridge {
     ) -> RouterResult<common_enums::RequestIncrementalAuthorization>;
 }
 
+#[async_trait::async_trait]
 impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
     async fn create_domain_model_from_request(
         &self,
@@ -256,7 +258,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
         let profile_id = request.profile_id.clone();
 
         let profile = db
-            .find_business_profile_by_profile_id(&(state).into(), &key_store, &profile_id)
+            .find_business_profile_by_profile_id(&(state).into(), key_store, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -385,9 +387,9 @@ impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIn
                 .store
                 .find_customer_by_global_id(
                     &state.into(),
-                    &id.get_string_repr(),
+                    id.get_string_repr(),
                     &payment_data.payment_intent.merchant_id,
-                    &merchant_key_store,
+                    merchant_key_store,
                     storage_scheme,
                 )
                 .await?;

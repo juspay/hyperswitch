@@ -545,8 +545,8 @@ where
                 client_secret: payment_intent.client_secret.clone(),
                 merchant_reference_id: payment_intent.merchant_reference_id.clone(),
                 routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
-                capture_method: payment_intent.capture_method.clone(),
-                authentication_type: payment_intent.authentication_type.clone(),
+                capture_method: payment_intent.capture_method,
+                authentication_type: payment_intent.authentication_type,
                 billing: payment_intent
                     .billing_address
                     .clone()
@@ -559,7 +559,7 @@ where
                 customer_present: payment_intent.customer_present.clone(),
                 description: payment_intent.description.clone(),
                 return_url: payment_intent.return_url.clone(),
-                setup_future_usage: payment_intent.setup_future_usage.clone(),
+                setup_future_usage: payment_intent.setup_future_usage,
                 apply_mit_exemption: payment_intent.apply_mit_exemption.clone(),
                 statement_descriptor: payment_intent.statement_descriptor.clone(),
                 order_details: payment_intent.order_details.clone(),
@@ -572,10 +572,8 @@ where
                     .payment_link_config
                     .clone()
                     .map(ForeignFrom::foreign_from),
-                request_incremental_authorization: payment_intent
-                    .request_incremental_authorization
-                    .clone(),
-                expires_on: payment_intent.session_expiry.clone(),
+                request_incremental_authorization: payment_intent.request_incremental_authorization,
+                expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication
@@ -2507,7 +2505,7 @@ impl ForeignFrom<api_models::payments::AmountDetails>
 {
     fn foreign_from(amount_details: api_models::payments::AmountDetails) -> Self {
         Self {
-            order_amount: amount_details.order_amount.clone().into(),
+            order_amount: amount_details.order_amount.into(),
             currency: amount_details.currency,
             shipping_cost: amount_details.shipping_cost,
             tax_details: Some(diesel_models::TaxDetails {
@@ -2536,7 +2534,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
 {
     fn foreign_from(amount_details: hyperswitch_domain_models::payments::AmountDetails) -> Self {
         Self {
-            order_amount: amount_details.order_amount.clone().into(),
+            order_amount: amount_details.order_amount.into(),
             currency: amount_details.currency,
             shipping_cost: amount_details.shipping_cost,
             order_tax_amount: amount_details.tax_details.and_then(|tax_details| {
