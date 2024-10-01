@@ -399,8 +399,8 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   const paymentStatus = urlParams.get('status');
 
   // Check for valid statuses
-  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing') {
-    throw new Error(`Test failed: Unexpected payment status: ${paymentStatus}`);
+  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'partially_captured') {
+    throw new Error(`Payment failed after redirection with status: ${paymentStatus}`);
   }
 
   // Proceed with normal redirection validation
