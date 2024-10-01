@@ -14,6 +14,8 @@ use common_utils::{
     pii::{self, Email, EmailStrategy},
     types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use common_utils::types::ClientSecret;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
@@ -4804,6 +4806,7 @@ pub struct RedirectResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
+    #[schema(value_type = String)]
     pub client_secret: ClientSecret,
 }
 
