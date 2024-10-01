@@ -139,7 +139,7 @@ pub struct MifinityData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PazeWalletData {
-    pub payment_data: String,
+    pub complete_response: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -768,7 +768,7 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
 impl From<api_models::payments::PazeWalletData> for PazeWalletData {
     fn from(value: api_models::payments::PazeWalletData) -> Self {
         Self {
-            payment_data: value.payment_data,
+            complete_response: value.complete_response,
         }
     }
 }

@@ -2894,8 +2894,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PazeWalletData {
-    /// random data for now
-    pub payment_data: String,
+    pub complete_response: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

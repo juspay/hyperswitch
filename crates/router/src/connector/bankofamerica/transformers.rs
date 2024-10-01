@@ -962,6 +962,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Bank Of America"
                                         ))?
                                     }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => Err(
+                                        unimplemented_payment_method!("Paze", "Bank Of America"),
+                                    )?,
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
@@ -2314,6 +2317,9 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
                     "Manual",
                     "Bank Of America"
                 ))?,
+                types::PaymentMethodToken::PazeDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Paze", "Bank Of America"))?
+                }
             },
             None => PaymentInformation::from(&apple_pay_data),
         };

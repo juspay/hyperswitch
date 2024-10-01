@@ -268,6 +268,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Square"))?
+                        }
                     },
                     amount_money: SquarePaymentsAmountData {
                         amount: item.request.amount,

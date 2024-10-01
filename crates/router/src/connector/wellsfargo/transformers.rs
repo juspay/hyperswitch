@@ -135,6 +135,9 @@ impl TryFrom<&types::SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                             types::PaymentMethodToken::Token(_) => Err(
                                 unimplemented_payment_method!("Apple Pay", "Manual", "Wellsfargo"),
                             )?,
+                            types::PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
+                            }
                         },
                         None => (
                             PaymentInformation::ApplePayToken(Box::new(
@@ -1158,6 +1161,9 @@ impl TryFrom<&WellsfargoRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Manual",
                                             "Wellsfargo"
                                         ))?
+                                    }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
                                     }
                                 },
                                 None => {

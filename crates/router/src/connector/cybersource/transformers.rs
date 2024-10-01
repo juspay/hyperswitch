@@ -173,6 +173,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             types::PaymentMethodToken::Token(_) => Err(
                                 unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource"),
                             )?,
+                            types::PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                            }
                         },
                         None => (
                             PaymentInformation::ApplePayToken(Box::new(
@@ -1636,6 +1639,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Manual",
                                             "Cybersource"
                                         ))?
+                                    }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Cybersource"))?
                                     }
                                 },
                                 None => {

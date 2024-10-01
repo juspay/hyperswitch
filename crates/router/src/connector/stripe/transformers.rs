@@ -1778,6 +1778,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                             wallet_name: "Apple Pay".to_string(),
                         })?
                     }
+                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(crate::unimplemented_payment_method!("Paze", "Stripe"))?
+                    }
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {

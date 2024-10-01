@@ -34,7 +34,7 @@ use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
-use helpers::ApplePayData;
+use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
@@ -1742,7 +1742,31 @@ where
             );
         }
         TokenizationAction::DecryptPazeToken(payment_processing_details) => {
-            // Write decryption flow here.
+            let paze_data = match payment_data.get_payment_method_data() {
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::Paze(wallet_data))) => {
+                    Some(
+                        decrypt_paze_token(
+                            wallet_data.clone(),
+                            payment_processing_details.paze_private_key.clone(),
+                            payment_processing_details
+                                .paze_private_key_passphrase
+                                .clone(),
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    )
+                }
+                _ => None,
+            };
+            let paze_decrypted_data = paze_data
+                .parse_value::<hyperswitch_domain_models::router_data::PazeDecryptedData>(
+                    "PazeDecryptedData",
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            router_data.payment_method_token = Some(
+                hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(Box::new(
+                    paze_decrypted_data,
+                )),
+            );
         }
         _ => (),
     };
