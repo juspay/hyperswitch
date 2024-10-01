@@ -1,4 +1,7 @@
-use common_utils::types::{UnifiedCode, UnifiedMessage};
+use common_utils::{
+    payout_method_utils,
+    types::{UnifiedCode, UnifiedMessage},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -33,6 +36,7 @@ pub struct PayoutAttempt {
     pub routing_info: Option<serde_json::Value>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(
@@ -71,6 +75,7 @@ pub struct PayoutAttemptNew {
     pub routing_info: Option<serde_json::Value>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,6 +103,9 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
+    AdditionalPayoutMethodDataUpdate {
+        additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    },
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -119,6 +127,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -140,6 +149,7 @@ impl Default for PayoutAttemptUpdateInternal {
             customer_id: None,
             unified_code: None,
             unified_message: None,
+            additional_payout_method_data: None,
         }
     }
 }
@@ -191,6 +201,12 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 merchant_connector_id,
                 ..Default::default()
             },
+            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => Self {
+                additional_payout_method_data,
+                ..Default::default()
+            },
         }
     }
 }
@@ -214,6 +230,7 @@ impl PayoutAttemptUpdate {
             merchant_connector_id,
             unified_code,
             unified_message,
+            additional_payout_method_data,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -232,6 +249,8 @@ impl PayoutAttemptUpdate {
             merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
             unified_code: unified_code.or(source.unified_code),
             unified_message: unified_message.or(source.unified_message),
+            additional_payout_method_data: additional_payout_method_data
+                .or(source.additional_payout_method_data),
             ..source
         }
     }

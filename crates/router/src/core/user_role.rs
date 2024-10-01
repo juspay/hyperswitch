@@ -734,8 +734,17 @@ pub async fn list_users_in_lineage(
             )
             .await?
         }
-        EntityType::Internal => HashSet::new(),
     };
+
+    // This filtering is needed because for org level users in V1, merchant_id is present.
+    // Due to this, we get org level users in merchant level users list.
+    let user_roles_set = user_roles_set
+        .into_iter()
+        .filter_map(|user_role| {
+            let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
+            (entity_type <= requestor_role_info.get_entity_type()).then_some(user_role)
+        })
+        .collect::<HashSet<_>>();
 
     let mut email_map = state
         .global_store
@@ -859,10 +868,13 @@ pub async fn list_invitations_for_user(
                         .clone()
                         .ok_or(UserErrors::InternalServerError)?,
                 )),
-                EntityType::Internal => return Err(report!(UserErrors::InternalServerError)),
             }
 
-            Ok((org_ids, merchant_ids, profile_ids_with_merchant_ids))
+            Ok::<_, error_stack::Report<UserErrors>>((
+                org_ids,
+                merchant_ids,
+                profile_ids_with_merchant_ids,
+            ))
         },
     )?;
 
@@ -953,7 +965,6 @@ pub async fn list_invitations_for_user(
                     .as_ref()
                     .map(|profile_id| profile_name_map.get(profile_id).cloned())
                     .ok_or(UserErrors::InternalServerError)?,
-                EntityType::Internal => return Err(report!(UserErrors::InternalServerError)),
             };
 
             Ok(user_role_api::ListInvitationForUserResponse {

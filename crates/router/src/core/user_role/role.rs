@@ -224,6 +224,13 @@ pub async fn list_roles_with_info(
         .await
         .attach_printable("Invalid role_id in JWT")?;
 
+    if user_role_info.is_internal() {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "Internal roles are not allowed for this operation".to_string(),
+        )
+        .into());
+    }
+
     let mut role_info_vec = PREDEFINED_ROLES
         .iter()
         .map(|(_, role_info)| role_info.clone())
@@ -256,12 +263,6 @@ pub async fn list_roles_with_info(
                 .attach_printable("Failed to get roles")?,
             // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
             EntityType::Profile => Vec::new(),
-            EntityType::Internal => {
-                return Err(UserErrors::InvalidRoleOperationWithMessage(
-                    "Internal roles are not allowed for this operation".to_string(),
-                )
-                .into());
-            }
         };
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
@@ -336,13 +337,6 @@ pub async fn list_roles_at_entity_level(
             .attach_printable("Failed to get roles")?,
         // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
         EntityType::Profile => Vec::new(),
-
-        EntityType::Internal => {
-            return Err(UserErrors::InvalidRoleOperationWithMessage(
-                "Internal roles are not allowed for this operation".to_string(),
-            )
-            .into());
-        }
     };
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));

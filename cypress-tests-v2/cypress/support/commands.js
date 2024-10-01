@@ -1214,7 +1214,7 @@ Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Keys list call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant accounts list call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -1255,7 +1255,7 @@ Cypress.Commands.add("businessProfilesListCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Keys list call failed with status ${response.status} and message ${response.body.message}`
+        `Business profiles list call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -1347,6 +1347,14 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
     if (response.status === 200) {
       // This end point does not work
       expect(response.body).to.be.an("array").and.to.not.be.empty;
+      for (const key in response.body) {
+        expect(response.body[key])
+          .to.have.property("key_id")
+          .and.to.include("dev_").and.to.not.be.empty;
+        expect(response.body[key])
+          .to.have.property("merchant_id")
+          .and.to.equal(merchant_id).and.to.not.be.empty;
+      }
     } else {
       // to be updated
       throw new Error(

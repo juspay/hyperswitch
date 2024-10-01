@@ -235,3 +235,25 @@ impl super::settings::NetworkTokenizationService {
         })
     }
 }
+
+impl super::settings::KeyManagerConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        #[cfg(feature = "keymanager_mtls")]
+        when(
+            self.enabled && (self.ca.is_default_or_empty() || self.cert.is_default_or_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Invalid CA or Certificate for Keymanager.".into(),
+                ))
+            },
+        )?;
+
+        when(self.enabled && self.url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Invalid URL for Keymanager".into(),
+            ))
+        })
+    }
+}

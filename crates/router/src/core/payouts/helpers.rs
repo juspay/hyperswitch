@@ -5,7 +5,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, id_type, type_name,
+    fp_utils, id_type, payout_method_utils as payout_additional, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
         MinorUnit, UnifiedCode, UnifiedMessage,
@@ -1295,4 +1295,84 @@ pub async fn get_translated_unified_code_and_message(
             field_name: "unified_message",
         })?
         .or_else(|| unified_message.cloned()))
+}
+
+pub async fn get_additional_payout_data(
+    pm_data: &api::PayoutMethodData,
+    db: &dyn StorageInterface,
+    profile_id: &id_type::ProfileId,
+) -> Option<payout_additional::AdditionalPayoutMethodData> {
+    match pm_data {
+        api::PayoutMethodData::Card(card_data) => {
+            let card_isin = Some(card_data.card_number.get_card_isin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => {
+                    Some(card_data.card_number.get_extended_card_bin())
+                }
+                _ => None,
+            };
+            let last4 = Some(card_data.card_number.get_last4());
+
+            let card_info = card_isin
+                .clone()
+                .async_and_then(|card_isin| async move {
+                    db.get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
+                })
+                .await
+                .flatten()
+                .map(|card_info| {
+                    payout_additional::AdditionalPayoutMethodData::Card(Box::new(
+                        payout_additional::CardAdditionalData {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info.card_network.clone(),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_issuing_country: card_info.card_issuing_country,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: Some(card_data.expiry_month.clone()),
+                            card_exp_year: Some(card_data.expiry_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                        },
+                    ))
+                });
+            Some(card_info.unwrap_or_else(|| {
+                payout_additional::AdditionalPayoutMethodData::Card(Box::new(
+                    payout_additional::CardAdditionalData {
+                        card_issuer: None,
+                        card_network: None,
+                        bank_code: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        last4,
+                        card_isin,
+                        card_extended_bin,
+                        card_exp_month: Some(card_data.expiry_month.clone()),
+                        card_exp_year: Some(card_data.expiry_year.clone()),
+                        card_holder_name: card_data.card_holder_name.clone(),
+                    },
+                ))
+            }))
+        }
+        api::PayoutMethodData::Bank(bank_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Bank(
+                Box::new(bank_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Wallet(wallet_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Wallet(
+                Box::new(wallet_data.to_owned().into()),
+            ))
+        }
+    }
 }

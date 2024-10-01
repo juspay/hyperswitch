@@ -168,6 +168,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
+            is_auto_retries_enabled: item.is_auto_retries_enabled,
+            max_auto_retries_enabled: item.max_auto_retries_enabled,
         })
     }
 }
@@ -353,5 +355,7 @@ pub async fn create_profile_from_merchant_account(
         is_tax_connector_enabled: request.is_tax_connector_enabled,
         dynamic_routing_algorithm: None,
         is_network_tokenization_enabled: request.is_network_tokenization_enabled,
+        is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
+        max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
     }))
 }
