@@ -739,11 +739,12 @@ mod client_secret_type {
     {
         fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
             let string_repr = String::from_sql(value)?;
-            let (payment_id, secret) = string_repr.rsplit_once("_secret_").ok_or_else(|| {
-                ParsingError::EncodeError(
-                    "Expected a string in the format '{payment_id}_secret_{secret}'",
-                )
-            })?;
+            let (payment_id, secret) =
+                string_repr
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
 
             let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
                 .map_err(|err| {
@@ -751,7 +752,7 @@ mod client_secret_type {
                     ParsingError::EncodeError("Error while constructing GlobalPaymentId")
                 })?;
 
-            Ok(ClientSecret {
+            Ok(Self {
                 payment_id,
                 secret: masking::Secret::new(secret.to_owned()),
             })
