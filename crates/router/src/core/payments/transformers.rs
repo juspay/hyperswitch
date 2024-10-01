@@ -68,26 +68,6 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let resource_id = match payment_data
-        .payment_attempt
-        .connector_transaction_id
-        .clone()
-    {
-        Some(id) => types::ResponseId::ConnectorTransactionId(id),
-        None => types::ResponseId::NoResponseId,
-    };
-
-    // [#44]: why should response be filled during request
-    let response = Ok(types::PaymentsResponseData::TransactionResponse {
-        resource_id,
-        redirection_data: None,
-        mandate_reference: None,
-        connector_metadata: None,
-        network_txn_id: None,
-        connector_response_reference_id: None,
-        incremental_authorization_allowed: None,
-        charge_id: None,
-    });
     let additional_data = PaymentAdditionalData {
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
@@ -106,7 +86,7 @@ where
             .payment_id
             .get_string_repr()
             .to_owned(),
-        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+        attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
@@ -120,7 +100,7 @@ where
         connector_meta_data: None,
         connector_wallets_details: None,
         request: T::try_from(additional_data)?,
-        response,
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         amount_captured: None,
         minor_amount_captured: None,
         access_token: None,
@@ -1258,6 +1238,7 @@ where
     Ok(output)
 }
 
+#[cfg(feature = "v1")]
 pub fn third_party_sdk_session_next_action<Op>(
     payment_attempt: &storage::PaymentAttempt,
     operation: &Op,
@@ -1508,6 +1489,7 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
@@ -1538,6 +1520,7 @@ pub fn bank_transfer_next_steps_check(
     Ok(bank_transfer_next_step)
 }
 
+#[cfg(feature = "v1")]
 pub fn voucher_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::VoucherNextStepData>> {
@@ -1792,29 +1775,45 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let capture_method = payment_data.get_capture_method();
         let amount = payment_data
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
+
+        let payment_method_type = payment_data
+            .payment_attempt
+            .get_payment_method_type()
+            .to_owned();
         Ok(Self {
             amount,
             integrity_object: None,
             mandate_id: payment_data.mandate_id.clone(),
-            connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
+            connector_transaction_id: match payment_data.payment_attempt.get_connector_payment_id()
+            {
                 Some(connector_txn_id) => {
-                    types::ResponseId::ConnectorTransactionId(connector_txn_id)
+                    types::ResponseId::ConnectorTransactionId(connector_txn_id.to_owned())
                 }
                 None => types::ResponseId::NoResponseId,
             },
             encoded_data: payment_data.payment_attempt.encoded_data,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             sync_type: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => types::SyncRequestType::MultipleCaptureSync(
@@ -1822,7 +1821,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
-            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            payment_method_type,
             currency: payment_data.currency,
             charges: payment_data
                 .payment_intent
@@ -1837,44 +1836,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                         .attach_printable("Failed to parse charges in to PaymentCharges")
                 })
                 .transpose()?,
-            payment_experience: payment_data.payment_attempt.payment_experience,
-        })
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data;
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
-        Ok(Self {
-            amount,
-            integrity_object: None,
-            mandate_id: payment_data.mandate_id.clone(),
-            connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
-                Some(connector_txn_id) => {
-                    types::ResponseId::ConnectorTransactionId(connector_txn_id)
-                }
-                None => types::ResponseId::NoResponseId,
-            },
-            encoded_data: payment_data.payment_attempt.encoded_data,
-            capture_method: payment_data.payment_attempt.capture_method,
-            connector_meta: payment_data.payment_attempt.connector_metadata,
-            sync_type: match payment_data.multiple_capture_data {
-                Some(multiple_capture_data) => types::SyncRequestType::MultipleCaptureSync(
-                    multiple_capture_data.get_pending_connector_capture_ids(),
-                ),
-                None => types::SyncRequestType::SinglePaymentSync,
-            },
-            payment_method_type: payment_data.payment_attempt.payment_method_type,
-            currency: payment_data.currency,
-            charges: None,
             payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }
@@ -1929,12 +1890,14 @@ impl ConnectorTransactionId for Helcim {
         &self,
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        if payment_attempt.connector_transaction_id.is_none() {
+        if payment_attempt.get_connector_payment_id().is_none() {
             let metadata =
                 Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
             metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
         } else {
-            Ok(payment_attempt.connector_transaction_id)
+            Ok(payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string))
         }
     }
 }
@@ -2349,6 +2312,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

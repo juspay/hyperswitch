@@ -1,7 +1,7 @@
 use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use common_utils::{
-    id_type,
+    id_type, payout_method_utils,
     types::{UnifiedCode, UnifiedMessage},
 };
 use serde::{Deserialize, Serialize};
@@ -83,6 +83,7 @@ pub struct PayoutAttempt {
     pub routing_info: Option<serde_json::Value>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -108,6 +109,7 @@ pub struct PayoutAttemptNew {
     pub routing_info: Option<serde_json::Value>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +138,9 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     },
+    AdditionalPayoutMethodDataUpdate {
+        additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -155,6 +160,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -202,6 +208,12 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 connector: Some(connector),
                 routing_info,
                 merchant_connector_id,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => Self {
+                additional_payout_method_data,
                 ..Default::default()
             },
         }

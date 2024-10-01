@@ -83,7 +83,9 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         &self,
         payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        Ok(payment_attempt.connector_transaction_id)
+        Ok(payment_attempt
+            .get_connector_payment_id()
+            .map(ToString::to_string))
     }
 }
 
@@ -92,57 +94,37 @@ pub trait Router {}
 pub trait Connector:
     Send
     + Refund
-    + RefundV2
     + Payment
-    + PaymentV2
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
-    + ConnectorAccessTokenV2
     + Dispute
-    + DisputeV2
     + FileUpload
-    + FileUploadV2
     + ConnectorTransactionId
     + Payouts
-    + PayoutsV2
     + ConnectorVerifyWebhookSource
-    + ConnectorVerifyWebhookSourceV2
     + FraudCheck
-    + FraudCheckV2
     + ConnectorMandateRevoke
-    + ConnectorMandateRevokeV2
     + ExternalAuthentication
-    + ExternalAuthenticationV2
     + TaxCalculation
 {
 }
 
 impl<
         T: Refund
-            + RefundV2
             + Payment
-            + PaymentV2
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
-            + ConnectorAccessTokenV2
             + Dispute
-            + DisputeV2
             + FileUpload
-            + FileUploadV2
             + ConnectorTransactionId
             + Payouts
-            + PayoutsV2
             + ConnectorVerifyWebhookSource
-            + ConnectorVerifyWebhookSourceV2
             + FraudCheck
-            + FraudCheckV2
             + ConnectorMandateRevoke
-            + ConnectorMandateRevokeV2
             + ExternalAuthentication
-            + ExternalAuthenticationV2
             + TaxCalculation,
     > Connector for T
 {

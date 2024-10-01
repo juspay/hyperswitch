@@ -58,7 +58,7 @@ pub struct Connectors {
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
-    pub paybox: ConnectorParams,
+    pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,

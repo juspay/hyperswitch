@@ -5378,6 +5378,48 @@
           }
         }
       },
+      "AchBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for ach bank transfer payout method",
+        "required": [
+          "bank_account_number",
+          "bank_routing_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Partially masked account number for ach bank debit payment",
+            "example": "0001****3456"
+          },
+          "bank_routing_number": {
+            "type": "string",
+            "description": "Partially masked routing number for ach bank debit payment",
+            "example": "110***000"
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          }
+        }
+      },
       "AchBillingDetails": {
         "type": "object",
         "properties": {
@@ -5429,6 +5471,44 @@
             }
           }
         ]
+      },
+      "AdditionalPayoutMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Card"
+            ],
+            "properties": {
+              "Card": {
+                "$ref": "#/components/schemas/CardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Bank"
+            ],
+            "properties": {
+              "Bank": {
+                "$ref": "#/components/schemas/BankAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Wallet"
+            ],
+            "properties": {
+              "Wallet": {
+                "$ref": "#/components/schemas/WalletAdditionalData"
+              }
+            }
+          }
+        ],
+        "description": "Masked payout method details for storing in db"
       },
       "Address": {
         "type": "object",
@@ -5981,6 +6061,46 @@
           }
         }
       },
+      "BacsBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for bacs bank transfer payout method",
+        "required": [
+          "bank_sort_code",
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_sort_code": {
+            "type": "string",
+            "description": "Partially masked sort code for Bacs payment method",
+            "example": "108800"
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "0001****3456"
+          },
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          }
+        }
+      },
       "BacsBankTransferInstructions": {
         "type": "object",
         "required": [
@@ -6047,6 +6167,23 @@
             "$ref": "#/components/schemas/PixBankTransfer"
           }
         ]
+      },
+      "BankAdditionalData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AchBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/BacsBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          }
+        ],
+        "description": "Masked payout method details for bank payout method"
       },
       "BankDebitAdditionalData": {
         "oneOf": [
@@ -8017,6 +8154,75 @@
             "description": "The card holder's nick name",
             "example": "John Test",
             "nullable": true
+          }
+        }
+      },
+      "CardAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for card payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer of the card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card type, can be either `credit` or `debit`",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Card issuing country",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "Code for Card issuing bank",
+            "nullable": true
+          },
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "The ISIN of the card",
+            "nullable": true
+          },
+          "card_extended_bin": {
+            "type": "string",
+            "description": "Extended bin of card, contains the first 8 digits of card number",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
           }
         }
       },
@@ -19552,6 +19758,14 @@
             ],
             "nullable": true
           },
+          "payout_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -20035,6 +20249,44 @@
           }
         ],
         "description": "The payout method information required for carrying out a payout"
+      },
+      "PayoutMethodDataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank"
+            ],
+            "properties": {
+              "bank": {
+                "$ref": "#/components/schemas/BankAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletAdditionalData"
+              }
+            }
+          }
+        ],
+        "description": "The payout method information for response"
       },
       "PayoutRetrieveBody": {
         "type": "object",
@@ -20573,6 +20825,30 @@
           }
         }
       },
+      "PaypalAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for paypal wallet payout method",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with paypal account",
+            "example": "john.doe@example.com",
+            "nullable": true
+          },
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to paypal account",
+            "example": "******* 3349",
+            "nullable": true
+          },
+          "paypal_id": {
+            "type": "string",
+            "description": "id of the paypal account",
+            "example": "G83K ***** HCQ2",
+            "nullable": true
+          }
+        }
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -20944,6 +21220,18 @@
           "is_network_tokenization_enabled": {
             "type": "boolean",
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+          },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "nullable": true
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true,
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -20975,7 +21263,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
-          "is_network_tokenization_enabled"
+          "is_network_tokenization_enabled",
+          "is_auto_retries_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -21160,6 +21449,18 @@
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
             "default": false,
             "example": false
+          },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "default": false,
+            "example": false
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true
           }
         }
       },
@@ -22637,6 +22938,46 @@
           }
         }
       },
+      "SepaBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for sepa bank transfer payout method",
+        "required": [
+          "iban"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "example": "DE8937******013000"
+          },
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_city": {
+            "type": "string",
+            "description": "Bank city",
+            "example": "California",
+            "nullable": true
+          },
+          "bic": {
+            "type": "string",
+            "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
+            "example": "HSBCGB2LXXX",
+            "nullable": true
+          }
+        }
+      },
       "SepaBankTransferInstructions": {
         "type": "object",
         "required": [
@@ -23627,6 +23968,18 @@
           }
         }
       },
+      "VenmoAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for venmo wallet payout method",
+        "properties": {
+          "telephone_number": {
+            "type": "string",
+            "description": "mobile number linked to venmo account",
+            "example": "******* 3349",
+            "nullable": true
+          }
+        }
+      },
       "VoucherData": {
         "oneOf": [
           {
@@ -23800,6 +24153,17 @@
             }
           }
         ]
+      },
+      "WalletAdditionalData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PaypalAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/VenmoAdditionalData"
+          }
+        ],
+        "description": "Masked payout method details for wallet payout method"
       },
       "WalletAdditionalDataForCard": {
         "type": "object",
