@@ -497,6 +497,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
+        api_models::payments::MobilePaymentData,
+        api_models::payments::MobilePaymentResponse,
         api_models::payments::Address,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
