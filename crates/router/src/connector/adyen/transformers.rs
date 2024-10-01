@@ -1112,38 +1112,6 @@ pub enum CardBrand {
     Visa,
     MC,
     Amex,
-    Argencard,
-    Bcmc,
-    Bijcard,
-    Cabal,
-    Cartebancaire,
-    Codensa,
-    Cup,
-    Dankort,
-    Diners,
-    Discover,
-    Electron,
-    Elo,
-    Forbrugsforeningen,
-    Hiper,
-    Hipercard,
-    Jcb,
-    Karenmillen,
-    Laser,
-    Maestro,
-    Maestrouk,
-    Mcalphabankbonus,
-    Mir,
-    Naranja,
-    Oasis,
-    Rupay,
-    Shopping,
-    Solo,
-    Troy,
-    Uatp,
-    Visaalphabankbonus,
-    Visadankort,
-    Warehouse,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -1963,22 +1931,6 @@ impl<'a> TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'a> {
     }
 }
 
-fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<CardBrand> {
-    match card_network {
-        common_enums::CardNetwork::Visa => Some(CardBrand::Visa),
-        common_enums::CardNetwork::Mastercard => Some(CardBrand::MC),
-        common_enums::CardNetwork::CartesBancaires => Some(CardBrand::Cartebancaire),
-        common_enums::CardNetwork::AmericanExpress => Some(CardBrand::Amex),
-        common_enums::CardNetwork::JCB => Some(CardBrand::Jcb),
-        common_enums::CardNetwork::DinersClub => Some(CardBrand::Diners),
-        common_enums::CardNetwork::Discover => Some(CardBrand::Discover),
-        common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
-        common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
-        common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
-        common_enums::CardNetwork::Interac => None,
-    }
-}
-
 impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
@@ -1991,7 +1943,7 @@ impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
             holder_name: card_holder_name,
-            brand: card.card_network.clone().and_then(get_adyen_card_network),
+            brand: None,
             network_payment_reference: None,
         };
         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
@@ -2046,11 +1998,7 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Master => Ok(Self::MC),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            utils::CardIssuer::Maestro => Ok(Self::Maestro),
-            utils::CardIssuer::Discover => Ok(Self::Discover),
-            utils::CardIssuer::DinersClub => Ok(Self::Diners),
-            utils::CardIssuer::JCB => Ok(Self::Jcb),
-            utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
+            _ => Err(errors::ConnectorError::NotImplemented("CardBrand".to_string()).into()),
         }
     }
 }
@@ -2581,12 +2529,8 @@ impl<'a>
             payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
                     domain::PaymentMethodData::Card(ref card) => {
-                        let brand = match card.card_network.clone().and_then(get_adyen_card_network)
-                        {
-                            Some(card_network) => card_network,
-                            None => CardBrand::try_from(&card.get_card_issuer()?)?,
-                        };
-
+                        let card_issuer = card.get_card_issuer()?;
+                        let brand = CardBrand::try_from(&card_issuer)?;
                         let card_holder_name = item.router_data.get_optional_billing_full_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
