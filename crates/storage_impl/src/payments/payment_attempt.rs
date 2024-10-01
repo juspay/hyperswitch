@@ -403,7 +403,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
-        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
@@ -427,7 +426,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             payment_method,
             payment_method_type,
             authentication_type,
-            time_range,
             profile_id_list,
             merchant_connector_id,
         )
@@ -1289,7 +1287,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
-        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
@@ -1302,7 +1299,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
-                time_range,
                 profile_id_list,
                 storage_scheme,
             )

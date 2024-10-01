@@ -218,6 +218,8 @@ diesel::table! {
         version -> ApiVersion,
         dynamic_routing_algorithm -> Nullable<Json>,
         is_network_tokenization_enabled -> Bool,
+        is_auto_retries_enabled -> Nullable<Bool>,
+        max_auto_retries_enabled -> Nullable<Int2>,
     }
 }
 
