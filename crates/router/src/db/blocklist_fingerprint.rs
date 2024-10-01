@@ -44,7 +44,7 @@ impl BlocklistFingerprintInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::BlocklistFingerprint::find_by_merchant_id_fingerprint_id(
             &conn,
             merchant_id,

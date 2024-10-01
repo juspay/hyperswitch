@@ -111,7 +111,7 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::Config::find_by_key(&conn, key)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -124,7 +124,7 @@ impl ConfigInterface for Store {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let find_config_by_key_from_db = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_connection_write(self).await?;
             storage::Config::find_by_key(&conn, key)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -140,7 +140,7 @@ impl ConfigInterface for Store {
         default_config: Option<String>,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let find_else_unwrap_or = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_connection_write(self).await?;
             match storage::Config::find_by_key(&conn, key)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
