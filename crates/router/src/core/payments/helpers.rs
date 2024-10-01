@@ -5,7 +5,7 @@ use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
     payments::{
-        additional_info as payment_additional_types, AddressDetailsWithPhone,
+        additional_info as payment_additional_types, AddressDetailsWithPhone, PaymentChargeRequest,
         RequestSurchargeDetails,
     },
 };
@@ -887,6 +887,7 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
+#[cfg(feature = "v1")]
 /// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
 #[instrument(skip_all)]
 pub fn validate_amount_to_capture_and_capture_method(
@@ -1788,7 +1789,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 pub async fn retrieve_card_with_permanent_token(
     state: &SessionState,
     locker_id: &str,
-    _payment_method_id: &common_utils::id_type::GlobalPaymentMethodId,
+    _payment_method_id: &id_type::GlobalPaymentMethodId,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&domain::CardToken>,
     _merchant_key_store: &domain::MerchantKeyStore,
@@ -2226,15 +2227,16 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         }
 
         (Some(_), _) => {
-            let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method(
-                &request,
-                state,
-                &payment_data.payment_intent,
-                &payment_data.payment_attempt,
-                merchant_key_store,
-                Some(business_profile),
-            )
-            .await?;
+            let (payment_method_data, payment_token) =
+                payment_methods::retrieve_payment_method_core(
+                    &request,
+                    state,
+                    &payment_data.payment_intent,
+                    &payment_data.payment_attempt,
+                    merchant_key_store,
+                    Some(business_profile),
+                )
+                .await?;
 
             payment_data.token = payment_token;
 
@@ -2265,7 +2267,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     )
     .await?;
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-    let key_for_hyperswitch_token = payment_attempt.payment_method.map(|payment_method| {
+    let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
         payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
             payment_method,
@@ -3869,7 +3871,7 @@ pub enum AttemptType {
 }
 
 impl AttemptType {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
@@ -3964,7 +3966,7 @@ impl AttemptType {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
@@ -4006,7 +4008,7 @@ impl AttemptType {
                     storage_scheme,
                 );
 
-                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+                #[cfg(feature = "v1")]
                 let new_payment_attempt = db
                     .insert_payment_attempt(new_payment_attempt_to_insert, storage_scheme)
                     .await
@@ -4014,7 +4016,7 @@ impl AttemptType {
                         payment_id: fetched_payment_intent.get_id().to_owned(),
                     })?;
 
-                #[cfg(all(feature = "v2", feature = "payment_v2"))]
+                #[cfg(feature = "v2")]
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         key_manager_state,
@@ -4039,7 +4041,7 @@ impl AttemptType {
                                 ),
                                 Some(true),
                             ),
-                            active_attempt_id: new_payment_attempt.attempt_id.clone(),
+                            active_attempt_id: new_payment_attempt.get_id().to_owned(),
                             attempt_count: new_attempt_count,
                             updated_by: storage_scheme.to_string(),
                         },
@@ -4052,7 +4054,7 @@ impl AttemptType {
                 logger::info!(
                     "manual_retry payment for {:?} with attempt_id {}",
                     updated_payment_intent.get_id(),
-                    new_payment_attempt.attempt_id
+                    new_payment_attempt.get_id()
                 );
 
                 Ok((updated_payment_intent, new_payment_attempt))
@@ -5654,7 +5656,7 @@ where
 
         if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
             if let Some(payment_method_type) =
-                payment_data.get_payment_attempt().payment_method_type
+                payment_data.get_payment_attempt().get_payment_method_type()
             {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
                     logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
@@ -5740,4 +5742,30 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         }
     }
     Ok(())
+}
+
+pub fn validate_platform_fees_for_marketplace(
+    amount: api::Amount,
+    charges: &PaymentChargeRequest,
+) -> Result<(), errors::ApiErrorResponse> {
+    match amount {
+        api::Amount::Zero => {
+            if charges.fees.get_amount_as_i64() != 0 {
+                Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "charges.fees",
+                })
+            } else {
+                Ok(())
+            }
+        }
+        api::Amount::Value(amount) => {
+            if charges.fees.get_amount_as_i64() > amount.into() {
+                Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "charges.fees",
+                })
+            } else {
+                Ok(())
+            }
+        }
+    }
 }

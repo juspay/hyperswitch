@@ -215,9 +215,10 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct KeyManagerConfig {
-    pub enabled: Option<bool>,
+    pub enabled: bool,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
@@ -863,6 +864,8 @@ impl Settings<SecuredSecret> {
             .map(|x| x.get_inner().validate())
             .transpose()?;
 
+        self.key_manager.get_inner().validate()?;
+
         Ok(())
     }
 }
@@ -958,7 +961,7 @@ impl Default for CellInformation {
         // around the time of deserializing application settings.
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
-        let cell_id = common_utils::id_type::CellId::from_str("defid")
+        let cell_id = common_utils::id_type::CellId::from_string("defid")
             .expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }

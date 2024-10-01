@@ -300,6 +300,10 @@ pub async fn modify_trackers(
         routing_info: None,
         unified_code: None,
         unified_message: None,
+        additional_payout_method_data: payout_data
+            .payout_attempt
+            .additional_payout_method_data
+            .to_owned(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

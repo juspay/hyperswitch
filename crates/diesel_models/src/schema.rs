@@ -211,6 +211,8 @@ diesel::table! {
         version -> ApiVersion,
         dynamic_routing_algorithm -> Nullable<Json>,
         is_network_tokenization_enabled -> Bool,
+        is_auto_retries_enabled -> Nullable<Bool>,
+        max_auto_retries_enabled -> Nullable<Int2>,
     }
 }
 
@@ -1058,6 +1060,7 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        additional_payout_method_data -> Nullable<Jsonb>,
     }
 }
 

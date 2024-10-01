@@ -198,7 +198,7 @@ impl super::settings::CellInformation {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::{fp_utils::when, id_type};
 
-        when(self == &super::settings::CellInformation::default(), || {
+        when(self == &Self::default(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "CellId cannot be set to a default".into(),
             ))
@@ -231,6 +231,28 @@ impl super::settings::NetworkTokenizationService {
         when(self.private_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "private_key must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::KeyManagerConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        #[cfg(feature = "keymanager_mtls")]
+        when(
+            self.enabled && (self.ca.is_default_or_empty() || self.cert.is_default_or_empty()),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Invalid CA or Certificate for Keymanager.".into(),
+                ))
+            },
+        )?;
+
+        when(self.enabled && self.url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Invalid URL for Keymanager".into(),
             ))
         })
     }

@@ -99,6 +99,7 @@ impl
             connector_transaction_id: attempt.connector_transaction_id.clone(),
             priority: payout.priority,
             billing: address,
+            payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),
             client_secret: None,
             payout_link: None,
             unified_code: attempt.unified_code.clone(),

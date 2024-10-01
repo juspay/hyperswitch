@@ -9,10 +9,6 @@ use crate::{
     types::api as api_types,
 };
 
-/// API Key - Create
-///
-/// Create a new API Key for accessing our APIs from your servers. The plaintext API Key will be
-/// displayed only once on creation, so ensure you store it securely.
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
 pub async fn api_key_create(
@@ -78,9 +74,6 @@ pub async fn api_key_create(
     .await
 }
 
-/// API Key - Retrieve
-///
-/// Retrieve information about the specified API Key.
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
@@ -117,9 +110,6 @@ pub async fn api_key_retrieve(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - Retrieve
-///
-/// Retrieve information about the specified API Key.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
@@ -150,9 +140,6 @@ pub async fn api_key_retrieve(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - Update
-///
-/// Update information for the specified API Key.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyUpdate))]
 pub async fn api_key_update(
     state: web::Data<AppState>,
@@ -190,26 +177,27 @@ pub async fn api_key_update(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    key_id: web::Path<String>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
-    let (merchant_id, key_id) = path.into_inner();
+    let api_key_id = key_id.into_inner();
     let mut payload = json_payload.into_inner();
-    payload.key_id = key_id;
-    payload.merchant_id.clone_from(&merchant_id);
+    payload.key_id = api_key_id;
 
     api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, _, payload, _| api_keys::update_api_key(state, payload),
+        |state, authentication_data, mut payload, _| {
+            payload.merchant_id = authentication_data.merchant_account.get_id().to_owned();
+            api_keys::update_api_key(state, payload)
+        },
         auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::ApiKeyWrite,
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
+                required_permission: Permission::ApiKeyRead,
                 minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
@@ -220,10 +208,6 @@ pub async fn api_key_update(
 }
 
 #[cfg(feature = "v1")]
-/// API Key - Revoke
-///
-/// Revoke the specified API Key. Once revoked, the API Key can no longer be used for
-/// authenticating with our APIs.
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
@@ -283,24 +267,7 @@ pub async fn api_key_revoke(
     .await
 }
 
-/// API Key - List
-///
-/// List all API Keys associated with your merchant account.
-#[utoipa::path(
-    get,
-    path = "/api_keys/{merchant_id}/list",
-    params(
-        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("limit" = Option<i64>, Query, description = "The maximum number of API Keys to include in the response"),
-        ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
-    ),
-    responses(
-        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<RetrieveApiKeyResponse>),
-    ),
-    tag = "API Key",
-    operation_id = "List all API Keys associated with a merchant account",
-    security(("admin_api_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
 pub async fn api_key_list(
     state: web::Data<AppState>,
@@ -326,6 +293,37 @@ pub async fn api_key_list(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
+                required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
+pub async fn api_key_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_types::ListApiKeyConstraints>,
+) -> impl Responder {
+    let flow = Flow::ApiKeyList;
+    let payload = query.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, authentication_data, payload, _| async move {
+            let merchant_id = authentication_data.merchant_account.get_id().to_owned();
+            api_keys::list_api_keys(state, merchant_id, payload.limit, payload.skip).await
+        },
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::ApiKeyRead,
                 minimum_entity_level: EntityType::Merchant,
             },

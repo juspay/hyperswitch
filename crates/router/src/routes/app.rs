@@ -513,7 +513,6 @@ pub struct Payments;
     any(feature = "olap", feature = "oltp"),
     feature = "v2",
     feature = "payment_methods_v2",
-    feature = "payment_v2"
 ))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
@@ -532,12 +531,7 @@ impl Payments {
     }
 }
 
-#[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2"),
-    not(feature = "payment_v2")
-))]
+#[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -1092,7 +1086,12 @@ impl PaymentMethods {
             .service(
                 web::resource("/{id}/confirm-intent")
                     .route(web::post().to(confirm_payment_method_intent_api)),
-            );
+            )
+            .service(
+                web::resource("/{id}/update_saved_payment_method")
+                    .route(web::patch().to(payment_method_update_api)),
+            )
+            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)));
 
         route
     }

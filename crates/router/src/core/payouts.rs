@@ -2353,6 +2353,11 @@ pub async fn response_handler(
     )
     .await?;
 
+    let additional_payout_method_data = payout_attempt.additional_payout_method_data.clone();
+
+    let payout_method_data =
+        additional_payout_method_data.map(payouts::PayoutMethodDataResponse::from);
+
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.get_id().to_owned(),
@@ -2360,6 +2365,7 @@ pub async fn response_handler(
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector,
         payout_type: payouts.payout_type.to_owned(),
+        payout_method_data,
         billing,
         auto_fulfill: payouts.auto_fulfill,
         customer_id,
@@ -2548,9 +2554,20 @@ pub async fn payout_create_db_entries(
     // Make payout_attempt entry
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id, 1);
 
+    let additional_pm_data_value = req
+        .payout_method_data
+        .clone()
+        .or(stored_payout_method_data.cloned())
+        .async_and_then(|payout_method_data| async move {
+            helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
+                .await
+        })
+        .await;
+
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),
+        additional_payout_method_data: additional_pm_data_value,
         merchant_id: merchant_id.to_owned(),
         status,
         business_country: req.business_country.to_owned(),
@@ -2644,7 +2661,7 @@ pub async fn make_payout_data(
 
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id, payouts.attempt_count);
 
-    let payout_attempt = db
+    let mut payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
             &payout_attempt_id,
@@ -2705,7 +2722,7 @@ pub async fn make_payout_data(
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
         validate_and_get_business_profile(state, key_store, &profile_id, merchant_id).await?;
-    let payout_method_data = match req {
+    let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
             match payout_attempt.payout_token.to_owned() {
@@ -2731,6 +2748,28 @@ pub async fn make_payout_data(
             }
         }
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
+    };
+
+    if let Some(payout_method_data) = payout_method_data_req.clone() {
+        let additional_payout_method_data =
+            helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id)
+                .await;
+
+        let update_additional_payout_method_data =
+            storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            };
+
+        payout_attempt = db
+            .update_payout_attempt(
+                &payout_attempt,
+                update_additional_payout_method_data,
+                &payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating additional payout method data in payout_attempt")?;
     };
 
     let merchant_connector_account =
@@ -2773,7 +2812,7 @@ pub async fn make_payout_data(
         customer_details,
         payouts,
         payout_attempt,
-        payout_method_data: payout_method_data.to_owned(),
+        payout_method_data: payout_method_data_req.to_owned(),
         merchant_connector_account,
         should_terminate: false,
         profile_id,
