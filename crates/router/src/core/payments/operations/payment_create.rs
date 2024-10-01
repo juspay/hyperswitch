@@ -339,7 +339,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+        #[cfg(feature = "v1")]
         let payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
@@ -347,7 +347,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_id: payment_id.clone(),
             })?;
 
-        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+        #[cfg(feature = "v2")]
         let payment_attempt = db
             .insert_payment_attempt(
                 key_manager_state,
@@ -491,10 +491,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+            });
 
         let amount = payment_attempt.get_total_amount().into();
 
@@ -1054,7 +1051,7 @@ impl PaymentCreate {
             .and_then(|payment_method_data_request| {
                 payment_method_data_request.payment_method_data.clone()
             })
-            .async_map(|payment_method_data| async {
+            .async_and_then(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     &payment_method_data.into(),
                     &*state.store,
@@ -1062,9 +1059,7 @@ impl PaymentCreate {
                 )
                 .await
             })
-            .await
-            .transpose()?
-            .flatten();
+            .await;
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object

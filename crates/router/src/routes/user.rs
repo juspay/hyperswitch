@@ -292,7 +292,8 @@ pub async fn generate_sample_data(
     ))
     .await
 }
-#[cfg(feature = "dummy_connector")]
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn delete_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,
