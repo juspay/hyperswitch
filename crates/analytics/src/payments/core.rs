@@ -217,6 +217,8 @@ pub async fn get_metrics(
     let mut total_payment_processed_count = 0;
     let mut total_payment_processed_amount_without_smart_retries = 0;
     let mut total_payment_processed_count_without_smart_retries = 0;
+    let mut failure_reasons_count = 0;
+    let mut failure_reasons_count_without_smart_retries = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
@@ -232,6 +234,12 @@ pub async fn get_metrics(
             }
             if let Some(count) = collected_values.payment_processed_count_without_smart_retries {
                 total_payment_processed_count_without_smart_retries += count;
+            }
+            if let Some(count) = collected_values.failure_reason_count {
+                failure_reasons_count += count;
+            }
+            if let Some(count) = collected_values.failure_reason_count_without_smart_retries {
+                failure_reasons_count_without_smart_retries += count;
             }
             MetricsBucketResponse {
                 values: collected_values,
@@ -250,6 +258,10 @@ pub async fn get_metrics(
             ),
             total_payment_processed_count_without_smart_retries: Some(
                 total_payment_processed_count_without_smart_retries,
+            ),
+            failure_reasons_count: Some(failure_reasons_count),
+            failure_reasons_count_without_smart_retries: Some(
+                failure_reasons_count_without_smart_retries,
             ),
         }],
     })

@@ -206,6 +206,8 @@ pub struct PaymentsAnalyticsMetadata {
     pub total_payment_processed_count: Option<u64>,
     pub total_payment_processed_amount_without_smart_retries: Option<u64>,
     pub total_payment_processed_count_without_smart_retries: Option<u64>,
+    pub failure_reasons_count: Option<u64>,
+    pub failure_reasons_count_without_smart_retries: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

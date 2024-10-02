@@ -184,7 +184,7 @@ where
                         i.merchant_id.clone(),
                         i.card_last_4.clone(),
                         i.card_issuer.clone(),
-                        None,
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
