@@ -36,8 +36,6 @@ pub struct PaymentIntentFilters {
     pub card_issuer: Vec<String>,
     #[serde(default)]
     pub error_reason: Vec<String>,
-    #[serde(default)]
-    pub include_smart_retries: Option<bool>,
 }
 
 #[derive(
@@ -71,7 +69,6 @@ pub enum PaymentIntentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
-    IncludeSmartRetries,
 }
 
 #[derive(
@@ -143,7 +140,6 @@ pub struct PaymentIntentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
-    pub include_smart_retries: Option<bool>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -166,7 +162,6 @@ impl PaymentIntentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
-        include_smart_retries: Option<bool>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -182,7 +177,6 @@ impl PaymentIntentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
-            include_smart_retries,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -203,7 +197,6 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
-        self.include_smart_retries.hash(state);
         self.time_bucket.hash(state);
     }
 }

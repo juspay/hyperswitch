@@ -56,6 +56,12 @@ impl<T: FromStr + Display> AsRef<T> for DBEnumWrapper<T> {
     }
 }
 
+impl<T: FromStr + Display + Default> Default for DBEnumWrapper<T> {
+    fn default() -> Self {
+        DBEnumWrapper(T::default())
+    }
+}
+
 impl<T> FromStr for DBEnumWrapper<T>
 where
     T: FromStr + Display,

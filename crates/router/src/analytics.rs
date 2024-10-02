@@ -141,6 +141,10 @@ pub mod routes {
                                 .route(web::post().to(get_merchant_dispute_filters)),
                         )
                         .service(
+                            web::resource("metrics/sankey")
+                                .route(web::post().to(get_merchant_sankey)),
+                        )
+                        .service(
                             web::scope("/merchant")
                                 .service(
                                     web::resource("metrics/payments")
@@ -188,6 +192,10 @@ pub mod routes {
                                 .service(
                                     web::resource("filters/disputes")
                                         .route(web::post().to(get_merchant_dispute_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/sankey")
+                                        .route(web::post().to(get_merchant_sankey)),
                                 ),
                         )
                         .service(
@@ -230,6 +238,10 @@ pub mod routes {
                                 .service(
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_org_payment_report)),
+                                )
+                                .service(
+                                    web::resource("metrics/sankey")
+                                        .route(web::post().to(get_org_sankey)),
                                 ),
                         )
                         .service(
@@ -288,6 +300,10 @@ pub mod routes {
                                 .service(
                                     web::resource("sdk_event_logs")
                                         .route(web::post().to(get_profile_sdk_events)),
+                                )
+                                .service(
+                                    web::resource("metrics/sankey")
+                                        .route(web::post().to(get_profile_sankey)),
                                 ),
                         ),
                 )
@@ -2150,12 +2166,12 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_merchant_sannkey(
+    pub async fn get_merchant_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<TimeRange>,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetSannKey;
+        let flow = AnalyticsFlow::GetSankey;
         let payload = json_payload.into_inner();
         Box::pin(api::server_wrap(
             flow,
@@ -2169,7 +2185,7 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::payment_intents::get_sannkey(&state.pool, &auth, req)
+                analytics::payment_intents::get_sankey(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -2182,12 +2198,12 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_org_sannkey(
+    pub async fn get_org_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<TimeRange>,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetSannKey;
+        let flow = AnalyticsFlow::GetSankey;
         let payload = json_payload.into_inner();
         Box::pin(api::server_wrap(
             flow,
@@ -2199,7 +2215,7 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::payment_intents::get_sannkey(&state.pool, &auth, req)
+                analytics::payment_intents::get_sankey(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -2212,19 +2228,19 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_profile_sannkey(
+    pub async fn get_profile_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<TimeRange>,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetSannKey;
+        let flow = AnalyticsFlow::GetSankey;
         let payload = json_payload.into_inner();
         Box::pin(api::server_wrap(
             flow,
             state,
             &req,
             payload,
-            |state, auth: AuthenticationData, req, _| async move {
+            |state: crate::routes::SessionState, auth: AuthenticationData, req, _| async move {
                 let org_id = auth.merchant_account.get_org_id();
                 let merchant_id = auth.merchant_account.get_id();
                 let profile_id = auth
@@ -2236,7 +2252,7 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::payment_intents::get_sannkey(&state.pool, &auth, req)
+                analytics::payment_intents::get_sankey(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },

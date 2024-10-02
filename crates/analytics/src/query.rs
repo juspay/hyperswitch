@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use api_models::{
     analytics::{
@@ -301,8 +301,8 @@ pub enum Order {
     Descending,
 }
 
-impl std::fmt::Display for Order {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Order {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Ascending => write!(f, "asc"),
             Self::Descending => write!(f, "desc"),
@@ -333,6 +333,18 @@ pub struct TopN {
     pub count: u64,
     pub order_column: String,
     pub order: Order,
+}
+
+#[derive(Debug, Clone)]
+pub struct LimitByClause {
+    limit: u64,
+    columns: Vec<String>,
+}
+
+impl fmt::Display for LimitByClause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LIMIT {} BY {}", self.limit, self.columns.join(", "))
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -394,7 +406,9 @@ where
     columns: Vec<String>,
     filters: Filter,
     group_by: Vec<String>,
+    order_by: Vec<String>,
     having: Option<Vec<(String, FilterTypes, String)>>,
+    limit_by: Option<LimitByClause>,
     outer_select: Vec<String>,
     top_n: Option<TopN>,
     table: AnalyticsCollection,
@@ -533,7 +547,9 @@ where
             columns: Default::default(),
             filters: Default::default(),
             group_by: Default::default(),
+            order_by: Default::default(),
             having: Default::default(),
+            limit_by: Default::default(),
             outer_select: Default::default(),
             top_n: Default::default(),
             table,
@@ -682,6 +698,37 @@ where
         Ok(())
     }
 
+    pub fn add_order_by_clause(
+        &mut self,
+        column: impl ToSql<T>,
+        order: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        let column_sql = column
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing order by column")?;
+
+        let order_sql = order
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing order direction")?;
+
+        self.order_by.push(format!("{} {}", column_sql, order_sql));
+        Ok(())
+    }
+
+    pub fn set_limit_by(&mut self, limit: u64, columns: &[impl ToSql<T>]) -> QueryResult<()> {
+        let columns = columns
+            .iter()
+            .map(|col| col.to_sql(&self.table_engine))
+            .collect::<Result<Vec<String>, _>>()
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing LIMIT BY columns")?;
+
+        self.limit_by = Some(LimitByClause { limit, columns });
+        Ok(())
+    }
+
     pub fn add_granularity_in_mins(&mut self, granularity: &Granularity) -> QueryResult<()> {
         let interval = match granularity {
             Granularity::OneMin => "1",
@@ -813,6 +860,16 @@ where
                 query.push_str(" HAVING ");
                 query.push_str(condition.as_str());
             }
+        }
+
+        if !self.order_by.is_empty() {
+            query.push_str(" ORDER BY ");
+            query.push_str(&self.order_by.join(", "));
+        }
+
+        if let Some(limit_by) = &self.limit_by {
+            query.push_str(" ");
+            query.push_str(&limit_by.to_string());
         }
 
         if !self.outer_select.is_empty() {

@@ -17,7 +17,7 @@ pub struct PaymentMetricsAccumulator {
     pub retries_amount_processed: RetriesAmountAccumulator,
     pub connector_success_rate: SuccessRateAccumulator,
     pub payments_distribution: PaymentsDistributionAccumulator,
-    pub failure_reasons: FailureErrorDistributionAccumulator,
+    pub failure_reasons_distribution: FailureReasonsDistributionAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -28,9 +28,8 @@ pub struct ErrorDistributionRow {
 }
 
 #[derive(Debug, Default)]
-pub struct FailureErrorMetricRow {
+pub struct FailureReasonsMetricRow {
     pub count: i64,
-    pub total: i64,
     pub error_reason: String,
 }
 
@@ -40,9 +39,11 @@ pub struct ErrorDistributionAccumulator {
 }
 
 #[derive(Debug, Default)]
-pub struct FailureErrorDistributionAccumulator {
-    pub error_vec: Vec<FailureErrorMetricRow>,
-    pub error_vec_without_retries: Vec<FailureErrorMetricRow>,
+pub struct FailureReasonsDistributionAccumulator {
+    pub error_vec: Vec<FailureReasonsMetricRow>,
+    pub error_vec_without_retries: Vec<FailureReasonsMetricRow>,
+    pub total: u32,
+    pub total_without_retries: u32,
 }
 
 #[derive(Debug, Default)]
@@ -140,29 +141,26 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
     }
 }
 
-impl PaymentMetricAccumulator for FailureErrorDistributionAccumulator {
+impl PaymentMetricAccumulator for FailureReasonsDistributionAccumulator {
     type MetricOutput = (Vec<ErrorResult>, Vec<ErrorResult>);
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
-        self.error_vec.push(FailureErrorMetricRow {
+        self.error_vec.push(FailureReasonsMetricRow {
             count: metrics.count.unwrap_or_default(),
-            total: metrics
-                .total
-                .clone()
-                .map(|i| i.to_i64().unwrap_or_default())
-                .unwrap_or_default(),
             error_reason: metrics.error_reason.clone().unwrap_or("".to_string()),
         });
+        if let Some(count) = metrics.count.and_then(|count| u32::try_from(count).ok()) {
+            self.total += count;
+        }
         if metrics.first_attempt.unwrap_or(false) {
-            self.error_vec_without_retries.push(FailureErrorMetricRow {
-                count: metrics.count.unwrap_or_default(),
-                total: metrics
-                    .total
-                    .clone()
-                    .map(|i| i.to_i64().unwrap_or_default())
-                    .unwrap_or_default(),
-                error_reason: metrics.error_reason.clone().unwrap_or("".to_string()),
-            })
+            self.error_vec_without_retries
+                .push(FailureReasonsMetricRow {
+                    count: metrics.count.unwrap_or_default(),
+                    error_reason: metrics.error_reason.clone().unwrap_or("".to_string()),
+                });
+            if let Some(count) = metrics.count.and_then(|count| u32::try_from(count).ok()) {
+                self.total_without_retries += count;
+            }
         }
     }
 
@@ -170,29 +168,35 @@ impl PaymentMetricAccumulator for FailureErrorDistributionAccumulator {
         self.error_vec.sort_by(|a, b| b.count.cmp(&a.count));
         let mut res: Vec<ErrorResult> = Vec::new();
         for val in self.error_vec.into_iter() {
-            if let (Some(count), Some(total)) =
-                (u32::try_from(val.count).ok(), u32::try_from(val.total).ok())
-            {
-                let perc = f64::from(count) * 100.0 / f64::from(total);
-                res.push(ErrorResult {
-                    reason: val.error_reason,
-                    count: val.count,
-                    percentage: (perc * 100.0).round() / 100.0,
-                });
+            if let (Some(count), Some(total)) = (
+                u32::try_from(val.count).ok(),
+                u32::try_from(self.total).ok(),
+            ) {
+                if total > 0 {
+                    let perc = f64::from(count) * 100.0 / f64::from(total);
+                    res.push(ErrorResult {
+                        reason: val.error_reason,
+                        count: val.count,
+                        percentage: (perc * 100.0).round() / 100.0,
+                    });
+                }
             }
         }
         let mut res_without_retries: Vec<ErrorResult> = Vec::new();
 
         for val in self.error_vec_without_retries.into_iter() {
-            if let (Some(count), Some(total)) =
-                (u32::try_from(val.count).ok(), u32::try_from(val.total).ok())
-            {
-                let perc = f64::from(count) * 100.0 / f64::from(total);
-                res_without_retries.push(ErrorResult {
-                    reason: val.error_reason,
-                    count: val.count,
-                    percentage: (perc * 100.0).round() / 100.0,
-                });
+            if let (Some(count), Some(total_without_retries)) = (
+                u32::try_from(val.count).ok(),
+                u32::try_from(self.total_without_retries).ok(),
+            ) {
+                if total_without_retries > 0 {
+                    let perc = f64::from(count) * 100.0 / f64::from(total_without_retries);
+                    res_without_retries.push(ErrorResult {
+                        reason: val.error_reason,
+                        count: val.count,
+                        percentage: (perc * 100.0).round() / 100.0,
+                    });
+                }
             }
         }
         (res, res_without_retries)
@@ -429,7 +433,7 @@ impl PaymentMetricsAccumulator {
             payments_failure_rate_distribution_without_smart_retries,
         ) = self.payments_distribution.collect();
         let (failure_reasons_distribution, failure_reasons_distribution_without_smart_retries) =
-            self.failure_reasons.collect();
+            self.failure_reasons_distribution.collect();
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),
             payment_count: self.payment_count.collect(),

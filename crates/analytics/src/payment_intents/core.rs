@@ -8,12 +8,11 @@ use api_models::analytics::{
     },
     GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, PaymentIntentFilterValue,
     PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse,
-    SannKeyResponse,
+    SankeyResponse,
 };
 use common_enums::IntentStatus;
 use common_utils::{errors::CustomResult, types::TimeRange};
 use error_stack::ResultExt;
-use masking::ErasedMaskSerialize;
 use router_env::{
     instrument, logger,
     metrics::add_attributes,
@@ -23,7 +22,7 @@ use router_env::{
 use super::{
     filters::{get_payment_intent_filter_for_dimension, PaymentIntentFilterRow},
     metrics::PaymentIntentMetricRow,
-    sannkey::{get_sankey_data, SessionizerRefundStatus},
+    sankey::{get_sankey_data, SessionizerRefundStatus},
     PaymentIntentMetricsAccumulator,
 };
 use crate::{
@@ -46,14 +45,14 @@ pub enum TaskType {
 }
 
 #[instrument(skip_all)]
-pub async fn get_sannkey(
+pub async fn get_sankey(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: TimeRange,
-) -> AnalyticsResult<SannKeyResponse> {
+) -> AnalyticsResult<SankeyResponse> {
     match pool {
         AnalyticsProvider::Sqlx(_) => Err(AnalyticsError::NotImplemented(
-            "Sann key not implemented for sqlx",
+            "Sankey not implemented for sqlx",
         ))?,
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedCkh(_, ckh_pool)
@@ -61,17 +60,17 @@ pub async fn get_sannkey(
             let sankey_rows = get_sankey_data(&ckh_pool, auth, &req)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
-            let mut sankey_response = SannKeyResponse::default();
+            let mut sankey_response = SankeyResponse::default();
             for i in sankey_rows {
                 match (
                     i.status.as_ref(),
-                    i.refunds_status.as_ref(),
+                    i.refunds_status.unwrap_or_default().as_ref(),
                     i.attempt_count,
                 ) {
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::Refunded, _) => {
+                    (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, _) => {
                         sankey_response.refunded += i.count
                     }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartiallyRefunded, _) => {
+                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, _) => {
                         sankey_response.partial_refunded += i.count
                     }
                     (
@@ -100,13 +99,13 @@ pub async fn get_sannkey(
                         sankey_response.customer_awaited += i.count
                     }
                     (IntentStatus::RequiresMerchantAction, _, _) => {
-                        sankey_response.pending += i.count
+                        sankey_response.merchant_awaited += i.count
                     }
                     (IntentStatus::RequiresPaymentMethod, _, _) => {
-                        sankey_response.customer_awaited += i.count
+                        sankey_response.pm_awaited += i.count
                     }
                     (IntentStatus::RequiresConfirmation, _, _) => {
-                        sankey_response.pm_awaited += i.count
+                        sankey_response.confirmation_awaited += i.count
                     }
                     i @ (_, _, _) => {
                         router_env::logger::error!(status=?i, "Unknown status in sankey data");
@@ -344,7 +343,6 @@ pub async fn get_filters(
             PaymentIntentDimensions::CardLast4 => fil.card_last_4,
             PaymentIntentDimensions::CardIssuer => fil.card_issuer,
             PaymentIntentDimensions::ErrorReason => fil.error_reason,
-            PaymentIntentDimensions::IncludeSmartRetries => fil.include_smart_retries.map(|i| i.to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {

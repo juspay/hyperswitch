@@ -12,7 +12,10 @@ use time::PrimitiveDateTime;
 use super::PaymentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket,
+        ToSql, Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -38,66 +41,128 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
-
-        query_builder
-            .add_select_column(Aggregate::Count {
-                field: None,
-                alias: Some("count"),
-            })
+        let mut inner_query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::Payment);
+        inner_query_builder
+            .add_select_column("sum(sign_flag)")
             .switch()?;
 
-        query_builder.add_select_column("first_attempt").switch()?;
+        inner_query_builder
+            .add_custom_filter_clause(
+                PaymentDimensions::ErrorReason,
+                "NULL",
+                FilterTypes::IsNotNull,
+            )
+            .switch()?;
 
-        query_builder
+        time_range
+            .set_filter_clause(&mut inner_query_builder)
+            .attach_printable("Error filtering time range for inner query")
+            .switch()?;
+
+        let inner_query_string = inner_query_builder
+            .build_query()
+            .attach_printable("Error building inner query")
+            .change_context(MetricsError::QueryBuildingError)?;
+
+        let mut outer_query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::Payment);
+
+        for dim in dimensions.iter() {
+            outer_query_builder.add_select_column(dim).switch()?;
+        }
+
+        outer_query_builder
+            .add_select_column("sum(sign_flag) AS count")
+            .switch()?;
+
+        outer_query_builder
+            .add_select_column(format!("({}) AS total", inner_query_string))
+            .switch()?;
+
+        outer_query_builder
+            .add_select_column("first_attempt")
+            .switch()?;
+
+        outer_query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
                 alias: Some("start_bucket"),
             })
             .switch()?;
-        query_builder
+
+        outer_query_builder
             .add_select_column(Aggregate::Max {
                 field: "created_at",
                 alias: Some("end_bucket"),
             })
             .switch()?;
 
-        filters.set_filter_clause(&mut query_builder).switch()?;
-
-        auth.set_filter_clause(&mut query_builder).switch()?;
-
-        time_range
-            .set_filter_clause(&mut query_builder)
-            .attach_printable("Error filtering time range")
+        filters
+            .set_filter_clause(&mut outer_query_builder)
             .switch()?;
 
-        query_builder
+        auth.set_filter_clause(&mut outer_query_builder).switch()?;
+
+        time_range
+            .set_filter_clause(&mut outer_query_builder)
+            .attach_printable("Error filtering time range for outer query")
+            .switch()?;
+
+        outer_query_builder
             .add_filter_clause(
                 PaymentDimensions::PaymentStatus,
                 storage_enums::AttemptStatus::Failure,
             )
             .switch()?;
 
+        outer_query_builder
+            .add_custom_filter_clause(
+                PaymentDimensions::ErrorReason,
+                "NULL",
+                FilterTypes::IsNotNull,
+            )
+            .switch()?;
+
         for dim in dimensions.iter() {
-            query_builder
+            outer_query_builder
                 .add_group_by_clause(dim)
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
 
-        query_builder
+        outer_query_builder
             .add_group_by_clause("first_attempt")
             .attach_printable("Error grouping by first_attempt")
             .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
-                .set_group_by_clause(&mut query_builder)
+                .set_group_by_clause(&mut outer_query_builder)
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
 
-        query_builder
+        outer_query_builder
+            .add_order_by_clause("count", Order::Descending)
+            .attach_printable("Error adding order by clause")
+            .switch()?;
+
+        for dim in dimensions.iter() {
+            if dim != &PaymentDimensions::ErrorReason {
+                outer_query_builder
+                    .add_order_by_clause(dim, Order::Ascending)
+                    .attach_printable("Error adding order by clause")
+                    .switch()?;
+            }
+        }
+
+        outer_query_builder
+            .set_limit_by(5, &[PaymentDimensions::Connector])
+            .attach_printable("Error adding limit clause")
+            .switch()?;
+
+        outer_query_builder
             .execute_query::<PaymentMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
@@ -119,8 +184,7 @@ where
                         i.merchant_id.clone(),
                         i.card_last_4.clone(),
                         i.card_issuer.clone(),
-                        i.error_reason.clone(),
-                        i.include_smart_retries,
+                        None,
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

@@ -1,10 +1,10 @@
 use common_enums::enums;
 use common_utils::{
-    errors::{ErrorSwitch, ParsingError},
+    errors::ParsingError,
     types::{authentication::AuthInfo, TimeRange},
 };
 use error_stack::ResultExt;
-use sqlx::query_builder;
+use router_env::logger;
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -25,7 +25,6 @@ pub struct PaymentIntentMetricRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
-    pub include_smart_retries: Option<bool>,
     pub first_attempt: Option<i64>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -35,27 +34,33 @@ pub struct PaymentIntentMetricRow {
     pub end_bucket: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, serde::Deserialize, strum::AsRefStr, strum::EnumString, strum::Display)]
+#[derive(
+    Debug, Default, serde::Deserialize, strum::AsRefStr, strum::EnumString, strum::Display,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum SessionizerRefundStatus {
-    Refunded,
+    FullRefunded,
+    #[default]
     NotRefunded,
-    PartiallyRefunded,
+    PartialRefunded,
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct SannkeyRow {
+pub struct SankeyRow {
     pub status: DBEnumWrapper<enums::IntentStatus>,
-    pub refunds_status: DBEnumWrapper<SessionizerRefundStatus>,
+    #[serde(default)]
+    pub refunds_status: Option<DBEnumWrapper<SessionizerRefundStatus>>,
     pub attempt_count: i64,
     pub count: i64,
 }
 
-impl TryInto<SannkeyRow> for serde_json::Value {
+impl TryInto<SankeyRow> for serde_json::Value {
     type Error = error_stack::Report<ParsingError>;
 
-    fn try_into(self) -> Result<SannkeyRow, Self::Error> {
+    fn try_into(self) -> Result<SankeyRow, Self::Error> {
+        logger::debug!("Parsing SankeyRow from {:?}", self);
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
-            "Failed to parse Sannkey in clickhouse results",
+            "Failed to parse Sankey in clickhouse results",
         ))
     }
 }
@@ -64,7 +69,7 @@ pub async fn get_sankey_data(
     clickhouse_client: &ClickhouseClient,
     auth: &AuthInfo,
     time_range: &TimeRange,
-) -> MetricsResult<Vec<SannkeyRow>> {
+) -> MetricsResult<Vec<SankeyRow>> {
     let mut query_builder =
         QueryBuilder::<ClickhouseClient>::new(AnalyticsCollection::PaymentIntent);
     query_builder
@@ -73,18 +78,22 @@ pub async fn get_sankey_data(
             alias: Some("count"),
         })
         .change_context(MetricsError::QueryBuildingError)?;
+
     query_builder
         .add_select_column("status")
         .attach_printable("Error adding select clause")
         .change_context(MetricsError::QueryBuildingError)?;
+
     query_builder
         .add_select_column("refunds_status")
         .attach_printable("Error adding select clause")
         .change_context(MetricsError::QueryBuildingError)?;
+
     query_builder
         .add_select_column("attempt_count")
         .attach_printable("Error adding select clause")
         .change_context(MetricsError::QueryBuildingError)?;
+
     auth.set_filter_clause(&mut query_builder)
         .change_context(MetricsError::QueryBuildingError)?;
 
@@ -96,17 +105,19 @@ pub async fn get_sankey_data(
         .add_group_by_clause("status")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
+
     query_builder
         .add_group_by_clause("refunds_status")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
+
     query_builder
         .add_group_by_clause("attempt_count")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
 
     query_builder
-        .execute_query::<SannkeyRow, _>(clickhouse_client)
+        .execute_query::<SankeyRow, _>(clickhouse_client)
         .await
         .change_context(MetricsError::QueryBuildingError)?
         .change_context(MetricsError::QueryExecutionFailure)?

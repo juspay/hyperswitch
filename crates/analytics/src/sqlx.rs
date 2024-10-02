@@ -350,11 +350,6 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let include_smart_retries: Option<bool> =
-            row.try_get("include_smart_retries").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
         let first_attempt: Option<bool> = row.try_get("first_attempt").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -389,7 +384,6 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             card_last_4,
             card_issuer,
             error_reason,
-            include_smart_retries,
             first_attempt,
             total,
             count,
@@ -463,11 +457,6 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let include_smart_retries: Option<bool> =
-            row.try_get("include_smart_retries").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -477,6 +466,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             e => Err(e),
         })?;
         let error_message: Option<String> = row.try_get("error_message").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let first_attempt: Option<bool> = row.try_get("first_attempt").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
@@ -502,7 +495,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             card_last_4,
             card_issuer,
             error_reason,
-            include_smart_retries,
+            first_attempt,
             total,
             count,
             error_message,
@@ -576,11 +569,6 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let include_smart_retries: Option<bool> =
-            row.try_get("include_smart_retries").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
         Ok(Self {
             currency,
             status,
@@ -596,7 +584,6 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             card_last_4,
             card_issuer,
             error_reason,
-            include_smart_retries,
         })
     }
 }
@@ -664,11 +651,6 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let include_smart_retries: Option<bool> =
-            row.try_get("include_smart_retries").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
         let first_attempt: Option<i64> = row.try_get("first_attempt").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -693,7 +675,6 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             card_last_4,
             card_issuer,
             error_reason,
-            include_smart_retries,
             first_attempt,
             total,
             count,
@@ -758,11 +739,6 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let include_smart_retries: Option<bool> =
-            row.try_get("include_smart_retries").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
         Ok(Self {
             status,
             currency,
@@ -776,7 +752,6 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             card_last_4,
             card_issuer,
             error_reason,
-            include_smart_retries,
         })
     }
 }

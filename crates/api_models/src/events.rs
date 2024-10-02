@@ -131,7 +131,7 @@ impl_api_event_type!(
         GetDisputeFilterRequest,
         DisputeFiltersResponse,
         GetDisputeMetricRequest,
-        SannKeyResponse,
+        SankeyResponse,
         OrganizationResponse,
         OrganizationCreateRequest,
         OrganizationUpdateRequest,

@@ -423,17 +423,18 @@ pub struct GetDisputeMetricRequest {
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SannKeyResponse {
+pub struct SankeyResponse {
     pub normal_success: i64,
     pub normal_failure: i64,
     pub cancelled: i64,
     pub smart_retried_success: i64,
     pub smart_retried_failure: i64,
     pub pending: i64,
-    pub failed: i64,
     pub partial_refunded: i64,
     pub refunded: i64,
     pub disputed: i64,
     pub pm_awaited: i64,
     pub customer_awaited: i64,
+    pub merchant_awaited: i64,
+    pub confirmation_awaited: i64,
 }
