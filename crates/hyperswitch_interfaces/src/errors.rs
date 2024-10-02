@@ -119,6 +119,11 @@ pub enum ConnectorError {
     InvalidConnectorConfig { config: &'static str },
     #[error("Failed to convert amount to required type")]
     AmountConversionFailed,
+    #[error("Generic Error")]
+    GenericError {
+        error_message: String,
+        error_object: serde_json::Value,
+    },
 }
 
 impl ConnectorError {

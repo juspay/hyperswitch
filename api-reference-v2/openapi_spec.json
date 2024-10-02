@@ -169,7 +169,7 @@
         "tags": [
           "Organization"
         ],
-        "summary": "Merchant Account - List",
+        "summary": "Organization - Merchant Account - List",
         "description": "List merchant accounts for an Organization",
         "operationId": "List Merchant Accounts",
         "parameters": [
@@ -5379,6 +5379,7 @@
           "multisafepay",
           "netcetera",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
@@ -18570,6 +18571,7 @@
           "mollie",
           "multisafepay",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
