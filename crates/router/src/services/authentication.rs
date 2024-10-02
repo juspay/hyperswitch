@@ -88,6 +88,10 @@ pub enum AuthenticationType {
     AdminApiAuthWithMerchantId {
         merchant_id: id_type::MerchantId,
     },
+    OrganizationJwt {
+        org_id: id_type::OrganizationId,
+        user_id: String,
+    },
     MerchantJwt {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
@@ -149,6 +153,7 @@ impl AuthenticationType {
             | Self::MerchantJwtWithProfileId { merchant_id, .. }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
+            | Self::OrganizationJwt { .. }
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
             | Self::SinglePurposeOrLoginJwt { .. }
@@ -1129,6 +1134,45 @@ where
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+pub struct JWTAuthOrganizationFromRoute {
+    pub organization_id: id_type::OrganizationId,
+    pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthOrganizationFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
+        // Check if token has access to Organization that has been requested in the route
+        if payload.org_id != self.organization_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+        Ok((
+            (),
+            AuthenticationType::OrganizationJwt {
+                org_id: payload.org_id,
+                user_id: payload.user_id,
             },
         ))
     }

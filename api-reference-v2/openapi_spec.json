@@ -169,7 +169,7 @@
         "tags": [
           "Organization"
         ],
-        "summary": "Merchant Account - List",
+        "summary": "Organization - Merchant Account - List",
         "description": "List merchant accounts for an Organization",
         "operationId": "List Merchant Accounts",
         "parameters": [
@@ -18625,7 +18625,6 @@
           "cybersource",
           "datatrans",
           "deutschebank",
-          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",

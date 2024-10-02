@@ -74,6 +74,7 @@ pub async fn generate_sample_data_for_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn delete_sample_data_for_user(
     state: SessionState,
     user_from_token: UserFromToken,
