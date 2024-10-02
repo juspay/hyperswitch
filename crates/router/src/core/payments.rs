@@ -161,7 +161,68 @@ where
         )
         .await?;
 
-    Err(errors::ApiErrorResponse::InternalServerError)?
+    utils::validate_profile_id_from_auth_layer(
+        profile_id_from_auth_layer,
+        &payment_data.get_payment_intent().clone(),
+    )?;
+
+    let (_operation, customer) = operation
+        .to_domain()?
+        .get_or_create_customer_details(
+            state,
+            &mut payment_data,
+            customer_details,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while fetching/creating customer")?;
+
+    let connector = get_connector_choice(
+        &operation,
+        state,
+        &req,
+        &merchant_account,
+        &business_profile,
+        &key_store,
+        &mut payment_data,
+        None,
+        mandate_type,
+    )
+    .await?;
+
+    if let Some(connector_call_type) = connector {
+        match connector_call_type {
+            ConnectorCallType::PreDetermined(connector_data) => {
+                let (router_data, mca) = call_connector_service(
+                    state,
+                    req_state.clone(),
+                    &merchant_account,
+                    &key_store,
+                    connector_data.clone(),
+                    &operation,
+                    &mut payment_data,
+                    &customer,
+                    call_connector_action.clone(),
+                    &validate_result,
+                    None,
+                    header_payload.clone(),
+                    #[cfg(feature = "frm")]
+                    None,
+                    #[cfg(not(feature = "frm"))]
+                    None,
+                    &business_profile,
+                    false,
+                )
+                .await?;
+            }
+            ConnectorCallType::Retryable(vec) => todo!(),
+            ConnectorCallType::SessionMultiple(vec) => todo!(),
+        }
+    }
+
+    Ok((payment_data, req, customer, None, None))
 }
 
 #[cfg(feature = "v1")]
@@ -3734,6 +3795,35 @@ where
     payment_data.set_straight_through_algorithm_in_payment_attempt(request_straight_through);
 
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn get_connector_choice<F, Req, D>(
+    operation: &BoxedOperation<'_, F, Req, D>,
+    state: &SessionState,
+    req: &Req,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<Option<ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    // TODO: fix this once routing is implemented for v2
+    let connector_name = "stripe";
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        None,
+    )?;
+
+    Ok(Some(ConnectorCallType::PreDetermined(connector_data)))
 }
 
 #[cfg(feature = "v1")]
