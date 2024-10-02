@@ -1,9 +1,11 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
+use nexinets::NexinetsRouterData;
 use transformers as nexinets;
 
 use crate::{
@@ -29,8 +31,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Nexinets;
+#[derive(Clone)]
+pub struct Nexinets {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Nexinets {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Nexinets {}
 impl api::PaymentSession for Nexinets {}
@@ -240,7 +252,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexinets::NexinetsPaymentsRequest::try_from(req)?;
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = NexinetsRouterData::try_from((amount_to_capture, req))?;
+        let connector_req = nexinets::NexinetsPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -412,7 +430,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexinets::NexinetsCaptureOrVoidRequest::try_from(req)?;
+        let amount_to_capture = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = NexinetsRouterData::try_from((amount_to_capture, req))?;
+        let connector_req =
+            nexinets::NexinetsCaptureOrVoidRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -501,8 +527,19 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexinets::NexinetsCaptureOrVoidRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        if let (Some(minor_amount), Some(currency)) =
+            (req.request.minor_amount, req.request.currency)
+        {
+            let amount_to_cancel =
+                connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+            let connector_router_data = NexinetsRouterData::try_from((amount_to_cancel, req))?;
+            let connector_req =
+                nexinets::NexinetsCaptureOrVoidRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        } else {
+            // FIXME: error to be thrown here
+            todo!("Should an error be thrown ?");
+        }
     }
 
     fn build_request(
@@ -587,7 +624,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexinets::NexinetsRefundRequest::try_from(req)?;
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = NexinetsRouterData::try_from((refund_amount, req))?;
+        let connector_req = nexinets::NexinetsRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
