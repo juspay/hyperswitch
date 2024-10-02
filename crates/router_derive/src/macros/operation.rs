@@ -31,6 +31,8 @@ pub enum Derives {
     IncrementalAuthorizationData,
     SdkSessionUpdate,
     SdkSessionUpdateData,
+    CreateOrder,
+    CreateOrderData,
 }
 
 impl Derives {
@@ -112,6 +114,12 @@ impl Conversion {
             }
             Derives::SdkSessionUpdateData => {
                 syn::Ident::new("SdkPaymentsSessionUpdateData", Span::call_site())
+            }
+            Derives::CreateOrder => {
+                syn::Ident::new("PaymentsCreateOrderRequest", Span::call_site())
+            }
+            Derives::CreateOrderData => {
+                syn::Ident::new("PaymentsCreateOrderData", Span::call_site())
             }
         }
     }
@@ -434,6 +442,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     CompleteAuthorizeData,
                     PaymentsIncrementalAuthorizationData,
                     SdkPaymentsSessionUpdateData,
+                    PaymentsCreateOrderData,
 
                     api::{
                         PaymentsCaptureRequest,
@@ -447,6 +456,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         VerifyRequest,
                         PaymentsDynamicTaxCalculationRequest,
                         PaymentsIncrementalAuthorizationRequest,
+                        PaymentsCreateOrderRequest
                     }
                 };
                 #trait_derive

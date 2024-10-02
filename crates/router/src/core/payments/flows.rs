@@ -3,6 +3,7 @@ pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
+pub mod create_order_flow;
 pub mod incremental_authorization_flow;
 pub mod psync_flow;
 pub mod reject_flow;
@@ -3058,6 +3059,90 @@ impl<const T: u8>
 }
 
 default_imp_for_session_update!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Square,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_create_order {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentCreateOrder for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::CreateOrder,
+                types::PaymentsCreateOrderData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentCreateOrder for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateOrder,
+        types::PaymentsCreateOrderData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_create_order!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,

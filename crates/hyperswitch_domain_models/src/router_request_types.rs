@@ -73,6 +73,19 @@ pub struct PaymentsAuthorizeData {
     pub integrity_object: Option<AuthoriseIntegrityObject>,
 }
 
+#[derive(Debug, Clone)]
+pub struct PaymentsCreateOrderData {
+    pub amount: i64,
+    pub currency: storage_enums::Currency,
+    pub payment_method_data: PaymentMethodData,
+    pub complete_authorize_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuthoriseIntegrityObject {
     /// Authorise amount

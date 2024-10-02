@@ -32,8 +32,9 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
+        InitPayment, PSync, PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -56,7 +57,7 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
         DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsCreateOrderData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, RefundsData, ResponseId, RetrieveFileRequestData,
@@ -133,6 +134,9 @@ pub type PaymentsTaxCalculationRouterData =
 
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
+
+pub type PaymentsCreateOrderRouterData =
+    RouterData<CreateOrder, PaymentsCreateOrderData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -376,6 +380,7 @@ impl Capturable for CompleteAuthorizeData {
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}
+impl Capturable for PaymentsCreateOrderData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where

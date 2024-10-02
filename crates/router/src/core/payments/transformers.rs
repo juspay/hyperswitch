@@ -2067,6 +2067,57 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCreateOrderData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCreateOrderData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data.clone();
+        let router_base_url = &additional_data.router_base_url;
+        let attempt = &payment_data.payment_attempt;
+        let connector_name = &additional_data.connector_name;
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
+        // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
+        let payment_method_data = payment_data.payment_method_data.or_else(|| {
+            if payment_data.mandate_id.is_some() {
+                Some(domain::PaymentMethodData::MandatePayment)
+            } else {
+                None
+            }
+        });
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+        Ok(Self {
+            amount: amount.get_amount_as_i64(), //need to change after we move to connector module
+            currency: payment_data.currency,
+            payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
+            complete_authorize_url,
+            merchant_order_reference_id,
+            capture_method: payment_data.payment_attempt.capture_method,
+        })
+    }
+}
+
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

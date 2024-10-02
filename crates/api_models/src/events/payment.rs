@@ -20,12 +20,13 @@ use crate::{
         PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
         PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-        PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsRejectRequest,
-        PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, RedirectionResponse,
+        PaymentsCompleteAuthorizeRequest, PaymentsCreateOrderRequest, PaymentsCreateOrderResponse,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
+        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        RedirectionResponse,
     },
 };
 impl ApiEventMetric for PaymentsRetrieveRequest {
@@ -64,6 +65,22 @@ impl ApiEventMetric for PaymentsCompleteAuthorizeRequest {
 }
 
 impl ApiEventMetric for PaymentsDynamicTaxCalculationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsCreateOrderRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsCreateOrderResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

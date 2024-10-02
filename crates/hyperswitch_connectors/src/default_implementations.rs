@@ -29,18 +29,18 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PreProcessing,
-            Reject, SdkSessionUpdate,
+            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PostProcessing,
+            PreProcessing, Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsApproveData, PaymentsCreateOrderData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -64,7 +64,7 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
-            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
+            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken, PaymentCreateOrder,
             PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
             PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
             TaxCalculation,
@@ -164,6 +164,44 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Helcim,
+    connectors::Stax,
+    connectors::Taxjar,
+    connectors::Mollie,
+    connectors::Novalnet,
+    connectors::Nexixpay,
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Deutschebank,
+    connectors::Volt
+);
+
+macro_rules! default_imp_for_create_order {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentCreateOrder for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                CreateOrder,
+                PaymentsCreateOrderData,
+                PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_create_order!(
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,

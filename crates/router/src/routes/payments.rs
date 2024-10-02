@@ -357,6 +357,67 @@ pub async fn payments_update(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateOrder, payment_id))]
+pub async fn payments_create_order(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCreateOrderRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCreateOrder;
+    let payload = json_payload.into_inner();
+
+    let payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, req_state| {
+            payments::payments_core::<
+                api_types::CreateOrder,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::CreateOrder>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                payments::PaymentCreateOrder,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                None,
+                header_payload.clone(),
+            )
+        },
+        &*auth_type,
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payments_confirm(
     state: web::Data<app::AppState>,
@@ -1596,6 +1657,23 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
 
 #[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl GetLockingInput for payment_types::PaymentsCreateOrderRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,

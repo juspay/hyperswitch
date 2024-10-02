@@ -570,6 +570,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
+        api_models::payments::PaymentsCreateOrderRequest,
+        api_models::payments::PaymentsCreateOrderResponse,
     )),
     modifiers(&SecurityAddon)
 )]

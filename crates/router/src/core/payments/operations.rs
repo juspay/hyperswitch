@@ -10,6 +10,7 @@ pub mod payment_complete_authorize;
 pub mod payment_confirm;
 #[cfg(feature = "v1")]
 pub mod payment_create;
+pub mod payment_create_order;
 #[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
@@ -38,8 +39,9 @@ pub use self::payment_response::PaymentResponse;
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_reject::PaymentReject, payment_session::PaymentSession,
-    payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
+    payment_create::PaymentCreate, payment_create_order::PaymentCreateOrder,
+    payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
+    payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };

@@ -50,7 +50,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, create_order_data"
 )]
 pub struct PaymentResponse;
 
@@ -676,6 +676,42 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         // let _shipping_address = payment_data.address.get_shipping();
         // let _amount = payment_data.amount;
 
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        _db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _router_data: types::RouterData<
+            F,
+            types::PaymentsCreateOrderData,
+            types::PaymentsResponseData,
+        >,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        let order_id = payment_data
+            .payment_attempt
+            .connector_transaction_id
+            .clone();
+        //order_id
         Ok(payment_data)
     }
 }

@@ -578,6 +578,9 @@ impl Payments {
                         .route(web::post().to(payments_update)),
                 )
                 .service(
+                    web::resource("/{payment_id}/create_order").route(web::post().to(payments_create_order)),
+                )
+                .service(
                     web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
                 )
                 .service(
