@@ -27,6 +27,9 @@ pub mod payments_incremental_authorization;
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
+pub mod payment_create_intent;
+
+#[cfg(feature = "v2")]
 pub mod payment_confirm_intent;
 
 use api_models::enums::FrmSuggestion;
@@ -36,6 +39,8 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+pub use self::payment_create_intent::PaymentCreateIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
@@ -97,10 +102,20 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct ValidateResult {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: api::PaymentIdType,
+    pub storage_scheme: enums::MerchantStorageScheme,
+    pub requeue: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct ValidateResult {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
 }

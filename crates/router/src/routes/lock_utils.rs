@@ -137,7 +137,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
             | Flow::SessionUpdateTaxCalculation
-            | Flow::PaymentsConfirmIntent => Self::Payments,
+            | Flow::PaymentsConfirmIntent
+            | Flow::PaymentsCreateIntent => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

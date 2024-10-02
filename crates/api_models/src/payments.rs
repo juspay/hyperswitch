@@ -5,6 +5,8 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -131,6 +133,10 @@ pub struct PaymentsCreateIntentRequest {
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
+    /// The business profile to be used for this payment
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
@@ -161,7 +167,7 @@ pub struct PaymentsCreateIntentRequest {
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -202,8 +208,8 @@ pub struct PaymentsCreateIntentRequest {
     pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
-    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = Option<RequestIncrementalAuthorization>)]
@@ -224,16 +230,81 @@ pub struct PaymentsCreateIntentRequest {
         Option<common_enums::External3dsAuthenticationRequest>,
 }
 
+#[cfg(feature = "v2")]
+impl PaymentsCreateIntentRequest {
+    pub fn get_feature_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(self
+            .feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()?
+            .map(Secret::new))
+    }
+
+    pub fn get_connector_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(self
+            .connector_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()?
+            .map(Secret::new))
+    }
+
+    pub fn get_allowed_payment_method_types_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(self
+            .allowed_payment_method_types
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()?
+            .map(Secret::new))
+    }
+
+    pub fn get_order_details_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<Vec<pii::SecretSerdeValue>>,
+        common_utils::errors::ParsingError,
+    > {
+        self.order_details
+            .as_ref()
+            .map(|od| {
+                od.iter()
+                    .map(|order| order.encode_to_value().map(Secret::new))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()
+    }
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsCreateIntentResponse {
+    /// Global Payment Id for the payment
+    #[schema(value_type = String)]
+    pub id: GlobalPaymentId,
+
     /// The amount details for the payment
     pub amount_details: AmountDetailsResponse,
 
     /// It's a token used for client side verification.
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Secret<String>,
+    pub client_secret: common_utils::types::ClientSecret,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -256,10 +327,12 @@ pub struct PaymentsCreateIntentResponse {
     pub authentication_type: api_enums::AuthenticationType,
 
     /// The billing details of the payment. This address will be used for invoicing.
-    pub billing: Option<Address>,
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<pii::SecretSerdeValue>,
 
     /// The shipping address for the payment
-    pub shipping: Option<Address>,
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<pii::SecretSerdeValue>,
 
     /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -275,7 +348,7 @@ pub struct PaymentsCreateIntentResponse {
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     #[schema(value_type = FutureUsage, example = "off_session")]
     pub setup_future_usage: api_enums::FutureUsage,
@@ -295,38 +368,39 @@ pub struct PaymentsCreateIntentResponse {
         "amount" : 69000
         "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
-    pub connector_metadata: Option<ConnectorMetadata>,
+    #[schema(value_type = Option<ConnectorMetadata>)]
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
-    pub feature_metadata: Option<FeatureMetadata>,
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]
     pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
-    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = RequestIncrementalAuthorization)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
-    ///(900) for 15 mins
-    #[schema(example = 900)]
-    pub session_expiry: Option<u32>,
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expires_on: PrimitiveDateTime,
 
     /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
@@ -343,26 +417,26 @@ pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize")]
-    order_amount: Amount,
+    pub order_amount: Amount,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
-    currency: common_enums::Currency,
+    pub currency: common_enums::Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
-    shipping_cost: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
-    order_tax_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
     #[schema(value_type = TaxCalculationOverride)]
-    skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[serde(default)]
     #[schema(value_type = SurchargeCalculationOverride)]
-    skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
-    surcharge_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
-    tax_on_surcharge: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]

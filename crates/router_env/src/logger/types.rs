@@ -169,6 +169,8 @@ pub enum Flow {
     PaymentsFilters,
     /// Payments aggregates flow
     PaymentsAggregate,
+    /// Payments Create Intent flow
+    PaymentsCreateIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,

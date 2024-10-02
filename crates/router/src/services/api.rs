@@ -496,7 +496,7 @@ pub async fn send_request(
         ))
     };
 
-    // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
+    // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
         cloned_request
             .send()
@@ -570,7 +570,7 @@ pub async fn send_request(
                     .await
                 }
                 None => {
-                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not cloneable");
                     Err(error)
                 }
             }
@@ -1256,6 +1256,10 @@ impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequ
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsCreateIntentRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsCreateIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,

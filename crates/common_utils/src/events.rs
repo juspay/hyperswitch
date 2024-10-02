@@ -15,18 +15,14 @@ pub enum ApiEventsType {
     Payout {
         payout_id: String,
     },
-
     #[cfg(feature = "v1")]
     Payment {
         payment_id: id_type::PaymentId,
     },
-
-    // TODO: not able to use the same name due to feature flag conflict
     #[cfg(feature = "v2")]
     PaymentV2 {
         payment_id: id_type::GlobalPaymentId,
     },
-
     Refund {
         payment_id: Option<id_type::PaymentId>,
         refund_id: String,

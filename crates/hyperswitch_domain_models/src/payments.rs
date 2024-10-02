@@ -200,11 +200,11 @@ pub struct PaymentIntent {
     pub modified_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: storage_enums::FutureUsage,
     /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
     pub client_secret: common_utils::types::ClientSecret,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
-    pub active_attempt: RemoteStorageObject<PaymentAttempt>,
+    pub active_attempt: Option<RemoteStorageObject<PaymentAttempt>>,
     /// The order details for the payment.
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -225,12 +225,12 @@ pub struct PaymentIntent {
     /// Denotes the last instance which updated the payment
     pub updated_by: String,
     /// Denotes whether merchant requested for incremental authorization to be enabled for this payment.
-    pub request_incremental_authorization: Option<storage_enums::RequestIncrementalAuthorization>,
+    pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
     /// Denotes the number of authorizations that have been made for the payment.
     pub authorization_count: Option<i32>,
     /// Denotes the client secret expiry for the payment. This is the time at which the client secret will expire.
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub session_expiry: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub session_expiry: PrimitiveDateTime,
     /// Denotes whether merchant requested for 3ds authentication to be enabled for this payment.
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
     /// Metadata related to fraud and risk management
@@ -238,15 +238,15 @@ pub struct PaymentIntent {
     /// The details of the customer in a denormalized form. Only a subset of fields are stored.
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
     /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
-    pub merchant_reference_id: Option<id_type::PaymentId>,
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
     /// The billing address for the order in a denormalized form.
     pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
     /// The shipping address for the order in a denormalized form.
     pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     /// Capture method for the payment
-    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.
-    pub authentication_type: Option<common_enums::AuthenticationType>,
+    pub authentication_type: common_enums::AuthenticationType,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
     pub prerouting_algorithm: Option<serde_json::Value>,
     /// The organization id for the payment. This is derived from the merchant account

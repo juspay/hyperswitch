@@ -1,4 +1,6 @@
-use crate::errors;
+use error_stack::ResultExt;
+
+use crate::{errors, generate_id_with_default_len};
 
 crate::global_id_type!(
     GlobalPaymentId,
@@ -11,10 +13,25 @@ crate::global_id_type!(
 crate::impl_queryable_id_type!(GlobalPaymentId);
 crate::impl_to_sql_from_sql_global_id_type!(GlobalPaymentId);
 
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum GlobalPaymentIdError {
+    #[error("Failed to construct GlobalPaymentId")]
+    ConstructionError,
+}
+
 impl GlobalPaymentId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+
+    /// Generate a new GlobalPaymentId from a cell id
+    pub fn generate(cell_id: &str) -> error_stack::Result<Self, GlobalPaymentIdError> {
+        let cell_id = super::CellId::from_str(cell_id)
+            .change_context(GlobalPaymentIdError::ConstructionError)
+            .attach_printable("Error generating GlobalPaymentId")?;
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
+        Ok(Self(global_id))
     }
 }
 

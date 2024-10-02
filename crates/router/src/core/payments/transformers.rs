@@ -740,6 +740,74 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsCreateIntentResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        let payment_intent = payment_data.get_payment_intent();
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                id: payment_intent.id.clone(),
+                amount_details: api_models::payments::AmountDetails::foreign_from(
+                    payment_intent.amount_details.clone(),
+                ),
+                client_secret: payment_intent.client_secret.clone(),
+                merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+                routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
+                capture_method: payment_intent.capture_method,
+                authentication_type: payment_intent.authentication_type,
+                billing: payment_intent
+                    .billing_address
+                    .clone()
+                    .map(|address| address.into_inner()),
+                shipping: payment_intent
+                    .shipping_address
+                    .clone()
+                    .map(|address| address.into_inner()),
+                customer_id: payment_intent.customer_id.clone(),
+                customer_present: payment_intent.customer_present.clone(),
+                description: payment_intent.description.clone(),
+                return_url: payment_intent.return_url.clone(),
+                setup_future_usage: payment_intent.setup_future_usage,
+                apply_mit_exemption: payment_intent.apply_mit_exemption.clone(),
+                statement_descriptor: payment_intent.statement_descriptor.clone(),
+                order_details: payment_intent.order_details.clone(),
+                allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
+                metadata: payment_intent.metadata.clone(),
+                connector_metadata: payment_intent.connector_metadata.clone(),
+                feature_metadata: payment_intent.feature_metadata.clone(),
+                payment_link_enabled: payment_intent.enable_payment_link.clone(),
+                payment_link_config: payment_intent
+                    .payment_link_config
+                    .clone()
+                    .map(ForeignFrom::foreign_from),
+                request_incremental_authorization: payment_intent.request_incremental_authorization,
+                expires_on: payment_intent.session_expiry,
+                frm_metadata: payment_intent.frm_metadata.clone(),
+                request_external_three_ds_authentication: payment_intent
+                    .request_external_three_ds_authentication
+                    .clone(),
+            },
+            vec![],
+        )))
+    }
+}
+
 impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
     for api_models::payments::DisplayAmountOnSdk
 {
@@ -2690,6 +2758,223 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::payments::AmountDetails>
+    for hyperswitch_domain_models::payments::AmountDetails
+{
+    fn foreign_from(amount_details: api_models::payments::AmountDetails) -> Self {
+        Self {
+            order_amount: amount_details.order_amount.into(),
+            currency: amount_details.currency,
+            shipping_cost: amount_details.shipping_cost,
+            tax_details: Some(diesel_models::TaxDetails {
+                default: amount_details
+                    .order_tax_amount
+                    .map(|order_tax_amount| diesel_models::DefaultTax { order_tax_amount }),
+                payment_method_type: None,
+            }),
+            skip_external_tax_calculation:
+                hyperswitch_domain_models::payments::TaxCalculationOverride::foreign_from(
+                    amount_details.skip_external_tax_calculation,
+                ),
+            skip_surcharge_calculation:
+                hyperswitch_domain_models::payments::SurchargeCalculationOverride::foreign_from(
+                    amount_details.skip_surcharge_calculation,
+                ),
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
+    for api_models::payments::AmountDetails
+{
+    fn foreign_from(amount_details: hyperswitch_domain_models::payments::AmountDetails) -> Self {
+        Self {
+            order_amount: amount_details.order_amount.into(),
+            currency: amount_details.currency,
+            shipping_cost: amount_details.shipping_cost,
+            order_tax_amount: amount_details.tax_details.and_then(|tax_details| {
+                tax_details.default.map(|default| default.order_tax_amount)
+            }),
+            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+                amount_details.skip_external_tax_calculation,
+            ),
+            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+                amount_details.skip_surcharge_calculation,
+            ),
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<common_enums::TaxCalculationOverride>
+    for hyperswitch_domain_models::payments::TaxCalculationOverride
+{
+    fn foreign_from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
+        match tax_calculation_override {
+            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
+            common_enums::TaxCalculationOverride::Skip => Self::Skip,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<hyperswitch_domain_models::payments::TaxCalculationOverride>
+    for common_enums::TaxCalculationOverride
+{
+    fn foreign_from(
+        tax_calculation_override: hyperswitch_domain_models::payments::TaxCalculationOverride,
+    ) -> Self {
+        match tax_calculation_override {
+            hyperswitch_domain_models::payments::TaxCalculationOverride::Calculate => {
+                Self::Calculate
+            }
+            hyperswitch_domain_models::payments::TaxCalculationOverride::Skip => Self::Skip,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<common_enums::SurchargeCalculationOverride>
+    for hyperswitch_domain_models::payments::SurchargeCalculationOverride
+{
+    fn foreign_from(
+        surcharge_calculation_override: common_enums::SurchargeCalculationOverride,
+    ) -> Self {
+        match surcharge_calculation_override {
+            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
+            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<hyperswitch_domain_models::payments::SurchargeCalculationOverride>
+    for common_enums::SurchargeCalculationOverride
+{
+    fn foreign_from(
+        surcharge_calculation_override: hyperswitch_domain_models::payments::SurchargeCalculationOverride,
+    ) -> Self {
+        match surcharge_calculation_override {
+            hyperswitch_domain_models::payments::SurchargeCalculationOverride::Calculate => {
+                Self::Calculate
+            }
+            hyperswitch_domain_models::payments::SurchargeCalculationOverride::Skip => Self::Skip,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
+    for diesel_models::PaymentLinkConfigRequestForPayments
+{
+    fn foreign_from(config: api_models::admin::PaymentLinkConfigRequest) -> Self {
+        Self {
+            theme: config.theme,
+            logo: config.logo,
+            seller_name: config.seller_name,
+            sdk_layout: config.sdk_layout,
+            display_sdk_only: config.display_sdk_only,
+            enabled_saved_payment_method: config.enabled_saved_payment_method,
+            transaction_details: config.transaction_details.map(|transaction_details| {
+                transaction_details
+                    .iter()
+                    .map(|details| {
+                        diesel_models::PaymentLinkTransactionDetails::foreign_from(details.clone())
+                    })
+                    .collect()
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::PaymentLinkTransactionDetails>
+    for diesel_models::PaymentLinkTransactionDetails
+{
+    fn foreign_from(from: api_models::admin::PaymentLinkTransactionDetails) -> Self {
+        Self {
+            key: from.key,
+            value: from.value,
+            ui_configuration: from
+                .ui_configuration
+                .map(diesel_models::TransactionDetailsUiConfiguration::foreign_from),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::TransactionDetailsUiConfiguration>
+    for diesel_models::TransactionDetailsUiConfiguration
+{
+    fn foreign_from(from: api_models::admin::TransactionDetailsUiConfiguration) -> Self {
+        Self {
+            position: from.position,
+            is_key_bold: from.is_key_bold,
+            is_value_bold: from.is_value_bold,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
+    for api_models::admin::PaymentLinkConfigRequest
+{
+    fn foreign_from(config: diesel_models::PaymentLinkConfigRequestForPayments) -> Self {
+        Self {
+            theme: config.theme,
+            logo: config.logo,
+            seller_name: config.seller_name,
+            sdk_layout: config.sdk_layout,
+            display_sdk_only: config.display_sdk_only,
+            enabled_saved_payment_method: config.enabled_saved_payment_method,
+            transaction_details: config.transaction_details.map(|transaction_details| {
+                transaction_details
+                    .iter()
+                    .map(|details| {
+                        api_models::admin::PaymentLinkTransactionDetails::foreign_from(
+                            details.clone(),
+                        )
+                    })
+                    .collect()
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::PaymentLinkTransactionDetails>
+    for api_models::admin::PaymentLinkTransactionDetails
+{
+    fn foreign_from(from: diesel_models::PaymentLinkTransactionDetails) -> Self {
+        Self {
+            key: from.key,
+            value: from.value,
+            ui_configuration: from
+                .ui_configuration
+                .map(api_models::admin::TransactionDetailsUiConfiguration::foreign_from),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::TransactionDetailsUiConfiguration>
+    for api_models::admin::TransactionDetailsUiConfiguration
+{
+    fn foreign_from(from: diesel_models::TransactionDetailsUiConfiguration) -> Self {
+        Self {
+            position: from.position,
+            is_key_bold: from.is_key_bold,
+            is_value_bold: from.is_value_bold,
         }
     }
 }

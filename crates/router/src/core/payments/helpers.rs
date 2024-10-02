@@ -3049,11 +3049,7 @@ pub fn authenticate_client_secret(
             } else {
                 let current_timestamp = common_utils::date_time::now();
 
-                let session_expiry = payment_intent.session_expiry.unwrap_or(
-                    payment_intent
-                        .created_at
-                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
-                );
+                let session_expiry = payment_intent.session_expiry;
 
                 fp_utils::when(current_timestamp > session_expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
@@ -5633,6 +5629,7 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
+#[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
     payment_data: &mut D,
@@ -5643,6 +5640,37 @@ where
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
+        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
+            db,
+            &payment_data.get_payment_intent().merchant_id,
+        )
+        .await?;
+
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) =
+                payment_data.get_payment_attempt().get_payment_method_type()
+            {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data
+                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                }
+            }
+        };
+    };
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn override_setup_future_usage_to_on_session<F, D>(
+    db: &dyn StorageInterface,
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
+{
+    if payment_data.get_payment_intent().setup_future_usage == enums::FutureUsage::OffSession {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
             db,
             &payment_data.get_payment_intent().merchant_id,
