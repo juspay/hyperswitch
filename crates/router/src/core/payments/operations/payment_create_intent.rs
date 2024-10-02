@@ -115,6 +115,7 @@ impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
             payment_id.clone(),
             common_utils::generate_time_ordered_id_without_prefix(),
         );
+
         // Derivation of directly supplied Billing Address data in our Payment Create Request
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let billing_address = self
@@ -136,6 +137,7 @@ impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt shipping details")?;
+
         Ok(hyperswitch_domain_models::payments::PaymentIntent {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),

@@ -197,7 +197,7 @@ pub struct PaymentAttempt {
     pub error_message: Option<String>,
     /// The authentication type that was requsted for the payment attempt.
     /// This authentication type maybe decided by step up 3ds or by running the decision engine.
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub authentication_type: storage_enums::AuthenticationType,
     /// The time at which the payment attempt was created
     pub created_at: PrimitiveDateTime,
     /// The time at which the payment attempt was last modified
@@ -256,13 +256,13 @@ pub struct PaymentAttempt {
     /// The organization id for the payment attempt. This will be derived from payment intent.
     pub organization_id: id_type::OrganizationId,
     /// Payment method type for the payment attempt
-    pub payment_method_type: Option<storage_enums::PaymentMethod>,
+    pub payment_method_type: storage_enums::PaymentMethod,
     /// Foreig key reference of Payment method id in case the payment instrument was stored
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -280,7 +280,8 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub fn get_payment_method(&self) -> Option<storage_enums::PaymentMethod> {
-        self.payment_method_type
+        // TODO: check if we can fix this
+        Some(self.payment_method_type)
     }
 
     #[cfg(feature = "v1")]
@@ -290,7 +291,8 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
-        self.payment_method_subtype
+        // TODO: check if we can fix this
+        Some(self.payment_method_subtype)
     }
 
     #[cfg(feature = "v1")]
@@ -1301,6 +1303,8 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: self
                 .payment_method_billing_address
                 .map(Encryption::from),
+            payment_method_subtype: self.payment_method_subtype,
+            payment_method_type_v2: self.payment_method_type,
         })
     }
 }

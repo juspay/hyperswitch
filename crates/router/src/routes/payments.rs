@@ -1961,7 +1961,7 @@ pub async fn payment_confirm_intent(
 
             payments::payments_core::<
                 api_types::Authorize,
-                payment_types::PaymentsResponse,
+                api_models::payments::PaymentsConfirmIntentResponse,
                 _,
                 _,
                 _,

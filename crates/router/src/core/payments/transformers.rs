@@ -200,10 +200,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
 
-    let payment_method = payment_data
-        .payment_attempt
-        .payment_method_type
-        .get_required_value("payment_method_type")?;
+    let payment_method = payment_data.payment_attempt.payment_method_type;
 
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
@@ -227,19 +224,19 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         None,
     ));
 
-    // TODO: few fields are repeated in both routerdat and request
+    // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
-        setup_future_usage: payment_data.payment_intent.setup_future_usage,
+        setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
         mandate_id: None,
         off_session: None,
         setup_mandate_details: None,
         confirm: true,
         statement_descriptor_suffix: None,
         statement_descriptor: None,
-        capture_method: payment_data.payment_intent.capture_method,
+        capture_method: Some(payment_data.payment_intent.capture_method),
         amount: payment_data
             .payment_attempt
             .amount_details
@@ -256,7 +253,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         session_token: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
-        payment_method_type: payment_data.payment_attempt.payment_method_subtype,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         router_return_url,
         webhook_url,
         complete_authorize_url,
@@ -266,8 +263,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             payment_data
                 .payment_intent
                 .request_incremental_authorization,
-            Some(RequestIncrementalAuthorization::True)
-                | Some(RequestIncrementalAuthorization::Default)
+            RequestIncrementalAuthorization::True | RequestIncrementalAuthorization::Default
         ),
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
@@ -313,10 +309,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .map(ToOwned::to_owned),
         // TODO: Create unified address
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-        auth_type: payment_data
-            .payment_attempt
-            .authentication_type
-            .unwrap_or_default(),
+        auth_type: payment_data.payment_attempt.authentication_type,
         connector_meta_data: None,
         connector_wallets_details: None,
         request,
@@ -763,7 +756,7 @@ where
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
-                amount_details: api_models::payments::AmountDetails::foreign_from(
+                amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
                     payment_intent.amount_details.clone(),
                 ),
                 client_secret: payment_intent.client_secret.clone(),
@@ -805,6 +798,29 @@ where
             },
             vec![],
         )))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F, Op, D> ToResponse<F, D, Op> for api_models::payments::PaymentsConfirmIntentResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        todo!()
     }
 }
 
@@ -2793,7 +2809,7 @@ impl ForeignFrom<api_models::payments::AmountDetails>
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
-    for api_models::payments::AmountDetails
+    for api_models::payments::AmountDetailsResponse
 {
     fn foreign_from(amount_details: hyperswitch_domain_models::payments::AmountDetails) -> Self {
         Self {

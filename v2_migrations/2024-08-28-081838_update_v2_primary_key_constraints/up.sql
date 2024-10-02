@@ -115,4 +115,10 @@ ADD PRIMARY KEY (id);
 -- This migration is to make fields mandatory in payment_attempt table
 ALTER TABLE payment_attempt
 ALTER COLUMN net_amount
+SET NOT NULL,
+    ALTER COLUMN authentication_type
+SET NOT NULL,
+    ALTER COLUMN payment_method_type_v2
+SET NOT NULL,
+    ALTER COLUMN payment_method_subtype
 SET NOT NULL;

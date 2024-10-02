@@ -116,7 +116,8 @@ pub struct CustomerDetailsResponse {
     pub phone_country_code: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, Clone, ToSchema)]
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsCreateIntentRequest {
@@ -412,7 +413,7 @@ pub struct PaymentsCreateIntentResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -445,25 +446,25 @@ pub struct AmountDetailsResponse {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize")]
-    order_amount: MinorUnit,
+    pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
-    currency: common_enums::Currency,
+    pub currency: common_enums::Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
-    shipping_cost: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
-    order_tax_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[schema(value_type = TaxCalculationOverride)]
-    skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[serde(default)]
     #[schema(value_type = SurchargeCalculationOverride)]
-    skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
-    surcharge_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
-    tax_on_surcharge: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -766,6 +767,7 @@ pub struct PaymentsRequest {
     pub skip_external_tax_calculation: Option<bool>,
 }
 
+#[cfg(feature = "v1")]
 /// Checks if the inner values of two options are equal
 /// Returns true if values are not equal, returns false in other cases
 fn are_optional_values_invalid<T: PartialEq>(
@@ -4338,7 +4340,7 @@ pub struct PaymentsConfirmIntentRequest {
 /// Response for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PaymentIntentConfirmResponse {
+pub struct PaymentsConfirmIntentResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
     #[schema(
@@ -4347,26 +4349,26 @@ pub struct PaymentIntentConfirmResponse {
         example = "cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p",
         value_type = String,
     )]
-    payment_id: id_type::GlobalPaymentId,
+    pub id: id_type::GlobalPaymentId,
 
     #[schema(value_type = IntentStatus, example = "success")]
-    status: api_enums::IntentStatus,
+    pub status: api_enums::IntentStatus,
 
     /// Amount related information for this order
-    amount: AmountDetailsResponse,
+    pub amount: AmountDetailsResponse,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
-    connector: common_enums::RoutableConnectors,
+    pub connector: common_enums::RoutableConnectors,
 
     /// It's a token used for client side verification.
     #[schema(value_type = String)]
-    client_secret: common_utils::types::ClientSecret,
+    pub client_secret: common_utils::types::ClientSecret,
 
     /// Time when the payment was created
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    created: PrimitiveDateTime,
+    pub created: PrimitiveDateTime,
 
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]

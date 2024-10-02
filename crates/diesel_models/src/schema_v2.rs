@@ -747,7 +747,7 @@ diesel::table! {
         surcharge_amount -> Nullable<Int8>,
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
-        authentication_type -> Nullable<AuthenticationType>,
+        authentication_type -> AuthenticationType,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
@@ -800,11 +800,11 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 32]
         card_network -> Nullable<Varchar>,
-        payment_method_type_v2 -> Nullable<Varchar>,
+        payment_method_type_v2 -> Varchar,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
-        payment_method_subtype -> Nullable<Varchar>,
+        payment_method_subtype -> Varchar,
         routing_result -> Nullable<Jsonb>,
         authentication_applied -> Nullable<AuthenticationType>,
         #[max_length = 128]

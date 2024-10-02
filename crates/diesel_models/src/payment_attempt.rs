@@ -22,7 +22,7 @@ pub struct PaymentAttempt {
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -60,9 +60,9 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
-    pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
+    pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<String>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
@@ -181,7 +181,7 @@ pub struct PaymentAttemptNew {
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -222,6 +222,8 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub payment_method_type_v2: storage_enums::PaymentMethod,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
 }
 
 #[cfg(feature = "v1")]
