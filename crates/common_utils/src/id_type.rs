@@ -23,7 +23,11 @@ use diesel::{
     sql_types,
 };
 #[cfg(feature = "v2")]
-pub use global_id::{payment::GlobalPaymentId, payment_methods::GlobalPaymentMethodId, CellId};
+pub use global_id::{
+    payment::{GlobalAttemptId, GlobalPaymentId},
+    payment_methods::GlobalPaymentMethodId,
+    CellId,
+};
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;

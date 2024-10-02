@@ -1341,6 +1341,8 @@ pub fn payment_intent_status_fsm(
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
     }
 }
+
+#[cfg(feature = "v1")]
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &SessionState,
@@ -4052,7 +4054,7 @@ impl AttemptType {
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
                 logger::info!(
-                    "manual_retry payment for {:?} with attempt_id {}",
+                    "manual_retry payment for {:?} with attempt_id {:?}",
                     updated_payment_intent.get_id(),
                     new_payment_attempt.get_id()
                 );
