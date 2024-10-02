@@ -2283,61 +2283,6 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "autoRetryConfig",
-  (autoRetryGsmBody, globalState, value) => {
-    const key = `should_call_gsm_${globalState.get("merchantId")}`;
-    autoRetryGsmBody.key = key;
-    autoRetryGsmBody.value = value;
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/configs/${key}`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-      },
-      body: autoRetryGsmBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      if (response.status === 200) {
-        expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
-      }
-    });
-  }
-);
-
-Cypress.Commands.add(
-  "setMaxAutoRetries",
-  (maxAutoRetryBody, globalState, value) => {
-    const key = `max_auto_retries_enabled_${globalState.get("merchantId")}`;
-    maxAutoRetryBody.key = key;
-    maxAutoRetryBody.value = value;
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/configs/${key}`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-      },
-      body: maxAutoRetryBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      if (response.status === 200) {
-        expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
-      }
-    });
-  }
-);
-
-Cypress.Commands.add(
   "updateGsmConfig",
   (gsmBody, globalState, step_up_possible) => {
     gsmBody.step_up_possible = step_up_possible;
@@ -2365,26 +2310,38 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("stepUp", (stepUpBody, globalState, value) => {
-  const key = `step_up_enabled_${globalState.get("merchantId")}`;
-  stepUpBody.key = key;
-  stepUpBody.value = value;
+Cypress.Commands.add("updateConfig", (configType, configData, globalState, value) => {
+  let url;
+  let body;
+  
+  switch (configType) {
+    case 'autoRetry':
+      url = `${globalState.get("baseUrl")}/configs/autoRetry`;
+      body = { ...configData, enable: value }; // enable or disable autoRetry
+      break;
+    case 'maxRetries':
+      url = `${globalState.get("baseUrl")}/configs/maxRetries`;
+      body = { ...configData, retries: value }; // set max retries
+      break;
+    case 'stepUp':
+      url = `${globalState.get("baseUrl")}/configs/stepUp`;
+      body = { ...configData, connectors: value }; // step-up configurations
+      break;
+    default:
+      throw new Error('Invalid config type');
+  }
 
   cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/configs/${key}`,
+    method: 'POST',
+    url: url,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("adminApiKey"),
     },
-    body: stepUpBody,
+    body: body,
     failOnStatusCode: false,
   }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    if (response.status === 200) {
-      expect(response.body).to.have.property("key").to.equal(key);
-      expect(response.body).to.have.property("value").to.equal(value);
-    }
+    expect(response.status).to.equal(200);
   });
 });
+
