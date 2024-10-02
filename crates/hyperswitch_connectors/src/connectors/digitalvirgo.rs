@@ -1,10 +1,12 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -33,20 +35,20 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{Mask, PeekInterface};
 use transformers as digitalvirgo;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Digitalvirgo {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Digitalvirgo {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -111,9 +113,14 @@ impl ConnectorCommon for Digitalvirgo {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = digitalvirgo::DigitalvirgoAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
+            "{}:{}",
+            auth.username.peek(),
+            auth.password.peek()
+        ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {encoded_api_key}").into_masked(),
         )])
     }
 
@@ -130,11 +137,16 @@ impl ConnectorCommon for Digitalvirgo {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error_code = response.cause.or(response.operation_error);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: error_code
+                .clone()
+                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+            message: error_code
+                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.description,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -168,9 +180,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "/payment"))
     }
 
     fn get_request_body(
@@ -184,7 +196,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = digitalvirgo::DigitalvirgoRouterData::from((amount, req));
+        let surcharge_amount = req.request.surcharge_details.clone().and_then(|surcharge| {
+            utils::convert_amount(
+                self.amount_converter,
+                surcharge.surcharge_amount,
+                req.request.currency,
+            )
+            .ok()
+        });
+
+        let connector_router_data =
+            digitalvirgo::DigitalvirgoRouterData::from((amount, surcharge_amount, req));
         let connector_req =
             digitalvirgo::DigitalvirgoPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -255,10 +277,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dig
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/payment/state?partnerTransactionId=",
+            req.connector_request_reference_id
+        ))
     }
 
     fn build_request(
@@ -282,7 +309,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dig
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: digitalvirgo::DigitalvirgoPaymentsResponse = res
+        let response: digitalvirgo::DigitalvirgoPaymentSyncResponse = res
             .response
             .parse_struct("digitalvirgo PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -416,7 +443,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Digital
         )?;
 
         let connector_router_data =
-            digitalvirgo::DigitalvirgoRouterData::from((refund_amount, req));
+            digitalvirgo::DigitalvirgoRouterData::from((refund_amount, None, req));
         let connector_req =
             digitalvirgo::DigitalvirgoRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
