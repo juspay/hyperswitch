@@ -252,10 +252,10 @@ pub async fn get_metrics(
         query_data,
         meta_data: [PaymentsAnalyticsMetadata {
             total_payment_processed_amount: Some(total_payment_processed_amount),
-            total_payment_processed_count: Some(total_payment_processed_count),
             total_payment_processed_amount_without_smart_retries: Some(
                 total_payment_processed_amount_without_smart_retries,
             ),
+            total_payment_processed_count: Some(total_payment_processed_count),
             total_payment_processed_count_without_smart_retries: Some(
                 total_payment_processed_count_without_smart_retries,
             ),
