@@ -142,6 +142,25 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
+    let operations::GetTrackerResponse {
+        operation,
+        customer_details,
+        mut payment_data,
+        business_profile,
+        mandate_type,
+    } = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            &payment_id,
+            &req,
+            &merchant_account,
+            &key_store,
+            auth_flow,
+            &header_payload,
+        )
+        .await?;
+
     Err(errors::ApiErrorResponse::InternalServerError)?
 }
 
