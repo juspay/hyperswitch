@@ -3512,6 +3512,7 @@ pub async fn get_aggregates_for_payments(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
@@ -3546,6 +3547,16 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
+#[cfg(feature = "v2")]
+pub async fn reset_process_sync_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+) -> Result<(), errors::ProcessTrackerError> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,

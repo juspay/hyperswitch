@@ -1,4 +1,3 @@
-#![allow(unused)]
 pub mod payment;
 pub mod payment_methods;
 

@@ -68,7 +68,7 @@ pub struct PaymentAttempt {
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalAttemptId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
 }

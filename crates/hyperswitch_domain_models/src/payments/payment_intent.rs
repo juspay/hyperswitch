@@ -302,7 +302,7 @@ pub enum PaymentIntentUpdate {
     },
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
-        active_attempt_id: String,
+        active_attempt_id: id_type::GlobalAttemptId,
         attempt_count: i16,
         updated_by: String,
     },
@@ -348,7 +348,7 @@ pub struct PaymentIntentUpdateInternal {
     pub off_session: Option<bool>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub active_attempt_id: Option<String>,
+    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,

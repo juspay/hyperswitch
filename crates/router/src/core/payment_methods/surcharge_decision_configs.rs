@@ -375,7 +375,9 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
     payment_intent: &storage::PaymentIntent,
     customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
-    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.id.clone());
+    // let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.id.clone());
+    let mut surcharge_metadata = todo!();
+
     let surcharge_source = match (
         payment_attempt.get_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,

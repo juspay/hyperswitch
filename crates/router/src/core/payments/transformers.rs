@@ -43,6 +43,27 @@ use crate::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 
+#[cfg(feature = "v2")]
+pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
+    state: &'a SessionState,
+    payment_data: PaymentData<F>,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
+where
+    T: TryFrom<PaymentAdditionalData<'a, F>>,
+    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
+    F: Clone,
+    error_stack::Report<errors::ApiErrorResponse>:
+        From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
@@ -141,7 +162,7 @@ where
 }
 
 // TODO: evaluate trait bounds
-#[cfg(all(feature = "v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data_for_authorize<'a>(
@@ -260,14 +281,21 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
+        // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
+        // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_data
             .payment_attempt
             .payment_id
             .get_string_repr()
             .to_owned(),
-        attempt_id: payment_data.payment_attempt.get_id().to_owned(),
+        // TODO: evaluate why we need attempt id at the connector level. We already have connector reference id
+        attempt_id: payment_data
+            .payment_attempt
+            .get_id()
+            .get_string_repr()
+            .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
         connector_auth_type: auth_type,
@@ -302,7 +330,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
-        connector_request_reference_id: payment_data.payment_attempt.id.to_string(),
+        // TODO: This has to be generated as the reference id based on the connector configuration
+        // Some connectros might not accept accept the global id. This has to be done when generating the reference id
+        connector_request_reference_id: payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .get_required_value("connector_reference_id")?
+            .clone(),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
