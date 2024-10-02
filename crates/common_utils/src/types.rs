@@ -1080,6 +1080,7 @@ impl Description {
     }
 
     // TODO: Remove this function in future once description in router data is updated to domain type
+    /// Get the string representation of the description
     pub fn get_string_repr(&self) -> &str {
         &self.0 .0
     }
