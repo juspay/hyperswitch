@@ -37,6 +37,26 @@ function logRequestId(xRequestId) {
   }
 }
 
+Cypress.Commands.add('getByTestId', (testId) => {
+  return cy.get(`[data-testid="${testId}"]`)
+})
+
+Cypress.Commands.add('clickOnElementWithText', (selector, text) => {
+  cy.contains(selector, text).should("be.visible").click();
+})
+
+Cypress.Commands.add('navigateFromSideMenu', (menuItem) => {
+  if (menuItem.includes("/")) {
+    const [firstMenu, secondMenu] = menuItem.split("/").map((item) => item.toLowerCase());
+    cy.get(`[data-testid=${firstMenu}]`).click();
+    cy.get(`[data-testid=${secondMenu}]`).click();
+  } else {
+    cy.get(`[data-testid=${menuItem.toLowerCase()}]`).click();
+  }
+})
+
+
+
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState) => {
