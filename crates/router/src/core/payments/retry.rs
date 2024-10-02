@@ -114,7 +114,9 @@ where
 
             match get_gsm_decision(gsm) {
                 api_models::gsm::GsmDecision::Retry => {
-                    retries = get_retries(state, retries, merchant_account.get_id()).await;
+                    retries =
+                        get_retries(state, retries, merchant_account.get_id(), business_profile)
+                            .await;
 
                     if retries.is_none() || retries == Some(0) {
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
@@ -190,34 +192,41 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         .unwrap_or(false)
 }
 
+pub async fn get_merchant_max_auto_retries_enabled(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> Option<i32> {
+    let key = merchant_id.get_max_auto_retries_enabled();
+
+    db.find_config_by_key(key.as_str())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .and_then(|retries_config| {
+            retries_config
+                .config
+                .parse::<i32>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Retries config parsing failed")
+        })
+        .map_err(|err| {
+            logger::error!(retries_error=?err);
+            None::<i32>
+        })
+        .ok()
+}
+
 #[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
     merchant_id: &common_utils::id_type::MerchantId,
+    profile: &domain::Profile,
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
-        None => {
-            let key = merchant_id.get_max_auto_retries_enabled();
-
-            let db = &*state.store;
-            db.find_config_by_key(key.as_str())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .and_then(|retries_config| {
-                    retries_config
-                        .config
-                        .parse::<i32>()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Retries config parsing failed")
-                })
-                .map_err(|err| {
-                    logger::error!(retries_error=?err);
-                    None::<i32>
-                })
-                .ok()
-        }
+        None => get_merchant_max_auto_retries_enabled(state.store.as_ref(), merchant_id)
+            .await
+            .or(profile.max_auto_retries_enabled.map(i32::from)),
     }
 }
 
@@ -649,7 +658,7 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-pub async fn config_should_call_gsm(
+pub async fn get_merchant_config_for_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> bool {
@@ -666,6 +675,16 @@ pub async fn config_should_call_gsm(
             false
         }
     }
+}
+
+pub async fn config_should_call_gsm(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile: &domain::Profile,
+) -> bool {
+    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let profile_config_gsm = profile.is_auto_retries_enabled;
+    merchant_config_gsm || profile_config_gsm
 }
 
 pub trait GsmValidation<F: Send + Clone + Sync, FData: Send + Sync, Resp> {
