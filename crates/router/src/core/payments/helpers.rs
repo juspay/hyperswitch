@@ -4404,11 +4404,9 @@ pub async fn get_additional_payment_data(
             })
         }
         domain::PaymentMethodData::MobilePayment(mobile_payment) => {
-            Some(
-                api_models::payments::AdditionalPaymentData::MobilePayment {
-                    details: Some(mobile_payment.to_owned().into()),
-                }
-            )
+            Some(api_models::payments::AdditionalPaymentData::MobilePayment {
+                details: Some(mobile_payment.to_owned().into()),
+            })
         }
         domain::PaymentMethodData::NetworkToken(_) => None,
     }
