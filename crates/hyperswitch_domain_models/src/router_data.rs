@@ -250,7 +250,7 @@ pub struct PazeDecryptedData {
     pub token: PazeToken,
     pub payment_card_network: common_enums::enums::CardNetwork,
     pub dynamic_data: Vec<PazeDynamicData>,
-    pub billing_address: Option<PazeAddress>,
+    pub billing_address: PazeAddress,
     pub consumer: PazeConsumer,
     pub eci: Option<String>,
 }

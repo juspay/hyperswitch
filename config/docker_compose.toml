@@ -417,6 +417,7 @@ debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
 samsung_pay = { currency = "USD,GBP,EUR" }
+paze = { currency = "USD" }
 
 [pm_filters.helcim]
 credit = { currency = "USD" }
