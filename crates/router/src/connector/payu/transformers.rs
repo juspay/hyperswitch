@@ -1,5 +1,8 @@
 use base64::Engine;
-use common_utils::pii::{Email, IpAddress};
+use common_utils::{
+    pii::{Email, IpAddress},
+    types::StringMinorUnit,
+};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -13,12 +16,28 @@ use crate::{
 
 const WALLET_IDENTIFIER: &str = "PBL";
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+pub struct PayuRouterData<T> {
+    pub amount: StringMinorUnit,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(StringMinorUnit, T)> for PayuRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((amount, item): (StringMinorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsRequest {
     customer_ip: Secret<String, IpAddress>,
     merchant_pos_id: Secret<String>,
-    total_amount: i64,
+    total_amount: StringMinorUnit,
     currency_code: enums::Currency,
     description: String,
     pay_methods: PayuPaymentMethod,
@@ -65,11 +84,13 @@ pub enum PayuWalletCode {
     Jp,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
+impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
-        let payment_method = match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &PayuRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth_type = PayuAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let payment_method = match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
                 pay_method: PayuPaymentMethodData::Card(PayuCard::Card {
                     number: ccard.card_number,
@@ -107,7 +128,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 "Unknown payment method".to_string(),
             )),
         }?;
-        let browser_info = item.request.browser_info.clone().ok_or(
+        let browser_info = item.router_data.request.browser_info.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "browser_info",
             },
@@ -122,9 +143,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     .to_string(),
             ),
             merchant_pos_id: auth_type.merchant_pos_id,
-            total_amount: item.request.amount,
-            currency_code: item.request.currency,
-            description: item.description.clone().ok_or(
+            total_amount: item.amount.to_owned(),
+            currency_code: item.router_data.request.currency,
+            description: item.router_data.description.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "item.description",
                 },
@@ -500,10 +521,10 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Eq, PartialEq, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct PayuRefundRequestData {
     description: String,
-    amount: Option<i64>,
+    amount: Option<StringMinorUnit>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -511,12 +532,12 @@ pub struct PayuRefundRequest {
     refund: PayuRefundRequestData,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
+impl<F> TryFrom<&PayuRouterData<&types::RefundsRouterData<F>>> for PayuRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayuRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             refund: PayuRefundRequestData {
-                description: item.request.reason.clone().ok_or(
+                description: item.router_data.request.reason.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "item.request.reason",
                     },
