@@ -168,10 +168,7 @@ impl PaymentMetricAccumulator for FailureReasonsDistributionAccumulator {
         self.error_vec.sort_by(|a, b| b.count.cmp(&a.count));
         let mut res: Vec<ErrorResult> = Vec::new();
         for val in self.error_vec.into_iter() {
-            if let (Some(count), Some(total)) = (
-                u32::try_from(val.count).ok(),
-                u32::try_from(self.total).ok(),
-            ) {
+            if let (Some(count), Some(total)) = (u32::try_from(val.count).ok(), Some(self.total)) {
                 if total > 0 {
                     let perc = f64::from(count) * 100.0 / f64::from(total);
                     res.push(ErrorResult {
@@ -187,7 +184,7 @@ impl PaymentMetricAccumulator for FailureReasonsDistributionAccumulator {
         for val in self.error_vec_without_retries.into_iter() {
             if let (Some(count), Some(total_without_retries)) = (
                 u32::try_from(val.count).ok(),
-                u32::try_from(self.total_without_retries).ok(),
+                Some(self.total_without_retries),
             ) {
                 if total_without_retries > 0 {
                     let perc = f64::from(count) * 100.0 / f64::from(total_without_retries);

@@ -122,6 +122,6 @@ pub async fn get_sankey_data(
         .change_context(MetricsError::QueryBuildingError)?
         .change_context(MetricsError::QueryExecutionFailure)?
         .into_iter()
-        .map(|i| Ok(i))
+        .map(Ok)
         .collect()
 }

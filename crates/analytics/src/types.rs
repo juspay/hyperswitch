@@ -58,7 +58,7 @@ impl<T: FromStr + Display> AsRef<T> for DBEnumWrapper<T> {
 
 impl<T: FromStr + Display + Default> Default for DBEnumWrapper<T> {
     fn default() -> Self {
-        DBEnumWrapper(T::default())
+        Self(T::default())
     }
 }
 

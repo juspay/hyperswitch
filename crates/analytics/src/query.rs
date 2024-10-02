@@ -868,8 +868,7 @@ where
         }
 
         if let Some(limit_by) = &self.limit_by {
-            query.push_str(" ");
-            query.push_str(&limit_by.to_string());
+            query.push_str(&format!(" {}", limit_by));
         }
 
         if !self.outer_select.is_empty() {

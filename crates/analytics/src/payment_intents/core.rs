@@ -57,7 +57,7 @@ pub async fn get_sankey(
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedCkh(_, ckh_pool)
         | AnalyticsProvider::CombinedSqlx(_, ckh_pool) => {
-            let sankey_rows = get_sankey_data(&ckh_pool, auth, &req)
+            let sankey_rows = get_sankey_data(ckh_pool, auth, &req)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
             let mut sankey_response = SankeyResponse::default();
