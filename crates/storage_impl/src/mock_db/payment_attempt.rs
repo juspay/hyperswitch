@@ -52,7 +52,6 @@ impl PaymentAttemptInterface for MockDb {
         _payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         _authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         _merchanat_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
-        _time_range: Option<common_utils::types::TimeRange>,
         _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {

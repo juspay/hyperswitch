@@ -145,7 +145,7 @@ pub async fn organization_retrieve() {}
 pub async fn organization_update() {}
 
 #[cfg(feature = "v2")]
-/// Merchant Account - List
+/// Organization - Merchant Account - List
 ///
 /// List merchant accounts for an Organization
 #[utoipa::path(

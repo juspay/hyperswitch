@@ -3537,6 +3537,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .always_collect_shipping_details_from_wallet_connector,
             dynamic_routing_algorithm: None,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
+            max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
         }))
     }
 
@@ -3884,6 +3886,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
                 dynamic_routing_algorithm: self.dynamic_routing_algorithm,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+                is_auto_retries_enabled: self.is_auto_retries_enabled,
+                max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             },
         )))
     }
