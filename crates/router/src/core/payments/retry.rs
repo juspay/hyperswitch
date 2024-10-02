@@ -29,6 +29,7 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
@@ -192,6 +193,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
         .unwrap_or(false)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_merchant_max_auto_retries_enabled(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -215,6 +217,7 @@ pub async fn get_merchant_max_auto_retries_enabled(
         .ok()
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
@@ -658,6 +661,7 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_merchant_config_for_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -677,6 +681,7 @@ pub async fn get_merchant_config_for_gsm(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,

@@ -440,9 +440,9 @@ where
                     )
                     .await?;
 
-                    #[cfg(feature = "retry")]
+                    #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
-                    #[cfg(feature = "retry")]
+                    #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
                         let config_bool = retry::config_should_call_gsm(
