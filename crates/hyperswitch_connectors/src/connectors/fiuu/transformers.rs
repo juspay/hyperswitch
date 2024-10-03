@@ -12,7 +12,10 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{BankRedirectData, Card, PaymentMethodData, RealTimePaymentData, WalletData,GooglePayWalletData},
+    payment_method_data::{
+        BankRedirectData, Card, GooglePayWalletData, PaymentMethodData, RealTimePaymentData,
+        WalletData,
+    },
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
@@ -184,7 +187,7 @@ pub enum FiuuPaymentMethodData {
     FiuuQRData(Box<FiuuQRData>),
     FiuuCardData(Box<FiuuCardData>),
     FiuuFpxData(Box<FiuuFPXData>),
-    FiuuGooglePayData(Box<FiuuGooglePayData>)
+    FiuuGooglePayData(Box<FiuuGooglePayData>),
 }
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -213,26 +216,28 @@ pub struct FiuuCardData {
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct FiuuGooglePayData{
+pub struct FiuuGooglePayData {
     txn_channel: TxnChannel,
     #[serde(rename = "GooglePay[apiVersion]")]
     api_version: u8,
     #[serde(rename = "GooglePay[apiVersionMinor]")]
-    api_version_minor : u8,
+    api_version_minor: u8,
     #[serde(rename = "GooglePay[paymentMethodData][info][assuranceDetails][accountVerified]")]
-    account_verified : Option<bool>,
-    #[serde(rename = "GooglePay[paymentMethodData][info][assuranceDetails][cardHolderAuthenticated]")]
-    card_holder_authenticated : Option<bool>,
+    account_verified: Option<bool>,
+    #[serde(
+        rename = "GooglePay[paymentMethodData][info][assuranceDetails][cardHolderAuthenticated]"
+    )]
+    card_holder_authenticated: Option<bool>,
     #[serde(rename = "GooglePay[paymentMethodData][info][cardDetails]")]
-    card_details :String,
+    card_details: String,
     #[serde(rename = "GooglePay[paymentMethodData][info][cardNetwork]")]
     card_network: String,
     #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][token]")]
-    token : Secret<String>,
+    token: Secret<String>,
     #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][type]")]
     token_type: Secret<String>,
     #[serde(rename = "GooglePay[paymentMethodData][type]")]
-    pm_type : String,
+    pm_type: String,
 }
 
 pub fn calculate_signature(
@@ -317,38 +322,40 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     .into())
                 }
             },
-            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data{
-                WalletData::GooglePay(google_pay_data) => FiuuPaymentMethodData::try_from(google_pay_data),
-                WalletData::AliPayQr(_)|
-                WalletData::AliPayRedirect(_)|
-                WalletData::AliPayHkRedirect(_)|
-                WalletData::MomoRedirect(_)|
-                WalletData::KakaoPayRedirect(_)|
-                WalletData::GoPayRedirect(_)|
-                WalletData::GcashRedirect(_)|
-                WalletData::ApplePay(_)|
-                WalletData::ApplePayRedirect(_)|
-                WalletData::ApplePayThirdPartySdk(_)|
-                WalletData::DanaRedirect {  }|
-                WalletData::GooglePayRedirect(_)|
-                WalletData::GooglePayThirdPartySdk(_)|
-                WalletData::MbWayRedirect(_)|
-                WalletData::MobilePayRedirect(_)|
-                WalletData::PaypalRedirect(_)|
-                WalletData::PaypalSdk(_)|
-                WalletData::SamsungPay(_)|
-                WalletData::TwintRedirect {  }|
-                WalletData::VippsRedirect {  }|
-                WalletData::TouchNGoRedirect(_)|
-                WalletData::WeChatPayRedirect(_)|
-                WalletData::WeChatPayQr(_)|
-                WalletData::CashappQr(_)|
-                WalletData::SwishQr(_)|
-                WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    FiuuPaymentMethodData::try_from(google_pay_data)
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePay(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                 )
-                .into())
-            }
+                .into()),
+            },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankDebit(_)
@@ -401,8 +408,16 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
             txn_channel: TxnChannel::Creditan,
             api_version: GOOGLEPAY_API_VERSION,
             api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
-            account_verified: data.info.assurance_details.as_ref().map(|details| details.account_verified),
-            card_holder_authenticated: data.info.assurance_details.as_ref().map(|details| details.card_holder_authenticated),
+            account_verified: data
+                .info
+                .assurance_details
+                .as_ref()
+                .map(|details| details.account_verified),
+            card_holder_authenticated: data
+                .info
+                .assurance_details
+                .as_ref()
+                .map(|details| details.card_holder_authenticated),
             card_details: data.info.card_details.clone(),
             card_network: data.info.card_network.clone(),
             token: data.tokenization_data.token.clone().into(),
