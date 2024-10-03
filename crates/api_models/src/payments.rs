@@ -1150,18 +1150,6 @@ impl Card {
         &self,
         additional_card_info: AdditionalCardInfo,
     ) -> Result<Self, error_stack::Report<ValidationError>> {
-        let card_network = self
-            .card_network
-            .clone()
-            .or(additional_card_info.card_network.clone())
-            .map(|network| match self.card_number.is_cobadged_card() {
-                Ok(true) => Ok(Some(network)),
-                Ok(false) => Ok(None),
-                Err(e) => Err(e),
-            })
-            .transpose()?
-            .flatten();
-
         Ok(Self {
             card_number: self.card_number.clone(),
             card_exp_month: self.card_exp_month.clone(),
@@ -1172,7 +1160,10 @@ impl Card {
                 .card_issuer
                 .clone()
                 .or(additional_card_info.card_issuer),
-            card_network,
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
             card_issuing_country: self
                 .card_issuing_country
