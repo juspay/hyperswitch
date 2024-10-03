@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::payments;
 use cards::CardNumber;
-use common_enums::{enums, AttemptStatus, BankNames, CaptureMethod, Currency};
+use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
     crypto::GenerateDigest,
     errors::CustomResult,
@@ -259,12 +259,49 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     }
                 }
             }
-            PaymentMethodData::BankRedirect(BankRedirectData::OnlineBankingFpx { ref issuer }) => {
-                Ok(FiuuPaymentMethodData::FiuuFpxData(Box::new(FiuuFPXData {
-                    txn_channel: FPXTxnChannel::try_from(*issuer)?,
-                })))
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
+            PaymentMethodData::BankRedirect(ref bank_redirect_data) => match bank_redirect_data {
+                BankRedirectData::OnlineBankingFpx { ref issuer } => {
+                    Ok(FiuuPaymentMethodData::FiuuFpxData(Box::new(FiuuFPXData {
+                        txn_channel: FPXTxnChannel::try_from(*issuer)?,
+                    })))
+                }
+                BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::Bizum {}
+                | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eps { .. }
+                | BankRedirectData::Giropay { .. }
+                | BankRedirectData::Ideal { .. }
+                | BankRedirectData::Interac { .. }
+                | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | BankRedirectData::OnlineBankingFinland { .. }
+                | BankRedirectData::OnlineBankingPoland { .. }
+                | BankRedirectData::OnlineBankingSlovakia { .. }
+                | BankRedirectData::OpenBankingUk { .. }
+                | BankRedirectData::Przelewy24 { .. }
+                | BankRedirectData::Sofort { .. }
+                | BankRedirectData::Trustly { .. }
+                | BankRedirectData::OnlineBankingThailand { .. }
+                | BankRedirectData::LocalBankRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    )
+                    .into())
+                }
+            },
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("fiuu"),
             )
             .into()),
@@ -398,7 +435,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             FiuuPaymentsResponse::QRPaymentResponse(ref response) => Ok(Self {
-                status: AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.txn_id.clone()),
                     redirection_data: None,
@@ -434,7 +471,7 @@ impl<F>
                         form_fields: redirection_data.unwrap_or_default(),
                     });
                     Ok(Self {
-                        status: AttemptStatus::AuthenticationPending,
+                        status: enums::AttemptStatus::AuthenticationPending,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
                             redirection_data,
@@ -452,18 +489,18 @@ impl<F>
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
-                                Ok(AttemptStatus::Charged)
+                                Ok(enums::AttemptStatus::Charged)
                             } else {
-                                Ok(AttemptStatus::Authorized)
+                                Ok(enums::AttemptStatus::Authorized)
                             }
                         }
-                        "11" => Ok(AttemptStatus::Failure),
-                        "22" => Ok(AttemptStatus::Pending),
+                        "11" => Ok(enums::AttemptStatus::Failure),
+                        "22" => Ok(enums::AttemptStatus::Pending),
                         other => Err(errors::ConnectorError::UnexpectedResponseError(
                             bytes::Bytes::from(other.to_owned()),
                         )),
                     }?;
-                    let response = if status == AttemptStatus::Failure {
+                    let response = if status == enums::AttemptStatus::Failure {
                         Err(ErrorResponse {
                             code: non_threeds_data
                                 .error_code
@@ -686,19 +723,19 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>> for Paymen
     fn try_from(
         item: PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let stat_name = item.response.stat_name.clone();
+        let stat_name = item.response.stat_name;
         let stat_code = item.response.stat_code.clone();
-        let status = AttemptStatus::try_from(FiuuSyncStatus {
+        let status = enums::AttemptStatus::try_from(FiuuSyncStatus {
             stat_name,
             stat_code,
         })?;
-        let error_response = if status == AttemptStatus::Failure {
+        let error_response = if status == enums::AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: item.response.stat_code.to_string(),
                 message: item.response.stat_name.clone().to_string(),
                 reason: Some(item.response.stat_name.clone().to_string()),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(enums::AttemptStatus::Failure),
                 connector_transaction_id: None,
             })
         } else {
@@ -746,7 +783,7 @@ pub struct FiuuSyncStatus {
     pub stat_code: StatCode,
 }
 
-impl TryFrom<FiuuSyncStatus> for AttemptStatus {
+impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
     type Error = errors::ConnectorError;
     fn try_from(sync_status: FiuuSyncStatus) -> Result<Self, Self::Error> {
         match (sync_status.stat_code, sync_status.stat_name) {
@@ -756,12 +793,9 @@ impl TryFrom<FiuuSyncStatus> for AttemptStatus {
             (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
             (StatCode::Failure, StatName::Cancelled) => Ok(Self::Voided),
             (StatCode::Failure, _) => Ok(Self::Failure),
-            (other, _) => Err(
-                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
-                    other.to_string(),
-                ))
-                .into(),
-            ),
+            (other, _) => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(other.to_string()),
+            )),
         }
     }
 }
@@ -819,16 +853,16 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         let status_code = item.response.stat_code;
 
         let status = match status_code.as_str() {
-            "00" => Ok(AttemptStatus::Charged),
-            "22" => Ok(AttemptStatus::Pending),
+            "00" => Ok(enums::AttemptStatus::Charged),
+            "22" => Ok(enums::AttemptStatus::Pending),
             "11" | "12" | "13" | "15" | "16" | "17" | "18" | "19" | "20" | "21" | "23" | "24"
-            | "25" | "99" => Ok(AttemptStatus::Failure),
+            | "25" | "99" => Ok(enums::AttemptStatus::Failure),
             other => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from(other.to_owned()),
             )),
         }?;
         let capture_message_status = capture_status_codes();
-        let error_response = if status == AttemptStatus::Failure {
+        let error_response = if status == enums::AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: status_code.to_owned(),
@@ -930,16 +964,16 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
     ) -> Result<Self, Self::Error> {
         let status_code = item.response.stat_code;
         let status = match status_code.as_str() {
-            "00" => Ok(AttemptStatus::Voided),
+            "00" => Ok(enums::AttemptStatus::Voided),
             "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20" | "21" => {
-                Ok(AttemptStatus::VoidFailed)
+                Ok(enums::AttemptStatus::VoidFailed)
             }
             other => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from(other.to_owned()),
             )),
         }?;
         let void_message_status = void_status_codes();
-        let error_response = if status == AttemptStatus::VoidFailed {
+        let error_response = if status == enums::AttemptStatus::VoidFailed {
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: status_code.to_owned(),
