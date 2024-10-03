@@ -76,10 +76,7 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
-        domain::{
-            self,
-            types::{self, AsyncLift},
-        },
+        domain::{self, types},
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
@@ -4534,12 +4531,10 @@ pub fn is_apple_pay_simplified_flow(
 // As part of migration fallback this function checks apple pay details are present in connector_wallets_details
 // If yes, it will encrypt connector_wallets_details and store it in the database.
 // If no, it will check if apple pay details are present in metadata and merge it with connector_wallets_details, encrypt and store it.
-pub async fn get_encrypted_connector_wallets_details_with_apple_pay_certificates(
-    state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+pub async fn get_connector_wallets_details_with_apple_pay_certificates(
     connector_metadata: &Option<masking::Secret<tera::Value>>,
     connector_wallets_details_optional: &Option<api_models::admin::ConnectorWalletDetails>,
-) -> RouterResult<Option<Encryptable<masking::Secret<serde_json::Value>>>> {
+) -> RouterResult<Option<masking::Secret<serde_json::Value>>> {
     let connector_wallet_details_with_apple_pay_metadata_optional =
         get_apple_pay_metadata_if_needed(connector_metadata, connector_wallets_details_optional)
             .await?;
@@ -4553,25 +4548,7 @@ pub async fn get_encrypted_connector_wallets_details_with_apple_pay_certificates
         .transpose()?
         .map(masking::Secret::new);
 
-    let key_manager_state: KeyManagerState = state.into();
-    let encrypted_connector_wallets_details = connector_wallets_details
-        .clone()
-        .async_lift(|wallets_details| async {
-            types::crypto_operation(
-                &key_manager_state,
-                type_name!(domain::MerchantConnectorAccount),
-                types::CryptoOperation::EncryptOptional(wallets_details),
-                Identifier::Merchant(key_store.merchant_id.clone()),
-                key_store.key.get_inner().peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_optionaloperation())
-        })
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while encrypting connector wallets details")?;
-
-    Ok(encrypted_connector_wallets_details)
+    Ok(connector_wallets_details)
 }
 
 async fn get_apple_pay_metadata_if_needed(
