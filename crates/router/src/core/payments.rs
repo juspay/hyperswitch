@@ -1752,7 +1752,8 @@ where
                                 .paze_private_key_passphrase
                                 .clone(),
                         )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed to decrypt paze token")?,
                     )
                 }
                 _ => None,
@@ -1761,7 +1762,8 @@ where
                 .parse_value::<hyperswitch_domain_models::router_data::PazeDecryptedData>(
                     "PazeDecryptedData",
                 )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to parse PazeDecryptedData")?;
             router_data.payment_method_token = Some(
                 hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(Box::new(
                     paze_decrypted_data,
