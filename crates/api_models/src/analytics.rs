@@ -424,7 +424,7 @@ pub struct GetDisputeMetricRequest {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct SankeyResponse {
     pub normal_success: i64,
     pub normal_failure: i64,
