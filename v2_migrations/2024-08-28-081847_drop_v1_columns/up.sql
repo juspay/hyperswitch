@@ -65,3 +65,21 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN merchant_order_reference_id,
     DROP COLUMN is_payment_processor_token_flow,
     DROP COLUMN charges;
+
+-- Run below queries only when V1 is deprecated
+ALTER TABLE payment_attempt DROP COLUMN attempt_id,
+    DROP COLUMN amount,
+    DROP COLUMN currency,
+    DROP COLUMN save_to_locker,
+    DROP COLUMN offer_amount,
+    DROP COLUMN payment_method,
+    DROP COLUMN connector_transaction_id,
+    DROP COLUMN capture_method,
+    DROP COLUMN capture_on,
+    DROP COLUMN mandate_id,
+    DROP COLUMN payment_method_type,
+    DROP COLUMN business_sub_label,
+    DROP COLUMN mandate_details,
+    DROP COLUMN mandate_data,
+    DROP COLUMN tax_amount,
+    DROP COLUMN straight_through_algorithm;

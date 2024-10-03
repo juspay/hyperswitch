@@ -15,6 +15,8 @@ use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::types::payment_methods as pm_types;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -521,6 +523,29 @@ pub fn mk_add_card_response_hs(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn generate_pm_vaulting_req_from_update_request(
+    pm_create: pm_types::PaymentMethodVaultingData,
+    pm_update: api::PaymentMethodUpdateData,
+) -> pm_types::PaymentMethodVaultingData {
+    match (pm_create, pm_update) {
+        (
+            pm_types::PaymentMethodVaultingData::Card(card_create),
+            api::PaymentMethodUpdateData::Card(update_card),
+        ) => pm_types::PaymentMethodVaultingData::Card(api::CardDetail {
+            card_number: card_create.card_number,
+            card_exp_month: card_create.card_exp_month,
+            card_exp_year: card_create.card_exp_year,
+            card_issuing_country: card_create.card_issuing_country,
+            card_network: card_create.card_network,
+            card_issuer: card_create.card_issuer,
+            card_type: card_create.card_type,
+            card_holder_name: update_card.card_holder_name,
+            nick_name: update_card.nick_name,
+        }),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
@@ -796,6 +821,15 @@ pub fn get_card_detail(
         saved_to_locker: true,
     };
     Ok(card_detail)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<api::PaymentMethodCreateData> for pm_types::PaymentMethodVaultingData {
+    fn from(item: api::PaymentMethodCreateData) -> Self {
+        match item {
+            api::PaymentMethodCreateData::Card(card) => Self::Card(card),
+        }
+    }
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------

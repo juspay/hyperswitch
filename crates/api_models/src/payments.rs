@@ -4909,14 +4909,31 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SamsungPaySessionTokenData {
-    #[serde(rename = "samsung_pay")]
-    pub data: SamsungPayMetadata,
+#[serde(rename_all = "snake_case")]
+pub enum SamsungPayCombinedMetadata {
+    // This is to support the Samsung Pay decryption flow with application credentials,
+    // where the private key, certificates, or any other information required for decryption
+    // will be obtained from the environment variables.
+    ApplicationCredentials(SamsungPayApplicationCredentials),
+    MerchantCredentials(SamsungPayMerchantCredentials),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SamsungPayMetadata {
+pub struct SamsungPaySessionTokenData {
+    #[serde(rename = "samsung_pay")]
+    pub data: SamsungPayCombinedMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SamsungPayMerchantCredentials {
     pub service_id: String,
+    pub merchant_display_name: String,
+    pub merchant_business_country: api_enums::CountryAlpha2,
+    pub allowed_brands: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SamsungPayApplicationCredentials {
     pub merchant_display_name: String,
     pub merchant_business_country: api_enums::CountryAlpha2,
     pub allowed_brands: Vec<String>,

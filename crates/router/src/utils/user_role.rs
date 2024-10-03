@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cmp, collections::HashSet};
 
 use api_models::user_role as user_role_api;
 use common_enums::{EntityType, PermissionGroup};
@@ -239,10 +239,7 @@ pub async fn get_single_merchant_id(
             .attach_printable("No merchants found for org_id")?
             .get_id()
             .clone()),
-        Some(EntityType::Merchant)
-        | Some(EntityType::Internal)
-        | Some(EntityType::Profile)
-        | None => user_role
+        Some(EntityType::Merchant) | Some(EntityType::Profile) | None => user_role
             .merchant_id
             .clone()
             .ok_or(UserErrors::InternalServerError)
@@ -263,9 +260,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
-        EntityType::Internal | EntityType::Organization => {
-            Err(UserErrors::InvalidRoleOperation.into())
-        }
+        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
         EntityType::Merchant => {
             let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
                 return Ok(None);
@@ -369,7 +364,7 @@ pub async fn get_single_merchant_id_and_profile_id(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
     let profile_id = match entity_type {
-        EntityType::Organization | EntityType::Merchant | EntityType::Internal => {
+        EntityType::Organization | EntityType::Merchant => {
             let key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
@@ -423,36 +418,16 @@ pub fn get_min_entity(
     user_entity: EntityType,
     filter_entity: Option<EntityType>,
 ) -> UserResult<EntityType> {
-    match (user_entity, filter_entity) {
-        (EntityType::Organization, None)
-        | (EntityType::Organization, Some(EntityType::Organization)) => {
-            Ok(EntityType::Organization)
-        }
+    let Some(filter_entity) = filter_entity else {
+        return Ok(user_entity);
+    };
 
-        (EntityType::Merchant, None)
-        | (EntityType::Organization, Some(EntityType::Merchant))
-        | (EntityType::Merchant, Some(EntityType::Merchant)) => Ok(EntityType::Merchant),
-
-        (EntityType::Profile, None)
-        | (EntityType::Organization, Some(EntityType::Profile))
-        | (EntityType::Merchant, Some(EntityType::Profile))
-        | (EntityType::Profile, Some(EntityType::Profile)) => Ok(EntityType::Profile),
-
-        (EntityType::Internal, _) => Ok(EntityType::Internal),
-
-        (EntityType::Organization, Some(EntityType::Internal))
-        | (EntityType::Merchant, Some(EntityType::Internal))
-        | (EntityType::Profile, Some(EntityType::Internal)) => {
-            Err(UserErrors::InvalidRoleOperation.into())
-        }
-
-        (EntityType::Merchant, Some(EntityType::Organization))
-        | (EntityType::Profile, Some(EntityType::Organization))
-        | (EntityType::Profile, Some(EntityType::Merchant)) => {
-            Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-                "{} level user requesting data for {:?} level",
-                user_entity, filter_entity
-            ))
-        }
+    if user_entity < filter_entity {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} level user requesting data for {:?} level",
+            user_entity, filter_entity
+        ));
     }
+
+    Ok(cmp::min(user_entity, filter_entity))
 }

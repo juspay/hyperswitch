@@ -160,7 +160,6 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
-    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -226,6 +225,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
@@ -3144,7 +3144,6 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal = 3,
     Organization = 2,
     Merchant = 1,
     Profile = 0,
