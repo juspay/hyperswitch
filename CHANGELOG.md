@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.02.0-hotfix6
+
+### Miscellaneous Tasks
+
+- Intoduce GenericError enum variant in enum ConnectorError ([#6189](https://github.com/juspay/hyperswitch/pull/6189)) ([`9531f3d`](https://github.com/juspay/hyperswitch/commit/9531f3df94d0977738e67f03a6743d27728e86d1))
+
+- - -
+
 ## 2024.08.02.0-hotfix5
 
 ### Bug Fixes
