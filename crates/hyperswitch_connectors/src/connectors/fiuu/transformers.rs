@@ -752,7 +752,7 @@ impl TryFrom<FiuuSyncStatus> for AttemptStatus {
         match (sync_status.stat_code, sync_status.stat_name) {
             (StatCode::Success, StatName::Captured | StatName::Settled) => Ok(Self::Charged), // For Success as StatCode we can only expect Captured,Settled and Authorized as StatName.
             (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
-            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending),  // For Pending as StatCode we can only expect Pending and Unknow as StatName.
+            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknow as StatName.
             (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
             (StatCode::Failure, StatName::Cancelled) => Ok(Self::Voided),
             (StatCode::Failure, _) => Ok(Self::Failure),
