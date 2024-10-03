@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{BankRedirectData, Card, PaymentMethodData, RealTimePaymentData},
+    payment_method_data::{BankRedirectData, Card, PaymentMethodData, RealTimePaymentData, WalletData,GooglePayWalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
@@ -27,6 +27,10 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use url::Url;
+
+// These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
+const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
+const GOOGLEPAY_API_VERSION: u8 = 2;
 
 use crate::{
     types::{
@@ -180,6 +184,7 @@ pub enum FiuuPaymentMethodData {
     FiuuQRData(Box<FiuuQRData>),
     FiuuCardData(Box<FiuuCardData>),
     FiuuFpxData(Box<FiuuFPXData>),
+    FiuuGooglePayData(Box<FiuuGooglePayData>)
 }
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -204,6 +209,30 @@ pub struct FiuuCardData {
     cc_month: Secret<String>,
     #[serde(rename = "CC_YEAR")]
     cc_year: Secret<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuGooglePayData{
+    txn_channel: TxnChannel,
+    #[serde(rename = "GooglePay[apiVersion]")]
+    api_version: u8,
+    #[serde(rename = "GooglePay[apiVersionMinor]")]
+    api_version_minor : u8,
+    #[serde(rename = "GooglePay[paymentMethodData][info][assuranceDetails][accountVerified]")]
+    account_verified : Option<bool>,
+    #[serde(rename = "GooglePay[paymentMethodData][info][assuranceDetails][cardHolderAuthenticated]")]
+    card_holder_authenticated : Option<bool>,
+    #[serde(rename = "GooglePay[paymentMethodData][info][cardDetails]")]
+    card_details :String,
+    #[serde(rename = "GooglePay[paymentMethodData][info][cardNetwork]")]
+    card_network: String,
+    #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][token]")]
+    token : Secret<String>,
+    #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][type]")]
+    token_type: Secret<String>,
+    #[serde(rename = "GooglePay[paymentMethodData][type]")]
+    pm_type : String,
 }
 
 pub fn calculate_signature(
@@ -288,8 +317,39 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     .into())
                 }
             },
+            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data{
+                WalletData::GooglePay(google_pay_data) => FiuuPaymentMethodData::try_from(google_pay_data),
+                WalletData::AliPayQr(_)|
+                WalletData::AliPayRedirect(_)|
+                WalletData::AliPayHkRedirect(_)|
+                WalletData::MomoRedirect(_)|
+                WalletData::KakaoPayRedirect(_)|
+                WalletData::GoPayRedirect(_)|
+                WalletData::GcashRedirect(_)|
+                WalletData::ApplePay(_)|
+                WalletData::ApplePayRedirect(_)|
+                WalletData::ApplePayThirdPartySdk(_)|
+                WalletData::DanaRedirect {  }|
+                WalletData::GooglePayRedirect(_)|
+                WalletData::GooglePayThirdPartySdk(_)|
+                WalletData::MbWayRedirect(_)|
+                WalletData::MobilePayRedirect(_)|
+                WalletData::PaypalRedirect(_)|
+                WalletData::PaypalSdk(_)|
+                WalletData::SamsungPay(_)|
+                WalletData::TwintRedirect {  }|
+                WalletData::VippsRedirect {  }|
+                WalletData::TouchNGoRedirect(_)|
+                WalletData::WeChatPayRedirect(_)|
+                WalletData::WeChatPayQr(_)|
+                WalletData::CashappQr(_)|
+                WalletData::SwishQr(_)|
+                WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
+                )
+                .into())
+            }
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
@@ -330,6 +390,24 @@ impl TryFrom<&Card> for FiuuPaymentMethodData {
             cc_cvv2: req_card.card_cvc.clone(),
             cc_month: req_card.card_exp_month.clone(),
             cc_year: req_card.card_exp_year.clone(),
+        })))
+    }
+}
+
+impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(data: &GooglePayWalletData) -> Result<Self, Self::Error> {
+        Ok(Self::FiuuGooglePayData(Box::new(FiuuGooglePayData {
+            txn_channel: TxnChannel::Creditan,
+            api_version: GOOGLEPAY_API_VERSION,
+            api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
+            account_verified: data.info.assurance_details.as_ref().map(|details| details.account_verified.clone()),
+            card_holder_authenticated: data.info.assurance_details.as_ref().map(|details| details.card_holder_authenticated.clone()),
+            card_details: data.info.card_details.clone(),
+            card_network: data.info.card_network.clone(),
+            token: data.tokenization_data.token.clone().into(),
+            token_type: data.tokenization_data.token_type.clone().into(),
+            pm_type: data.pm_type.clone(),
         })))
     }
 }
