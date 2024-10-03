@@ -14,6 +14,7 @@ function normalise(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
+    datatrans: "Datatrans",
     paybox: "Paybox",
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
