@@ -3179,7 +3179,6 @@ default_imp_for_create_order!(
     connector::Payeezy,
     connector::Payme,
     connector::Payone,
-    connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,

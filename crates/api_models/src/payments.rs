@@ -4767,14 +4767,15 @@ pub struct PaymentsCreateOrderRequest {
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
-    /// The identifier for the session
-    pub session_id: String,
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: Secret<String>,
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
+    /// The payment method that is to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

@@ -80,11 +80,11 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::types::{
     AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
-    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
-    PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
-    PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
-    RetrieveFileType, SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
-    VerifyWebhookSourceType,
+    PaymentsCompleteAuthorizeType, PaymentsCreateOrderType, PaymentsInitType,
+    PaymentsPostProcessingType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
+    PaymentsSessionType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
+    RefundSyncType, Response, RetrieveFileType, SetupMandateType, SubmitEvidenceType,
+    TokenizationType, UploadFileType, VerifyWebhookSourceType,
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_interfaces::types::{

@@ -2091,13 +2091,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCreateOr
             connector_name,
         ));
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
-        let payment_method_data = payment_data.payment_method_data.or_else(|| {
-            if payment_data.mandate_id.is_some() {
-                Some(domain::PaymentMethodData::MandatePayment)
-            } else {
-                None
-            }
-        });
+        // let payment_method_data = payment_data.payment_method_data.or_else(|| {
+        //     if payment_data.mandate_id.is_some() {
+        //         Some(domain::PaymentMethodData::MandatePayment)
+        //     } else {
+        //         None
+        //     }
+        // });
         let amount = payment_data
             .surcharge_details
             .as_ref()
@@ -2110,7 +2110,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCreateOr
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change after we move to connector module
             currency: payment_data.currency,
-            payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
+            // payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             complete_authorize_url,
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,

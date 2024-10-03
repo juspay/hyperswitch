@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PreProcessing, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
@@ -18,11 +18,11 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsCreateOrderData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -58,6 +58,9 @@ pub type PaymentsAuthorizeType =
 /// Type alias for `ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>`
 pub type PaymentsTaxCalculationType =
     dyn ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+/// Type alias for `ConnectorIntegration<CreateOrder, PaymentsCreateOrderData, PaymentsResponseData>`
+pub type PaymentsCreateOrderType =
+    dyn ConnectorIntegration<CreateOrder, PaymentsCreateOrderData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>`
 pub type SetupMandateType =
     dyn ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;

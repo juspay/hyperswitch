@@ -5,7 +5,7 @@ use base64::Engine;
 use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -71,6 +71,7 @@ impl api::Refund for Paypal {}
 impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 impl api::ConnectorVerifyWebhookSource for Paypal {}
+impl api::PaymentCreateOrder for Paypal {}
 
 impl api::Payouts for Paypal {}
 #[cfg(feature = "payouts")]
@@ -649,6 +650,119 @@ impl
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::CreateOrder,
+        types::PaymentsCreateOrderData,
+        types::PaymentsResponseData,
+    > for Paypal
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCreateOrderRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCreateOrderRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v2/checkout/orders", self.base_url(connectors)))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCreateOrderRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCreateOrderType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsCreateOrderType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCreateOrderType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCreateOrderRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(req.request.amount),
+            req.request.currency,
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
+        let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
+
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$paypalrequest {:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCreateOrderRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCreateOrderRouterData, errors::ConnectorError> {
+        println!("$$$$$paypalres: {:?}", res.response);
+        let response: paypal::PaypalRedirectResponse = res
+            .response
+            .parse_struct("PaypalRedirectResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+
+        // match response {
+        //     PaypalAuthResponse::PaypalOrdersResponse(response) => {
+        //         event_builder.map(|i| i.set_response_body(&response));
+        //         router_env::logger::info!(connector_response=?response);
+
+        //         types::RouterData::try_from(types::ResponseRouterData {
+        //             response,
+        //             data: data.clone(),
+        //             http_code: res.status_code,
+        //         })
+        //     }
+        //     PaypalAuthResponse::PaypalRedirectResponse(_) |
+        //     PaypalAuthResponse::PaypalThreeDsResponse(_) => {
+        //         Err(errors::ConnectorError::NotImplemented(
+        //             "not implemented for Paypal Create Order flow".to_string(),
+        //         ).into())
+        //     }
+        // }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.get_order_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Paypal
 {
@@ -684,6 +798,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )?;
         let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$paypal_confirm_request {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -714,6 +832,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$$$$paypal_confirm_res: {:?}", res.response);
         let response: PaypalAuthResponse =
             res.response
                 .parse_struct("paypal PaypalAuthResponse")

@@ -365,10 +365,14 @@ pub async fn payments_create_order(
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsCreateOrder;
-    let payload = json_payload.into_inner();
+    // let payload = json_payload.into_inner();
 
     let payment_id = path.into_inner();
-    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+    let payload = payment_types::PaymentsCreateOrderRequest {
+        payment_id,
+        ..json_payload.into_inner()
+    };
+    tracing::Span::current().record("payment_id", payload.payment_id.get_string_repr());
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {
@@ -376,11 +380,11 @@ pub async fn payments_create_order(
         }
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-            Ok(auth) => auth,
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    // let (auth_type, auth_flow) =
+    //     match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+    //         Ok(auth) => auth,
+    //         Err(e) => return api::log_and_return_error_response(e),
+    //     };
 
     let locking_action = payload.get_locking_input(flow.clone());
 
@@ -405,13 +409,13 @@ pub async fn payments_create_order(
                 auth.key_store,
                 payments::PaymentCreateOrder,
                 req,
-                auth_flow,
+                api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
                 header_payload.clone(),
             )
         },
-        &*auth_type,
+        &auth::PublishableKeyAuth,
         locking_action,
     ))
     .await

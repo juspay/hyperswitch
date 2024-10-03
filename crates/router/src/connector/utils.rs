@@ -1109,6 +1109,20 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
     }
 }
 
+pub trait PaymentsCreateOrderRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsCreateOrderRequestData for types::PaymentsCreateOrderData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 pub trait CustomerDetails {
     fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;

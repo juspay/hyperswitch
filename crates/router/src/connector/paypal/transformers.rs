@@ -12,7 +12,7 @@ use url::Url;
 use crate::{
     connector::utils::{
         self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
-        PaymentsAuthorizeRequestData, RouterData,
+        PaymentsAuthorizeRequestData, PaymentsCreateOrderRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -91,6 +91,21 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReque
     }
 }
 
+impl From<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for OrderRequestAmount {
+    fn from(item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>) -> Self {
+        Self {
+            currency_code: item.router_data.request.currency,
+            value: item.amount.clone(),
+            breakdown: AmountBreakdown {
+                item_total: OrderAmount {
+                    currency_code: item.router_data.request.currency,
+                    value: item.amount.clone(),
+                },
+            },
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AmountBreakdown {
     item_total: OrderAmount,
@@ -136,6 +151,22 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
     }
 }
 
+impl From<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for ItemDetails {
+    fn from(item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>) -> Self {
+        Self {
+            name: format!(
+                "Payment for invoice {}",
+                item.router_data.connector_request_reference_id
+            ),
+            quantity: 1,
+            unit_amount: OrderAmount {
+                currency_code: item.router_data.request.currency,
+                value: item.amount.clone(),
+            },
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Address {
     address_line_1: Option<Secret<String>>,
@@ -152,6 +183,21 @@ pub struct ShippingAddress {
 
 impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ShippingAddress {
     fn from(item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>) -> Self {
+        Self {
+            address: get_address_info(item.router_data.get_optional_shipping()),
+            name: Some(ShippingName {
+                full_name: item
+                    .router_data
+                    .get_optional_shipping()
+                    .and_then(|inner_data| inner_data.address.as_ref())
+                    .and_then(|inner_data| inner_data.first_name.clone()),
+            }),
+        }
+    }
+}
+
+impl From<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for ShippingAddress {
+    fn from(item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>) -> Self {
         Self {
             address: get_address_info(item.router_data.get_optional_shipping()),
             name: Some(ShippingName {
@@ -364,6 +410,125 @@ fn get_payee(auth_type: &PaypalAuthType) -> Option<Payee> {
         .map(|payer_id| Payee {
             merchant_id: payer_id,
         })
+}
+
+impl TryFrom<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let intent = if item.router_data.request.is_auto_capture()? {
+            PaypalPaymentIntent::Capture
+        } else {
+            PaypalPaymentIntent::Authorize
+        };
+        let paypal_auth: PaypalAuthType =
+            PaypalAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let payee = get_payee(&paypal_auth);
+
+        let amount = OrderRequestAmount::from(item);
+        let connector_request_reference_id =
+            item.router_data.connector_request_reference_id.clone();
+
+        let shipping_address = ShippingAddress::from(item);
+        let item_details = vec![ItemDetails::from(item)];
+
+        let purchase_units = vec![PurchaseUnitRequest {
+            reference_id: Some(connector_request_reference_id.clone()),
+            custom_id: item.router_data.request.merchant_order_reference_id.clone(),
+            invoice_id: Some(connector_request_reference_id),
+            amount,
+            payee,
+            shipping: Some(shipping_address),
+            items: item_details,
+        }];
+        let payment_source = Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
+            experience_context: ContextStruct {
+                return_url: None,
+                cancel_url: None,
+                shipping_preference: ShippingPreference::GetFromFile,
+                user_action: Some(UserAction::PayNow),
+            },
+        }));
+
+        Ok(Self {
+            intent,
+            purchase_units,
+            payment_source,
+        })
+
+        // match item.router_data.request.payment_method_data {
+        //     domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+        //         domain::WalletData::PaypalSdk(_) => {
+        //             let payment_source =
+        //                 Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
+        //                     experience_context: ContextStruct {
+        //                         return_url: None,
+        //                         cancel_url: None,
+        //                         shipping_preference: ShippingPreference::GetFromFile,
+        //                         user_action: Some(UserAction::PayNow),
+        //                     },
+        //                 }));
+
+        //             Ok(Self {
+        //                 intent,
+        //                 purchase_units,
+        //                 payment_source,
+        //             })
+        //         }
+        //          domain::WalletData::PaypalRedirect(_)
+        //         | domain::WalletData::AliPayQr(_)
+        //         | domain::WalletData::AliPayRedirect(_)
+        //         | domain::WalletData::AliPayHkRedirect(_)
+        //         | domain::WalletData::MomoRedirect(_)
+        //         | domain::WalletData::KakaoPayRedirect(_)
+        //         | domain::WalletData::GoPayRedirect(_)
+        //         | domain::WalletData::GcashRedirect(_)
+        //         | domain::WalletData::ApplePay(_)
+        //         | domain::WalletData::ApplePayRedirect(_)
+        //         | domain::WalletData::ApplePayThirdPartySdk(_)
+        //         | domain::WalletData::DanaRedirect {}
+        //         | domain::WalletData::GooglePay(_)
+        //         | domain::WalletData::GooglePayRedirect(_)
+        //         | domain::WalletData::GooglePayThirdPartySdk(_)
+        //         | domain::WalletData::MbWayRedirect(_)
+        //         | domain::WalletData::MobilePayRedirect(_)
+        //         | domain::WalletData::SamsungPay(_)
+        //         | domain::WalletData::TwintRedirect {}
+        //         | domain::WalletData::VippsRedirect {}
+        //         | domain::WalletData::TouchNGoRedirect(_)
+        //         | domain::WalletData::WeChatPayRedirect(_)
+        //         | domain::WalletData::WeChatPayQr(_)
+        //         | domain::WalletData::CashappQr(_)
+        //         | domain::WalletData::SwishQr(_)
+        //         | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        //             utils::get_unimplemented_payment_method_error_message("Paypal"),
+        //         ))?,
+        //     },
+        //     domain::PaymentMethodData::Card(_)
+        //     | domain::PaymentMethodData::BankDebit(_)
+        //     | domain::PaymentMethodData::BankTransfer(_)
+        //     | domain::PaymentMethodData::BankRedirect(_)
+        //     | domain::PaymentMethodData::PayLater(_)
+        //     | domain::PaymentMethodData::CardRedirect(_)
+        //     | domain::PaymentMethodData::Reward
+        //     | domain::PaymentMethodData::RealTimePayment(_)
+        //     | domain::PaymentMethodData::Crypto(_)
+        //     | domain::PaymentMethodData::Upi(_)
+        //     | domain::PaymentMethodData::OpenBanking(_)
+        //     | domain::PaymentMethodData::CardToken(_)
+        //     | domain::PaymentMethodData::Voucher(_)
+        //     | domain::PaymentMethodData::GiftCard(_)
+        //     | domain::PaymentMethodData::MandatePayment
+        //     | domain::PaymentMethodData::NetworkToken(_) => {
+        //         Err(errors::ConnectorError::NotImplemented(
+        //             utils::get_unimplemented_payment_method_error_message("Paypal"),
+        //         )
+        //         .into())
+        //     }
+
+        // }
+    }
 }
 
 impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalPaymentsRequest {
@@ -1265,6 +1430,53 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
+                ),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = storage_enums::AttemptStatus::foreign_from((
+            item.response.clone().status,
+            item.response.intent.clone(),
+        ));
+        let link = get_redirect_url(item.response.links.clone())?;
+
+        let next_action = Some(api_models::payments::NextActionCall::CompleteAuthorize);
+
+        let connector_meta = serde_json::json!(PaypalMeta {
+            authorize_id: None,
+            capture_id: None,
+            psync_flow: item.response.intent,
+            next_action,
+        });
+
+        let purchase_units = item.response.purchase_units.first();
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Some(services::RedirectForm::from((
+                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    services::Method::Get,
+                ))),
+                mandate_reference: None,
+                connector_metadata: Some(connector_meta),
+                network_txn_id: None,
+                connector_response_reference_id: Some(
+                    purchase_units.map_or(item.response.id.clone(), |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,

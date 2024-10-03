@@ -73,7 +73,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequ
 
         helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 
-        let payment_attempt = db
+        let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
@@ -97,6 +97,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequ
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+        payment_attempt.payment_method = Some(request.payment_method);
+        payment_attempt.payment_method_type = Some(request.payment_method_type);
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
