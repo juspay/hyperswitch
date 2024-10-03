@@ -1415,6 +1415,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 nexinets::transformers::NexinetsAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Nexixpay => {
+                nexixpay::transformers::NexixpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Nmi => {
                 nmi::transformers::NmiAuthType::try_from(self.auth_type)?;
                 Ok(())
