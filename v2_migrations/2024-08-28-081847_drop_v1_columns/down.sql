@@ -58,8 +58,8 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN business_country "CountryAlpha2",
     ADD COLUMN business_label VARCHAR(64),
     ADD COLUMN incremental_authorization_allowed BOOLEAN,
-    ADD COLUMN fingerprint_id VARCHAR(64),
     ADD COLUMN merchant_decision VARCHAR(64),
+    ADD COLUMN fingerprint_id VARCHAR(64),
     ADD COLUMN statement_descriptor_name VARCHAR(255),
     ADD COLUMN amount_to_capture BIGINT,
     ADD COLUMN off_session BOOLEAN,
@@ -67,3 +67,26 @@ ADD COLUMN IF NOT EXISTS payment_id VARCHAR(64) NOT NULL,
     ADD COLUMN merchant_order_reference_id VARCHAR(255),
     ADD COLUMN is_payment_processor_token_flow BOOLEAN,
     ADD COLUMN charges jsonb;
+
+ALTER TABLE payment_attempt
+ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
+    ADD COLUMN amount bigint NOT NULL,
+    ADD COLUMN currency "Currency",
+    ADD COLUMN save_to_locker BOOLEAN,
+    ADD COLUMN offer_amount bigint,
+    ADD COLUMN payment_method VARCHAR,
+    ADD COLUMN connector_transaction_id VARCHAR(64),
+    ADD COLUMN capture_method "CaptureMethod",
+    ADD COLUMN capture_on TIMESTAMP,
+    ADD COLUMN mandate_id VARCHAR(64),
+    ADD COLUMN payment_method_type VARCHAR(64),
+    ADD COLUMN business_sub_label VARCHAR(64),
+    ADD COLUMN mandate_details JSONB,
+    ADD COLUMN mandate_data JSONB,
+    ADD COLUMN tax_amount bigint,
+    ADD COLUMN straight_through_algorithm JSONB;
+
+-- Create the index which was dropped because of dropping the column
+CREATE INDEX payment_attempt_connector_transaction_id_merchant_id_index ON payment_attempt (connector_transaction_id, merchant_id);
+
+CREATE UNIQUE INDEX payment_attempt_payment_id_merchant_id_attempt_id_index ON payment_attempt (payment_id, merchant_id, attempt_id);

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cmp, collections::HashSet};
 
 use api_models::user_role as user_role_api;
 use common_enums::{EntityType, PermissionGroup};
@@ -418,28 +418,16 @@ pub fn get_min_entity(
     user_entity: EntityType,
     filter_entity: Option<EntityType>,
 ) -> UserResult<EntityType> {
-    match (user_entity, filter_entity) {
-        (EntityType::Organization, None)
-        | (EntityType::Organization, Some(EntityType::Organization)) => {
-            Ok(EntityType::Organization)
-        }
+    let Some(filter_entity) = filter_entity else {
+        return Ok(user_entity);
+    };
 
-        (EntityType::Merchant, None)
-        | (EntityType::Organization, Some(EntityType::Merchant))
-        | (EntityType::Merchant, Some(EntityType::Merchant)) => Ok(EntityType::Merchant),
-
-        (EntityType::Profile, None)
-        | (EntityType::Organization, Some(EntityType::Profile))
-        | (EntityType::Merchant, Some(EntityType::Profile))
-        | (EntityType::Profile, Some(EntityType::Profile)) => Ok(EntityType::Profile),
-
-        (EntityType::Merchant, Some(EntityType::Organization))
-        | (EntityType::Profile, Some(EntityType::Organization))
-        | (EntityType::Profile, Some(EntityType::Merchant)) => {
-            Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-                "{} level user requesting data for {:?} level",
-                user_entity, filter_entity
-            ))
-        }
+    if user_entity < filter_entity {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} level user requesting data for {:?} level",
+            user_entity, filter_entity
+        ));
     }
+
+    Ok(cmp::min(user_entity, filter_entity))
 }

@@ -39,14 +39,24 @@ pub async fn organization_update(
 ) -> HttpResponse {
     let flow = Flow::OrganizationUpdate;
     let organization_id = org_id.into_inner();
-    let org_id = admin::OrganizationId { organization_id };
+    let org_id = admin::OrganizationId {
+        organization_id: organization_id.clone(),
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, _, req, _| update_organization(state, org_id.clone(), req),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthOrganizationFromRoute {
+                organization_id,
+                required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Organization,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -61,14 +71,25 @@ pub async fn organization_retrieve(
 ) -> HttpResponse {
     let flow = Flow::OrganizationRetrieve;
     let organization_id = org_id.into_inner();
-    let payload = admin::OrganizationId { organization_id };
+    let payload = admin::OrganizationId {
+        organization_id: organization_id.clone(),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, _, req, _| get_organization(state, req),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthOrganizationFromRoute {
+                organization_id,
+                required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Organization,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

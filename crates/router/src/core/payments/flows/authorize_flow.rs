@@ -72,7 +72,7 @@ impl
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         let payment_method = &self
             .payment_attempt
-            .payment_method
+            .get_payment_method()
             .get_required_value("PaymentMethod")?;
 
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {

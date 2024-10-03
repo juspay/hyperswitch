@@ -19,7 +19,6 @@ recon = []
 v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2", "customer_v2"]
 customer_v2 = ["common_utils/customer_v2"]
-payment_v2 = []
 payment_methods_v2 = ["common_utils/payment_methods_v2"]
 
 [dependencies]
