@@ -5,8 +5,6 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
-#[cfg(feature = "v2")]
-use common_utils::types::ClientSecret;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -4513,7 +4511,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
 //     }
 // }
 
-#[cfg(feature = "v1")]
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
     fn from(item: PaymentsSessionRequest) -> Self {
         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
@@ -4761,15 +4758,6 @@ pub struct RedirectResponse {
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsSessionRequest {
-    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
-    #[schema(value_type = String)]
-    pub client_secret: ClientSecret,
-}
-
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment
