@@ -2022,7 +2022,7 @@ pub mod routes {
                     })
                     .collect();
 
-                    let search_params: Vec<AuthInfo> = filtered_user_roles
+                let search_params: Vec<AuthInfo> = filtered_user_roles
                     .iter()
                     .filter_map(|user_role| {
                         user_role
