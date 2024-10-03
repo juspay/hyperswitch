@@ -10293,6 +10293,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains url to collect otp for mobile payment",
+            "required": [
+              "collect_otp_url",
+              "type"
+            ],
+            "properties": {
+              "collect_otp_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "collect_otp"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
