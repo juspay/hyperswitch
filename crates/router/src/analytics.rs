@@ -1899,42 +1899,27 @@ pub mod routes {
                     })
                     .collect();
 
-                let mut search_params: Vec<AuthInfo> = Vec::new();
-                for user_role in &filtered_user_roles {
-                    if let Some((_, entity_type)) = user_role.get_entity_id_and_type() {
-                        match entity_type {
-                            EntityType::Profile => {
-                                if let (Some(org_id), Some(merchant_id), Some(profile_id)) = (
-                                    user_role.org_id.clone(),
-                                    user_role.merchant_id.clone(),
-                                    user_role.profile_id.clone(),
-                                ) {
-                                    search_params.push(AuthInfo::ProfileLevel {
-                                        org_id,
-                                        merchant_id,
-                                        profile_ids: vec![profile_id],
-                                    });
-                                }
-                            }
-                            EntityType::Merchant => {
-                                if let (Some(org_id), Some(merchant_id)) =
-                                    (user_role.org_id.clone(), user_role.merchant_id.clone())
-                                {
-                                    search_params.push(AuthInfo::MerchantLevel {
-                                        org_id,
-                                        merchant_ids: vec![merchant_id],
-                                    });
-                                }
-                            }
-                            EntityType::Organization => {
-                                if let Some(org_id) = user_role.org_id.clone() {
-                                    search_params.push(AuthInfo::OrgLevel { org_id });
-                                }
-                            }
-                            EntityType::Internal => {}
-                        }
-                    }
-                }
+                let search_params: Vec<AuthInfo> = filtered_user_roles
+                    .iter()
+                    .filter_map(|user_role| {
+                        user_role
+                            .get_entity_id_and_type()
+                            .and_then(|(_, entity_type)| match entity_type {
+                                EntityType::Profile => Some(AuthInfo::ProfileLevel {
+                                    org_id: user_role.org_id.clone()?,
+                                    merchant_id: user_role.merchant_id.clone()?,
+                                    profile_ids: vec![user_role.profile_id.clone()?],
+                                }),
+                                EntityType::Merchant => Some(AuthInfo::MerchantLevel {
+                                    org_id: user_role.org_id.clone()?,
+                                    merchant_ids: vec![user_role.merchant_id.clone()?],
+                                }),
+                                EntityType::Organization => Some(AuthInfo::OrgLevel {
+                                    org_id: user_role.org_id.clone()?,
+                                }),
+                            })
+                    })
+                    .collect();
 
                 analytics::search::msearch_results(
                     &state.opensearch_client,
@@ -2037,42 +2022,27 @@ pub mod routes {
                     })
                     .collect();
 
-                let mut search_params: Vec<AuthInfo> = Vec::new();
-                for user_role in &filtered_user_roles {
-                    if let Some((_, entity_type)) = user_role.get_entity_id_and_type() {
-                        match entity_type {
-                            EntityType::Profile => {
-                                if let (Some(org_id), Some(merchant_id), Some(profile_id)) = (
-                                    user_role.org_id.clone(),
-                                    user_role.merchant_id.clone(),
-                                    user_role.profile_id.clone(),
-                                ) {
-                                    search_params.push(AuthInfo::ProfileLevel {
-                                        org_id,
-                                        merchant_id,
-                                        profile_ids: vec![profile_id],
-                                    });
-                                }
-                            }
-                            EntityType::Merchant => {
-                                if let (Some(org_id), Some(merchant_id)) =
-                                    (user_role.org_id.clone(), user_role.merchant_id.clone())
-                                {
-                                    search_params.push(AuthInfo::MerchantLevel {
-                                        org_id,
-                                        merchant_ids: vec![merchant_id],
-                                    });
-                                }
-                            }
-                            EntityType::Organization => {
-                                if let Some(org_id) = user_role.org_id.clone() {
-                                    search_params.push(AuthInfo::OrgLevel { org_id });
-                                }
-                            }
-                            EntityType::Internal => {}
-                        }
-                    }
-                }
+                    let search_params: Vec<AuthInfo> = filtered_user_roles
+                    .iter()
+                    .filter_map(|user_role| {
+                        user_role
+                            .get_entity_id_and_type()
+                            .and_then(|(_, entity_type)| match entity_type {
+                                EntityType::Profile => Some(AuthInfo::ProfileLevel {
+                                    org_id: user_role.org_id.clone()?,
+                                    merchant_id: user_role.merchant_id.clone()?,
+                                    profile_ids: vec![user_role.profile_id.clone()?],
+                                }),
+                                EntityType::Merchant => Some(AuthInfo::MerchantLevel {
+                                    org_id: user_role.org_id.clone()?,
+                                    merchant_ids: vec![user_role.merchant_id.clone()?],
+                                }),
+                                EntityType::Organization => Some(AuthInfo::OrgLevel {
+                                    org_id: user_role.org_id.clone()?,
+                                }),
+                            })
+                    })
+                    .collect();
                 analytics::search::search_results(&state.opensearch_client, req, search_params)
                     .await
                     .map(ApplicationResponse::Json)
