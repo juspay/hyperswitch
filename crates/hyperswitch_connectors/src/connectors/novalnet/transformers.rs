@@ -298,7 +298,7 @@ impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
 }
 
 // PaymentsResponse
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NovalnetTransactionStatus {
     Success,
@@ -495,6 +495,8 @@ pub struct NovalnetSyncResponseTransactionData {
     pub tid: Option<Secret<i64>>,
     pub txn_secret: Option<Secret<String>>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
