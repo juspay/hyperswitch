@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.27.0-hotfix3
+
+### Bug Fixes
+
+- **bug:** [IATAPAY] Fix PCM value for UPI_COLLECT ([#6210](https://github.com/juspay/hyperswitch/pull/6210)) ([`f37ef61`](https://github.com/juspay/hyperswitch/commit/f37ef6169865e6bbc7eda5f73250bd05aabebcee))
+
+- - -
+
 ## 2024.09.27.0-hotfix2
 
 ### Bug Fixes
