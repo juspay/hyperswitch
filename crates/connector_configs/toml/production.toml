@@ -124,6 +124,21 @@ key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[adyenplatform_payout]
+[[adyenplatform_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[adyenplatform_payout.connector_auth.HeaderKey]
+api_key = "Adyen platform's API Key"
+
+[adyenplatform_payout.metadata.source_balance_account]
+name="source_balance_account"
+label="Source balance account ID"
+placeholder="Enter Source balance account ID"
+required=true
+type="Text"
+[adyenplatform_payout.connector_webhook_details]
+merchant_secret="Source verification key"
+
 [[adyen.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
@@ -1666,6 +1681,26 @@ placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
 options=["Connector","Hyperswitch"]
+
+[nexixpay]
+[[nexixpay.credit]]
+  payment_method_type = "Mastercard"
+[[nexixpay.credit]]
+  payment_method_type = "Visa"
+[[nexixpay.credit]]
+  payment_method_type = "AmericanExpress"
+[[nexixpay.credit]]
+  payment_method_type = "JCB"
+[[nexixpay.debit]]
+  payment_method_type = "Mastercard"
+[[nexixpay.debit]]
+  payment_method_type = "Visa"
+[[nexixpay.debit]]
+  payment_method_type = "AmericanExpress"
+[[nexixpay.debit]]
+  payment_method_type = "JCB"
+[nexixpay.connector_auth.HeaderKey]
+api_key="API Key"
 
 [nmi]
 [[nmi.credit]]

@@ -8711,6 +8711,7 @@
           "multisafepay",
           "netcetera",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
@@ -21220,6 +21221,18 @@
           "is_network_tokenization_enabled": {
             "type": "boolean",
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+          },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "nullable": true
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true,
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -21251,7 +21264,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
-          "is_network_tokenization_enabled"
+          "is_network_tokenization_enabled",
+          "is_auto_retries_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -21436,6 +21450,18 @@
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
             "default": false,
             "example": false
+          },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "default": false,
+            "example": false
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true
           }
         }
       },
@@ -22326,6 +22352,7 @@
           "mollie",
           "multisafepay",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
