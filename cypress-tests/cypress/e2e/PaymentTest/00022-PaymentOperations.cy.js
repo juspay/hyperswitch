@@ -20,6 +20,23 @@ const filterOptions = [
   "Payment Method Type",
 ];
 
+const paymentOperationTableColumns = [
+  "S.No",
+  "Payment ID",
+  "Connector",
+  "Connector Transaction ID",
+  "Amount",
+  "Payment Status",
+  "Payment Method",
+  "Payment Method Type",
+  "Card Network",
+  "Customer Email",
+  "Merchant Order Reference Id",
+  "Description",
+  "Metadata",
+  "Created",
+];
+
 describe("connector", () => {
   const username = "test@gmail.com";
   const password = "Test1441@41";
@@ -70,7 +87,23 @@ describe("connector", () => {
     cy.get('[role="menu"]').within(() => {
       filterOptions.forEach((option, index) => cy.get("button").eq(index).should("have.text", option));
     });
+    // TODO: Add these assertions to the test case later once discussed with the team.
     // Verify the "Generate reports" button is present and visible.
     // Verify the "Customize columns" button is present and visible.
+  });
+
+  it("Verify Payments Displayed", () => {
+    // Navigate to the "Payment Operations" page using the side menu.
+    cy.navigateFromSideMenu("Operations/Payments");
+    // Verify the URL to ensure the redirection to the "Payment Operations" page.
+    cy.url().should("include", `/dashboard/payments`);
+    // TODO: Add these assertions to the test case later once discussed with the team.
+    // Make 3 payments.
+    // Verify the payments are displayed in the table with valid payment details.
+    // Verify the table contains the following columns.
+    // select using table tag
+    cy.get("table").within(() => {
+      paymentOperationTableColumns.forEach((column) => cy.get("th").should("have.text", column));
+    });
   });
 });
