@@ -113,7 +113,6 @@ describe("Card - MultiUse Mandates flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -141,7 +140,6 @@ describe("Card - MultiUse Mandates flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -169,7 +167,6 @@ describe("Card - MultiUse Mandates flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -222,7 +219,6 @@ describe("Card - MultiUse Mandates flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)

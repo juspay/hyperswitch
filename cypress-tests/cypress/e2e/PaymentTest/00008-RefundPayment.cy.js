@@ -408,7 +408,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -513,7 +512,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -637,7 +635,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
@@ -742,7 +739,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
@@ -1284,7 +1280,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -1392,7 +1387,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -1516,7 +1510,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
@@ -1624,7 +1617,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
