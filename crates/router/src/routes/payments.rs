@@ -532,8 +532,9 @@ pub async fn payments_dynamic_tax_calculation(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
 pub async fn payments_connector_session(
-    _state: web::Data<app::AppState>,
-    _req: actix_web::HttpRequest,
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsSessionRequest>,
 ) -> impl Responder {
     "Session Response"
 }
