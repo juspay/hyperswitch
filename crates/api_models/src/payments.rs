@@ -2894,7 +2894,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PazeWalletData {
-    pub complete_response: String,
+    pub complete_response: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5112,14 +5112,6 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate: Secret<String>,
     #[schema(value_type = String)]
     pub payment_processing_certificate_key: Secret<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
-pub struct PazePaymentProcessingDetails {
-    #[schema(value_type = String)]
-    pub paze_private_key: Secret<String>,
-    #[schema(value_type = String)]
-    pub paze_private_key_passphrase: Secret<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

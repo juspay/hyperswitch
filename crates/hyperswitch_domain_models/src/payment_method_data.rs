@@ -139,7 +139,7 @@ pub struct MifinityData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PazeWalletData {
-    pub complete_response: String,
+    pub complete_response: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]

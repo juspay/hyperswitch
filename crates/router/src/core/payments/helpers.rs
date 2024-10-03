@@ -5012,7 +5012,11 @@ pub fn decrypt_paze_token(
         .decrypter_from_pem(decrypted_private_key_pem)
         .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
 
-    let paze_complete_response: Vec<&str> = paze_wallet_data.complete_response.split('.').collect();
+    let paze_complete_response: Vec<&str> = paze_wallet_data
+        .complete_response
+        .peek()
+        .split('.')
+        .collect();
     let encrypted_jwe_key = paze_complete_response
         .get(1)
         .ok_or(errors::PazeDecryptionError::DecryptionFailed)?
