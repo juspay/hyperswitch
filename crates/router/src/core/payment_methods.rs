@@ -1767,20 +1767,16 @@ pub async fn update_payment_method(
         },
     )?;
 
-    let pmd: pm_types::PaymentMethodVaultingData = cards::retrieve_payment_method_from_vault(
-        &state,
-        &merchant_account,
-        &payment_method.customer_id,
-        &payment_method,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to retrieve payment method from vault")?
-    .data
-    .expose()
-    .parse_struct("PaymentMethodCreateData")
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to parse PaymentMethodCreateData")?;
+    let pmd: pm_types::PaymentMethodVaultingData =
+        cards::retrieve_payment_method_from_vault(&state, &merchant_account, &payment_method)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")?
+            .data
+            .expose()
+            .parse_struct("PaymentMethodCreateData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse PaymentMethodCreateData")?;
 
     let vault_request_data =
         pm_transforms::generate_pm_vaulting_req_from_update_request(pmd, req.payment_method_data);
@@ -1821,6 +1817,72 @@ pub async fn update_payment_method(
     let response = pm_transforms::generate_payment_method_response(&payment_method)?;
 
     // Add a PT task to handle payment_method delete from vault
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_payment_method(
+    state: SessionState,
+    pm_id: api::PaymentMethodId,
+    key_store: domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+) -> RouterResponse<api::PaymentMethodDeleteResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
+    let payment_method = db
+        .find_payment_method(
+            &((&state).into()),
+            &key_store,
+            &pm_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let locker_id = payment_method.locker_id.clone();
+
+    let _customer = db
+        .find_customer_by_merchant_reference_id_merchant_id(
+            key_manager_state,
+            &payment_method.customer_id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Customer not found for the payment method")?;
+
+    // Soft delete
+    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+        status: Some(enums::PaymentMethodStatus::Inactive),
+    };
+    db.update_payment_method(
+        &((&state).into()),
+        &key_store,
+        payment_method,
+        pm_update,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update payment method in db")?;
+
+    cards::delete_payment_method_from_vault(&state, &merchant_account, locker_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete payment method from vault")?;
+
+    let response = api::PaymentMethodDeleteResponse {
+        payment_method_id: pm_id.get_string_repr().to_string(),
+    };
 
     Ok(services::ApplicationResponse::Json(response))
 }

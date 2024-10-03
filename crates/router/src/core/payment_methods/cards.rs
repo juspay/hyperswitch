@@ -1481,7 +1481,6 @@ pub async fn vault_payment_method_in_locker(
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    customer_id: &id_type::CustomerId,
     pm: &domain::PaymentMethod,
 ) -> errors::CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
@@ -1508,6 +1507,40 @@ pub async fn retrieve_payment_method_from_vault(
         .parse_struct("VaultRetrieveResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+    Ok(stored_pm_resp)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_payment_method_from_vault(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    locker_id: Option<String>,
+) -> errors::CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
+    let payload = pm_types::VaultDeleteRequest {
+        entity_id: merchant_account.get_id().to_owned(),
+        vault_id: pm_types::VaultId::generate(
+            locker_id
+                .ok_or(errors::VaultError::MissingRequiredField {
+                    field_name: "locker_id",
+                })
+                .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
+        ),
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Failed to get response from locker")?;
+
+    let stored_pm_resp: pm_types::VaultDeleteResponse = resp
+        .parse_struct("VaultDeleteResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultDeleteResponse")?;
 
     Ok(stored_pm_resp)
 }
@@ -5401,21 +5434,6 @@ pub async fn retrieve_payment_method(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
-#[instrument(skip_all)]
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn delete_payment_method(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _pm_id: api::PaymentMethodId,
-    _key_store: domain::MerchantKeyStore,
-) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
-    todo!()
-}
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
@@ -5516,17 +5534,6 @@ pub async fn delete_payment_method(
             deleted: true,
         },
     ))
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn delete_payment_method(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _pm_id: api::PaymentMethodId,
-    _key_store: domain::MerchantKeyStore,
-) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
-    todo!()
 }
 
 pub async fn create_encrypted_data<T>(

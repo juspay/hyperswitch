@@ -1086,7 +1086,8 @@ impl PaymentMethods {
                 web::resource("/{id}/update_saved_payment_method")
                     .route(web::patch().to(payment_method_update_api)),
             )
-            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)));
+            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
+            .service(web::resource("/{id}").route(web::delete().to(payment_method_delete_api)));
 
         route
     }
