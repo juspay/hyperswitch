@@ -907,6 +907,12 @@ where
 
         let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_mobile_payment = mobile_payment_next_steps_check(
+            base_url,
+            payment_attempt.clone(),
+            payment_intent.clone(),
+        )?;
+
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
         let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
@@ -935,6 +941,11 @@ where
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
+                            }
+                        }))
+                        .or(next_action_mobile_payment.map(|mobile_payment_data| {
+                            api_models::payments::NextActionData::CollectOtp {
+                                collect_otp_url: mobile_payment_data.collect_otp_url,
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
@@ -1541,6 +1552,28 @@ pub fn voucher_next_steps_check(
         None
     };
     Ok(voucher_next_step)
+}
+
+#[cfg(feature = "v1")]
+pub fn mobile_payment_next_steps_check(
+    base_url: &str,
+    payment_attempt: storage::PaymentAttempt,
+    payment_intent: storage::PaymentIntent,
+) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
+    let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
+        payment_attempt.payment_method
+    {
+        Some(api_models::payments::MobilePaymentNextStepData {
+            collect_otp_url: helpers::create_startpay_url(
+                base_url,
+                &payment_attempt,
+                &payment_intent,
+            ),
+        })
+    } else {
+        None
+    };
+    Ok(mobile_payment_next_step)
 }
 
 pub fn change_order_details_to_new_type(

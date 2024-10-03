@@ -837,6 +837,9 @@ pub enum StripeNextAction {
     InvokeSdkClient {
         next_action_data: payments::SdkNextActionData,
     },
+    CollectOtp {
+        collect_otp_url: String,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -891,6 +894,9 @@ pub(crate) fn into_stripe_next_action(
         },
         payments::NextActionData::InvokeSdkClient { next_action_data } => {
             StripeNextAction::InvokeSdkClient { next_action_data }
+        }
+        payments::NextActionData::CollectOtp { collect_otp_url } => {
+            StripeNextAction::CollectOtp { collect_otp_url }
         }
     })
 }

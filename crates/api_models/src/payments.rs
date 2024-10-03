@@ -3704,6 +3704,10 @@ pub enum NextActionData {
     InvokeSdkClient {
         next_action_data: SdkNextActionData,
     },
+    /// Contains url to collect otp for mobile payment
+    CollectOtp {
+        collect_otp_url: String,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -3796,6 +3800,12 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct MobilePaymentNextStepData {
+    /// Url to collect OTP
+    pub collect_otp_url: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

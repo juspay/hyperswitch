@@ -1,20 +1,21 @@
 use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{MobilePaymentData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData},
 };
 
 pub struct DigitalvirgoRouterData<T> {
@@ -111,7 +112,7 @@ impl From<DigitalvirgoPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: DigitalvirgoPaymentStatus) -> Self {
         match item {
             DigitalvirgoPaymentStatus::Ok => Self::Charged,
-            DigitalvirgoPaymentStatus::ConfirmPayment => Self::Started,
+            DigitalvirgoPaymentStatus::ConfirmPayment => Self::AuthenticationPending,
         }
     }
 }
@@ -130,11 +131,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, Paymen
     fn try_from(
         item: ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let status = common_enums::AttemptStatus::from(item.response.state);
+        let redirection_data = match status {
+            common_enums::AttemptStatus::AuthenticationPending => Some(RedirectForm::DigitalVirgo),
+            _ => None,
+        };
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.state),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -161,7 +167,7 @@ pub enum DigitalvirgoPaymentSyncStatus {
 impl From<DigitalvirgoPaymentSyncStatus> for common_enums::AttemptStatus {
     fn from(item: DigitalvirgoPaymentSyncStatus) -> Self {
         match item {
-            DigitalvirgoPaymentSyncStatus::Accepted => Self::Started,
+            DigitalvirgoPaymentSyncStatus::Accepted => Self::AuthenticationPending,
             DigitalvirgoPaymentSyncStatus::Payed => Self::Charged,
             DigitalvirgoPaymentSyncStatus::Pending | DigitalvirgoPaymentSyncStatus::Locked => {
                 Self::Pending
@@ -204,6 +210,40 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentSyncResponse, T, Pay
 }
 
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DigitalvirgoConfirmRequest {
+    transaction_id: String,
+    token: Secret<String>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DigitalvirgoRedirectResponseData {
+    otp: Secret<String>,
+}
+
+impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for DigitalvirgoConfirmRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let payload_data = item.request.get_redirect_response_payload()?.expose();
+
+        let otp_data: DigitalvirgoRedirectResponseData = serde_json::from_value(payload_data)
+            .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "otp for transaction",
+            })?;
+
+        Ok(Self {
+            transaction_id: item
+                .request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+            token: otp_data.otp,
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
 pub struct DigitalvirgoRefundRequest {
     pub amount: FloatMajorUnit,
 }
@@ -232,7 +272,6 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
