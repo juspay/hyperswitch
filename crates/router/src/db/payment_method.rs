@@ -14,11 +14,24 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
 
@@ -231,7 +244,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             key_store: &domain::MerchantKeyStore,
-            payment_method_id: &str,
+            payment_method_id: &id_type::GlobalPaymentMethodId,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -251,7 +264,8 @@ mod storage {
                 match storage_scheme {
                     MerchantStorageScheme::PostgresOnly => database_call().await,
                     MerchantStorageScheme::RedisKv => {
-                        let lookup_id = format!("payment_method_{}", payment_method_id);
+                        let lookup_id =
+                            format!("payment_method_{}", payment_method_id.get_string_repr());
                         let lookup = fallback_reverse_lookup_not_found!(
                             self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                                 .await,
@@ -385,6 +399,38 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        #[instrument(skip_all)]
+        async fn insert_payment_method(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            payment_method: domain::PaymentMethod,
+            storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+            let payment_method_new = payment_method
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+
+            let conn = connection::pg_connection_write(self).await?;
+            payment_method_new
+                .insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn insert_payment_method(
             &self,
@@ -591,77 +637,18 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
 
-            let merchant_id = payment_method.merchant_id.clone();
-            let customer_id = payment_method.customer_id.clone();
-            let key = PartitionKey::MerchantIdCustomerId {
-                merchant_id: &merchant_id,
-                customer_id: &customer_id,
-            };
-            let field = format!("payment_method_id_{}", payment_method.get_id());
-            let storage_scheme =
-                Box::pin(decide_storage_scheme::<_, storage_types::PaymentMethod>(
-                    self,
-                    storage_scheme,
-                    Op::Update(key.clone(), &field, payment_method.updated_by.as_deref()),
-                ))
-                .await;
-            let pm = match storage_scheme {
-                MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
-                    payment_method
-                        .update_with_id(
-                            &conn,
-                            payment_method_update.convert_to_payment_method_update(storage_scheme),
-                        )
-                        .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
-                }
-                MerchantStorageScheme::RedisKv => {
-                    let key_str = key.to_string();
-
-                    let p_update: PaymentMethodUpdateInternal =
-                        payment_method_update.convert_to_payment_method_update(storage_scheme);
-                    let updated_payment_method =
-                        p_update.clone().apply_changeset(payment_method.clone());
-
-                    let redis_value = serde_json::to_string(&updated_payment_method)
-                        .change_context(errors::StorageError::SerializationFailed)?;
-
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::PaymentMethodUpdate(
-                                kv::PaymentMethodUpdateMems {
-                                    orig: payment_method,
-                                    update_data: p_update,
-                                },
-                            ),
-                        },
-                    };
-
-                    kv_wrapper::<(), _, _>(
-                        self,
-                        KvOperation::<diesel_models::PaymentMethod>::Hset(
-                            (&field, redis_value),
-                            redis_entry,
-                        ),
-                        key,
-                    )
-                    .await
-                    .map_err(|err| err.to_redis_failed_response(&key_str))?
-                    .try_into_hset()
-                    .change_context(errors::StorageError::KVError)?;
-
-                    Ok(updated_payment_method)
-                }
-            }?;
-
-            pm.convert(
-                state,
-                key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+            let conn = connection::pg_connection_write(self).await?;
+            payment_method
+                .update_with_id(&conn, payment_method_update.into())
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
         }
 
         #[cfg(all(
@@ -927,7 +914,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             key_store: &domain::MerchantKeyStore,
-            payment_method_id: &str,
+            payment_method_id: &id_type::GlobalPaymentMethodId,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -1258,11 +1245,45 @@ mod storage {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for MockDb {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         payment_method_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let payment_method = payment_methods
+            .iter()
+            .find(|pm| pm.get_id() == payment_method_id)
+            .cloned();
+
+        match payment_method {
+            Some(pm) => Ok(pm
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)?),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;

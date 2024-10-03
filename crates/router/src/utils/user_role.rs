@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cmp, collections::HashSet};
 
 use api_models::user_role as user_role_api;
 use common_enums::{EntityType, PermissionGroup};
@@ -14,7 +14,7 @@ use storage_impl::errors::StorageError;
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
-    db::user_role::ListUserRolesByUserIdPayload,
+    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
@@ -239,10 +239,7 @@ pub async fn get_single_merchant_id(
             .attach_printable("No merchants found for org_id")?
             .get_id()
             .clone()),
-        Some(EntityType::Merchant)
-        | Some(EntityType::Internal)
-        | Some(EntityType::Profile)
-        | None => user_role
+        Some(EntityType::Merchant) | Some(EntityType::Profile) | None => user_role
             .merchant_id
             .clone()
             .ok_or(UserErrors::InternalServerError)
@@ -263,9 +260,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
-        EntityType::Internal | EntityType::Organization => {
-            Err(UserErrors::InvalidRoleOperation.into())
-        }
+        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
         EntityType::Merchant => {
             let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
                 return Ok(None);
@@ -369,7 +364,7 @@ pub async fn get_single_merchant_id_and_profile_id(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
     let profile_id = match entity_type {
-        EntityType::Organization | EntityType::Merchant | EntityType::Internal => {
+        EntityType::Organization | EntityType::Merchant => {
             let key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
@@ -382,7 +377,7 @@ pub async fn get_single_merchant_id_and_profile_id(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
+                .list_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()
@@ -397,4 +392,42 @@ pub async fn get_single_merchant_id_and_profile_id(
     };
 
     Ok((merchant_id, profile_id))
+}
+
+pub async fn fetch_user_roles_by_payload(
+    state: &SessionState,
+    payload: ListUserRolesByOrgIdPayload<'_>,
+    request_entity_type: Option<EntityType>,
+) -> UserResult<HashSet<UserRole>> {
+    Ok(state
+        .store
+        .list_user_roles_by_org_id(payload)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter_map(|user_role| {
+            let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
+            request_entity_type
+                .map_or(true, |req_entity_type| entity_type == req_entity_type)
+                .then_some(user_role)
+        })
+        .collect::<HashSet<_>>())
+}
+
+pub fn get_min_entity(
+    user_entity: EntityType,
+    filter_entity: Option<EntityType>,
+) -> UserResult<EntityType> {
+    let Some(filter_entity) = filter_entity else {
+        return Ok(user_entity);
+    };
+
+    if user_entity < filter_entity {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} level user requesting data for {:?} level",
+            user_entity, filter_entity
+        ));
+    }
+
+    Ok(cmp::min(user_entity, filter_entity))
 }

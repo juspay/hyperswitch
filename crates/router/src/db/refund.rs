@@ -80,7 +80,7 @@ pub trait RefundInterface {
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_details: &api_models::payments::TimeRange,
+        refund_details: &common_utils::types::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
 
@@ -88,7 +88,8 @@ pub trait RefundInterface {
     async fn get_refund_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        constraints: &api_models::payments::TimeRange,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        constraints: &common_utils::types::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>;
 
@@ -265,11 +266,12 @@ mod storage {
         async fn get_refund_status_with_count(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             time_range: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, time_range)
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id,profile_id_list, time_range)
             .await
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
@@ -817,7 +819,7 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
-            refund_details: &api_models::payments::TimeRange,
+            refund_details: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -831,11 +833,12 @@ mod storage {
         async fn get_refund_status_with_count(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
-            constraints: &api_models::payments::TimeRange,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+            constraints: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, constraints)
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id,profile_id_list, constraints)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -1135,7 +1138,7 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_meta_constraints(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        refund_details: &api_models::payments::TimeRange,
+        refund_details: &common_utils::types::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         let refunds = self.refunds.lock().await;
@@ -1182,7 +1185,8 @@ impl RefundInterface for MockDb {
     async fn get_refund_status_with_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(api_models::enums::RefundStatus, i64)>, errors::StorageError> {
         let refunds = self.refunds.lock().await;
@@ -1194,7 +1198,17 @@ impl RefundInterface for MockDb {
 
         let filtered_refunds = refunds
             .iter()
-            .filter(|refund| refund.created_at >= start_time && refund.created_at <= end_time)
+            .filter(|refund| {
+                refund.created_at >= start_time
+                    && refund.created_at <= end_time
+                    && profile_id_list
+                        .as_ref()
+                        .zip(refund.profile_id.as_ref())
+                        .map(|(received_profile_list, received_profile_id)| {
+                            received_profile_list.contains(received_profile_id)
+                        })
+                        .unwrap_or(true)
+            })
             .cloned()
             .collect::<Vec<diesel_models::refund::Refund>>();
 

@@ -5,6 +5,7 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
+use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use common_enums::PaymentMethod;
 use common_utils::{
     crypto::Encryptable,
@@ -57,7 +58,11 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
         }
     }
 }
-
+pub struct SavePaymentMethodDataResponse {
+    pub payment_method_id: Option<String>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub mandate_reference_id: Option<MandateReferenceId>,
+}
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -77,8 +82,8 @@ pub async fn save_payment_method<FData>(
     currency: Option<storage_enums::Currency>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
-    business_profile: &domain::BusinessProfile,
-) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
+    business_profile: &domain::Profile,
+) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
 {
@@ -148,18 +153,21 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize customer acceptance to value")?;
 
-            let connector_mandate_id = match responses {
+            let (connector_mandate_id, mandate_metadata) = match responses {
                 types::PaymentsResponseData::TransactionResponse {
                     ref mandate_reference,
                     ..
                 } => {
                     if let Some(mandate_ref) = mandate_reference {
-                        mandate_ref.connector_mandate_id.clone()
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                        )
                     } else {
-                        None
+                        (None, None)
                     }
                 }
-                _ => None,
+                _ => (None, None),
             };
             let check_for_mit_mandates = save_payment_method_data
                 .request
@@ -178,6 +186,7 @@ where
                     currency,
                     merchant_connector_id.clone(),
                     connector_mandate_id.clone(),
+                    mandate_metadata.clone(),
                 )
             } else {
                 None
@@ -373,6 +382,7 @@ where
                                                 currency,
                                                 merchant_connector_id.clone(),
                                                 connector_mandate_id.clone(),
+                                                mandate_metadata.clone(),
                                             )?;
 
                                         payment_methods::cards::update_payment_method_connector_mandate_details(state,
@@ -479,6 +489,7 @@ where
                                                     currency,
                                                     merchant_connector_id.clone(),
                                                     connector_mandate_id.clone(),
+                                                    mandate_metadata.clone(),
                                                 )?;
 
                                             payment_methods::cards::update_payment_method_connector_mandate_details(  state,
@@ -731,9 +742,36 @@ where
             } else {
                 None
             };
-            Ok((pm_id, pm_status))
+            let cmid_config = db
+                .find_config_by_key_unwrap_or(
+                    format!("{}_should_show_connector_mandate_id_in_payments_response", merchant_account.get_id().get_string_repr().to_owned()).as_str(),
+                    Some("false".to_string()),
+                )
+                .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", connector_mandate_details_population=?err)).ok();
+
+            let mandate_reference_id = match cmid_config {
+                Some(config) if config.config == "true" => Some(
+                    MandateReferenceId::ConnectorMandateId(ConnectorMandateReferenceId {
+                        connector_mandate_id: connector_mandate_id.clone(),
+                        payment_method_id: pm_id.clone(),
+                        update_history: None,
+                        mandate_metadata: mandate_metadata.clone(),
+                    }),
+                ),
+                _ => None,
+            };
+
+            Ok(SavePaymentMethodDataResponse {
+                payment_method_id: pm_id,
+                payment_method_status: pm_status,
+                mandate_reference_id,
+            })
         }
-        Err(_) => Ok((None, None)),
+        Err(_) => Ok(SavePaymentMethodDataResponse {
+            payment_method_id: None,
+            payment_method_status: None,
+            mandate_reference_id: None,
+        }),
     }
 }
 
@@ -754,8 +792,8 @@ pub async fn save_payment_method<FData>(
     _currency: Option<storage_enums::Currency>,
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
-    _business_profile: &domain::BusinessProfile,
-) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
+    _business_profile: &domain::Profile,
+) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
 {
@@ -1160,6 +1198,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
+    mandate_metadata: Option<serde_json::Value>,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
 
@@ -1173,6 +1212,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 payment_method_type,
                 original_payment_authorized_amount: authorized_amount,
                 original_payment_authorized_currency: authorized_currency,
+                mandate_metadata,
             },
         );
         Some(storage::PaymentsMandateReference(mandate_details))
@@ -1188,6 +1228,7 @@ pub fn update_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
+    mandate_metadata: Option<serde_json::Value>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match payment_method.connector_mandate_details {
         Some(_) => {
@@ -1208,6 +1249,7 @@ pub fn update_connector_mandate_details_in_payment_method(
                     payment_method_type,
                     original_payment_authorized_amount: authorized_amount,
                     original_payment_authorized_currency: authorized_currency,
+                    mandate_metadata: mandate_metadata.clone(),
                 };
                 mandate_details.map(|mut payment_mandate_reference| {
                     payment_mandate_reference
@@ -1218,6 +1260,7 @@ pub fn update_connector_mandate_details_in_payment_method(
                             payment_method_type,
                             original_payment_authorized_amount: authorized_amount,
                             original_payment_authorized_currency: authorized_currency,
+                            mandate_metadata: mandate_metadata.clone(),
                         });
                     payment_mandate_reference
                 })
@@ -1231,6 +1274,7 @@ pub fn update_connector_mandate_details_in_payment_method(
             authorized_currency,
             merchant_connector_id,
             connector_mandate_id,
+            mandate_metadata,
         ),
     };
     let connector_mandate_details = mandate_reference

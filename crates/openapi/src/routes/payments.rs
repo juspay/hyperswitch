@@ -459,7 +459,7 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_list() {}
 
-/// Business Profile level Payments - List
+/// Profile level Payments - List
 ///
 /// To list the payments
 #[utoipa::path(
@@ -563,3 +563,32 @@ pub fn payments_complete_authorize() {}
 )]
 
 pub fn payments_dynamic_tax_calculation() {}
+
+/// Payments - Create Intent
+///
+/// **Creates a payment intent object when amount_details are passed.**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
+#[utoipa::path(
+  post,
+  path = "/v2/payments/create-intent",
+  request_body(
+      content = PaymentsCreateIntentRequest,
+      examples(
+          (
+              "Create a payment intent with minimal fields" = (
+                  value = json!({"amount_details": {"order_amount": 6540, "currency": "USD"}})
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment created", body = PaymentsCreateIntentResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Create a Payment Intent",
+  security(("api_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_create_intent() {}

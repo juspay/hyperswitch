@@ -43,7 +43,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -286,7 +286,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -336,6 +336,26 @@ where
     Ok(router_data)
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn modify_trackers<F, FData, D>(
+    state: &routes::SessionState,
+    connector: String,
+    payment_data: &mut D,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+    router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
+    is_step_up: bool,
+) -> RouterResult<()>
+where
+    F: Clone + Send,
+    FData: Send,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
@@ -426,7 +446,7 @@ where
                 charge_id,
             };
 
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             db.update_payment_attempt_with_attempt_id(
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
@@ -435,7 +455,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             db.update_payment_attempt_with_attempt_id(
                 key_manager_state,
                 key_store,
@@ -475,7 +495,7 @@ where
                 authentication_type: auth_update,
             };
 
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             db.update_payment_attempt_with_attempt_id(
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
@@ -484,7 +504,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             db.update_payment_attempt_with_attempt_id(
                 key_manager_state,
                 key_store,
@@ -497,15 +517,14 @@ where
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     let payment_attempt = db
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error inserting payment attempt")?;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     let payment_attempt = db
         .insert_payment_attempt(
             key_manager_state,
@@ -514,9 +533,8 @@ where
             storage_scheme,
         )
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.get_payment_intent().get_id().to_owned(),
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error inserting payment attempt")?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data
     payment_data.set_payment_attempt(payment_attempt);
@@ -526,7 +544,7 @@ where
             key_manager_state,
             payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id: payment_data.get_payment_attempt().attempt_id.clone(),
+                active_attempt_id: payment_data.get_payment_attempt().get_id().to_owned(),
                 attempt_count: new_attempt_count,
                 updated_by: storage_scheme.to_string(),
             },
@@ -541,7 +559,7 @@ where
     Ok(())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     connector: String,
@@ -620,7 +638,7 @@ pub fn make_new_payment_attempt(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn make_new_payment_attempt(
     _connector: String,

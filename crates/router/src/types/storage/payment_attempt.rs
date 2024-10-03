@@ -21,6 +21,16 @@ pub trait PaymentAttemptExt {
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
+    #[cfg(feature = "v2")]
+    fn make_new_capture(
+        &self,
+        capture_amount: MinorUnit,
+        capture_status: enums::CaptureStatus,
+    ) -> RouterResult<CaptureNew> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     fn make_new_capture(
         &self,
         capture_amount: MinorUnit,
@@ -55,10 +65,19 @@ impl PaymentAttemptExt for PaymentAttempt {
             connector_response_reference_id: None,
         })
     }
+
+    #[cfg(feature = "v1")]
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
     }
+
+    #[cfg(feature = "v2")]
+    fn get_next_capture_id(&self) -> String {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
         self.surcharge_amount.map(|surcharge_amount| {
             api_models::payments::RequestSurchargeDetails {
@@ -67,10 +86,22 @@ impl PaymentAttemptExt for PaymentAttempt {
             }
         })
     }
+
+    #[cfg(feature = "v2")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     fn get_total_amount(&self) -> MinorUnit {
         self.amount
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_amount.unwrap_or_default()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_total_amount(&self) -> MinorUnit {
+        todo!()
     }
 }
 
@@ -86,8 +117,7 @@ impl AttemptStatusExt for enums::AttemptStatus {
 
 #[cfg(test)]
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_v2"), // Ignoring tests for v2 since they aren't actively running
+    feature = "v1", // Ignoring tests for v2 since they aren't actively running
     feature = "dummy_connector"
 ))]
 mod tests {

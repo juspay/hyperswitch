@@ -232,14 +232,22 @@ impl SecretsHandler for settings::KeyManagerConfig {
         let keyconfig = value.get_inner();
 
         #[cfg(feature = "keymanager_mtls")]
-        let ca = _secret_management_client
-            .get_secret(keyconfig.ca.clone())
-            .await?;
+        let ca = if keyconfig.enabled {
+            _secret_management_client
+                .get_secret(keyconfig.ca.clone())
+                .await?
+        } else {
+            keyconfig.ca.clone()
+        };
 
         #[cfg(feature = "keymanager_mtls")]
-        let cert = _secret_management_client
-            .get_secret(keyconfig.cert.clone())
-            .await?;
+        let cert = if keyconfig.enabled {
+            _secret_management_client
+                .get_secret(keyconfig.cert.clone())
+                .await?
+        } else {
+            keyconfig.ca.clone()
+        };
 
         Ok(value.transition_state(|keyconfig| Self {
             #[cfg(feature = "keymanager_mtls")]
@@ -497,7 +505,9 @@ pub(crate) async fn fetch_raw_secrets(
         user_auth_methods,
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
-        recipient_emails: conf.recipient_emails,
+        grpc_client: conf.grpc_client,
+        #[cfg(feature = "v2")]
+        cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
         network_tokenization_service,

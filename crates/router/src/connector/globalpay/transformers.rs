@@ -261,6 +261,7 @@ fn get_payment_response(
             .map(|id| types::MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
+                mandate_metadata: None,
             })
     });
     match status {

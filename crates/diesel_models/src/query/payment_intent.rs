@@ -1,9 +1,9 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::payment_intent::dsl;
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent::dsl;
 use crate::{
     errors,
@@ -20,7 +20,7 @@ impl PaymentIntentNew {
 }
 
 impl PaymentIntent {
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -41,15 +41,15 @@ impl PaymentIntent {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_by_global_id(
         conn: &PgPooledConn,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::GlobalPaymentId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -74,7 +74,7 @@ impl PaymentIntent {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
         merchant_reference_id: &str,
@@ -89,7 +89,7 @@ impl PaymentIntent {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
@@ -104,8 +104,8 @@ impl PaymentIntent {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
-    pub async fn find_optional_by_merchant_id_merchant_reference_id(
+    #[cfg(feature = "v2")]
+    pub async fn find_optional_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
         merchant_reference_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -119,7 +119,7 @@ impl PaymentIntent {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,

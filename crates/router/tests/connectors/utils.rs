@@ -544,6 +544,8 @@ pub trait ConnectorActions: Connector {
             dispute_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
         }
     }
 
@@ -1006,6 +1008,7 @@ impl Default for PaymentSyncType {
             payment_experience: None,
             amount: MinorUnit::new(100),
             integrity_object: None,
+            ..Default::default()
         };
         Self(data)
     }

@@ -28,6 +28,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         Box::pin(
             transformers::construct_router_data_to_update_calculated_tax::<
@@ -72,7 +73,7 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &domain::BusinessProfile,
+        _business_profile: &domain::Profile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<

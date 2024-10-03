@@ -34,21 +34,21 @@ export const connectorDetails = {
         payment_method: "card",
         billing: {
           address: {
-              line1: "1467",
-              line2: "CA",
-              line3: "CA",
-              city: "Musterhausen",
-              state: "California",
-              zip: "12345",
-              country: "DE",
-              first_name: "Max",
-              last_name: "Mustermann"
+            line1: "1467",
+            line2: "CA",
+            line3: "CA",
+            city: "Musterhausen",
+            state: "California",
+            zip: "12345",
+            country: "DE",
+            first_name: "Max",
+            last_name: "Mustermann",
           },
           email: "test@novalnet.de",
           phone: {
-              number: "9123456789",
-              country_code: "+91"
-          }
+            number: "9123456789",
+            country_code: "+91",
+          },
         },
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -68,21 +68,21 @@ export const connectorDetails = {
         payment_method: "card",
         billing: {
           address: {
-              line1: "1467",
-              line2: "CA",
-              line3: "CA",
-              city: "Musterhausen",
-              state: "California",
-              zip: "12345",
-              country: "DE",
-              first_name: "Max",
-              last_name: "Mustermann"
+            line1: "1467",
+            line2: "CA",
+            line3: "CA",
+            city: "Musterhausen",
+            state: "California",
+            zip: "12345",
+            country: "DE",
+            first_name: "Max",
+            last_name: "Mustermann",
           },
           email: "test@novalnet.de",
           phone: {
-              number: "9123456789",
-              country_code: "+91"
-          }
+            number: "9123456789",
+            country_code: "+91",
+          },
         },
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
