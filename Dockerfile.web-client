@@ -1,0 +1,30 @@
+# Use official Node.js image as the base image for web client
+FROM node:18.14.03 as web-client-builder
+
+# Set the working directory in the container
+WORKDIR /app
+
+RUN git clone https://github.com/juspay/hyperswitch-web .
+
+RUN git checkout main
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application code to the working directory
+COPY . .
+
+# Build the web client
+RUN npm run build
+
+# Start a new stage for the final image
+FROM nginx:alpine
+
+# Copy the built files from the previous stage
+COPY --from=web-client-builder /app/build /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Command to start NGINX
+CMD ["nginx", "-g", "daemon off;"]
