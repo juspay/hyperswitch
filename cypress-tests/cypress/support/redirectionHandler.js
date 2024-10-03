@@ -399,6 +399,11 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   const paymentStatus = urlParams.get('status');
 
   // Check for valid statuses
+  if (!paymentStatus) {
+    console.error(`Error: Payment status is undefined. Possible 5xx or 4xx error during redirection.`);
+    throw new Error(`Payment status is undefined. Possible 5xx or 4xx error during redirection.`);
+  }
+  
   if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'partially_captured') {
     throw new Error(`Payment failed after redirection with status: ${paymentStatus}`);
   }
