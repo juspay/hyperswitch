@@ -41,8 +41,9 @@
           "zip": "94122",
           "first_name": "John",
           "last_name": "Doe",
-          "country": "SE"
-        }
+          "country": "ES"
+        },
+        "email": "narayan@example.com"
       },
       "browser_info": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
@@ -77,10 +78,6 @@
           "amount": 7000,
           "quantity": 1
         }
-      },
-      "routing": {
-        "type": "single",
-        "data": "stripe"
       }
     }
   },

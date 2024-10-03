@@ -4,7 +4,7 @@ pub use diesel_models::{
     payment_link::{PaymentLink, PaymentLinkNew},
     schema::payment_link::dsl,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     connection::PgPooledConn,
@@ -16,7 +16,7 @@ use crate::{
 pub trait PaymentLinkDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
@@ -25,7 +25,7 @@ pub trait PaymentLinkDbExt: Sized {
 impl PaymentLinkDbExt for PaymentLink {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
@@ -57,7 +57,6 @@ impl PaymentLinkDbExt for PaymentLink {
         filter
             .get_results_async(conn)
             .await
-            .into_report()
             // The query built here returns an empty Vec when no records are found, and if any error does occur,
             // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error
             .change_context(errors::DatabaseError::Others)

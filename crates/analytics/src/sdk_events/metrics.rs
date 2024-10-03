@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetrics, SdkEventMetricsBucketIdentifier,
@@ -12,24 +14,24 @@ use crate::{
 };
 
 mod average_payment_time;
+mod load_time;
 mod payment_attempts;
 mod payment_data_filled_count;
 mod payment_method_selected_count;
 mod payment_methods_call_count;
-mod payment_success_count;
 mod sdk_initiated_count;
 mod sdk_rendered_count;
 
 use average_payment_time::AveragePaymentTime;
+use load_time::LoadTime;
 use payment_attempts::PaymentAttempts;
 use payment_data_filled_count::PaymentDataFilledCount;
 use payment_method_selected_count::PaymentMethodSelectedCount;
 use payment_methods_call_count::PaymentMethodsCallCount;
-use payment_success_count::PaymentSuccessCount;
 use sdk_initiated_count::SdkInitiatedCount;
 use sdk_rendered_count::SdkRenderedCount;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct SdkEventMetricRow {
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -57,7 +59,7 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -78,22 +80,10 @@ where
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
+    ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
             Self::PaymentAttempts => {
                 PaymentAttempts
-                    .load_metrics(
-                        dimensions,
-                        publishable_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
-                    .await
-            }
-            Self::PaymentSuccessCount => {
-                PaymentSuccessCount
                     .load_metrics(
                         dimensions,
                         publishable_key,
@@ -166,6 +156,18 @@ where
             }
             Self::AveragePaymentTime => {
                 AveragePaymentTime
+                    .load_metrics(
+                        dimensions,
+                        publishable_key,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
+                    .await
+            }
+            Self::LoadTime => {
+                LoadTime
                     .load_metrics(
                         dimensions,
                         publishable_key,

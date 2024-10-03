@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_name": "stripe",
       "connector_account_details": {
         "auth_type": "HeaderKey",
@@ -286,7 +286,7 @@
             "certificate": "{{certificate}}",
             "display_name": "applepay",
             "certificate_keys": "{{certificate_keys}}",
-            "initiative_context": "hyperswitch-sdk-test.netlify.app",
+            "initiative_context": "sdk-test-app.netlify.app",
             "merchant_identifier": "merchant.com.stripe.sang"
           },
           "payment_request_data": {

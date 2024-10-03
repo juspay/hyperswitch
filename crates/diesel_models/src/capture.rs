@@ -1,24 +1,26 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::types::MinorUnit;
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::captures};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Hash)]
-#[diesel(table_name = captures)]
-#[diesel(primary_key(capture_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize, Hash,
+)]
+#[diesel(table_name = captures, primary_key(capture_id), check_for_backend(diesel::pg::Pg))]
 pub struct Capture {
     pub capture_id: String,
-    pub payment_id: String,
-    pub merchant_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::CaptureStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
-    pub tax_amount: Option<i64>,
+    pub tax_amount: Option<MinorUnit>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -34,16 +36,16 @@ pub struct Capture {
 #[diesel(table_name = captures)]
 pub struct CaptureNew {
     pub capture_id: String,
-    pub payment_id: String,
-    pub merchant_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::CaptureStatus,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
-    pub tax_amount: Option<i64>,
+    pub tax_amount: Option<MinorUnit>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]

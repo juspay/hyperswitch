@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Signin",
+    "Signin Wrong",
+    "Signin V2 - To be deprecated",
+    "Signin V2 Wrong"
+  ]
+}

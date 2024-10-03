@@ -1,5 +1,6 @@
 use base64::Engine;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::pii::{Email, IpAddress};
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{self, api, storage::enums},
+    types::{self, api, domain, storage::enums},
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
@@ -15,7 +16,7 @@ const WALLET_IDENTIFIER: &str = "PBL";
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsRequest {
-    customer_ip: std::net::IpAddr,
+    customer_ip: Secret<String, IpAddress>,
     merchant_pos_id: Secret<String>,
     total_amount: i64,
     currency_code: enums::Currency,
@@ -55,7 +56,7 @@ pub struct PayuWallet {
     pub value: PayuWalletCode,
     #[serde(rename = "type")]
     pub wallet_type: String,
-    pub authorization_code: String,
+    pub authorization_code: Secret<String>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -69,7 +70,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
         let payment_method = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
+            domain::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
                 pay_method: PayuPaymentMethodData::Card(PayuCard::Card {
                     number: ccard.card_number,
                     expiration_month: ccard.card_exp_month,
@@ -77,23 +78,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     cvv: ccard.card_cvc,
                 }),
             }),
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
+            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE
-                                .encode(data.tokenization_data.token),
+                            authorization_code: Secret::new(
+                                consts::BASE64_ENGINE.encode(data.tokenization_data.token),
+                            ),
                         }
                     }),
                 }),
-                api_models::payments::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
+                domain::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: data.payment_data,
+                            authorization_code: Secret::new(data.payment_data),
                         }
                     }),
                 }),
@@ -111,11 +113,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             },
         )?;
         Ok(Self {
-            customer_ip: browser_info.ip_address.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info.ip_address",
-                },
-            )?,
+            customer_ip: Secret::new(
+                browser_info
+                    .ip_address
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info.ip_address",
+                    })?
+                    .to_string(),
+            ),
             merchant_pos_id: auth_type.merchant_pos_id,
             total_amount: item.request.amount,
             currency_code: item.request.currency,
@@ -172,7 +177,7 @@ impl From<PayuPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsResponse {
     pub status: PayuPaymentStatusData,
@@ -206,6 +211,7 @@ impl<F, T>
                     .ext_order_id
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -230,7 +236,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PayuPaymentsCaptureRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PayuPaymentsCaptureResponse {
     status: PayuPaymentStatusData,
 }
@@ -259,6 +265,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -283,7 +290,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
         })
     }
 }
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PayuAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -345,6 +352,7 @@ impl<F, T>
                     .ext_order_id
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -394,15 +402,15 @@ pub struct PayuProductData {
     listing_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuOrderResponseData {
     order_id: String,
     ext_order_id: Option<String>,
     order_create_date: String,
     notify_url: Option<String>,
-    customer_ip: std::net::IpAddr,
-    merchant_pos_id: String,
+    customer_ip: Secret<String, IpAddress>,
+    merchant_pos_id: Secret<String>,
     description: String,
     validity_time: Option<String>,
     currency_code: enums::Currency,
@@ -417,18 +425,18 @@ pub struct PayuOrderResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct PayuOrderResponseBuyerData {
     ext_customer_id: Option<String>,
-    email: Option<String>,
-    phone: Option<String>,
-    first_name: Option<String>,
-    last_name: Option<String>,
+    email: Option<Email>,
+    phone: Option<Secret<String>>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     #[serde(rename = "nin")]
-    national_identification_number: Option<String>,
+    national_identification_number: Option<Secret<String>>,
     language: Option<String>,
     delivery: Option<String>,
     customer_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayuOrderResponsePayMethod {
     CardToken,
@@ -442,7 +450,7 @@ pub struct PayuOrderResponseProperty {
     value: String,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PayuPaymentsSyncResponse {
     orders: Vec<PayuOrderResponseData>,
     status: PayuPaymentStatusData,
@@ -479,12 +487,12 @@ impl<F, T>
                     .clone()
                     .or(Some(order.order_id.clone())),
                 incremental_authorization_allowed: None,
+                charge_id: None,
             }),
             amount_captured: Some(
                 order
                     .total_amount
                     .parse::<i64>()
-                    .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             ),
             ..item.data
@@ -542,7 +550,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuRefundResponseData {
     refund_id: String,
@@ -555,7 +563,7 @@ pub struct PayuRefundResponseData {
     status_date_time: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     refund: PayuRefundResponseData,
@@ -579,7 +587,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     refunds: Vec<PayuRefundResponseData>,
 }
@@ -617,7 +625,7 @@ pub struct PayuErrorResponse {
     pub status: PayuErrorData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PayuAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,

@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -415,7 +408,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"payme\",\"business_country\":\"US\",\"business_label\":\"default\",\"connector_account_details\":{\"auth_type\":\"BodyKey\",\"api_key\":\"{{connector_api_key}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":true,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"gpay\":{\"allowed_payment_methods\":[{\"type\":\"CARD\",\"parameters\":{\"allowed_auth_methods\":[\"PAN_ONLY\",\"CRYPTOGRAM_3DS\"],\"allowed_card_networks\":[\"AMEX\",\"DISCOVER\",\"INTERAC\",\"JCB\",\"MASTERCARD\",\"VISA\"]},\"tokenization_specification\":{\"type\":\"PAYMENT_GATEWAY\",\"parameters\":{\"gateway\":\"example\",\"gateway_merchant_id\":\"exampleGatewayMerchantId\"}}}],\"merchant_info\":{\"merchant_name\":\"Narayan Bhat\"}}}}"
+                  "raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"payme\",\"business_country\":\"US\",\"business_label\":\"default\",\"connector_account_details\":{\"auth_type\":\"BodyKey\",\"api_key\":\"{{connector_api_key}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":true,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"gpay\":{\"allowed_payment_methods\":[{\"type\":\"CARD\",\"parameters\":{\"allowed_auth_methods\":[\"PAN_ONLY\",\"CRYPTOGRAM_3DS\"],\"allowed_card_networks\":[\"AMEX\",\"DISCOVER\",\"INTERAC\",\"JCB\",\"MASTERCARD\",\"VISA\"]},\"tokenization_specification\":{\"type\":\"PAYMENT_GATEWAY\",\"parameters\":{\"gateway\":\"example\",\"gateway_merchant_id\":\"exampleGatewayMerchantId\"}}}],\"merchant_info\":{\"merchant_name\":\"Narayan Bhat\"}}}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",

@@ -1,14 +1,46 @@
 //! Types that can be used in other crates
-use error_stack::{IntoReport, ResultExt};
-use serde::{de::Visitor, Deserialize, Deserializer};
+pub mod keymanager;
+
+/// Enum for Authentication Level
+pub mod authentication;
+
+use std::{
+    borrow::Cow,
+    fmt::Display,
+    ops::{Add, Sub},
+    primitive::i64,
+    str::FromStr,
+};
+
+use common_enums::enums;
+use diesel::{
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    serialize::{Output, ToSql},
+    sql_types,
+    sql_types::Jsonb,
+    AsExpression, FromSqlRow, Queryable,
+};
+use error_stack::{report, ResultExt};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal,
+};
+use semver::Version;
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use thiserror::Error;
+use time::PrimitiveDateTime;
+use utoipa::ToSchema;
 
 use crate::{
-    consts,
-    errors::{CustomResult, PercentageError},
+    consts::{self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH},
+    errors::{CustomResult, ParsingError, PercentageError, ValidationError},
+    fp_utils::when,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
@@ -28,12 +60,11 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         if Self::is_valid_string_value(&value)? {
             Ok(Self {
                 percentage: value
-                    .parse()
-                    .into_report()
+                    .parse::<f32>()
                     .change_context(PercentageError::InvalidPercentageValue)?,
             })
         } else {
-            Err(PercentageError::InvalidPercentageValue.into())
+            Err(report!(PercentageError::InvalidPercentageValue))
                 .attach_printable(get_invalid_percentage_error_message(PRECISION))
         }
     }
@@ -44,15 +75,18 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
 
     /// apply the percentage to amount and ceil the result
     #[allow(clippy::as_conversions)]
-    pub fn apply_and_ceil_result(&self, amount: i64) -> CustomResult<i64, PercentageError> {
+    pub fn apply_and_ceil_result(
+        &self,
+        amount: MinorUnit,
+    ) -> CustomResult<MinorUnit, PercentageError> {
         let max_amount = i64::MAX / 10000;
+        let amount = amount.0;
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
-            Err(PercentageError::UnableToApplyPercentage {
+            Err(report!(PercentageError::UnableToApplyPercentage {
                 percentage: self.percentage,
-                amount,
-            }
-            .into())
+                amount: MinorUnit::new(amount),
+            }))
             .attach_printable(format!(
                 "Cannot calculate percentage for amount greater than {}",
                 max_amount
@@ -60,17 +94,17 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         } else {
             let percentage_f64 = f64::from(self.percentage);
             let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
-            Ok(result)
+            Ok(MinorUnit::new(result))
         }
     }
+
     fn is_valid_string_value(value: &str) -> CustomResult<bool, PercentageError> {
         let float_value = Self::is_valid_float_string(value)?;
         Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
     }
     fn is_valid_float_string(value: &str) -> CustomResult<f32, PercentageError> {
         value
-            .parse()
-            .into_report()
+            .parse::<f32>()
             .change_context(PercentageError::InvalidPercentageValue)
     }
     fn is_valid_range(value: f32) -> bool {
@@ -141,11 +175,1075 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
 }
 
 /// represents surcharge type and value
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
-    Fixed(i64),
+    Fixed(MinorUnit),
     /// Surcharge percentage
     Rate(Percentage<{ consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH }>),
+}
+
+/// This struct lets us represent a semantic version type
+#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
+#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, serde::Deserialize)]
+pub struct SemanticVersion(#[serde(with = "Version")] Version);
+
+impl SemanticVersion {
+    /// returns major version number
+    pub fn get_major(&self) -> u64 {
+        self.0.major
+    }
+    /// Constructs new SemanticVersion instance
+    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
+        Self(Version::new(major, minor, patch))
+    }
+}
+
+impl Display for SemanticVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for SemanticVersion {
+    type Err = error_stack::Report<ParsingError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Version::from_str(s).change_context(
+            ParsingError::StructParseFailure("SemanticVersion"),
+        )?))
+    }
+}
+
+crate::impl_to_sql_from_sql_json!(SemanticVersion);
+
+/// Amount convertor trait for connector
+pub trait AmountConvertor: Send {
+    /// Output type for the connector
+    type Output;
+    /// helps in conversion of connector required amount type
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>>;
+
+    /// helps in converting back connector required amount type to core minor unit
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct StringMinorUnitForConnector;
+
+impl AmountConvertor for StringMinorUnitForConnector {
+    type Output = StringMinorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_string()
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64()
+    }
+}
+
+/// Core required conversion type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForCore;
+impl AmountConvertor for StringMajorUnitForCore {
+    type Output = StringMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        amount: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitForConnector;
+
+impl AmountConvertor for StringMajorUnitForConnector {
+    type Output = StringMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_string(currency)
+    }
+
+    fn convert_back(
+        &self,
+        amount: StringMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnitForConnector;
+
+impl AmountConvertor for FloatMajorUnitForConnector {
+    type Output = FloatMajorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        amount.to_major_unit_as_f64(currency)
+    }
+    fn convert_back(
+        &self,
+        amount: FloatMajorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        amount.to_minor_unit_as_i64(currency)
+    }
+}
+
+/// Connector required amount type
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct MinorUnitForConnector;
+
+impl AmountConvertor for MinorUnitForConnector {
+    type Output = MinorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(amount)
+    }
+    fn convert_back(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        Ok(amount)
+    }
+}
+
+/// This Unit struct represents MinorUnit in which core amount works
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::BigInt)]
+pub struct MinorUnit(i64);
+
+impl MinorUnit {
+    /// gets amount as i64 value will be removed in future
+    pub fn get_amount_as_i64(&self) -> i64 {
+        self.0
+    }
+
+    /// forms a new minor default unit i.e zero
+    pub fn zero() -> Self {
+        Self(0)
+    }
+
+    /// forms a new minor unit from amount
+    pub fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    /// Convert the amount to its major denomination based on Currency and return String
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    fn to_major_unit_as_string(
+        self,
+        currency: enums::Currency,
+    ) -> Result<StringMajorUnit, error_stack::Report<ParsingError>> {
+        let amount_f64 = self.to_major_unit_as_f64(currency)?;
+        let amount_string = if currency.is_zero_decimal_currency() {
+            amount_f64.0.to_string()
+        } else if currency.is_three_decimal_currency() {
+            format!("{:.3}", amount_f64.0)
+        } else {
+            format!("{:.2}", amount_f64.0)
+        };
+        Ok(StringMajorUnit::new(amount_string))
+    }
+
+    /// Convert the amount to its major denomination based on Currency and return f64
+    fn to_major_unit_as_f64(
+        self,
+        currency: enums::Currency,
+    ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal =
+            Decimal::from_i64(self.0).ok_or(ParsingError::I64ToDecimalConversionFailure)?;
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal / Decimal::from(1000)
+        } else {
+            amount_decimal / Decimal::from(100)
+        };
+        let amount_f64 = amount
+            .to_f64()
+            .ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        Ok(FloatMajorUnit::new(amount_f64))
+    }
+
+    ///Convert minor unit to string minor unit
+    fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
+        Ok(StringMinorUnit::new(self.0.to_string()))
+    }
+}
+
+impl Display for MinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: FromSql<sql_types::BigInt, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = i64::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    i64: ToSql<sql_types::BigInt, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::BigInt, DB> for MinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::BigInt, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl Add for MinorUnit {
+    type Output = Self;
+    fn add(self, a2: Self) -> Self {
+        Self(self.0 + a2.0)
+    }
+}
+
+impl Sub for MinorUnit {
+    type Output = Self;
+    fn sub(self, a2: Self) -> Self {
+        Self(self.0 - a2.0)
+    }
+}
+
+/// Connector specific types to send
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+pub struct StringMinorUnit(String);
+
+impl StringMinorUnit {
+    /// forms a new minor unit in string from amount
+    fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    /// converts to minor unit i64 from minor unit string value
+    fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_string = &self.0;
+        let amount_decimal = Decimal::from_str(amount_string).map_err(|e| {
+            ParsingError::StringToDecimalConversionFailure {
+                error: e.to_string(),
+            }
+        })?;
+        let amount_i64 = amount_decimal
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+/// Connector specific types to send
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnit(f64);
+
+impl FloatMajorUnit {
+    /// forms a new major unit from amount
+    fn new(value: f64) -> Self {
+        Self(value)
+    }
+
+    /// forms a new major unit with zero amount
+    pub fn zero() -> Self {
+        Self(0.0)
+    }
+
+    /// converts to minor unit as i64 from FloatMajorUnit
+    fn to_minor_unit_as_i64(
+        self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal =
+            Decimal::from_f64(self.0).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal * Decimal::from(1000)
+        } else {
+            amount_decimal * Decimal::from(100)
+        };
+
+        let amount_i64 = amount
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+/// Connector specific types to send
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
+pub struct StringMajorUnit(String);
+
+impl StringMajorUnit {
+    /// forms a new major unit from amount
+    fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    /// Converts to minor unit as i64 from StringMajorUnit
+    fn to_minor_unit_as_i64(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let amount_decimal = Decimal::from_str(&self.0).map_err(|e| {
+            ParsingError::StringToDecimalConversionFailure {
+                error: e.to_string(),
+            }
+        })?;
+
+        let amount = if currency.is_zero_decimal_currency() {
+            amount_decimal
+        } else if currency.is_three_decimal_currency() {
+            amount_decimal * Decimal::from(1000)
+        } else {
+            amount_decimal * Decimal::from(100)
+        };
+        let amount_i64 = amount
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(amount_i64))
+    }
+
+    /// Get string amount from struct to be removed in future
+    pub fn get_amount_as_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::Text)]
+/// This domain type can be used for any url
+pub struct Url(url::Url);
+
+impl<DB> ToSql<sql_types::Text, DB> for Url
+where
+    DB: Backend,
+    str: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        let url_string = self.0.as_str();
+        url_string.to_sql(out)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Url
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(value)?;
+        let url = url::Url::parse(&val)?;
+        Ok(Self(url))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub use client_secret_type::ClientSecret;
+#[cfg(feature = "v2")]
+mod client_secret_type {
+    use std::fmt;
+
+    use masking::PeekInterface;
+
+    use super::*;
+    use crate::id_type;
+
+    /// A domain type that can be used to represent a client secret
+    /// Client secret is generated for a payment and is used to authenticate the client side api calls
+    #[derive(Debug, PartialEq, Clone, AsExpression)]
+    #[diesel(sql_type = sql_types::Text)]
+    pub struct ClientSecret {
+        /// The payment id of the payment
+        pub payment_id: id_type::GlobalPaymentId,
+        /// The secret string
+        pub secret: masking::Secret<String>,
+    }
+
+    impl ClientSecret {
+        pub(crate) fn get_string_repr(&self) -> String {
+            format!(
+                "{}_secret_{}",
+                self.payment_id.get_string_repr(),
+                self.secret.peek()
+            )
+        }
+    }
+
+    impl<'de> Deserialize<'de> for ClientSecret {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct ClientSecretVisitor;
+
+            impl<'de> Visitor<'de> for ClientSecretVisitor {
+                type Value = ClientSecret;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
+                }
+
+                fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
+                where
+                    E: serde::de::Error,
+                {
+                    let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
+                        E::invalid_value(
+                            serde::de::Unexpected::Str(value),
+                            &"a string with '_secret_'",
+                        )
+                    })?;
+
+                    let payment_id =
+                        id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                            .map_err(serde::de::Error::custom)?;
+
+                    Ok(ClientSecret {
+                        payment_id,
+                        secret: masking::Secret::new(secret.to_owned()),
+                    })
+                }
+            }
+
+            deserializer.deserialize_str(ClientSecretVisitor)
+        }
+    }
+
+    impl Serialize for ClientSecret {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::ser::Serializer,
+        {
+            serializer.serialize_str(self.get_string_repr().as_str())
+        }
+    }
+
+    impl ToSql<sql_types::Text, diesel::pg::Pg> for ClientSecret
+    where
+        String: ToSql<sql_types::Text, diesel::pg::Pg>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            let string_repr = self.get_string_repr();
+            <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(
+                &string_repr,
+                &mut out.reborrow(),
+            )
+        }
+    }
+
+    impl<DB> FromSql<sql_types::Text, DB> for ClientSecret
+    where
+        DB: Backend,
+        String: FromSql<sql_types::Text, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+            let string_repr = String::from_sql(value)?;
+            Ok(serde_json::from_str(&string_repr)?)
+        }
+    }
+
+    impl<DB> Queryable<sql_types::Text, DB> for ClientSecret
+    where
+        DB: Backend,
+        Self: FromSql<sql_types::Text, DB>,
+    {
+        type Row = Self;
+
+        fn build(row: Self::Row) -> deserialize::Result<Self> {
+            Ok(row)
+        }
+    }
+
+    #[cfg(test)]
+    mod client_secret_tests {
+        #![allow(clippy::expect_used)]
+        #![allow(clippy::unwrap_used)]
+
+        use serde_json;
+
+        use super::*;
+        use crate::id_type::GlobalPaymentId;
+
+        #[test]
+        fn test_serialize_client_secret() {
+            let global_payment_id = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+            let secret = "fc34taHLw1ekPgNh92qr".to_string();
+
+            let expected_client_secret_string = format!("\"{global_payment_id}_secret_{secret}\"");
+
+            let client_secret1 = ClientSecret {
+                payment_id: GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id)).unwrap(),
+                secret: masking::Secret::new(secret),
+            };
+
+            let parsed_client_secret =
+                serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
+
+            assert_eq!(expected_client_secret_string, parsed_client_secret);
+        }
+
+        #[test]
+        fn test_deserialize_client_secret() {
+            // This is a valid global id
+            let global_payment_id_str = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+            let secret = "fc34taHLw1ekPgNh92qr".to_string();
+
+            let valid_payment_global_id =
+                GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id_str))
+                    .expect("Failed to create valid global payment id");
+
+            // This is an invalid global id because of the cell id being in invalid length
+            let invalid_global_payment_id = "123_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+
+            // Create a client secret string which is valid
+            let valid_client_secret = format!(r#""{global_payment_id_str}_secret_{secret}""#);
+
+            dbg!(&valid_client_secret);
+
+            // Create a client secret string which is invalid
+            let invalid_client_secret_because_of_invalid_payment_id =
+                format!(r#""{invalid_global_payment_id}_secret_{secret}""#);
+
+            // Create a client secret string which is invalid because of invalid secret
+            let invalid_client_secret_because_of_invalid_secret =
+                format!(r#""{invalid_global_payment_id}""#);
+
+            let valid_client_secret = serde_json::from_str::<ClientSecret>(&valid_client_secret)
+                .expect("Failed to deserialize client_secret_str1");
+
+            let invalid_deser1 = serde_json::from_str::<ClientSecret>(
+                &invalid_client_secret_because_of_invalid_payment_id,
+            );
+
+            dbg!(&invalid_deser1);
+
+            let invalid_deser2 = serde_json::from_str::<ClientSecret>(
+                &invalid_client_secret_because_of_invalid_secret,
+            );
+
+            dbg!(&invalid_deser2);
+
+            assert_eq!(valid_client_secret.payment_id, valid_payment_global_id);
+
+            assert_eq!(valid_client_secret.secret.peek(), &secret);
+
+            assert_eq!(
+                invalid_deser1.err().unwrap().to_string(),
+                "Incorrect value provided for field: payment_id at line 1 column 70"
+            );
+
+            assert_eq!(
+                invalid_deser2.err().unwrap().to_string(),
+                "invalid value: string \"123_pay_1a961ed9093c48b09781bf8ab17ba6bd\", expected a string with '_secret_' at line 1 column 42"
+            );
+        }
+    }
+}
+
+/// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
+pub struct TimeRange {
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "crate::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "crate::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
+    pub end_time: Option<PrimitiveDateTime>,
+}
+
+#[cfg(test)]
+mod amount_conversion_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
+    const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
+    const ZERO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::JPY;
+    #[test]
+    fn amount_conversion_to_float_major_unit() {
+        let request_amount = MinorUnit::new(999999999);
+        let required_conversion = FloatMajorUnitForConnector;
+
+        // Two decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 9999999.99);
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Three decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 999999.999);
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Zero decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, 999999999.0);
+
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_to_string_major_unit() {
+        let request_amount = MinorUnit::new(999999999);
+        let required_conversion = StringMajorUnitForConnector;
+
+        // Two decimal currency conversions
+        let converted_amount_two_decimal_currency = required_conversion
+            .convert(request_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(
+            converted_amount_two_decimal_currency.0,
+            "9999999.99".to_string()
+        );
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount_two_decimal_currency, TWO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Three decimal currency conversions
+        let converted_amount_three_decimal_currency = required_conversion
+            .convert(request_amount, THREE_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(
+            converted_amount_three_decimal_currency.0,
+            "999999.999".to_string()
+        );
+        let converted_back_amount = required_conversion
+            .convert_back(
+                converted_amount_three_decimal_currency,
+                THREE_DECIMAL_CURRENCY,
+            )
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+
+        // Zero decimal currency conversions
+        let converted_amount = required_conversion
+            .convert(request_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_amount.0, "999999999".to_string());
+
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, ZERO_DECIMAL_CURRENCY)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_to_string_minor_unit() {
+        let request_amount = MinorUnit::new(999999999);
+        let currency = TWO_DECIMAL_CURRENCY;
+        let required_conversion = StringMinorUnitForConnector;
+        let converted_amount = required_conversion
+            .convert(request_amount, currency)
+            .unwrap();
+        assert_eq!(converted_amount.0, "999999999".to_string());
+        let converted_back_amount = required_conversion
+            .convert_back(converted_amount, currency)
+            .unwrap();
+        assert_eq!(converted_back_amount, request_amount);
+    }
+}
+
+// Charges structs
+#[derive(
+    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+/// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
+pub struct ChargeRefunds {
+    /// Identifier for charge created for the payment
+    pub charge_id: String,
+
+    /// Toggle for reverting the application fee that was collected for the payment.
+    /// If set to false, the funds are pulled from the destination account.
+    pub revert_platform_fee: Option<bool>,
+
+    /// Toggle for reverting the transfer that was made during the charge.
+    /// If set to false, the funds are pulled from the main platform's account.
+    pub revert_transfer: Option<bool>,
+}
+
+crate::impl_to_sql_from_sql_json!(ChargeRefunds);
+
+/// A common type of domain type that can be used for fields that contain a string with restriction of length
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u8>(String);
+
+/// Error generated from violation of constraints for MerchantReferenceId
+#[derive(Debug, Error, PartialEq, Eq)]
+pub(crate) enum LengthStringError {
+    #[error("the maximum allowed length for this field is {0}")]
+    /// Maximum length of string violated
+    MaxLengthViolated(u16),
+
+    #[error("the minimum required length for this field is {0}")]
+    /// Minimum length of string violated
+    MinLengthViolated(u8),
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u8> LengthString<MAX_LENGTH, MIN_LENGTH> {
+    /// Generates new [MerchantReferenceId] from the given input string
+    pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthStringError> {
+        let trimmed_input_string = input_string.trim().to_string();
+        let length_of_input_string = u16::try_from(trimmed_input_string.len())
+            .map_err(|_| LengthStringError::MaxLengthViolated(MAX_LENGTH))?;
+
+        when(length_of_input_string > MAX_LENGTH, || {
+            Err(LengthStringError::MaxLengthViolated(MAX_LENGTH))
+        })?;
+
+        when(length_of_input_string < u16::from(MIN_LENGTH), || {
+            Err(LengthStringError::MinLengthViolated(MIN_LENGTH))
+        })?;
+
+        Ok(Self(trimmed_input_string))
+    }
+
+    pub(crate) fn new_unchecked(input_string: String) -> Self {
+        Self(input_string)
+    }
+}
+
+impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Queryable<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+/// Domain type for description
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct Description(LengthString<MAX_DESCRIPTION_LENGTH, 1>);
+
+impl Description {
+    /// Create a new Description Domain type without any length check from a static str
+    pub fn from_str_unchecked(input_str: &'static str) -> Self {
+        Self(LengthString::new_unchecked(input_str.to_owned()))
+    }
+}
+
+/// Domain type for Statement Descriptor
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
+
+impl<DB> Queryable<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<MAX_DESCRIPTION_LENGTH, 1>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified code
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedCode(pub String);
+
+impl TryFrom<String> for UnifiedCode {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 255 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_code's length should not exceed 255 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified messages
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedMessage(pub String);
+
+impl TryFrom<String> for UnifiedMessage {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 1024 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_message's length should not exceed 1024 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
 }

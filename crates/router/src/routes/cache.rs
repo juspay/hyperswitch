@@ -22,7 +22,7 @@ pub async fn invalidate(
         state,
         &req,
         &key,
-        |state, _, key| cache::invalidate(state, key),
+        |state, _, key, _| cache::invalidate(state, key),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

@@ -3,8 +3,8 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use transformers as zen;
 use uuid::Uuid;
 
@@ -16,6 +16,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -104,12 +105,15 @@ impl ConnectorCommon for Zen {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: zen::ZenErrorResponse = res
             .response
             .parse_struct("Zen ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -135,7 +139,10 @@ impl ConnectorCommon for Zen {
 impl ConnectorValidation for Zen {
     fn validate_psync_reference_id(
         &self,
-        _data: &types::PaymentsSyncRouterData,
+        _data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
@@ -193,7 +200,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
         let api_headers = match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(_) => None,
+            domain::payments::PaymentMethodData::Wallet(_) => None,
             _ => Some(Self::get_default_header()),
         };
         if let Some(api_header) = api_headers {
@@ -212,7 +219,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(_) => {
+            domain::payments::PaymentMethodData::Wallet(_) => {
                 let base_url = connectors
                     .zen
                     .secondary_base_url
@@ -265,12 +272,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: zen::ZenPaymentsResponse = res
             .response
             .parse_struct("Zen PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -282,8 +291,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -334,12 +344,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: zen::ZenPaymentsResponse = res
             .response
             .parse_struct("zen PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -351,8 +363,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -455,13 +468,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: zen::RefundResponse = res
             .response
             .parse_struct("zen RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -472,8 +488,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -522,13 +539,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: zen::RefundResponse = res
             .response
             .parse_struct("zen RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -539,8 +560,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -563,15 +585,13 @@ impl api::IncomingWebhook for Zen {
             .parse_struct("ZenWebhookSignature")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = webhook_body.hash;
-        hex::decode(signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: zen::ZenWebhookBody = request
@@ -591,16 +611,17 @@ impl api::IncomingWebhook for Zen {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await?;
         let signature =
@@ -608,7 +629,7 @@ impl api::IncomingWebhook for Zen {
 
         let mut message = self.get_webhook_source_verification_message(
             request,
-            &merchant_account.merchant_id,
+            merchant_id,
             &connector_webhook_secrets,
         )?;
         let mut secret = connector_webhook_secrets.secret;
@@ -669,7 +690,6 @@ impl api::IncomingWebhook for Zen {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(reference_object))
     }
@@ -694,7 +714,9 @@ impl services::ConnectorRedirectResponse for Zen {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

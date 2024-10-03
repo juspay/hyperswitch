@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl AddressNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Address {
-    #[instrument(skip(conn))]
     pub async fn find_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
@@ -26,7 +23,6 @@ impl Address {
             .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn update_by_address_id(
         conn: &PgPooledConn,
         address_id: String,
@@ -56,7 +52,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -82,7 +77,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
@@ -96,8 +90,8 @@ impl Address {
 
     pub async fn update_by_merchant_id_customer_id(
         conn: &PgPooledConn,
-        customer_id: &str,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
         address: AddressUpdateInternal,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
@@ -110,11 +104,10 @@ impl Address {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id_address_id<'a>(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         address_id: &str,
     ) -> StorageResult<Self> {
         match generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -140,7 +133,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,

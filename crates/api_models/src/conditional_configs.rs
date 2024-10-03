@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
     PartialEq,
     Eq,
     strum::Display,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
     strum::EnumString,
     Serialize,
@@ -97,6 +97,7 @@ pub struct DecisionManagerRequest {
     pub name: Option<String>,
     pub program: Option<Program<ConditionalConfigs>>,
 }
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum DecisionManager {

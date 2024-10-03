@@ -1815,16 +1815,20 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Dana => Self::Wallet,
             PaymentMethodType::DanamonVa => Self::BankTransfer,
             PaymentMethodType::Debit => Self::Card,
+            PaymentMethodType::Fps => Self::RealTimePayment,
+            PaymentMethodType::DuitNow => Self::RealTimePayment,
             PaymentMethodType::Eps => Self::BankRedirect,
             PaymentMethodType::Evoucher => Self::Reward,
             PaymentMethodType::Giropay => Self::BankRedirect,
             PaymentMethodType::GooglePay => Self::Wallet,
             PaymentMethodType::GoPay => Self::Wallet,
             PaymentMethodType::Gcash => Self::Wallet,
+            PaymentMethodType::Mifinity => Self::Wallet,
             PaymentMethodType::Ideal => Self::BankRedirect,
             PaymentMethodType::Klarna => Self::PayLater,
             PaymentMethodType::KakaoPay => Self::Wallet,
             PaymentMethodType::Knet => Self::CardRedirect,
+            PaymentMethodType::LocalBankRedirect => Self::BankRedirect,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
             PaymentMethodType::Momo => Self::Wallet,
@@ -1842,10 +1846,12 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
+            PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
             PaymentMethodType::Paypal => Self::Wallet,
             PaymentMethodType::PaySafeCard => Self::GiftCard,
             PaymentMethodType::Przelewy24 => Self::BankRedirect,
+            PaymentMethodType::PromptPay => Self::RealTimePayment,
             PaymentMethodType::SamsungPay => Self::Wallet,
             PaymentMethodType::Sepa => Self::BankDebit,
             PaymentMethodType::Sofort => Self::BankRedirect,
@@ -1853,7 +1859,10 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Trustly => Self::BankRedirect,
             PaymentMethodType::Twint => Self::Wallet,
             PaymentMethodType::UpiCollect => Self::Upi,
+            PaymentMethodType::UpiIntent => Self::Upi,
             PaymentMethodType::Vipps => Self::Wallet,
+            PaymentMethodType::Venmo => Self::Wallet,
+            PaymentMethodType::VietQr => Self::RealTimePayment,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,
@@ -1873,6 +1882,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::FamilyMart => Self::Voucher,
             PaymentMethodType::Seicomart => Self::Voucher,
             PaymentMethodType::PayEasy => Self::Voucher,
+            PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
         }
     }
 }
@@ -1977,6 +1987,79 @@ mod custom_serde {
         {
             u32::deserialize(deserializer)
                 .and_then(|value| Country::from_numeric(value).map_err(serde::de::Error::custom))
+        }
+    }
+}
+
+impl From<Option<bool>> for super::External3dsAuthenticationRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+/// Get the boolean value of the `External3dsAuthenticationRequest`.
+impl super::External3dsAuthenticationRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl super::EnablePaymentLinkRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::EnablePaymentLinkRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::MitExemptionRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Apply,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl super::MitExemptionRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Apply => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::PresenceOfCustomerDuringPayment {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(false) => Self::Absent,
+            _ => Self::Present,
+        }
+    }
+}
+
+impl super::PresenceOfCustomerDuringPayment {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Present => true,
+            Self::Absent => false,
         }
     }
 }

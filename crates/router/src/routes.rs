@@ -1,6 +1,10 @@
 pub mod admin;
 pub mod api_keys;
 pub mod app;
+#[cfg(feature = "v1")]
+pub mod apple_pay_certificates_migration;
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
@@ -19,13 +23,26 @@ pub mod fraud_check;
 pub mod gsm;
 pub mod health;
 pub mod lock_utils;
+#[cfg(feature = "v1")]
+pub mod locker_migration;
 pub mod mandates;
 pub mod metrics;
+#[cfg(feature = "v1")]
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
+pub mod payout_link;
+#[cfg(feature = "payouts")]
 pub mod payouts;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+pub mod pm_auth;
+pub mod poll;
+#[cfg(feature = "olap")]
+pub mod profiles;
+#[cfg(feature = "recon")]
+pub mod recon;
+#[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -33,31 +50,36 @@ pub mod routing;
 pub mod user;
 #[cfg(feature = "olap")]
 pub mod user_role;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(feature = "olap")]
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub mod webhook_events;
+#[cfg(feature = "v1")]
 pub mod webhooks;
 
-pub mod locker_migration;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub mod pm_auth;
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub use self::app::Forex;
-#[cfg(feature = "payouts")]
-pub use self::app::Payouts;
-#[cfg(feature = "olap")]
-pub use self::app::Routing;
-#[cfg(all(feature = "olap", feature = "kms"))]
-pub use self::app::Verify;
+#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
+pub use self::app::Recon;
 pub use self::app::{
-    ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
-    Disputes, EphemeralKey, Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
+    Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates, MerchantAccount,
+    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Profile, ProfileNew,
+    Refunds, SessionState, User, Webhooks,
 };
-#[cfg(feature = "stripe")]
+#[cfg(feature = "olap")]
+pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
+#[cfg(feature = "payouts")]
+pub use self::app::{PayoutLink, Payouts};
+#[cfg(all(
+    feature = "stripe",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
 pub use crate::analytics::routes::{self as analytics, Analytics};

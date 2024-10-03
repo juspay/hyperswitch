@@ -1,9 +1,13 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-use error_stack::{IntoReport, Report, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnitForConnector},
+};
+use error_stack::{Report, ResultExt};
+use masking::ExposeInterface;
+use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -12,9 +16,13 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
-    routes::{self, metrics},
+    routes::{self, app::settings, metrics},
     services,
-    types::{self, api, domain},
+    types::{
+        self,
+        api::{self, enums},
+        domain,
+    },
     utils::OptionExt,
 };
 
@@ -25,12 +33,14 @@ impl
 {
     async fn construct_router_data<'a>(
         &self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
@@ -43,8 +53,21 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &routes::SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -52,77 +75,79 @@ impl
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
     async fn decide_flows<'a>(
         self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
         _connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        business_profile: &domain::Profile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                connector.connector_name.to_string(),
-            )],
+            &add_attributes([("connector", connector.connector_name.to_string())]),
         );
         self.decide_flow(
             state,
             connector,
-            customer,
             Some(true),
             call_connector_action,
+            business_profile,
+            header_payload,
         )
         .await
     }
 
     async fn add_access_token<'a>(
         &self,
-        state: &routes::AppState,
+        state: &routes::SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
+        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+            .await
     }
 }
 
-fn get_applepay_metadata(
-    connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
-) -> RouterResult<payment_types::ApplepaySessionTokenMetadata> {
-    connector_metadata
-        .clone()
-        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-            "ApplepayCombinedSessionTokenData",
-        )
-        .map(|combined_metadata| {
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                combined_metadata.apple_pay_combined,
-            )
+/// This function checks if for a given connector, payment_method and payment_method_type,
+/// the list of required_field_type is present in dynamic fields
+fn is_dynamic_fields_required(
+    required_fields: &settings::RequiredFields,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: enums::PaymentMethodType,
+    connector: &types::Connector,
+    required_field_type: Vec<enums::FieldType>,
+) -> bool {
+    required_fields
+        .0
+        .get(&payment_method)
+        .and_then(|pm_type| pm_type.0.get(&payment_method_type))
+        .and_then(|required_fields_for_connector| {
+            required_fields_for_connector.fields.get(connector)
         })
-        .or_else(|_| {
-            connector_metadata
-                .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                    "ApplepaySessionTokenData",
-                )
-                .map(|old_metadata| {
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
-                        old_metadata.apple_pay,
-                    )
-                })
+        .map(|required_fields_final| {
+            required_fields_final
+                .non_mandate
+                .iter()
+                .any(|(_, val)| required_field_type.contains(&val.field_type))
+                || required_fields_final
+                    .mandate
+                    .iter()
+                    .any(|(_, val)| required_field_type.contains(&val.field_type))
+                || required_fields_final
+                    .common
+                    .iter()
+                    .any(|(_, val)| required_field_type.contains(&val.field_type))
         })
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_metadata".to_string(),
-            expected_format: "applepay_metadata_format".to_string(),
-        })
+        .unwrap_or(false)
 }
 
 fn build_apple_pay_session_request(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     request: payment_types::ApplepaySessionRequest,
-    apple_pay_merchant_cert: String,
-    apple_pay_merchant_cert_key: String,
+    apple_pay_merchant_cert: masking::Secret<String>,
+    apple_pay_merchant_cert_key: masking::Secret<String>,
 ) -> RouterResult<services::Request> {
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
@@ -143,9 +168,11 @@ fn build_apple_pay_session_request(
 }
 
 async fn create_applepay_session_token(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
+    header_payload: api_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
@@ -158,17 +185,34 @@ async fn create_applepay_session_token(
             connector.connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
+            header_payload,
         )
     } else {
         // Get the apple pay metadata
-        let apple_pay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
+        let connector_apple_pay_wallet_details =
+            helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
+                .map_err(|error| {
+                    logger::debug!(
+                        "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
+                        error
+                    )
+                })
+                .ok();
+
+        let apple_pay_metadata = match connector_apple_pay_wallet_details {
+            Some(apple_pay_wallet_details) => apple_pay_wallet_details,
+            None => helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?,
+        };
 
         // Get payment request data , apple pay session request and merchant keys
         let (
             payment_request_data,
-            apple_pay_session_request,
+            apple_pay_session_request_optional,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
+            apple_pay_merchant_identifier,
+            merchant_business_country,
+            merchant_configured_domain_optional,
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
@@ -177,87 +221,93 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
-                    #[cfg(feature = "kms")]
-                    let decrypted_apple_pay_merchant_cert = kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant certificate decryption failed")?;
+                    logger::info!("Apple pay simplified flow");
 
-                    #[cfg(feature = "kms")]
-                    let decrypted_apple_pay_merchant_cert_key =
-                        kms::get_kms_client(&state.conf.kms)
-                            .await
-                            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Apple pay merchant certificate key decryption failed",
-                            )?;
-
-                    #[cfg(feature = "kms")]
-                    let decrypted_merchant_identifier = kms::get_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(
-                            &state
-                                .conf
-                                .applepay_merchant_configs
-                                .common_merchant_identifier,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant identifier decryption failed")?;
-
-                    #[cfg(not(feature = "kms"))]
-                    let decrypted_merchant_identifier = &state
+                    let merchant_identifier = state
                         .conf
                         .applepay_merchant_configs
-                        .common_merchant_identifier;
+                        .get_inner()
+                        .common_merchant_identifier
+                        .clone()
+                        .expose();
+
+                    let merchant_business_country = session_token_data.merchant_business_country;
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
-                        decrypted_merchant_identifier.to_string(),
-                        session_token_data,
+                        merchant_identifier.clone(),
+                        session_token_data.clone(),
                     );
 
-                    #[cfg(not(feature = "kms"))]
-                    let decrypted_apple_pay_merchant_cert =
-                        &state.conf.applepay_decrypt_keys.apple_pay_merchant_cert;
+                    let apple_pay_merchant_cert = state
+                        .conf
+                        .applepay_decrypt_keys
+                        .get_inner()
+                        .apple_pay_merchant_cert
+                        .clone();
 
-                    #[cfg(not(feature = "kms"))]
-                    let decrypted_apple_pay_merchant_cert_key =
-                        &state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key;
+                    let apple_pay_merchant_cert_key = state
+                        .conf
+                        .applepay_decrypt_keys
+                        .get_inner()
+                        .apple_pay_merchant_cert_key
+                        .clone();
 
                     (
                         payment_request_data,
-                        apple_pay_session_request,
-                        decrypted_apple_pay_merchant_cert.to_owned(),
-                        decrypted_apple_pay_merchant_cert_key.to_owned(),
+                        Ok(apple_pay_session_request),
+                        apple_pay_merchant_cert,
+                        apple_pay_merchant_cert_key,
+                        merchant_identifier,
+                        merchant_business_country,
+                        Some(session_token_data.initiative_context),
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
                     payment_request_data,
                     session_token_data,
                 } => {
-                    let apple_pay_session_request =
-                        get_session_request_for_manual_apple_pay(session_token_data.clone());
+                    logger::info!("Apple pay manual flow");
+
+                    let apple_pay_session_request = get_session_request_for_manual_apple_pay(
+                        session_token_data.clone(),
+                        header_payload.x_merchant_domain.clone(),
+                    );
+
+                    let merchant_business_country = session_token_data.merchant_business_country;
+
                     (
                         payment_request_data,
                         apple_pay_session_request,
                         session_token_data.certificate.clone(),
                         session_token_data.certificate_keys,
+                        session_token_data.merchant_identifier,
+                        merchant_business_country,
+                        session_token_data.initiative_context,
                     )
                 }
             },
             payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
+                logger::info!("Apple pay manual flow");
+
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
+                    header_payload.x_merchant_domain.clone(),
                 );
+
+                let merchant_business_country = apple_pay_metadata
+                    .session_token_data
+                    .merchant_business_country;
                 (
                     apple_pay_metadata.payment_request_data,
                     apple_pay_session_request,
                     apple_pay_metadata.session_token_data.certificate.clone(),
-                    apple_pay_metadata.session_token_data.certificate_keys,
+                    apple_pay_metadata
+                        .session_token_data
+                        .certificate_keys
+                        .clone(),
+                    apple_pay_metadata.session_token_data.merchant_identifier,
+                    merchant_business_country,
+                    apple_pay_metadata.session_token_data.initiative_context,
                 )
             }
         };
@@ -268,45 +318,170 @@ async fn create_applepay_session_token(
             router_data.request.to_owned(),
         )?;
 
+        let required_billing_contact_fields = if business_profile
+            .always_collect_billing_details_from_wallet_connector
+            .unwrap_or(false)
+        {
+            Some(payment_types::ApplePayBillingContactFields(vec![
+                payment_types::ApplePayAddressParameters::PostalAddress,
+            ]))
+        } else if business_profile
+            .collect_billing_details_from_wallet_connector
+            .unwrap_or(false)
+        {
+            let billing_variants = enums::FieldType::get_billing_variants();
+            is_dynamic_fields_required(
+                &state.conf.required_fields,
+                enums::PaymentMethod::Wallet,
+                enums::PaymentMethodType::ApplePay,
+                &connector.connector_name,
+                billing_variants,
+            )
+            .then_some(payment_types::ApplePayBillingContactFields(vec![
+                payment_types::ApplePayAddressParameters::PostalAddress,
+            ]))
+        } else {
+            None
+        };
+
+        let required_shipping_contact_fields = if business_profile
+            .always_collect_shipping_details_from_wallet_connector
+            .unwrap_or(false)
+        {
+            Some(payment_types::ApplePayShippingContactFields(vec![
+                payment_types::ApplePayAddressParameters::PostalAddress,
+                payment_types::ApplePayAddressParameters::Phone,
+                payment_types::ApplePayAddressParameters::Email,
+            ]))
+        } else if business_profile
+            .collect_shipping_details_from_wallet_connector
+            .unwrap_or(false)
+        {
+            let shipping_variants = enums::FieldType::get_shipping_variants();
+            is_dynamic_fields_required(
+                &state.conf.required_fields,
+                enums::PaymentMethod::Wallet,
+                enums::PaymentMethodType::ApplePay,
+                &connector.connector_name,
+                shipping_variants,
+            )
+            .then_some(payment_types::ApplePayShippingContactFields(vec![
+                payment_types::ApplePayAddressParameters::PostalAddress,
+                payment_types::ApplePayAddressParameters::Phone,
+                payment_types::ApplePayAddressParameters::Email,
+            ]))
+        } else {
+            None
+        };
+
+        // If collect_shipping_details_from_wallet_connector is false, we check if
+        // collect_billing_details_from_wallet_connector is true. If it is, then we pass the Email and Phone in
+        // ApplePayShippingContactFields as it is a required parameter and ApplePayBillingContactFields
+        // does not contain Email and Phone.
+        let required_shipping_contact_fields_updated = if required_billing_contact_fields.is_some()
+            && required_shipping_contact_fields.is_none()
+        {
+            Some(payment_types::ApplePayShippingContactFields(vec![
+                payment_types::ApplePayAddressParameters::Phone,
+                payment_types::ApplePayAddressParameters::Email,
+            ]))
+        } else {
+            required_shipping_contact_fields
+        };
+
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
             amount_info,
             payment_request_data,
             router_data.request.to_owned(),
-            apple_pay_session_request.merchant_identifier.as_str(),
+            apple_pay_merchant_identifier.as_str(),
+            merchant_business_country,
+            required_billing_contact_fields,
+            required_shipping_contact_fields_updated,
         )?;
 
-        let applepay_session_request = build_apple_pay_session_request(
-            state,
-            apple_pay_session_request,
-            apple_pay_merchant_cert,
-            apple_pay_merchant_cert_key,
-        )?;
-        let response = services::call_connector_api(state, applepay_session_request).await;
+        let apple_pay_session_response = match (
+            header_payload.browser_name.clone(),
+            header_payload.x_client_platform.clone(),
+        ) {
+            (Some(common_enums::BrowserName::Safari), Some(common_enums::ClientPlatform::Web))
+            | (None, None) => {
+                let apple_pay_session_request = apple_pay_session_request_optional
+                    .attach_printable("Failed to obtain apple pay session request")?;
+                let applepay_session_request = build_apple_pay_session_request(
+                    state,
+                    apple_pay_session_request.clone(),
+                    apple_pay_merchant_cert.clone(),
+                    apple_pay_merchant_cert_key.clone(),
+                )?;
 
-        // logging the error if present in session call response
-        log_session_response_if_error(&response);
+                let response = services::call_connector_api(
+                    state,
+                    applepay_session_request,
+                    "create_apple_pay_session_token",
+                )
+                .await;
 
-        let apple_pay_session_response = response
-            .ok()
-            .and_then(|apple_pay_res| {
-                apple_pay_res
-                    .map(|res| {
-                        let response: Result<
-                            payment_types::NoThirdPartySdkSessionResponse,
-                            Report<common_utils::errors::ParsingError>,
-                        > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+                let updated_response = match (
+                    response.as_ref().ok(),
+                    header_payload.x_merchant_domain.clone(),
+                ) {
+                    (Some(Err(error)), Some(_)) => {
+                        logger::error!(
+                            "Retry apple pay session call with the merchant configured domain {error:?}"
+                        );
+                        let merchant_configured_domain = merchant_configured_domain_optional
+                            .get_required_value("apple pay domain")
+                            .attach_printable("Failed to get domain for apple pay session call")?;
+                        let apple_pay_retry_session_request =
+                            payment_types::ApplepaySessionRequest {
+                                initiative_context: merchant_configured_domain,
+                                ..apple_pay_session_request
+                            };
+                        let applepay_retry_session_request = build_apple_pay_session_request(
+                            state,
+                            apple_pay_retry_session_request,
+                            apple_pay_merchant_cert,
+                            apple_pay_merchant_cert_key,
+                        )?;
+                        services::call_connector_api(
+                            state,
+                            applepay_retry_session_request,
+                            "create_apple_pay_session_token",
+                        )
+                        .await
+                    }
+                    _ => response,
+                };
 
-                        // logging the parsing failed error
-                        if let Err(error) = response.as_ref() {
-                            logger::error!(?error);
-                        };
-
-                        response.ok()
-                    })
+                // logging the error if present in session call response
+                log_session_response_if_error(&updated_response);
+                updated_response
                     .ok()
-            })
-            .flatten();
+                    .and_then(|apple_pay_res| {
+                        apple_pay_res
+                            .map(|res| {
+                                let response: Result<
+                                    payment_types::NoThirdPartySdkSessionResponse,
+                                    Report<common_utils::errors::ParsingError>,
+                                > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+
+                                // logging the parsing failed error
+                                if let Err(error) = response.as_ref() {
+                                    logger::error!(?error);
+                                };
+
+                                response.ok()
+                            })
+                            .ok()
+                    })
+                    .flatten()
+            }
+            _ => {
+                logger::debug!("Skipping apple pay session call based on the browser name");
+                None
+            }
+        };
 
         let session_response =
             apple_pay_session_response.map(payment_types::ApplePaySessionResponse::NoThirdPartySdk);
@@ -318,8 +493,77 @@ async fn create_applepay_session_token(
             connector.connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
+            header_payload,
         )
     }
+}
+
+fn create_samsung_pay_session_token(
+    router_data: &types::PaymentsSessionRouterData,
+    header_payload: api_models::payments::HeaderPayload,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let samsung_pay_session_token_data = router_data
+        .connector_wallets_details
+        .clone()
+        .parse_value::<payment_types::SamsungPaySessionTokenData>("SamsungPaySessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorWalletDetails)
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_wallets_details".to_string(),
+            expected_format: "samsung_pay_metadata_format".to_string(),
+        })?;
+
+    let required_amount_type = StringMajorUnitForConnector;
+    let samsung_pay_amount = required_amount_type
+        .convert(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for Samsung Pay".to_string(),
+        })?;
+
+    let merchant_domain = header_payload
+        .x_merchant_domain
+        .get_required_value("samsung pay domain")
+        .attach_printable("Failed to get domain for samsung pay session call")?;
+
+    let samsung_pay_wallet_details = match samsung_pay_session_token_data.data {
+        payment_types::SamsungPayCombinedMetadata::MerchantCredentials(
+            samsung_pay_merchant_credentials,
+        ) => samsung_pay_merchant_credentials,
+        payment_types::SamsungPayCombinedMetadata::ApplicationCredentials(
+            _samsung_pay_application_credentials,
+        ) => Err(errors::ApiErrorResponse::NotSupported {
+            message: "Samsung Pay decryption flow with application credentials is not implemented"
+                .to_owned(),
+        })?,
+    };
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::SamsungPay(Box::new(
+                payment_types::SamsungPaySessionTokenResponse {
+                    version: "2".to_string(),
+                    service_id: samsung_pay_wallet_details.service_id,
+                    order_number: router_data.payment_id.clone(),
+                    merchant_payment_information:
+                        payment_types::SamsungPayMerchantPaymentInformation {
+                            name: samsung_pay_wallet_details.merchant_display_name,
+                            url: merchant_domain,
+                            country_code: samsung_pay_wallet_details.merchant_business_country,
+                        },
+                    amount: payment_types::SamsungPayAmountDetails {
+                        amount_format: payment_types::SamsungPayAmountFormat::FormatTotalPriceOnly,
+                        currency_code: router_data.request.currency,
+                        total_amount: samsung_pay_amount,
+                    },
+                    protocol: payment_types::SamsungPayProtocolType::Protocol3ds,
+                    allowed_brands: samsung_pay_wallet_details.allowed_brands,
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
 }
 
 fn get_session_request_for_simplified_apple_pay(
@@ -336,29 +580,35 @@ fn get_session_request_for_simplified_apple_pay(
 
 fn get_session_request_for_manual_apple_pay(
     session_token_data: payment_types::SessionTokenInfo,
-) -> payment_types::ApplepaySessionRequest {
-    payment_types::ApplepaySessionRequest {
+    merchant_domain: Option<String>,
+) -> RouterResult<payment_types::ApplepaySessionRequest> {
+    let initiative_context = merchant_domain
+        .or_else(|| session_token_data.initiative_context.clone())
+        .get_required_value("apple pay domain")
+        .attach_printable("Failed to get domain for apple pay session call")?;
+
+    Ok(payment_types::ApplepaySessionRequest {
         merchant_identifier: session_token_data.merchant_identifier.clone(),
         display_name: session_token_data.display_name.clone(),
-        initiative: session_token_data.initiative.clone(),
-        initiative_context: session_token_data.initiative_context,
-    }
+        initiative: session_token_data.initiative.to_string(),
+        initiative_context,
+    })
 }
 
 fn get_apple_pay_amount_info(
     label: &str,
     session_data: types::PaymentsSessionData,
 ) -> RouterResult<payment_types::AmountInfo> {
+    let required_amount_type = StringMajorUnitForConnector;
+    let apple_pay_amount = required_amount_type
+        .convert(session_data.minor_amount, session_data.currency)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for applePay".to_string(),
+        })?;
     let amount_info = payment_types::AmountInfo {
         label: label.to_string(),
         total_type: Some("final".to_string()),
-        amount: session_data
-            .currency
-            .to_currency_base_unit(session_data.amount)
-            .into_report()
-            .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Failed to convert currency to base unit".to_string(),
-            })?,
+        amount: apple_pay_amount,
     };
 
     Ok(amount_info)
@@ -369,14 +619,23 @@ fn get_apple_pay_payment_request(
     payment_request_data: payment_types::PaymentRequestMetadata,
     session_data: types::PaymentsSessionData,
     merchant_identifier: &str,
+    merchant_business_country: Option<api_models::enums::CountryAlpha2>,
+    required_billing_contact_fields: Option<payment_types::ApplePayBillingContactFields>,
+    required_shipping_contact_fields: Option<payment_types::ApplePayShippingContactFields>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: session_data.country,
+        country_code: merchant_business_country.or(session_data.country).ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "country_code",
+            },
+        )?,
         currency_code: session_data.currency,
         total: amount_info,
         merchant_capabilities: Some(payment_request_data.merchant_capabilities),
         supported_networks: Some(payment_request_data.supported_networks),
         merchant_identifier: Some(merchant_identifier.to_string()),
+        required_billing_contact_fields,
+        required_shipping_contact_fields,
     };
     Ok(applepay_payment_request)
 }
@@ -388,13 +647,14 @@ fn create_apple_pay_session_response(
     connector_name: String,
     delayed_response: bool,
     next_action: payment_types::NextActionCall,
+    header_payload: api_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     match session_response {
         Some(response) => Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: payment_types::SessionToken::ApplePay(Box::new(
                     payment_types::ApplepaySessionTokenResponse {
-                        session_token_data: response,
+                        session_token_data: Some(response),
                         payment_request_data: apple_pay_payment_request,
                         connector: connector_name,
                         delayed_session_token: delayed_response,
@@ -407,19 +667,48 @@ fn create_apple_pay_session_response(
             }),
             ..router_data.clone()
         }),
-        None => Ok(types::PaymentsSessionRouterData {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::NoSessionTokenReceived,
-            }),
-            ..router_data.clone()
-        }),
+        None => {
+            match (
+                header_payload.browser_name,
+                header_payload.x_client_platform,
+            ) {
+                (
+                    Some(common_enums::BrowserName::Safari),
+                    Some(common_enums::ClientPlatform::Web),
+                )
+                | (None, None) => Ok(types::PaymentsSessionRouterData {
+                    response: Ok(types::PaymentsResponseData::SessionResponse {
+                        session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                    }),
+                    ..router_data.clone()
+                }),
+                _ => Ok(types::PaymentsSessionRouterData {
+                    response: Ok(types::PaymentsResponseData::SessionResponse {
+                        session_token: payment_types::SessionToken::ApplePay(Box::new(
+                            payment_types::ApplepaySessionTokenResponse {
+                                session_token_data: None,
+                                payment_request_data: apple_pay_payment_request,
+                                connector: connector_name,
+                                delayed_session_token: delayed_response,
+                                sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                                connector_reference_id: None,
+                                connector_sdk_public_key: None,
+                                connector_merchant_id: None,
+                            },
+                        )),
+                    }),
+                    ..router_data.clone()
+                }),
+            }
+        }
     }
 }
 
 fn create_gpay_session_token(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
@@ -454,23 +743,89 @@ fn create_gpay_session_token(
                 expected_format: "gpay_metadata_format".to_string(),
             })?;
 
+        let always_collect_billing_details_from_wallet_connector = business_profile
+            .always_collect_billing_details_from_wallet_connector
+            .unwrap_or(false);
+
+        let is_billing_details_required = if always_collect_billing_details_from_wallet_connector {
+            always_collect_billing_details_from_wallet_connector
+        } else if business_profile
+            .collect_billing_details_from_wallet_connector
+            .unwrap_or(false)
+        {
+            let billing_variants = enums::FieldType::get_billing_variants();
+            is_dynamic_fields_required(
+                &state.conf.required_fields,
+                enums::PaymentMethod::Wallet,
+                enums::PaymentMethodType::GooglePay,
+                &connector.connector_name,
+                billing_variants,
+            )
+        } else {
+            false
+        };
+
+        let billing_address_parameters =
+            is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
+                phone_number_required: is_billing_details_required,
+                format: payment_types::GpayBillingAddressFormat::FULL,
+            });
+
+        let gpay_allowed_payment_methods = gpay_data
+            .data
+            .allowed_payment_methods
+            .into_iter()
+            .map(
+                |allowed_payment_methods| payment_types::GpayAllowedPaymentMethods {
+                    parameters: payment_types::GpayAllowedMethodsParameters {
+                        billing_address_required: Some(is_billing_details_required),
+                        billing_address_parameters: billing_address_parameters.clone(),
+                        ..allowed_payment_methods.parameters
+                    },
+                    ..allowed_payment_methods
+                },
+            )
+            .collect();
+        let required_amount_type = StringMajorUnitForConnector;
+        let google_pay_amount = required_amount_type
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert amount to string major unit for googlePay".to_string(),
+            })?;
         let session_data = router_data.request.clone();
         let transaction_info = payment_types::GpayTransactionInfo {
             country_code: session_data.country.unwrap_or_default(),
             currency_code: router_data.request.currency,
             total_price_status: "Final".to_string(),
-            total_price: router_data
-                .request
-                .currency
-                .to_currency_base_unit(router_data.request.amount)
-                .into_report()
-                .attach_printable(
-                    "Cannot convert given amount to base currency denomination".to_string(),
-                )
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "amount",
-                })?,
+            total_price: google_pay_amount,
         };
+
+        let always_collect_shipping_details_from_wallet_connector = business_profile
+            .always_collect_shipping_details_from_wallet_connector
+            .unwrap_or(false);
+
+        let required_shipping_contact_fields =
+            if always_collect_shipping_details_from_wallet_connector {
+                true
+            } else if business_profile
+                .collect_shipping_details_from_wallet_connector
+                .unwrap_or(false)
+            {
+                let shipping_variants = enums::FieldType::get_shipping_variants();
+
+                is_dynamic_fields_required(
+                    &state.conf.required_fields,
+                    enums::PaymentMethod::Wallet,
+                    enums::PaymentMethodType::GooglePay,
+                    &connector.connector_name,
+                    shipping_variants,
+                )
+            } else {
+                false
+            };
 
         Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
@@ -478,7 +833,7 @@ fn create_gpay_session_token(
                     payment_types::GpaySessionTokenResponse::GooglePaySession(
                         payment_types::GooglePaySessionResponse {
                             merchant_info: gpay_data.data.merchant_info,
-                            allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                            allowed_payment_methods: gpay_allowed_payment_methods,
                             transaction_info,
                             connector: connector.connector_name.to_string(),
                             sdk_next_action: payment_types::SdkNextAction {
@@ -486,6 +841,16 @@ fn create_gpay_session_token(
                             },
                             delayed_session_token: false,
                             secrets: None,
+                            shipping_address_required: required_shipping_contact_fields,
+                            // We pass Email as a required field irrespective of
+                            // collect_billing_details_from_wallet_connector or
+                            // collect_shipping_details_from_wallet_connector as it is common to both.
+                            email_required: required_shipping_contact_fields
+                                || is_billing_details_required,
+                            shipping_address_parameters:
+                                api_models::payments::GpayShippingAddressParameters {
+                                    phone_number_required: required_shipping_contact_fields,
+                                },
                         },
                     ),
                 )),
@@ -495,7 +860,10 @@ fn create_gpay_session_token(
     }
 }
 
-fn is_session_response_delayed(state: &routes::AppState, connector: &api::ConnectorData) -> bool {
+fn is_session_response_delayed(
+    state: &routes::SessionState,
+    connector: &api::ConnectorData,
+) -> bool {
     let connectors_with_delayed_response = &state
         .conf
         .delayed_session_response
@@ -516,23 +884,91 @@ fn log_session_response_if_error(
         .map(|res| res.as_ref().map_err(|error| logger::error!(?error)));
 }
 
-impl types::PaymentsSessionRouterData {
-    pub async fn decide_flow<'a, 'b>(
+#[async_trait]
+pub trait RouterDataSession
+where
+    Self: Sized,
+{
+    async fn decide_flow<'a, 'b>(
         &'b self,
-        state: &'a routes::AppState,
+        state: &'a routes::SessionState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
+        business_profile: &domain::Profile,
+        header_payload: api_models::payments::HeaderPayload,
+    ) -> RouterResult<Self>;
+}
+
+fn create_paypal_sdk_session_token(
+    _state: &routes::SessionState,
+    router_data: &types::PaymentsSessionRouterData,
+    connector: &api::ConnectorData,
+    _business_profile: &domain::Profile,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let connector_metadata = router_data.connector_meta_data.clone();
+
+    let paypal_sdk_data = connector_metadata
+        .clone()
+        .parse_value::<payment_types::PaypalSdkSessionTokenData>("PaypalSdkSessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorMetaData)
+        .attach_printable(format!(
+            "cannot parse paypal_sdk metadata from the given value {connector_metadata:?}"
+        ))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "paypal_sdk_metadata_format".to_string(),
+        })?;
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::Paypal(Box::new(
+                payment_types::PaypalSessionTokenResponse {
+                    connector: connector.connector_name.to_string(),
+                    session_token: paypal_sdk_data.data.client_id,
+                    sdk_next_action: payment_types::SdkNextAction {
+                        next_action: payment_types::NextActionCall::Confirm,
+                    },
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
+#[async_trait]
+impl RouterDataSession for types::PaymentsSessionRouterData {
+    async fn decide_flow<'a, 'b>(
+        &'b self,
+        state: &'a routes::SessionState,
+        connector: &api::ConnectorData,
+        _confirm: Option<bool>,
+        call_connector_action: payments::CallConnectorAction,
+        business_profile: &domain::Profile,
+        header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         match connector.get_token {
-            api::GetToken::GpayMetadata => create_gpay_session_token(state, self, connector),
+            api::GetToken::GpayMetadata => {
+                create_gpay_session_token(state, self, connector, business_profile)
+            }
+            api::GetToken::SamsungPayMetadata => {
+                create_samsung_pay_session_token(self, header_payload)
+            }
             api::GetToken::ApplePayMetadata => {
-                create_applepay_session_token(state, self, connector).await
+                create_applepay_session_token(
+                    state,
+                    self,
+                    connector,
+                    business_profile,
+                    header_payload,
+                )
+                .await
+            }
+            api::GetToken::PaypalSdkMetadata => {
+                create_paypal_sdk_session_token(state, self, connector, business_profile)
             }
             api::GetToken::Connector => {
-                let connector_integration: services::BoxedConnectorIntegration<
-                    '_,
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Session,
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,

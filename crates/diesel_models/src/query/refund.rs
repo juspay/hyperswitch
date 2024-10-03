@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl RefundNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Refund {
-    #[instrument(skip(conn))]
     pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -42,10 +39,9 @@ impl Refund {
     }
 
     // This is required to be changed for KV.
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_refund_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -57,10 +53,9 @@ impl Refund {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_connector_refund_id_connector(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
     ) -> StorageResult<Self> {
@@ -74,11 +69,10 @@ impl Refund {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_internal_reference_id_merchant_id(
         conn: &PgPooledConn,
         internal_reference_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -89,10 +83,9 @@ impl Refund {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_connector_transaction_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -112,11 +105,10 @@ impl Refund {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,

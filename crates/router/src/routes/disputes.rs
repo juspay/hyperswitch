@@ -1,6 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{core::api_locking, services::authorization::permissions::Permission};
@@ -38,19 +39,24 @@ pub async fn retrieve_dispute(
     let dispute_id = dispute_types::DisputeId {
         dispute_id: path.into_inner(),
     };
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         dispute_id,
-        |state, auth, req| disputes::retrieve_dispute(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            disputes::retrieve_dispute(state, auth.merchant_account, auth.profile_id, req)
+        },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Disputes - List Disputes
@@ -81,25 +87,164 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<dispute_models::DisputeListConstraints>,
+    query: web::Query<dispute_models::DisputeListGetConstraints>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
-    let payload = payload.into_inner();
-    api::server_wrap(
+    let payload = query.into_inner();
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, req| disputes::retrieve_disputes_list(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            disputes::retrieve_disputes_list(state, auth.merchant_account, None, req)
+        },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
+
+/// Disputes - List Disputes for The Given Business Profiles
+#[utoipa::path(
+    get,
+    path = "/disputes/profile/list",
+    params(
+        ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
+        ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
+        ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
+        ("reason" = Option<String>, Query, description = "The reason for dispute"),
+        ("connector" = Option<String>, Query, description = "The connector linked to dispute"),
+        ("received_time" = Option<PrimitiveDateTime>, Query, description = "The time at which dispute is received"),
+        ("received_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the dispute received time"),
+        ("received_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the dispute received time"),
+        ("received_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the dispute received time"),
+        ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
+    ),
+    responses(
+        (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Disputes",
+    operation_id = "List Disputes for The given Business Profiles",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesList))]
+pub async fn retrieve_disputes_list_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<dispute_models::DisputeListGetConstraints>,
+) -> HttpResponse {
+    let flow = Flow::DisputesList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            disputes::retrieve_disputes_list(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Disputes - Disputes Filters
+#[utoipa::path(
+    get,
+    path = "/disputes/filter",
+    responses(
+        (status = 200, description = "List of filters", body = DisputeListFilters),
+    ),
+    tag = "Disputes",
+    operation_id = "List all filters for disputes",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesFilters))]
+pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::DisputesFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| disputes::get_filters_for_disputes(state, auth.merchant_account, None),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Disputes - Disputes Filters Profile
+#[utoipa::path(
+    get,
+    path = "/disputes/profile/filter",
+    responses(
+        (status = 200, description = "List of filters", body = DisputeListFilters),
+    ),
+    tag = "Disputes",
+    operation_id = "List all filters for disputes",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesFilters))]
+pub async fn get_disputes_filters_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::DisputesFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| {
+            disputes::get_filters_for_disputes(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Disputes - Accept Dispute
 #[utoipa::path(
     get,
@@ -130,12 +275,21 @@ pub async fn accept_dispute(
         state,
         &req,
         dispute_id,
-        |state, auth, req| {
-            disputes::accept_dispute(state, auth.merchant_account, auth.key_store, req)
+        |state, auth, req, _| {
+            disputes::accept_dispute(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -167,12 +321,21 @@ pub async fn submit_dispute_evidence(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| {
-            disputes::submit_evidence(state, auth.merchant_account, auth.key_store, req)
+        |state, auth, req, _| {
+            disputes::submit_evidence(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -212,19 +375,29 @@ pub async fn attach_dispute_evidence(
         state,
         &req,
         attach_evidence_request,
-        |state, auth, req| {
-            disputes::attach_evidence(state, auth.merchant_account, auth.key_store, req)
+        |state, auth, req, _| {
+            disputes::attach_evidence(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::DisputeWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-/// Diputes - Retrieve Dispute
+
+/// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
     path = "/disputes/evidence/{dispute_id}",
@@ -254,10 +427,121 @@ pub async fn retrieve_dispute_evidence(
         state,
         &req,
         dispute_id,
-        |state, auth, req| disputes::retrieve_dispute_evidence(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            disputes::retrieve_dispute_evidence(state, auth.merchant_account, auth.profile_id, req)
+        },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::DisputeRead),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Disputes - Delete Evidence attached to a Dispute
+///
+/// To delete an evidence file attached to a dispute
+#[utoipa::path(
+    put,
+    path = "/disputes/evidence",
+    request_body=DeleteEvidenceRequest,
+    responses(
+        (status = 200, description = "Evidence deleted from a dispute"),
+        (status = 400, description = "Bad Request")
+    ),
+    tag = "Disputes",
+    operation_id = "Delete Evidence attached to a Dispute",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DeleteDisputeEvidence))]
+pub async fn delete_dispute_evidence(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<dispute_models::DeleteEvidenceRequest>,
+) -> HttpResponse {
+    let flow = Flow::DeleteDisputeEvidence;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| disputes::delete_evidence(state, auth.merchant_account, req),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
+pub async fn get_disputes_aggregate(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_param: web::Query<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::DisputesAggregate;
+    let query_param = query_param.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_param,
+        |state, auth, req, _| {
+            disputes::get_aggregates_for_disputes(state, auth.merchant_account, None, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
+pub async fn get_disputes_aggregate_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_param: web::Query<common_utils::types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::DisputesAggregate;
+    let query_param = query_param.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_param,
+        |state, auth, req, _| {
+            disputes::get_aggregates_for_disputes(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::DisputeRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

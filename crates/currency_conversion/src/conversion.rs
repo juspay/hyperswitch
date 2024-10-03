@@ -28,7 +28,7 @@ pub fn convert(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::print_stdout)]
     use std::collections::HashMap;
 
     use crate::types::CurrencyFactors;

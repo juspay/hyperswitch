@@ -5,6 +5,6 @@
     "Scenario3-Create payment without PMD",
     "Scenario5-Void the payment",
     "Scenario6-Create 3DS payment",
-    "Scenario7-Create 3DS payment with confrm false"
+    "Scenario7-Create 3DS payment with confirm false"
   ]
 }

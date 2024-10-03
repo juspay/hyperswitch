@@ -1,17 +1,8 @@
-#[derive(Debug, serde::Serialize)]
-pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
+use common_enums::PermissionGroup;
+use common_utils::pii;
+use masking::Secret;
 
-#[derive(Debug, serde::Serialize)]
-pub struct RoleInfoResponse {
-    pub role_id: &'static str,
-    pub permissions: Vec<Permission>,
-    pub role_name: &'static str,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetRoleRequest {
-    pub role_id: String,
-}
+pub mod role;
 
 #[derive(Debug, serde::Serialize)]
 pub enum Permission {
@@ -25,7 +16,6 @@ pub enum Permission {
     MerchantAccountWrite,
     MerchantConnectorAccountRead,
     MerchantConnectorAccountWrite,
-    ForexRead,
     RoutingRead,
     RoutingWrite,
     DisputeRead,
@@ -34,8 +24,6 @@ pub enum Permission {
     MandateWrite,
     CustomerRead,
     CustomerWrite,
-    FileRead,
-    FileWrite,
     Analytics,
     ThreeDsDecisionManagerWrite,
     ThreeDsDecisionManagerRead,
@@ -43,6 +31,27 @@ pub enum Permission {
     SurchargeDecisionManagerRead,
     UsersRead,
     UsersWrite,
+    MerchantAccountCreate,
+    WebhookEventRead,
+    PayoutWrite,
+    PayoutRead,
+    WebhookEventWrite,
+    GenerateReport,
+    ReconAdmin,
+}
+
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
+pub enum ParentGroup {
+    Operations,
+    Connectors,
+    Workflows,
+    Analytics,
+    Users,
+    #[serde(rename = "MerchantAccess")]
+    Merchant,
+    #[serde(rename = "OrganizationAccess")]
+    Organization,
+    Recon,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -50,26 +59,49 @@ pub enum PermissionModule {
     Payments,
     Refunds,
     MerchantAccount,
-    Forex,
     Connectors,
     Routing,
     Analytics,
     Mandates,
     Customer,
     Disputes,
-    Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
+    AccountCreate,
+    Payouts,
+    Recon,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct AuthorizationInfoResponse(pub Vec<ModuleInfo>);
+pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum AuthorizationInfo {
+    Module(ModuleInfo),
+    Group(GroupInfo),
+    GroupWithTag(ParentInfo),
+}
 
 #[derive(Debug, serde::Serialize)]
 pub struct ModuleInfo {
     pub module: PermissionModule,
     pub description: &'static str,
     pub permissions: Vec<PermissionInfo>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GroupInfo {
+    pub group: PermissionGroup,
+    pub description: &'static str,
+    pub permissions: Vec<PermissionInfo>,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct ParentInfo {
+    pub name: ParentGroup,
+    pub description: &'static str,
+    pub groups: Vec<PermissionGroup>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -80,7 +112,7 @@ pub struct PermissionInfo {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserRoleRequest {
-    pub user_id: String,
+    pub email: pii::Email,
     pub role_id: String,
 }
 
@@ -88,4 +120,47 @@ pub struct UpdateUserRoleRequest {
 pub enum UserStatus {
     Active,
     InvitationSent,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct MerchantSelectRequest {
+    pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AcceptInvitationRequest {
+    pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInEntityResponse {
+    pub email: pii::Email,
+    pub roles: Vec<role::MinimalRoleInfo>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListInvitationForUserResponse {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
+    pub entity_name: Option<Secret<String>>,
+    pub role_id: String,
+}
+
+pub type AcceptInvitationsV2Request = Vec<Entity>;
+pub type AcceptInvitationsPreAuthRequest = Vec<Entity>;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct Entity {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListUsersInEntityRequest {
+    pub entity_type: Option<common_enums::EntityType>,
 }

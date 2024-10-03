@@ -1,5 +1,5 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::{ext_traits::ValueExt, id_type, pii::Email};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use crate::{
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
     },
 };
@@ -84,7 +84,7 @@ pub struct RiskifiedCustomer {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     verified_email: bool,
-    id: String,
+    id: id_type::CustomerId,
     account_type: CustomerAccountType,
     orders_count: i32,
     phone: Option<Secret<String>>,
@@ -142,9 +142,10 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 field_name: "frm_metadata",
             })?
             .parse_value("Riskified Metadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        let billing_address = payment_data.get_billing_address_with_phone_number()?;
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "frm_metadata",
+            })?;
+        let billing_address = payment_data.get_billing()?;
         let shipping_address = payment_data.get_shipping_address_with_phone_number()?;
         let address = payment_data.get_billing_address()?;
 
@@ -451,8 +452,8 @@ impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
-pub struct RiskifiedFullfillmentRequest {
-    order: OrderFullfillment,
+pub struct RiskifiedFulfillmentRequest {
+    order: OrderFulfillment,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -465,7 +466,7 @@ pub enum FulfillmentRequestStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
-pub struct OrderFullfillment {
+pub struct OrderFulfillment {
     id: String,
     fulfillments: FulfilmentData,
 }
@@ -481,11 +482,26 @@ pub struct FulfilmentData {
     tracking_url: Option<String>,
 }
 
-impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequest {
+impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
     type Error = Error;
     fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
+        let tracking_number = item
+            .request
+            .fulfillment_req
+            .tracking_numbers
+            .as_ref()
+            .and_then(|numbers| numbers.first().cloned())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "tracking_number",
+            })?;
+        let tracking_url = item
+            .request
+            .fulfillment_req
+            .tracking_urls
+            .as_ref()
+            .and_then(|urls| urls.first().cloned().map(|url| url.to_string()));
         Ok(Self {
-            order: OrderFullfillment {
+            order: OrderFulfillment {
                 id: item.attempt_id.clone(),
                 fulfillments: FulfilmentData {
                     fulfillment_id: item.payment_id.clone(),
@@ -504,12 +520,8 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFullfillmentRequ
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "tracking_company",
                         })?,
-                    tracking_number: item.request.fulfillment_req.tracking_number.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "tracking_number",
-                        },
-                    )?,
-                    tracking_url: item.request.fulfillment_req.tracking_url.clone(),
+                    tracking_number,
+                    tracking_url,
                 },
             },
         })
@@ -593,5 +605,27 @@ fn get_fulfillment_status(
         core_types::FulfillmentStatus::COMPLETE => Some(FulfillmentRequestStatus::Success),
         core_types::FulfillmentStatus::CANCELED => Some(FulfillmentRequestStatus::Cancelled),
         core_types::FulfillmentStatus::PARTIAL | core_types::FulfillmentStatus::REPLACEMENT => None,
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+
+pub struct RiskifiedWebhookBody {
+    pub id: String,
+    pub status: RiskifiedWebhookStatus,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum RiskifiedWebhookStatus {
+    Approved,
+    Declined,
+}
+
+impl From<RiskifiedWebhookStatus> for api::IncomingWebhookEvent {
+    fn from(value: RiskifiedWebhookStatus) -> Self {
+        match value {
+            RiskifiedWebhookStatus::Declined => Self::FrmRejected,
+            RiskifiedWebhookStatus::Approved => Self::FrmApproved,
+        }
     }
 }

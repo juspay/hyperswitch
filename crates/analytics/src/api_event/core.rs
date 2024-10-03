@@ -8,9 +8,11 @@ use api_models::analytics::{
     AnalyticsMetadata, ApiEventFiltersResponse, GetApiEventFiltersRequest,
     GetApiEventMetricRequest, MetricsResponse,
 };
-use error_stack::{IntoReport, ResultExt};
+use common_utils::errors::ReportSwitchExt;
+use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -29,26 +31,27 @@ use crate::{
 pub async fn api_events_core(
     pool: &AnalyticsProvider,
     req: ApiLogsRequest,
-    merchant_id: String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<Vec<ApiLogsResult>> {
     let data = match pool {
-        AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented)
-            .into_report()
-            .attach_printable("SQL Analytics is not implemented for API Events"),
-        AnalyticsProvider::Clickhouse(pool) => get_api_event(&merchant_id, req, pool).await,
+        AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
+            "API Events not implemented for SQLX",
+        ))
+        .attach_printable("SQL Analytics is not implemented for API Events"),
+        AnalyticsProvider::Clickhouse(pool) => get_api_event(merchant_id, req, pool).await,
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
-            get_api_event(&merchant_id, req, ckh_pool).await
+            get_api_event(merchant_id, req, ckh_pool).await
         }
     }
-    .change_context(AnalyticsError::UnknownError)?;
+    .switch()?;
     Ok(data)
 }
 
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetApiEventFiltersRequest,
-    merchant_id: String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<ApiEventFiltersResponse> {
     use api_models::analytics::{api_event::ApiEventDimensions, ApiEventFilterValue};
 
@@ -58,17 +61,18 @@ pub async fn get_filters(
     let mut res = ApiEventFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool {
-            AnalyticsProvider::Sqlx(_pool) => Err(FiltersError::NotImplemented)
-                .into_report()
-                .attach_printable("SQL Analytics is not implemented for API Events"),
+            AnalyticsProvider::Sqlx(_pool) => Err(FiltersError::NotImplemented(
+                "API Events not implemented for SQLX",
+            ))
+            .attach_printable("SQL Analytics is not implemented for API Events"),
             AnalyticsProvider::Clickhouse(ckh_pool)
             | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
             | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-                get_api_event_filter_for_dimension(dim, &merchant_id, &req.time_range, ckh_pool)
+                get_api_event_filter_for_dimension(dim, merchant_id, &req.time_range, ckh_pool)
                     .await
             }
         }
-        .change_context(AnalyticsError::UnknownError)?
+        .switch()?
         .into_iter()
         .filter_map(|fil: ApiEventFilter| match dim {
             ApiEventDimensions::StatusCode => fil.status_code.map(|i| i.to_string()),
@@ -88,7 +92,7 @@ pub async fn get_filters(
 #[instrument(skip_all)]
 pub async fn get_api_event_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetApiEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<ApiMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<ApiEventMetricsBucketIdentifier, ApiEventMetricRow> =
@@ -129,14 +133,13 @@ pub async fn get_api_event_metrics(
         .join_next()
         .await
         .transpose()
-        .into_report()
         .change_context(AnalyticsError::UnknownError)?
     {
         let data = data?;
-        let attributes = &[
-            metrics::request::add_attributes("metric_type", metric.to_string()),
-            metrics::request::add_attributes("source", pool.to_string()),
-        ];
+        let attributes = &add_attributes([
+            ("metric_type", metric.to_string()),
+            ("source", pool.to_string()),
+        ]);
 
         let value = u64::try_from(data.len());
         if let Ok(val) = value {

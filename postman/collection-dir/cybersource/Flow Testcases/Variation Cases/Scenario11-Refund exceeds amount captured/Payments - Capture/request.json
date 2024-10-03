@@ -1,0 +1,45 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount_to_capture": 6000,
+      "statement_descriptor_name": "Joseph",
+      "statement_descriptor_suffix": "JS"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/capture",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "capture"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}",
+        "description": "(Required) unique payment id"
+      }
+    ]
+  },
+  "description": "To capture the funds for an uncaptured payment"
+}

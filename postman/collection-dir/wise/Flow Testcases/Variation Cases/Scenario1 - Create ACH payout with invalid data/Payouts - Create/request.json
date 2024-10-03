@@ -23,7 +23,7 @@
       "customer_id": "wise_customer",
       "email": "payout_customer@example.com",
       "name": "Doest John",
-      "phone": "6168205366",
+      "phone": "9123456789",
       "phone_country_code": "+1",
       "description": "Its my first payout request",
       "connector": ["wise"],
@@ -50,7 +50,7 @@
           "last_name": "John"
         },
         "phone": {
-          "number": "6168205366",
+          "number": "9123456789",
           "country_code": "1"
         }
       },

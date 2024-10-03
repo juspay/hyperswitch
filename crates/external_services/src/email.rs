@@ -95,7 +95,7 @@ pub struct EmailContents {
     /// The subject of email
     pub subject: String,
 
-    /// This will be the intermediate representation of the the email body in a generic format.
+    /// This will be the intermediate representation of the email body in a generic format.
     /// The email clients can convert this intermediate representation to their client specific rich text format
     pub body: IntermediateString,
 
@@ -126,9 +126,6 @@ pub struct EmailSettings {
     /// The AWS region to send SES requests to.
     pub aws_region: String,
 
-    /// Base-url used when adding links that should redirect to self
-    pub base_url: String,
-
     /// Number of days for verification of the email
     pub allowed_unverified_days: i64,
 
@@ -140,6 +137,12 @@ pub struct EmailSettings {
 
     /// The active email client to use
     pub active_email_client: AvailableEmailClients,
+
+    /// Recipient email for recon emails
+    pub recon_recipient_email: pii::Email,
+
+    /// Recipient email for recon emails
+    pub prod_intent_recipient_email: pii::Email,
 }
 
 /// Errors that could occur from EmailClient.

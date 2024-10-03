@@ -50,6 +50,40 @@ where
                 )
                 .attach_printable("Error adding payment method filter")?;
         }
+        if !self.client_source.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::ClientSource, &self.client_source)
+                .attach_printable("Error adding client source filter")?;
+        }
+        if !self.client_version.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::ClientVersion, &self.client_version)
+                .attach_printable("Error adding client version filter")?;
+        }
+        if !self.profile_id.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::ProfileId, &self.profile_id)
+                .attach_printable("Error adding profile id filter")?;
+        }
+        if !self.card_network.is_empty() {
+            let card_networks: Vec<String> = self
+                .card_network
+                .iter()
+                .flat_map(|cn| {
+                    [
+                        format!("\"{cn}\""),
+                        cn.to_string(),
+                        format!("\"{cn}\"").to_uppercase(),
+                    ]
+                })
+                .collect();
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::CardNetwork,
+                    card_networks.as_slice(),
+                )
+                .attach_printable("Error adding card network filter")?;
+        }
         Ok(())
     }
 }

@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -9,11 +8,10 @@ use crate::{
 };
 
 impl ReverseLookupNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ReverseLookup> {
         generics::generic_insert(conn, self).await
     }
-    #[instrument(skip(conn))]
+
     pub async fn batch_insert(
         reverse_lookups: Vec<Self>,
         conn: &PgPooledConn,

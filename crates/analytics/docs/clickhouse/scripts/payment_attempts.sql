@@ -1,4 +1,4 @@
-CREATE TABLE payment_attempts_queue (
+CREATE TABLE payment_attempt_queue (
     `payment_id` String,
     `merchant_id` String,
     `attempt_id` String,
@@ -29,16 +29,30 @@ CREATE TABLE payment_attempts_queue (
     `created_at` DateTime CODEC(T64, LZ4),
     `last_synced` Nullable(DateTime) CODEC(T64, LZ4),
     `modified_at` DateTime CODEC(T64, LZ4),
+    `payment_method_data` Nullable(String),
+    `error_reason` Nullable(String),
+    `multiple_capture_count` Nullable(Int16),
+    `amount_capturable` Nullable(UInt64),
+    `merchant_connector_id` Nullable(String),
+    `net_amount` Nullable(UInt64),
+    `unified_code` Nullable(String),
+    `unified_message` Nullable(String),
+    `mandate_data` Nullable(String),
+    `client_source` LowCardinality(Nullable(String)),
+    `client_version` LowCardinality(Nullable(String)),
+    `organization_id` String,
+    `profile_id` String,
+    `card_network` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-attempt-events',
-kafka_group_name = 'hyper-c1',
+kafka_group_name = 'hyper',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
-CREATE TABLE payment_attempt_dist (
+CREATE TABLE payment_attempts (
     `payment_id` String,
-    `merchant_id` String,
+    `merchant_id` LowCardinality(String),
     `attempt_id` String,
     `status` LowCardinality(String),
     `amount` Nullable(UInt32),
@@ -67,24 +81,32 @@ CREATE TABLE payment_attempt_dist (
     `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `last_synced` Nullable(DateTime) CODEC(T64, LZ4),
     `modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `payment_method_data` Nullable(String),
+    `error_reason` Nullable(String),
+    `multiple_capture_count` Nullable(Int16),
+    `amount_capturable` Nullable(UInt64),
+    `merchant_connector_id` Nullable(String),
+    `net_amount` Nullable(UInt64),
+    `unified_code` Nullable(String),
+    `unified_message` Nullable(String),
+    `mandate_data` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `client_source` LowCardinality(Nullable(String)),
+    `client_version` LowCardinality(Nullable(String)),
+    `organization_id` String,
+    `profile_id` String,
+    `card_network` Nullable(String),
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX paymentMethodIndex payment_method TYPE bloom_filter GRANULARITY 1,
     INDEX authenticationTypeIndex authentication_type TYPE bloom_filter GRANULARITY 1,
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status TYPE bloom_filter GRANULARITY 1
-) ENGINE = CollapsingMergeTree(
-    sign_flag
-)
-PARTITION BY toStartOfDay(created_at)
+) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
-    (created_at, merchant_id, attempt_id)
-TTL created_at + toIntervalMonth(6)
-;
+    (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-
-CREATE MATERIALIZED VIEW kafka_parse_pa TO payment_attempt_dist (
+CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `payment_id` String,
     `merchant_id` String,
     `attempt_id` String,
@@ -115,7 +137,21 @@ CREATE MATERIALIZED VIEW kafka_parse_pa TO payment_attempt_dist (
     `capture_on` Nullable(DateTime64(3)),
     `last_synced` Nullable(DateTime64(3)),
     `modified_at` DateTime64(3),
+    `payment_method_data` Nullable(String),
+    `error_reason` Nullable(String),
+    `multiple_capture_count` Nullable(Int16),
+    `amount_capturable` Nullable(UInt64),
+    `merchant_connector_id` Nullable(String),
+    `net_amount` Nullable(UInt64),
+    `unified_code` Nullable(String),
+    `unified_message` Nullable(String),
+    `mandate_data` Nullable(String),
     `inserted_at` DateTime64(3),
+    `client_source` LowCardinality(Nullable(String)),
+    `client_version` LowCardinality(Nullable(String)),
+    `organization_id` String,
+    `profile_id` String,
+    `card_network` Nullable(String),
     `sign_flag` Int8
 ) AS
 SELECT
@@ -149,8 +185,23 @@ SELECT
     capture_on,
     last_synced,
     modified_at,
-    now() as inserted_at,
+    payment_method_data,
+    error_reason,
+    multiple_capture_count,
+    amount_capturable,
+    merchant_connector_id,
+    net_amount,
+    unified_code,
+    unified_message,
+    mandate_data,
+    now() AS inserted_at,
+    client_source,
+    client_version,
+    organization_id,
+    profile_id,
+    card_network,
     sign_flag
 FROM
-    payment_attempts_queue;
-
+    payment_attempt_queue
+WHERE
+    length(_error) = 0;

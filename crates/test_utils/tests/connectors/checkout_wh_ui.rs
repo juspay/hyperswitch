@@ -1,4 +1,3 @@
-use serial_test::serial;
 use thirtyfour::{prelude::*, WebDriver};
 
 use crate::{selenium::*, tester};
@@ -15,7 +14,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
     let conn = CheckoutSeleniumTest {};
     conn.make_webhook_test(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/18"),
+        &format!("{CHECKOUT_BASE_URL}/saved/18"),
         vec![
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Sleep(8)),
@@ -33,7 +32,6 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
 }
 
 #[test]
-#[serial]
 fn should_make_webhook_test() {
     tester!(should_make_webhook);
 }

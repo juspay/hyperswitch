@@ -36,16 +36,12 @@
       "payment_method_type": "credit",
       "payment_method_data": {
         "card": {
-          "card_number": "371449635398431",
+          "card_number": "4111111111111111",
           "card_exp_month": "03",
           "card_exp_year": "2030",
           "card_holder_name": "joseph Doe",
-          "card_cvc": "7373"
+          "card_cvc": "737"
         }
-      },
-      "routing": {
-        "type": "single",
-        "data": "adyen"
       },
       "billing": {
         "address": {
@@ -77,6 +73,17 @@
         "udf1": "value1",
         "new_customer": "true",
         "login_date": "2019-09-10T10:11:12Z"
+      },
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "accept_header": "text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,*\\/*;q=0.8",
+        "language": "en-GB",
+        "color_depth": 30,
+        "screen_height": 1117,
+        "screen_width": 1728,
+        "time_zone": -330,
+        "java_enabled": true,
+        "java_script_enabled": true
       }
     }
   },

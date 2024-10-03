@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
+use common_utils::types::MinorUnit;
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentsAuthorizeData};
+use router::types::{self, domain, storage::enums, PaymentsAuthorizeData};
 
 use crate::{
     connector_auth,
@@ -16,12 +17,12 @@ static CONNECTOR: NexinetsTest = NexinetsTest {};
 impl utils::Connector for NexinetsTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nexinets;
-        types::api::ConnectorData {
-            connector: Box::new(&Nexinets),
-            connector_name: types::Connector::Nexinets,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(&Nexinets),
+            types::Connector::Nexinets,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -41,7 +42,7 @@ impl utils::Connector for NexinetsTest {
 fn payment_method_details() -> Option<PaymentsAuthorizeData> {
     Some(PaymentsAuthorizeData {
         currency: diesel_models::enums::Currency::EUR,
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: CardNumber::from_str("374111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
@@ -118,12 +119,18 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
                 mandate_id: None,
+                payment_method_type: None,
+                currency: enums::Currency::EUR,
+                payment_experience: None,
+                integrity_object: None,
+                amount: MinorUnit::new(100),
+                ..Default::default()
             }),
             None,
         )
@@ -339,7 +346,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 connector_meta,
                 ..Default::default()
@@ -504,7 +511,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -526,7 +533,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -548,7 +555,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

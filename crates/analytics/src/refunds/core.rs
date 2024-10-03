@@ -8,9 +8,10 @@ use api_models::analytics::{
     AnalyticsMetadata, GetRefundFilterRequest, GetRefundMetricRequest, MetricsResponse,
     RefundFilterValue, RefundFiltersResponse,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     logger,
+    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -19,6 +20,7 @@ use super::{
     RefundMetricsAccumulator,
 };
 use crate::{
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
     refunds::RefundMetricAccumulator,
@@ -27,7 +29,7 @@ use crate::{
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &String,
+    auth: &AuthInfo,
     req: GetRefundMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<RefundMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<RefundMetricsBucketIdentifier, RefundMetricsAccumulator> =
@@ -42,14 +44,14 @@ pub async fn get_metrics(
         );
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_refund_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -66,14 +68,13 @@ pub async fn get_metrics(
         .join_next()
         .await
         .transpose()
-        .into_report()
         .change_context(AnalyticsError::UnknownError)?
     {
         let data = data?;
-        let attributes = &[
-            metrics::request::add_attributes("metric_type", metric.to_string()),
-            metrics::request::add_attributes("source", pool.to_string()),
-        ];
+        let attributes = &add_attributes([
+            ("metric_type", metric.to_string()),
+            ("source", pool.to_string()),
+        ]);
 
         let value = u64::try_from(data.len());
         if let Ok(val) = value {
@@ -125,30 +126,30 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetRefundFilterRequest,
-    merchant_id: &String,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<RefundFiltersResponse> {
     let mut res = RefundFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                get_refund_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_refund_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                get_refund_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_refund_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_refund_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_refund_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
@@ -164,14 +165,14 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_refund_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_refund_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
@@ -192,6 +193,7 @@ pub async fn get_filters(
             RefundDimensions::RefundStatus => fil.refund_status.map(|i| i.as_ref().to_string()),
             RefundDimensions::Connector => fil.connector,
             RefundDimensions::RefundType => fil.refund_type.map(|i| i.as_ref().to_string()),
+            RefundDimensions::ProfileId => fil.profile_id,
         })
         .collect::<Vec<String>>();
         res.query_data.push(RefundFilterValue {

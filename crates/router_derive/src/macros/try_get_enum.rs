@@ -68,7 +68,7 @@ pub fn try_get_enum_variant(
 
         let try_into_fn = syn::Ident::new(
             &format!("try_into_{}", variant_name.to_string().to_lowercase()),
-            proc_macro2::Span::call_site(),
+            Span::call_site(),
         );
 
         Ok(quote::quote! {
