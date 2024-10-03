@@ -5,8 +5,6 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
-#[cfg(feature = "v2")]
-use common_utils::types::ClientSecret;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
