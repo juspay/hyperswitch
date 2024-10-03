@@ -369,7 +369,6 @@ impl PaymentAttempt {
         payment_method: Option<Vec<enums::PaymentMethod>>,
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
-        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     ) -> StorageResult<i64> {
@@ -378,14 +377,6 @@ impl PaymentAttempt {
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
             .into_boxed();
-
-        if let Some(time_range) = time_range {
-            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
-
-            if let Some(end_time) = time_range.end_time {
-                filter = filter.filter(dsl::created_at.le(end_time));
-            }
-        }
 
         if let Some(connector) = connector {
             filter = filter.filter(dsl::connector.eq_any(connector));

@@ -440,14 +440,17 @@ where
                     )
                     .await?;
 
-                    #[cfg(feature = "retry")]
+                    #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
-                    #[cfg(feature = "retry")]
+                    #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
-                        let config_bool =
-                            retry::config_should_call_gsm(&*state.store, merchant_account.get_id())
-                                .await;
+                        let config_bool = retry::config_should_call_gsm(
+                            &*state.store,
+                            merchant_account.get_id(),
+                            &business_profile,
+                        )
+                        .await;
 
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
@@ -2314,10 +2317,12 @@ where
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
-            } else if (connector.connector_name == router_types::Connector::Nuvei
-                || connector.connector_name == router_types::Connector::Shift4)
-                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && !is_operation_complete_authorize(&operation)
+            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && ((connector.connector_name == router_types::Connector::Nexixpay
+                    && is_operation_complete_authorize(&operation))
+                    || ((connector.connector_name == router_types::Connector::Nuvei
+                        || connector.connector_name == router_types::Connector::Shift4)
+                        && !is_operation_complete_authorize(&operation)))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)
@@ -3244,7 +3249,6 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method_type,
             constraints.authentication_type,
             constraints.merchant_connector_id,
-            constraints.time_range,
             pi_fetch_constraints.get_profile_id_list(),
             merchant.storage_scheme,
         )
@@ -3762,8 +3766,12 @@ where
             }
 
             #[cfg(feature = "retry")]
-            let should_do_retry =
-                retry::config_should_call_gsm(&*state.store, merchant_account.get_id()).await;
+            let should_do_retry = retry::config_should_call_gsm(
+                &*state.store,
+                merchant_account.get_id(),
+                business_profile,
+            )
+            .await;
 
             #[cfg(feature = "retry")]
             if payment_data.get_payment_attempt().payment_method_type

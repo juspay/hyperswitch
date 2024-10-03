@@ -320,6 +320,8 @@ label="Source balance account ID"
 placeholder="Enter Source balance account ID"
 required=true
 type="Text"
+[adyenplatform_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [airwallex]
 [[airwallex.credit]]
@@ -1938,6 +1940,26 @@ placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
 options=["Connector","Hyperswitch"]
+
+[nexixpay]
+[[nexixpay.credit]]
+  payment_method_type = "Mastercard"
+[[nexixpay.credit]]
+  payment_method_type = "Visa"
+[[nexixpay.credit]]
+  payment_method_type = "AmericanExpress"
+[[nexixpay.credit]]
+  payment_method_type = "JCB"
+[[nexixpay.debit]]
+  payment_method_type = "Mastercard"
+[[nexixpay.debit]]
+  payment_method_type = "Visa"
+[[nexixpay.debit]]
+  payment_method_type = "AmericanExpress"
+[[nexixpay.debit]]
+  payment_method_type = "JCB"
+[nexixpay.connector_auth.HeaderKey]
+api_key="API Key"
 
 [nmi]
 [[nmi.credit]]
