@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         BankRedirectData, Card, GooglePayWalletData, PaymentMethodData, RealTimePaymentData,
         WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData,PaymentMethodToken,ApplePayPredecryptData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -39,8 +39,7 @@ use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-    },
-    utils::{self, PaymentsAuthorizeRequestData, QrImage, RouterData as _},
+    }, unimplemented_payment_method, utils::{self, PaymentsAuthorizeRequestData, QrImage, RouterData as _, ApplePayDecrypt}
 };
 
 pub struct FiuuRouterData<T> {
@@ -173,8 +172,6 @@ pub struct FiuuPaymentRequest {
     txn_currency: Currency,
     txn_amount: StringMajorUnit,
     signature: Secret<String>,
-    #[serde(rename = "non_3DS")]
-    non_3ds: i32,
     #[serde(rename = "ReturnURL")]
     return_url: Option<String>,
     #[serde(flatten)]
@@ -188,10 +185,15 @@ pub enum FiuuPaymentMethodData {
     FiuuCardData(Box<FiuuCardData>),
     FiuuFpxData(Box<FiuuFPXData>),
     FiuuGooglePayData(Box<FiuuGooglePayData>),
+    FiuuApplePayData(Box<FiuuApplePayData>)
 }
+
+
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuFPXData {
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
     txn_channel: FPXTxnChannel,
 }
 #[derive(Serialize, Debug, Clone)]
@@ -201,17 +203,35 @@ pub struct FiuuQRData {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct FiuuCardData {
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
+    #[serde(rename = "TxnChannel")]
     txn_channel: TxnChannel,
-    #[serde(rename = "CC_PAN")]
     cc_pan: CardNumber,
-    #[serde(rename = "CC_CVV2")]
     cc_cvv2: Secret<String>,
-    #[serde(rename = "CC_MONTH")]
     cc_month: Secret<String>,
-    #[serde(rename = "CC_YEAR")]
     cc_year: Secret<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct FiuuApplePayData{
+    #[serde(rename = "TxnChannel")]
+    txn_channel: TxnChannel,
+    cc_month: Secret<String>,
+    cc_year: Secret<String>,
+    cc_token: Secret<String>,
+    eci: Option<String>,
+    token_cryptogram: Secret<String>,
+    token_type: FiuuTokenType
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub enum FiuuTokenType{
+    ApplePay,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -275,7 +295,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             true => 0,
         };
         let payment_method_data = match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref card) => FiuuPaymentMethodData::try_from(card),
+            PaymentMethodData::Card(ref card) => FiuuPaymentMethodData::try_from((card, &non_3ds)),
             PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
                 match *real_time_payment_data.clone() {
                     RealTimePaymentData::DuitNow {} => {
@@ -297,6 +317,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 BankRedirectData::OnlineBankingFpx { ref issuer } => {
                     Ok(FiuuPaymentMethodData::FiuuFpxData(Box::new(FiuuFPXData {
                         txn_channel: FPXTxnChannel::try_from(*issuer)?,
+                        non_3ds,
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
@@ -325,6 +346,21 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
                     FiuuPaymentMethodData::try_from(google_pay_data)
+                },
+                WalletData::ApplePay(_apple_pay_data) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        PaymentMethodToken::Token(_) => {
+                            Err(unimplemented_payment_method!(
+                                "Apple Pay",
+                                "Manual",
+                                "Fiuu"
+                            ))?
+                        },
+                        PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            FiuuPaymentMethodData::try_from(decrypt_data)
+                        }  
+                    }
                 }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
@@ -333,7 +369,6 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
-                | WalletData::ApplePay(_)
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
@@ -380,7 +415,6 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             txn_type,
             txn_currency,
             txn_amount,
-            non_3ds,
             return_url,
             payment_method_data,
             signature,
@@ -388,11 +422,12 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
     }
 }
 
-impl TryFrom<&Card> for FiuuPaymentMethodData {
+impl TryFrom<(&Card, &i32)> for FiuuPaymentMethodData {
     type Error = Report<errors::ConnectorError>;
-    fn try_from(req_card: &Card) -> Result<Self, Self::Error> {
+    fn try_from((req_card, non_3ds): (&Card, &i32)) -> Result<Self, Self::Error> {
         Ok(Self::FiuuCardData(Box::new(FiuuCardData {
             txn_channel: TxnChannel::Creditan,
+            non_3ds: *non_3ds,
             cc_pan: req_card.card_number.clone(),
             cc_cvv2: req_card.card_cvc.clone(),
             cc_month: req_card.card_exp_month.clone(),
@@ -423,6 +458,21 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
             token: data.tokenization_data.token.clone().into(),
             token_type: data.tokenization_data.token_type.clone().into(),
             pm_type: data.pm_type.clone(),
+        })))
+    }
+}
+
+impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(decrypt_data: Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
+        Ok(Self::FiuuApplePayData(Box::new(FiuuApplePayData{
+            txn_channel: TxnChannel::Creditan,
+            cc_month: decrypt_data.get_expiry_month()? ,
+            cc_year: decrypt_data.get_four_digit_expiry_year()?,
+            cc_token: decrypt_data.application_primary_account_number,
+            eci: decrypt_data.payment_data.eci_indicator,
+            token_cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+            token_type: FiuuTokenType::ApplePay,
         })))
     }
 }
