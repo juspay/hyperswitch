@@ -194,7 +194,7 @@ pub async fn create_merchant_account(
 
     let master_key = db.get_master_key();
 
-    let key_manager_state = &(&state).into();
+    let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     #[cfg(feature = "keymanager_create")]
@@ -203,16 +203,18 @@ pub async fn create_merchant_account(
 
         use crate::consts::BASE64_ENGINE;
 
-        keymanager::transfer_key_to_key_manager(
-            key_manager_state,
-            EncryptionTransferRequest {
-                identifier: identifier.clone(),
-                key: BASE64_ENGINE.encode(key),
-            },
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-        .attach_printable("Failed to insert key to KeyManager")?;
+        if key_manager_state.enabled {
+            keymanager::transfer_key_to_key_manager(
+                key_manager_state,
+                EncryptionTransferRequest {
+                    identifier: identifier.clone(),
+                    key: BASE64_ENGINE.encode(key),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+            .attach_printable("Failed to insert key to KeyManager")?;
+        }
     }
 
     let key_store = domain::MerchantKeyStore {
@@ -1330,6 +1332,11 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // Template code for future usage
+            // api_enums::Connector::Digitalvirgo => {
+            //     digitalvirgo::transformers::DigitalvirgoAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1413,6 +1420,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             }
             api_enums::Connector::Nexinets => {
                 nexinets::transformers::NexinetsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Nexixpay => {
+                nexixpay::transformers::NexixpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Nmi => {
