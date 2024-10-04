@@ -151,6 +151,14 @@ pub async fn update_user_role(
             ));
         }
 
+        if role_info.get_entity_type() != role_to_be_updated.get_entity_type() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "Upgrade and downgrade of roles is not allowed, user_entity_type = {} req_entity_type = {}",
+                role_to_be_updated.get_entity_type(),
+                role_info.get_entity_type(),
+            ));
+        }
+
         if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "Invalid operation, update requestor = {} cannot update target = {}",
@@ -213,6 +221,14 @@ pub async fn update_user_role(
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "User role cannot be updated from {}",
                 role_to_be_updated.get_role_id()
+            ));
+        }
+
+        if role_info.get_entity_type() != role_to_be_updated.get_entity_type() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "Upgrade and downgrade of roles is not allowed, user_entity_type = {} req_entity_type = {}",
+                role_to_be_updated.get_entity_type(),
+                role_info.get_entity_type(),
             ));
         }
 
