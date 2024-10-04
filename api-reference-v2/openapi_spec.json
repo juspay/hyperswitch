@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/v2/organization/{organization_id}": {
+    "/v2/organization/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -164,7 +164,7 @@
         ]
       }
     },
-    "/v2/organization/{organization_id}/merchant_accounts": {
+    "/v2/organization/{id}/merchant_accounts": {
       "get": {
         "tags": [
           "Organization"

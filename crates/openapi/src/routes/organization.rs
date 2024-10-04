@@ -31,7 +31,7 @@ pub async fn organization_create() {}
 /// Retrieve an existing organization
 #[utoipa::path(
     get,
-    path = "/organization/{organization_id}",
+    path = "/organization/{id}",
     params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Organization Created", body =OrganizationResponse),
@@ -49,7 +49,7 @@ pub async fn organization_retrieve() {}
 /// Create a new organization for .
 #[utoipa::path(
     put,
-    path = "/organization/{organization_id}",
+    path = "/organization/{id}",
     request_body(
         content = OrganizationUpdateRequest,
         examples(
@@ -104,7 +104,7 @@ pub async fn organization_create() {}
 /// Retrieve an existing organization
 #[utoipa::path(
     get,
-    path = "/v2/organization/{organization_id}",
+    path = "/v2/organization/{id}",
     params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Organization Created", body =OrganizationResponse),
@@ -122,7 +122,7 @@ pub async fn organization_retrieve() {}
 /// Create a new organization for .
 #[utoipa::path(
     put,
-    path = "/v2/organization/{organization_id}",
+    path = "/v2/organization/{id}",
     request_body(
         content = OrganizationUpdateRequest,
         examples(
@@ -150,7 +150,7 @@ pub async fn organization_update() {}
 /// List merchant accounts for an Organization
 #[utoipa::path(
     get,
-    path = "/v2/organization/{organization_id}/merchant_accounts",
+    path = "/v2/organization/{id}/merchant_accounts",
     params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Merchant Account list retrieved successfully", body = Vec<MerchantAccountResponse>),
