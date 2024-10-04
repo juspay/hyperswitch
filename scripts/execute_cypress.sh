@@ -28,17 +28,26 @@ declare -A services=(
   ["ROUTING"]="routing"
 )
 
-# Loop through the associative array and check if each service is exported
-for var in "${!services[@]}"; do
-  if [[ -n "${!var+x}" ]]; then
-    connector_map+=("${services[$var]}")
-  fi
-done
+# Function to read service arrays from environment variables
+function read_service_arrays() {
+  # Loop through the associative array and check if each service is exported
+  for var in "${!services[@]}"; do
+    if [[ -n "${!var+x}" ]]; then
+      connector_map+=("${services[$var]}")
+    fi
+  done
+}
+
+# Function to print messages in color
+function print_color() {
+  local color="$1"
+  local message="$2"
+  echo -e "${color}${message}${RESET}"
+}
 
 # Function to check if a command exists
 function command_exists() {
-  local cmd="${1}"
-  command -v "${cmd}" > /dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 
 # Function to execute Cypress tests
@@ -131,6 +140,7 @@ function main() {
   fi
 
   check_dependencies
+  read_service_arrays
 
   case "${command}" in
     --parallel | -p)
