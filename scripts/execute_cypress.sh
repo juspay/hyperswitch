@@ -111,6 +111,10 @@ function check_dependencies() {
   fi
 }
 
+function cleanup() {
+  unset PAYMENTS PAYOUTS PAYMENT_METHOD_LIST ROUTING
+}
+
 function main() {
   local command="${1:-}"
   local jobs="${2:-5}"
@@ -135,6 +139,8 @@ function main() {
       run_tests 1
       ;;
   esac
+
+  cleanup
 }
 
 # Execute the main function with passed arguments
