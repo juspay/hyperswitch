@@ -129,7 +129,7 @@ function cleanup() {
 # Main function
 function main() {
   local command="${1:-}"
-  local jobs="${2:-5}"
+  local jobs="${2:-4}"
 
   # Ensure script runs from 'cypress-tests' directory
   if [[ "$(basename "$PWD")" != "cypress-tests" ]]; then
