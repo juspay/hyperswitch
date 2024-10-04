@@ -539,7 +539,7 @@ impl ToEncryptable<DecryptedMca, Secret<serde_json::Value>, Encryption> for Encr
         Ok(DecryptedMca {
             connector_account_details: hashmap.remove("connector_account_details").ok_or(
                 error_stack::report!(common_utils::errors::ParsingError::EncodeError(
-                    "Unable to convert from Hashmap to DecryptedMca",
+                    "Unable to convert from HashMap to DecryptedMca",
                 )),
             )?,
             connector_wallets_details: hashmap.remove("connector_wallets_details"),
@@ -548,7 +548,7 @@ impl ToEncryptable<DecryptedMca, Secret<serde_json::Value>, Encryption> for Encr
     }
 
     fn to_encryptable(self) -> FxHashMap<String, Encryption> {
-        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
 
         map.insert(
             "connector_account_details".to_string(),
@@ -576,7 +576,7 @@ impl ToEncryptable<DecryptedUpdateMca, Secret<serde_json::Value>, Secret<serde_j
     }
 
     fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
 
         self.connector_account_details
             .map(|cad| map.insert("connector_account_details".to_string(), cad));
@@ -598,7 +598,7 @@ impl ToEncryptable<DecryptedMca, Secret<serde_json::Value>, Secret<serde_json::V
         Ok(DecryptedMca {
             connector_account_details: hashmap.remove("connector_account_details").ok_or(
                 error_stack::report!(common_utils::errors::ParsingError::EncodeError(
-                    "Unable to convert from Hashmap to DecryptedMca",
+                    "Unable to convert from HashMap to DecryptedMca",
                 )),
             )?,
             connector_wallets_details: hashmap.remove("connector_wallets_details"),
@@ -607,7 +607,7 @@ impl ToEncryptable<DecryptedMca, Secret<serde_json::Value>, Secret<serde_json::V
     }
 
     fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
 
         map.insert(
             "connector_account_details".to_string(),
