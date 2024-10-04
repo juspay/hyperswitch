@@ -43,11 +43,13 @@ function command_exists() {
 function execute_test() {
   local connector="${1}"
   local service="${2}"
-  echo "Executing tests for ${service} with connector ${connector}..."
+  local tmp_file="${3}"
+
+  echo -e "Executing tests for ${service} with connector ${connector}..."
 
   export REPORT_NAME="${service}_${connector}_report"
   if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
-    failed_connectors+=("${connector}-${service}")
+    echo "${service}-${connector}" >> "$tmp_file"
   fi
 }
 
@@ -56,7 +58,7 @@ export -f execute_test
 # Function to run tests
 function run_tests() {
   local jobs="${1:-1}"
-  local tasks=()
+  local tmp_file=$(mktemp)
 
   for service in "${connector_map[@]}"; do
     declare -n connectors="${service}"
@@ -69,14 +71,20 @@ function run_tests() {
       export REPORT_NAME="${service}_report"
 
       if ! npm run "cypress:${service}"; then
-        failed_connectors+=("${service}")
+        echo "${service}" >> "$tmp_file"
       fi
     else
       # Connector test, i.e., payments or payouts
       echo -e "${GREEN}Running tests for service: '${service}'\nWith connectors: [${connectors[*]}] in batch of ${jobs}..${RESET}."
-      echo "${connectors[@]}" | tr ' ' '\n' | parallel --jobs "${jobs}" execute_test {} "${service}"
+
+      # Capture the output of execute_test
+      echo "${connectors[@]}" | tr ' ' '\n' | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
     fi
   done
+
+  # Read failed connectors from the temporary file
+  failed_connectors=($(cat "$tmp_file"))
+  rm "$tmp_file"
 
   if [ ${#failed_connectors[@]} -gt 0 ]; then
     echo -e "${RED}One or more connectors failed to run:${RESET}"
