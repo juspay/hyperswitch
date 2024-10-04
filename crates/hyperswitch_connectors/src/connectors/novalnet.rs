@@ -881,16 +881,16 @@ impl webhooks::IncomingWebhook for Novalnet {
         let notif: transformers::NovalnetWebhookNotificationResponse =
             get_webhook_object_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let (amount, currency, reason, reason_code, status) = match notif.transaction {
+        let (amount, currency, reason, reason_code, payment_type) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
-                (data.amount, data.currency, None, None, Some(data.status))
+                (data.amount, data.currency, None, None, Some(data.payment_type))
             }
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => {
-                (data.amount, data.currency, None, None, data.status)
+                (data.amount, data.currency, None, None, data.payment_type)
             }
 
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
-                (data.amount, data.currency, None, None, Some(data.status))
+                (data.amount, data.currency, None, None, Some(data.payment_type))
             }
 
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => (
@@ -898,23 +898,20 @@ impl webhooks::IncomingWebhook for Novalnet {
                 data.currency,
                 data.reason,
                 data.reason_code,
-                Some(data.status),
+                Some(data.payment_type),
             ),
         };
 
-        fn option_to_result<T>(opt: Option<T>) -> Result<T, errors::ConnectorError> {
-            opt.ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)
-        }
-
+        let dispute_status = novalnet::get_webhook_dispute_status(payment_type).to_string();
         Ok(disputes::DisputePayload {
-            amount: option_to_result(amount)?.to_string(),
-            currency: option_to_result(currency)?.to_string(),
+            amount: novalnet::option_to_result(amount)?.to_string(),
+            currency: novalnet::option_to_result(currency)?.to_string(),
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: notif.event.tid.to_string(),
             connector_reason: reason,
             connector_reason_code: reason_code,
             challenge_required_by: None,
-            connector_status: option_to_result(status)?.to_string(),
+            connector_status: dispute_status,
             created_at: None,
             updated_at: None,
         })

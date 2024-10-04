@@ -349,7 +349,7 @@ pub struct NovalnetPaymentsResponseTransactionData {
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: Option<NovalnetResponsePaymentData>,
-    pub payment_type: Option<String>,
+    pub payment_type: Option<ResponsePaymentType>,
     pub status_code: Option<u64>,
     pub txn_secret: Option<Secret<String>>,
     pub tid: Option<Secret<i64>>,
@@ -481,6 +481,16 @@ pub struct NovalnetAuthorizationResponse {
     auto_action: Option<String>,
 }
 
+#[derive(Display, Debug, Clone,Serialize, Deserialize)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ResponsePaymentType {
+    Creditcard,
+    CreditcardBookback,
+    CreditcardChargeback,
+    CreditcardRepresentment,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetSyncResponseTransactionData {
     pub amount: Option<u64>,
@@ -488,7 +498,7 @@ pub struct NovalnetSyncResponseTransactionData {
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: Option<NovalnetResponsePaymentData>,
-    pub payment_type: String,
+    pub payment_type: ResponsePaymentType,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
@@ -645,7 +655,7 @@ pub struct NovalnetRefundsTransactionData {
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: String,
+    pub payment_type: ResponsePaymentType,
     pub refund: RefundData,
     pub refunded_amount: u64,
     pub status: NovalnetTransactionStatus,
@@ -839,7 +849,7 @@ pub struct NovalnetCaptureTransactionData {
     pub capture: CaptureData,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: String,
+    pub payment_type: ResponsePaymentType,
     pub status: NovalnetTransactionStatus,
     pub status_code: Option<u64>,
     pub test_mode: Option<u8>,
@@ -1135,10 +1145,10 @@ pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
 }
 
 pub fn get_incoming_webhook_event(
-    status: WebhookEventType,
+    event_type: WebhookEventType,
     transaction_status: NovalnetTransactionStatus,
 ) -> IncomingWebhookEvent {
-    match status {
+    match event_type {
         WebhookEventType::Payment => match transaction_status {
             NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
                 IncomingWebhookEvent::PaymentIntentSuccess
@@ -1168,6 +1178,27 @@ pub fn get_incoming_webhook_event(
         },
         WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
     }
+}
+
+#[derive(Display, Debug, Serialize, Deserialize)]
+pub enum WebhookDisputeStatus {
+    DisputeOpened,
+    DisputeWon,
+    Unknown
+}
+
+pub fn get_webhook_dispute_status(
+    payment_type: Option<ResponsePaymentType>,
+) -> WebhookDisputeStatus {
+    match payment_type {
+        Some(ResponsePaymentType::CreditcardRepresentment) => WebhookDisputeStatus::DisputeWon,
+        Some(ResponsePaymentType::CreditcardChargeback) => WebhookDisputeStatus::DisputeOpened,
+        _ => WebhookDisputeStatus::Unknown
+    }
+}
+
+pub fn option_to_result<T>(opt: Option<T>) -> Result<T, errors::ConnectorError> {
+    opt.ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)
 }
 
 pub fn reverse_string(s: &str) -> String {
