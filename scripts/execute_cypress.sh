@@ -107,20 +107,17 @@ function run_tests() {
 
 function check_dependencies() {
   # parallel and npm are mandatory dependencies. exit the script if not found.
-  # Check if gnu-parallel exist
-  if ! command_exists 'parallel'; then
-    echo "${RED}ERROR: GNU Parallel is not installed!${RESET}"
-    exit 1
-  fi
+  local dependencies=("parallel" "npm")
 
-  # Check if npm is installed
-  if ! command_exists 'npm'; then
-    echo "${RED}ERROR: NPM is not installed!${RESET}"
-    exit 1
-  else
-    # Re-install packages just so that they're intact
-    npm ci
-  fi
+  for cmd in "${dependencies[@]}"; do
+    if ! command_exists "$cmd"; then
+      print_color "RED" "ERROR: ${cmd^} is not installed!"
+      exit 1
+    fi
+  done
+
+  # Install npm packages
+  npm ci
 }
 
 function cleanup() {
