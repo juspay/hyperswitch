@@ -62,6 +62,9 @@ function run_tests() {
   local jobs="${1:-1}"
   local tmp_file=$(mktemp)
 
+  # Ensure temporary file is removed on script exit
+  trap 'rm -f "$tmp_file"' EXIT
+
   for service in "${connector_map[@]}"; do
     declare -n connectors="${service}"
 
@@ -84,12 +87,10 @@ function run_tests() {
     fi
   done
 
-  # Read failed connectors from the temporary file
-  failed_connectors=($(cat "$tmp_file"))
-  rm "$tmp_file"
-
-  if [ ${#failed_connectors[@]} -gt 0 ]; then
-    echo -e "${RED}One or more connectors failed to run:${RESET}"
+  # Collect failed connectors
+  if [[ -s "$tmp_file" ]]; then
+    failed_connectors=($(< "$tmp_file"))
+    print_color "RED" "One or more connectors failed to run:"
     printf '%s\n' "${failed_connectors[@]}"
     exit 1
   fi
