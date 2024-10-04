@@ -56,7 +56,7 @@ function execute_test() {
   local service="${2}"
   local tmp_file="${3}"
 
-  echo -e "Executing tests for ${service} with connector ${connector}..."
+  print_color "YELLOW" "Executing tests for ${service} with connector ${connector}..."
 
   export REPORT_NAME="${service}_${connector}_report"
   if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
@@ -88,11 +88,11 @@ function run_tests() {
         echo "${service}" >> "$tmp_file"
       fi
     else
-      # Connector test, i.e., payments or payouts
-      echo -e "Running tests for service: '${service}'\nWith connectors: [${connectors[*]}] in batch of ${jobs}..."
+      # Connector-specific tests (e.g., payments or payouts)
+      print_color "YELLOW" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
 
-      # Capture the output of execute_test
-      echo "${connectors[@]}" | tr ' ' '\n' | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
+      # Execute tests in parallel
+      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
     fi
   done
 
@@ -131,10 +131,11 @@ function main() {
   local command="${1:-}"
   local jobs="${2:-5}"
 
-  if [[ $(basename "$(pwd)") != "cypress-tests" ]]; then
-    echo "Changing directory to 'cypress-tests'..."
+  # Ensure script runs from 'cypress-tests' directory
+  if [[ "$(basename "$PWD")" != "cypress-tests" ]]; then
+    print_color "YELLOW" "Changing directory to 'cypress-tests'..."
     cd cypress-tests || {
-      echo "${RED}ERROR: Directory 'cypress-tests' not found!${RESET}"
+      print_color "RED" "ERROR: Directory 'cypress-tests' not found!"
       exit 1
     }
   fi
@@ -144,9 +145,9 @@ function main() {
 
   case "${command}" in
     --parallel | -p)
-      # At present, parallel execution is limited to batch of 5 to not run out of memory
-      echo "${YELLOW}WARNING: Running Cypress tests in parallel is more resource intensive!${RESET}"
-      run_tests "${jobs}"
+      print_color "YELLOW" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
+      # At present, parallel execution is limited to batch of 4 to not run out of memory
+      run_tests "$jobs"
       ;;
     *)
       run_tests 1
