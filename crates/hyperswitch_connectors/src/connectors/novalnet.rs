@@ -37,7 +37,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    disputes, errors,
+    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -872,51 +872,5 @@ impl webhooks::IncomingWebhook for Novalnet {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(notif))
-    }
-
-    fn get_dispute_details(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
-        let notif: transformers::NovalnetWebhookNotificationResponse =
-            get_webhook_object_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let (amount, currency, reason, reason_code, status) = match notif.transaction {
-            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
-                (data.amount, data.currency, None, None, Some(data.status))
-            }
-            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => {
-                (data.amount, data.currency, None, None, data.status)
-            }
-
-            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
-                (data.amount, data.currency, None, None, Some(data.status))
-            }
-
-            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => (
-                data.amount,
-                data.currency,
-                data.reason,
-                data.reason_code,
-                Some(data.status),
-            ),
-        };
-
-        fn option_to_result<T>(opt: Option<T>) -> Result<T, errors::ConnectorError> {
-            opt.ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)
-        }
-
-        Ok(disputes::DisputePayload {
-            amount: option_to_result(amount)?.to_string(),
-            currency: option_to_result(currency)?.to_string(),
-            dispute_stage: api_models::enums::DisputeStage::Dispute,
-            connector_dispute_id: notif.event.tid.to_string(),
-            connector_reason: reason,
-            connector_reason_code: reason_code,
-            challenge_required_by: None,
-            connector_status: option_to_result(status)?.to_string(),
-            created_at: None,
-            updated_at: None,
-        })
     }
 }

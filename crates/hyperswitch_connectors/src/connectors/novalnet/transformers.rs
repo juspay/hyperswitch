@@ -1103,7 +1103,6 @@ pub enum WebhookEventType {
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
-    Chargeback,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1166,7 +1165,6 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
-        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
     }
 }
 
