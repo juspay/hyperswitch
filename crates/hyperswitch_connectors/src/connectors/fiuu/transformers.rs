@@ -86,7 +86,7 @@ impl TryFrom<&ConnectorAuthType> for FiuuAuthType {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "UPPERCASE")]
-enum TxnType {
+pub enum TxnType {
     Sals,
     Auts,
 }
@@ -496,9 +496,9 @@ pub struct PaymentsResponse {
     pub reference_no: String,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
-    pub txn_type: String,
-    pub txn_currency: String,
-    pub txn_amount: String,
+    pub txn_type: TxnType,
+    pub txn_currency: Currency,
+    pub txn_amount: StringMajorUnit,
     pub txn_channel: String,
     pub txn_data: TxnData,
 }
@@ -507,9 +507,9 @@ pub struct PaymentsResponse {
 #[serde(rename_all = "PascalCase")]
 pub struct DuitNowQrCodeResponse {
     pub reference_no: String,
-    pub txn_type: String,
-    pub txn_currency: String,
-    pub txn_amount: String,
+    pub txn_type: TxnType,
+    pub txn_currency: Currency,
+    pub txn_amount: StringMajorUnit,
     pub txn_channel: String,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
