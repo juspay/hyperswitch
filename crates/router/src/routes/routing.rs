@@ -1010,7 +1010,7 @@ pub async fn toggle_success_based_routing(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::AdminApiAuth),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::RoutingWrite,
