@@ -52,9 +52,9 @@ function command_exists() {
 
 # Function to execute Cypress tests
 function execute_test() {
-  local connector="${1}"
-  local service="${2}"
-  local tmp_file="${3}"
+  local connector="$1"
+  local service="$2"
+  local tmp_file="$3"
 
   print_color "YELLOW" "Executing tests for ${service} with connector ${connector}..."
 
@@ -75,10 +75,11 @@ function run_tests() {
   trap 'rm -f "$tmp_file"' EXIT
 
   for service in "${connector_map[@]}"; do
-    declare -n connectors="${service}"
+    # Use indirect reference to get the array by service name
+    declare -n connectors="$service"
 
     if [[ ${#connectors[@]} -eq 0 ]]; then
-      # A service level test i.e., payment method list or routing
+      # Service-level test (e.g., payment-method-list or routing)
       [[ $service == "payment_method_list" ]] && service="payment-method-list"
 
       echo "Running ${service} tests without connectors..."
@@ -105,6 +106,7 @@ function run_tests() {
   fi
 }
 
+# Function to check and install dependencies
 function check_dependencies() {
   # parallel and npm are mandatory dependencies. exit the script if not found.
   local dependencies=("parallel" "npm")
@@ -124,6 +126,7 @@ function cleanup() {
   unset PAYMENTS PAYOUTS PAYMENT_METHOD_LIST ROUTING
 }
 
+# Main function
 function main() {
   local command="${1:-}"
   local jobs="${2:-5}"
@@ -140,7 +143,7 @@ function main() {
   check_dependencies
   read_service_arrays
 
-  case "${command}" in
+  case "$command" in
     --parallel | -p)
       print_color "YELLOW" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
       # At present, parallel execution is limited to batch of 4 to not run out of memory
