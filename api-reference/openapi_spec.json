@@ -1156,7 +1156,7 @@
         ]
       }
     },
-    "/organization/{organization_id}": {
+    "/organization/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -1166,7 +1166,7 @@
         "operationId": "Retrieve an Organization",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
@@ -1205,7 +1205,7 @@
         "operationId": "Update an Organization",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
