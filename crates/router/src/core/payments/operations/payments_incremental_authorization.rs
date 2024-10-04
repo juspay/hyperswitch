@@ -89,12 +89,6 @@ impl<F: Send + Clone>
             })?
         }
 
-        if payment_intent.amount > request.amount {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Amount should be greater than original authorized amount".to_owned(),
-            })?
-        }
-
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -105,6 +99,12 @@ impl<F: Send + Clone>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if payment_attempt.get_total_amount() > request.amount {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Amount should be greater than original authorized amount".to_owned(),
+            })?
+        }
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount();
@@ -232,7 +232,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             error_code: None,
             error_message: None,
             connector_authorization_id: None,
-            previously_authorized_amount: payment_data.payment_intent.amount,
+            previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
         };
         let authorization = state
             .store

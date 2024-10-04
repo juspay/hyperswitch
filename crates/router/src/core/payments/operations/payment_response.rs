@@ -1657,7 +1657,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 tokenization::update_connector_mandate_details_in_payment_method(
                     payment_method.clone(),
                     payment_method.payment_method_type,
-                    Some(payment_data.payment_attempt.amount.get_amount_as_i64()),
+                    Some(
+                        payment_data
+                            .payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,

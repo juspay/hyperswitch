@@ -459,7 +459,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let payment_attempt = payment_attempt.populate_derived_fields();
                 let merchant_id = payment_attempt.merchant_id.clone();
                 let payment_id = payment_attempt.payment_id.clone();
                 let key = PartitionKey::MerchantIdPaymentId {
@@ -472,15 +471,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     merchant_id: payment_attempt.merchant_id.clone(),
                     attempt_id: payment_attempt.attempt_id.clone(),
                     status: payment_attempt.status,
-                    amount: payment_attempt.amount,
-                    net_amount: payment_attempt.net_amount,
+                    net_amount:
+                        hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                            payment_attempt.net_amount.get_order_amount(),
+                            payment_attempt.net_amount.get_shipping_cost(),
+                            payment_attempt.net_amount.get_order_tax_amount(),
+                            payment_attempt.net_amount.get_surcharge_amount(),
+                            payment_attempt.net_amount.get_tax_on_surcharge(),
+                        ),
                     currency: payment_attempt.currency,
                     save_to_locker: payment_attempt.save_to_locker,
                     connector: payment_attempt.connector.clone(),
                     error_message: payment_attempt.error_message.clone(),
                     offer_amount: payment_attempt.offer_amount,
-                    surcharge_amount: payment_attempt.surcharge_amount,
-                    tax_amount: payment_attempt.tax_amount,
                     payment_method_id: payment_attempt.payment_method_id.clone(),
                     payment_method: payment_attempt.payment_method,
                     connector_transaction_id: None,
@@ -534,8 +537,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
-                    shipping_cost: payment_attempt.shipping_cost,
-                    order_tax_amount: payment_attempt.order_tax_amount,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1379,15 +1380,15 @@ impl DataModelExt for PaymentAttempt {
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount,
-            net_amount: Some(self.net_amount),
+            amount: self.net_amount.get_order_amount(),
+            net_amount: Some(self.net_amount.get_total_amount()),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
             offer_amount: self.offer_amount,
-            surcharge_amount: self.surcharge_amount,
-            tax_amount: self.tax_amount,
+            surcharge_amount: self.net_amount.get_surcharge_amount(),
+            tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             connector_transaction_id: self.connector_transaction_id,
@@ -1444,26 +1445,29 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
-            shipping_cost: self.shipping_cost,
-            order_tax_amount: self.order_tax_amount,
+            shipping_cost: self.net_amount.get_shipping_cost(),
+            order_tax_amount: self.net_amount.get_order_tax_amount(),
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            net_amount: storage_model.get_or_calculate_net_amount(),
+            net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                storage_model.amount,
+                storage_model.shipping_cost,
+                storage_model.order_tax_amount,
+                storage_model.surcharge_amount,
+                storage_model.tax_amount,
+            ),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
-            amount: storage_model.amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
             offer_amount: storage_model.offer_amount,
-            surcharge_amount: storage_model.surcharge_amount,
-            tax_amount: storage_model.tax_amount,
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             connector_transaction_id: storage_model.connector_transaction_id,
@@ -1515,8 +1519,6 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
-            shipping_cost: storage_model.shipping_cost,
-            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }
@@ -1527,19 +1529,19 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
-            net_amount: Some(self.net_amount),
+            net_amount: Some(self.net_amount.get_total_amount()),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount,
+            amount: self.net_amount.get_order_amount(),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
             offer_amount: self.offer_amount,
-            surcharge_amount: self.surcharge_amount,
-            tax_amount: self.tax_amount,
+            surcharge_amount: self.net_amount.get_surcharge_amount(),
+            tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             capture_method: self.capture_method,
@@ -1597,26 +1599,29 @@ impl DataModelExt for PaymentAttemptNew {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
-            shipping_cost: self.shipping_cost,
-            order_tax_amount: self.order_tax_amount,
+            shipping_cost: self.net_amount.get_shipping_cost(),
+            order_tax_amount: self.net_amount.get_order_tax_amount(),
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
-            net_amount: storage_model.get_or_calculate_net_amount(),
+            net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                storage_model.amount,
+                storage_model.shipping_cost,
+                storage_model.order_tax_amount,
+                storage_model.surcharge_amount,
+                storage_model.tax_amount,
+            ),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
-            amount: storage_model.amount,
             currency: storage_model.currency,
             save_to_locker: storage_model.save_to_locker,
             connector: storage_model.connector,
             error_message: storage_model.error_message,
             offer_amount: storage_model.offer_amount,
-            surcharge_amount: storage_model.surcharge_amount,
-            tax_amount: storage_model.tax_amount,
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
             capture_method: storage_model.capture_method,
@@ -1667,8 +1672,6 @@ impl DataModelExt for PaymentAttemptNew {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
-            shipping_cost: storage_model.shipping_cost,
-            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }
