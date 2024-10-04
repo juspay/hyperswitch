@@ -1927,20 +1927,27 @@ Cypress.Commands.add("updateGsmConfig", (gsmBody, globalState, step_up_possible)
 });
 
 Cypress.Commands.add("updateConfig", (configType, configData, globalState, value) => {
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  
+  let key;
   let url;
   let body;
 
   switch (configType) {
     case "autoRetry":
-      url = `${globalState.get("baseUrl")}/configs/autoRetry`;
+      key = `should_call_gsm_${merchant_id}`;
+      url = `${base_url}/configs/${key}`;
       body = { ...configData, enable: value }; // enable or disable autoRetry
       break;
     case "maxRetries":
-      url = `${globalState.get("baseUrl")}/configs/maxRetries`;
+      key = `max_auto_retries_enabled_${merchant_id}`;
+      url = `${base_url}/configs/${key}`;
       body = { ...configData, retries: value }; // set max retries
       break;
     case "stepUp":
-      url = `${globalState.get("baseUrl")}/configs/stepUp`;
+      key = `step_up_enabled_${merchant_id}`;
+      url = `${base_url}/configs/${key}`;
       body = { ...configData, connectors: value }; // step-up configurations
       break;
     default:
