@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -o nounset -euo pipefail -o errexit
 
 # define colors
 RESET='\033[0m'
