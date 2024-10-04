@@ -16,7 +16,9 @@ use hyperswitch_domain_models::{
         BankRedirectData, Card, GooglePayWalletData, PaymentMethodData, RealTimePaymentData,
         WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData,PaymentMethodToken,ApplePayPredecryptData},
+    router_data::{
+        ApplePayPredecryptData, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -39,7 +41,9 @@ use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-    }, unimplemented_payment_method, utils::{self, PaymentsAuthorizeRequestData, QrImage, RouterData as _, ApplePayDecrypt}
+    },
+    unimplemented_payment_method,
+    utils::{self, ApplePayDecrypt, PaymentsAuthorizeRequestData, QrImage, RouterData as _},
 };
 
 pub struct FiuuRouterData<T> {
@@ -185,9 +189,8 @@ pub enum FiuuPaymentMethodData {
     FiuuCardData(Box<FiuuCardData>),
     FiuuFpxData(Box<FiuuFPXData>),
     FiuuGooglePayData(Box<FiuuGooglePayData>),
-    FiuuApplePayData(Box<FiuuApplePayData>)
+    FiuuApplePayData(Box<FiuuApplePayData>),
 }
-
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -217,7 +220,7 @@ pub struct FiuuCardData {
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub struct FiuuApplePayData{
+pub struct FiuuApplePayData {
     #[serde(rename = "TxnChannel")]
     txn_channel: TxnChannel,
     cc_month: Secret<String>,
@@ -232,7 +235,7 @@ pub struct FiuuApplePayData{
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub enum FiuuTokenType{
+pub enum FiuuTokenType {
     ApplePay,
     GooglePay,
 }
@@ -261,7 +264,7 @@ pub struct FiuuGooglePayData {
     tokenization_data_type: Secret<String>,
     #[serde(rename = "GooglePay[paymentMethodData][type]")]
     pm_type: String,
-    #[serde(rename= "SCREAMING_SNAKE_CASE")]
+    #[serde(rename = "SCREAMING_SNAKE_CASE")]
     token_type: FiuuTokenType,
     #[serde(rename = "non_3DS")]
     non_3ds: i32,
@@ -353,20 +356,16 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
                     FiuuPaymentMethodData::try_from(google_pay_data)
-                },
+                }
                 WalletData::ApplePay(_apple_pay_data) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
                     match payment_method_token {
                         PaymentMethodToken::Token(_) => {
-                            Err(unimplemented_payment_method!(
-                                "Apple Pay",
-                                "Manual",
-                                "Fiuu"
-                            ))?
-                        },
+                            Err(unimplemented_payment_method!("Apple Pay", "Manual", "Fiuu"))?
+                        }
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             FiuuPaymentMethodData::try_from(decrypt_data)
-                        }  
+                        }
                     }
                 }
                 WalletData::AliPayQr(_)
@@ -476,9 +475,9 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
 impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
     type Error = Report<errors::ConnectorError>;
     fn try_from(decrypt_data: Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
-        Ok(Self::FiuuApplePayData(Box::new(FiuuApplePayData{
+        Ok(Self::FiuuApplePayData(Box::new(FiuuApplePayData {
             txn_channel: TxnChannel::Creditan,
-            cc_month: decrypt_data.get_expiry_month()? ,
+            cc_month: decrypt_data.get_expiry_month()?,
             cc_year: decrypt_data.get_four_digit_expiry_year()?,
             cc_token: decrypt_data.application_primary_account_number,
             eci: decrypt_data.payment_data.eci_indicator,
@@ -948,7 +947,9 @@ impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
             (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
             (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknow as StatName.
             (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
-            (StatCode::Failure, StatName::Cancelled) | (StatCode::Failure, StatName::ReqCancel) => Ok(Self::Voided),
+            (StatCode::Failure, StatName::Cancelled) | (StatCode::Failure, StatName::ReqCancel) => {
+                Ok(Self::Voided)
+            }
             (StatCode::Failure, _) => Ok(Self::Failure),
             (other, _) => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from(other.to_string()),
