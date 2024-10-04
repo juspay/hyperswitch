@@ -112,11 +112,7 @@ export const bank_redirect_ideal_and_credit_enabled = [
   },
 ];
 
-export const create_payment_body_with_currency_country = (
-  currency,
-  billingCountry,
-  shippingCountry
-) => ({
+export const create_payment_body_with_currency_country = (currency, billingCountry, shippingCountry) => ({
   currency: currency,
   amount: 6500,
   authentication_type: "three_ds",

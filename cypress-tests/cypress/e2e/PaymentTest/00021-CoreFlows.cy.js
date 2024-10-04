@@ -145,11 +145,7 @@ describe("Core flows", () => {
     });
 
     it("Connector update call", () => {
-      cy.connectorUpdateCall(
-        "payment_processor",
-        fixtures.updateConnectorBody,
-        globalState
-      );
+      cy.connectorUpdateCall("payment_processor", fixtures.updateConnectorBody, globalState);
     });
 
     it("List connectors by MID", () => {

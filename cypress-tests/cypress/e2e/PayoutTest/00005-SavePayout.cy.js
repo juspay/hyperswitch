@@ -42,9 +42,7 @@ describe("[Payout] Saved Card", () => {
     });
 
     it("create payment method", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["SavePayoutMethod"];
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SavePayoutMethod"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createPaymentMethodTest(globalState, req_data, res_data);
@@ -55,22 +53,12 @@ describe("[Payout] Saved Card", () => {
     });
 
     it("confirm-payout-call-with-auto-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Token"];
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Token"];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.createConfirmWithTokenPayoutTest(
-        payoutBody,
-        req_data,
-        res_data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmWithTokenPayoutTest(payoutBody, req_data, res_data, true, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -78,68 +66,45 @@ describe("[Payout] Saved Card", () => {
     });
   });
 
-  context(
-    "[Payout] [Card] Save payment method after successful transaction",
-    () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  context("[Payout] [Card] Save payment method after successful transaction", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
-      beforeEach(function () {
-        if (!should_continue) {
-          this.skip();
-        }
-      });
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
 
-      it("create customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("confirm-payout-call-with-auto-fulfill-test", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Fulfill"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.createConfirmPayoutTest(
-          payoutBody,
-          req_data,
-          res_data,
-          true,
-          true,
-          globalState
-        );
+    it("confirm-payout-call-with-auto-fulfill-test", () => {
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Fulfill"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createConfirmPayoutTest(payoutBody, req_data, res_data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
-      });
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
+    });
 
-      it("list customer payment methods", () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
+    it("list customer payment methods", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
 
-      it("confirm-payout-call-with-auto-fulfill-test", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Token"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.createConfirmWithTokenPayoutTest(
-          payoutBody,
-          req_data,
-          res_data,
-          true,
-          true,
-          globalState
-        );
+    it("confirm-payout-call-with-auto-fulfill-test", () => {
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Token"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createConfirmWithTokenPayoutTest(payoutBody, req_data, res_data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
-      });
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
+    });
 
-      it("retrieve-payout-call-test", () => {
-        cy.retrievePayoutCallTest(globalState);
-      });
-    }
-  );
+    it("retrieve-payout-call-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
 });
 
 describe("[Payout] Saved Bank transfer", () => {
@@ -166,116 +131,80 @@ describe("[Payout] Saved Bank transfer", () => {
     }
   });
 
-  context(
-    "[Payout] [Bank Transfer] Onboard Customer Prior to Transaction",
-    () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
-      beforeEach("reset payoutBody", () => {
-        payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-      });
+  context("[Payout] [Bank Transfer] Onboard Customer Prior to Transaction", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    beforeEach("reset payoutBody", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+    });
 
-      it("create customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("create payment method", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["sepa"]["SavePayoutMethod"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.createPaymentMethodTest(globalState, req_data, res_data);
-      });
+    it("create payment method", () => {
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["sepa"][
+        "SavePayoutMethod"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createPaymentMethodTest(globalState, req_data, res_data);
+    });
 
-      it("list customer payment methods", () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
+    it("list customer payment methods", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
 
-      it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["sepa"]["Token"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.createConfirmWithTokenPayoutTest(
-          payoutBody,
-          req_data,
-          res_data,
-          true,
-          true,
-          globalState
-        );
+    it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["sepa"]["Token"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createConfirmWithTokenPayoutTest(payoutBody, req_data, res_data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
-      });
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
+    });
 
-      it("retrieve-payout-call-test", () => {
-        cy.retrievePayoutCallTest(globalState);
-      });
-    }
-  );
+    it("retrieve-payout-call-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
 
-  context(
-    "[Payout] [Bank Transfer] Save payment method after successful transaction",
-    () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  context("[Payout] [Bank Transfer] Save payment method after successful transaction", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
-      beforeEach(function () {
-        if (!should_continue) {
-          this.skip();
-        }
-      });
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
 
-      it("create customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("confirm-payout-call-with-auto-fulfill-test", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["sepa"]["Fulfill"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.createConfirmPayoutTest(
-          payoutBody,
-          req_data,
-          res_data,
-          true,
-          true,
-          globalState
-        );
+    it("confirm-payout-call-with-auto-fulfill-test", () => {
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["sepa"]["Fulfill"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createConfirmPayoutTest(payoutBody, req_data, res_data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
-      });
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
+    });
 
-      it("list customer payment methods", () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
+    it("list customer payment methods", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
 
-      it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["sepa"]["Token"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.createConfirmWithTokenPayoutTest(
-          payoutBody,
-          req_data,
-          res_data,
-          true,
-          true,
-          globalState
-        );
+    it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
+      let data = utils.getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["sepa"]["Token"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createConfirmWithTokenPayoutTest(payoutBody, req_data, res_data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
-      });
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
+    });
 
-      it("retrieve-payout-call-test", () => {
-        cy.retrievePayoutCallTest(globalState);
-      });
-    }
-  );
+    it("retrieve-payout-call-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
 });

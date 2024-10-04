@@ -143,9 +143,7 @@ export const getCustomExchange = (overrides) => {
       ...defaultExchange.Response,
       ...(overrides.Response || {}),
     },
-    ...(overrides.ResponseCustom
-      ? { ResponseCustom: overrides.ResponseCustom }
-      : {}),
+    ...(overrides.ResponseCustom ? { ResponseCustom: overrides.ResponseCustom } : {}),
   };
 };
 
@@ -659,8 +657,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "You cannot cancel this payment because it has status succeeded",
+            message: "You cannot cancel this payment because it has status succeeded",
             code: "IR_16",
           },
         },
@@ -1148,8 +1145,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "amount_to_capture contains invalid data. Expected format is amount_to_capture lesser than amount",
+            message: "amount_to_capture contains invalid data. Expected format is amount_to_capture lesser than amount",
             code: "IR_05",
           },
         },
@@ -1255,8 +1251,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "You cannot confirm this payment because it has status succeeded",
+            message: "You cannot confirm this payment because it has status succeeded",
             code: "IR_16",
           },
         },
