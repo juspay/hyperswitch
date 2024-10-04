@@ -1,5 +1,8 @@
 #!/bin/bash
-set -o nounset -euo pipefail -o errexit
+
+# Exit immediately if a command exits with a non-zero status,
+# Treat unset variables as an error, and prevent errors in a pipeline from being masked
+set -euo pipefail
 
 # define colors
 RESET='\033[0m'
