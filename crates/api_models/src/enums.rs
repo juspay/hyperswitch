@@ -46,7 +46,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -95,6 +94,7 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
@@ -114,6 +114,7 @@ pub enum Connector {
     Multisafepay,
     Netcetera,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
@@ -215,7 +216,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Nexixpay
 			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
@@ -251,6 +251,7 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Nexixpay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode

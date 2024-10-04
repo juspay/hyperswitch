@@ -94,57 +94,37 @@ pub trait Router {}
 pub trait Connector:
     Send
     + Refund
-    + RefundV2
     + Payment
-    + PaymentV2
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
-    + ConnectorAccessTokenV2
     + Dispute
-    + DisputeV2
     + FileUpload
-    + FileUploadV2
     + ConnectorTransactionId
     + Payouts
-    + PayoutsV2
     + ConnectorVerifyWebhookSource
-    + ConnectorVerifyWebhookSourceV2
     + FraudCheck
-    + FraudCheckV2
     + ConnectorMandateRevoke
-    + ConnectorMandateRevokeV2
     + ExternalAuthentication
-    + ExternalAuthenticationV2
     + TaxCalculation
 {
 }
 
 impl<
         T: Refund
-            + RefundV2
             + Payment
-            + PaymentV2
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
-            + ConnectorAccessTokenV2
             + Dispute
-            + DisputeV2
             + FileUpload
-            + FileUploadV2
             + ConnectorTransactionId
             + Payouts
-            + PayoutsV2
             + ConnectorVerifyWebhookSource
-            + ConnectorVerifyWebhookSourceV2
             + FraudCheck
-            + FraudCheckV2
             + ConnectorMandateRevoke
-            + ConnectorMandateRevokeV2
             + ExternalAuthentication
-            + ExternalAuthenticationV2
             + TaxCalculation,
     > Connector for T
 {
@@ -392,6 +372,10 @@ impl ConnectorData {
                 enums::Connector::Deutschebank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
                 }
+                // tempplate code for future usage
+                // enums::Connector::Digitalvirgo => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
+                // }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
@@ -450,6 +434,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
+                enums::Connector::Nexixpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
+                }
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
                 enums::Connector::Novalnet => {
