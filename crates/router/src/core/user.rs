@@ -67,7 +67,6 @@ pub async fn signup_with_merchant_id(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
-            None,
         )
         .await?;
 
@@ -146,7 +145,6 @@ pub async fn signup_token_only_flow(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
-            None,
         )
         .await?;
 
@@ -247,7 +245,6 @@ pub async fn connect_account(
                 state.clone(),
                 common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
-                None,
             )
             .await?;
 
@@ -657,7 +654,7 @@ async fn handle_existing_user_invitation(
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
-                .insert_in_v1_and_v2(state)
+                .insert_in_v2(state)
                 .await?
         }
         EntityType::Profile => {
@@ -767,14 +764,21 @@ async fn handle_new_user_invitation(
     };
 
     let _user_role = match role_info.get_entity_type() {
-        EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+        EntityType::Organization => {
+            user_role
+                .add_entity(domain::OrganizationLevel {
+                    org_id: user_from_token.org_id.clone(),
+                })
+                .insert_in_v2(state)
+                .await?
+        }
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
-                .insert_in_v1_and_v2(state)
+                .insert_in_v2(state)
                 .await?
         }
         EntityType::Profile => {
@@ -1128,7 +1132,7 @@ pub async fn create_internal_user(
             org_id: internal_merchant.organization_id,
             merchant_id: internal_merchant_id,
         })
-        .insert_in_v1_and_v2(&state)
+        .insert_in_v2(&state)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1142,27 +1146,10 @@ pub async fn create_merchant_account(
 ) -> UserResponse<()> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
-    let new_user = domain::NewUser::try_from((user_from_db, req, user_from_token))?;
-    let new_merchant = new_user.get_new_merchant();
+    let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
     new_merchant
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
-
-    let role_insertion_res = new_user
-        .insert_org_level_user_role_in_db(
-            state.clone(),
-            common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
-            UserStatus::Active,
-            Some(UserRoleVersion::V1),
-        )
-        .await;
-    if let Err(e) = role_insertion_res {
-        let _ = state
-            .store
-            .delete_merchant_account_by_merchant_id(&new_merchant.get_merchant_id())
-            .await;
-        return Err(e);
-    }
 
     Ok(ApplicationResponse::StatusOk)
 }
