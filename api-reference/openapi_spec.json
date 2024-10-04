@@ -22986,7 +22986,8 @@
           "account_holder_name",
           "bic",
           "country",
-          "iban"
+          "iban",
+          "reference"
         ],
         "properties": {
           "account_holder_name": {
@@ -23003,6 +23004,10 @@
           "iban": {
             "type": "string",
             "example": "123456789"
+          },
+          "reference": {
+            "type": "string",
+            "example": "U2PVVSEV4V9Y"
           }
         }
       },

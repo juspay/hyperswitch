@@ -3800,6 +3800,8 @@ pub struct SepaBankTransferInstructions {
     pub country: String,
     #[schema(value_type = String, example = "123456789")]
     pub iban: Secret<String>,
+    #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
+    pub reference: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
