@@ -1,3 +1,6 @@
+import { create_payment_body_with_currency } from "../PaymentMethodListUtils/Commons";
+import getConnectorDetails from "../PaymentMethodListUtils/Utils";
+
 const dateRangeOptions = [
   "Last 30 Mins",
   "Last 1 Hour",
@@ -36,6 +39,24 @@ const paymentOperationTableColumns = [
   "Metadata",
   "Created",
 ];
+
+const currencies = ["INR", "USD", "EUR"];
+
+// Helper function to create payments for different currencies.
+const createPayments = (cy, currency) => {
+  let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+  let req_data = data[`RequestCurrency${currency}`];
+  let res_data = data["Response"];
+
+  cy.createPaymentIntentTest(
+    create_payment_body_with_currency(currency),
+    req_data,
+    res_data,
+    "no_three_ds",
+    "automatic",
+    globalState
+  );
+};
 
 describe("connector", () => {
   const username = "test@gmail.com";
@@ -97,11 +118,14 @@ describe("connector", () => {
     cy.navigateFromSideMenu("Operations/Payments");
     // Verify the URL to ensure the redirection to the "Payment Operations" page.
     cy.url().should("include", `/dashboard/payments`);
-    // TODO: Add these assertions to the test case later once discussed with the team.
     // Make 3 payments.
+    currencies.forEach((currency) => {
+      createPayments(cy, currency);
+    });
+    
+    // TODO: Add these assertions to the test case later once discussed with the team.
     // Verify the payments are displayed in the table with valid payment details.
     // Verify the table contains the following columns.
-    // select using table tag
     cy.get("table").within(() => {
       paymentOperationTableColumns.forEach((column) => cy.get("th").should("have.text", column));
     });
