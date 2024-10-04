@@ -1156,7 +1156,7 @@
         ]
       }
     },
-    "/organization/{organization_id}": {
+    "/organization/{id}": {
       "get": {
         "tags": [
           "Organization"
