@@ -5027,10 +5027,10 @@ pub fn decrypt_paze_token(
     let jws_body: JwsBody = serde_json::from_slice(&decoded_jwe_key)
         .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
 
-    let (dst_payload, _dst_header) =
+    let (deserialized_payload, _deserialized_header) =
         jwe::deserialize_compact(&jws_body.secured_payload, &decrypter)
             .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
-    let encoded_secured_payload_element = String::from_utf8(dst_payload)
+    let encoded_secured_payload_element = String::from_utf8(deserialized_payload)
         .change_context(errors::PazeDecryptionError::DecryptionFailed)?
         .split('.')
         .collect::<Vec<&str>>()

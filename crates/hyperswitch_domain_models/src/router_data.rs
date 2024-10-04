@@ -267,7 +267,7 @@ pub struct PazeToken {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDynamicData {
-    pub dynamic_data_value: Option<String>,
+    pub dynamic_data_value: Option<Secret<String>>,
     pub dynamic_data_type: Option<String>,
     pub dynamic_data_expiration: Option<String>,
 }

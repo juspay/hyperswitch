@@ -2667,54 +2667,79 @@ async fn decide_payment_method_tokenize_action(
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
     apple_pay_flow: Option<domain::ApplePayFlow>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
 ) -> RouterResult<TokenizationAction> {
-    match pm_parent_token {
-        None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
-            (true, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
-                TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
-                    payment_processing_details,
-                )
-            }
-            (true, _) => TokenizationAction::TokenizeInConnectorAndRouter,
-            (false, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
-                TokenizationAction::DecryptApplePayToken(payment_processing_details)
-            }
-            (false, _) => TokenizationAction::TokenizeInRouter,
-        }),
-        Some(token) => {
-            let redis_conn = state
-                .store
-                .get_redis_conn()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get redis connection")?;
+    if let Some(storage_enums::PaymentMethodType::Paze) = payment_method_type {
+        // Paze generates a one time use network token which should not be tokenized in the connector or router.
+        Ok(TokenizationAction::DecryptPazeToken(
+            PazePaymentProcessingDetails {
+                paze_private_key: state
+                    .conf
+                    .paze_decrypt_keys
+                    .get_inner()
+                    .paze_private_key
+                    .clone(),
+                paze_private_key_passphrase: state
+                    .conf
+                    .paze_decrypt_keys
+                    .get_inner()
+                    .paze_private_key_passphrase
+                    .clone(),
+            },
+        ))
+    } else {
+        match pm_parent_token {
+            None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
+                (true, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
+                    TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+                        payment_processing_details,
+                    )
+                }
+                (true, _) => TokenizationAction::TokenizeInConnectorAndRouter,
+                (false, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
+                    TokenizationAction::DecryptApplePayToken(payment_processing_details)
+                }
+                (false, _) => TokenizationAction::TokenizeInRouter,
+            }),
+            Some(token) => {
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
 
-            let key = format!(
-                "pm_token_{}_{}_{}",
-                token.to_owned(),
-                payment_method,
-                connector_name
-            );
+                let key = format!(
+                    "pm_token_{}_{}_{}",
+                    token.to_owned(),
+                    payment_method,
+                    connector_name
+                );
 
-            let connector_token_option = redis_conn
-                .get_key::<Option<String>>(&key)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch the token from redis")?;
+                let connector_token_option = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?;
 
-            match connector_token_option {
-                Some(connector_token) => Ok(TokenizationAction::ConnectorToken(connector_token)),
-                None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
-                    (true, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
-                        TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+                match connector_token_option {
+                    Some(connector_token) => {
+                        Ok(TokenizationAction::ConnectorToken(connector_token))
+                    }
+                    None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
+                        (
+                            true,
+                            Some(domain::ApplePayFlow::Simplified(payment_processing_details)),
+                        ) => TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
                             payment_processing_details,
-                        )
-                    }
-                    (true, _) => TokenizationAction::TokenizeInConnectorAndRouter,
-                    (false, Some(domain::ApplePayFlow::Simplified(payment_processing_details))) => {
-                        TokenizationAction::DecryptApplePayToken(payment_processing_details)
-                    }
-                    (false, _) => TokenizationAction::TokenizeInRouter,
-                }),
+                        ),
+                        (true, _) => TokenizationAction::TokenizeInConnectorAndRouter,
+                        (
+                            false,
+                            Some(domain::ApplePayFlow::Simplified(payment_processing_details)),
+                        ) => TokenizationAction::DecryptApplePayToken(payment_processing_details),
+                        (false, _) => TokenizationAction::TokenizeInRouter,
+                    }),
+                }
             }
         }
     }
@@ -2818,34 +2843,16 @@ where
                 payment_data.get_payment_attempt().merchant_id.clone(),
             );
 
-            let payment_method_action =
-                if let Some(storage_enums::PaymentMethodType::Paze) = payment_method_type {
-                    // Paze generates a one time use network token which should not be tokenized in the connector or router.
-                    TokenizationAction::DecryptPazeToken(PazePaymentProcessingDetails {
-                        paze_private_key: state
-                            .conf
-                            .paze_decrypt_keys
-                            .get_inner()
-                            .paze_private_key
-                            .clone(),
-                        paze_private_key_passphrase: state
-                            .conf
-                            .paze_decrypt_keys
-                            .get_inner()
-                            .paze_private_key_passphrase
-                            .clone(),
-                    })
-                } else {
-                    decide_payment_method_tokenize_action(
-                        state,
-                        &connector,
-                        payment_method,
-                        payment_data.get_token(),
-                        is_connector_tokenization_enabled,
-                        apple_pay_flow,
-                    )
-                    .await?
-                };
+            let payment_method_action = decide_payment_method_tokenize_action(
+                state,
+                &connector,
+                payment_method,
+                payment_data.get_token(),
+                is_connector_tokenization_enabled,
+                apple_pay_flow,
+                payment_method_type.clone(),
+            )
+            .await?;
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {

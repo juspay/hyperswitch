@@ -135,7 +135,6 @@ pub struct MifinityData {
     pub language_preference: Option<String>,
 }
 
-//this data goes to connector: remove this comment
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PazeWalletData {
