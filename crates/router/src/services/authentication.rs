@@ -1467,8 +1467,16 @@ pub struct JWTAuthProfileFromRoute {
     pub required_permission: Permission,
     pub minimum_entity_level: EntityType,
 }
+
+pub struct JWTAuthProfileAndMerchantFromRoute {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+    pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
+}
+
 #[async_trait]
-impl<A> AuthenticateAndFetch<(), A> for JWTAuthProfileFromRoute
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthProfileAndMerchantFromRoute
 where
     A: SessionStateInfo + Sync,
 {
@@ -1487,13 +1495,15 @@ where
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         if let Some(ref payload_profile_id) = payload.profile_id {
-            if *payload_profile_id != self.profile_id {
+            if payload_profile_id.clone() != self.profile_id
+                && payload.merchant_id != self.merchant_id
+            {
                 return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
             } else {
                 Ok((
                     (),
                     AuthenticationType::MerchantJwt {
-                        merchant_id: payload.merchant_id.clone(),
+                        merchant_id: self.merchant_id.clone(),
                         user_id: Some(payload.user_id),
                     },
                 ))

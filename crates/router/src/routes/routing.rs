@@ -1012,7 +1012,8 @@ pub async fn toggle_success_based_routing(
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthProfileFromRoute {
+            &auth::JWTAuthProfileAndMerchantFromRoute {
+                merchant_id: wrapper.merchant_id,
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::RoutingWrite,
                 minimum_entity_level: EntityType::Profile,
