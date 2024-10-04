@@ -2478,11 +2478,11 @@ pub fn get_connector_metadata(
                             financial_address
                                 .iban
                                 .to_owned()
-                                .map(|ele| SepaFinancialDetails {
-                                    account_holder_name: ele.account_holder_name,
-                                    bic: ele.bic,
-                                    country: ele.country,
-                                    iban: ele.iban,
+                                .map(|sepa_financial_details| SepaFinancialDetails {
+                                    account_holder_name: sepa_financial_details.account_holder_name,
+                                    bic: sepa_financial_details.bic,
+                                    country: sepa_financial_details.country,
+                                    iban: sepa_financial_details.iban,
                                     reference: response.reference.to_owned(),
                                 }),
                             financial_address.sort_code.to_owned(),
