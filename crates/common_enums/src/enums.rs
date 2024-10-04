@@ -160,7 +160,6 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
-    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -209,6 +208,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Datatrans,
     Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
@@ -226,6 +226,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
