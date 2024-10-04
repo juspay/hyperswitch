@@ -225,13 +225,16 @@ pub struct FiuuApplePayData{
     cc_token: Secret<String>,
     eci: Option<String>,
     token_cryptogram: Secret<String>,
-    token_type: FiuuTokenType
+    token_type: FiuuTokenType,
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
 }
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub enum FiuuTokenType{
     ApplePay,
+    GooglePay,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -255,9 +258,13 @@ pub struct FiuuGooglePayData {
     #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][token]")]
     token: Secret<String>,
     #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][type]")]
-    token_type: Secret<String>,
+    tokenization_data_type: Secret<String>,
     #[serde(rename = "GooglePay[paymentMethodData][type]")]
     pm_type: String,
+    #[serde(rename= "SCREAMING_SNAKE_CASE")]
+    token_type: FiuuTokenType,
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
 }
 
 pub fn calculate_signature(
@@ -456,8 +463,12 @@ impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
             card_details: data.info.card_details.clone(),
             card_network: data.info.card_network.clone(),
             token: data.tokenization_data.token.clone().into(),
-            token_type: data.tokenization_data.token_type.clone().into(),
+            tokenization_data_type: data.tokenization_data.token_type.clone().into(),
             pm_type: data.pm_type.clone(),
+            token_type: FiuuTokenType::GooglePay,
+            // non_3ds field Applicable to card processing via specific processor using specific currency for pre-approved partner only.
+            // Equal to 0 by default and 1 for non-3DS transaction, That is why it is hardcoded to 1 for googlepay transactions.
+            non_3ds: 1,
         })))
     }
 }
@@ -473,6 +484,9 @@ impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
             eci: decrypt_data.payment_data.eci_indicator,
             token_cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
             token_type: FiuuTokenType::ApplePay,
+            // non_3ds field Applicable to card processing via specific processor using specific currency for pre-approved partner only.
+            // Equal to 0 by default and 1 for non-3DS transaction, That is why it is hardcoded to 1 for apple pay decrypt flow transactions.
+            non_3ds: 1,
         })))
     }
 }
@@ -934,7 +948,7 @@ impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
             (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
             (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknow as StatName.
             (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
-            (StatCode::Failure, StatName::Cancelled) => Ok(Self::Voided),
+            (StatCode::Failure, StatName::Cancelled) | (StatCode::Failure, StatName::ReqCancel) => Ok(Self::Voided),
             (StatCode::Failure, _) => Ok(Self::Failure),
             (other, _) => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from(other.to_string()),

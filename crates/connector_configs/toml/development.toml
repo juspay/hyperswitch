@@ -4106,9 +4106,29 @@ api_secret="Shared Secret"
   payment_method_type = "UnionPay"
 [[fiuu.real_time_payment]]
   payment_method_type = "duit_now"
+[[fiuu.wallet]]
+  payment_method_type = "google_pay"
 [[fiuu.bank_redirect]]
   payment_method_type = "online_banking_fpx"
 [fiuu.connector_auth.SignatureKey]
 api_key="Verify Key"
 key1="Merchant ID"
 api_secret="Secret Key"
+[[fiuu.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiuu.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiuu.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
