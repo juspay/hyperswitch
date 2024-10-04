@@ -8,25 +8,30 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m]'
 
 # Define arrays for services, etc.
-# Read service arrays from environment variables or use default empty arrays
+# Read service arrays from environment variables
 read -r -a payments <<< "${PAYMENTS[@]}"
-read -r -a payouts <<< "${PAYOUTS[@]:-}"
-read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]:-}"
-read -r -a routing <<< "${ROUTING[@]:-}"
+read -r -a payouts <<< "${PAYOUTS[@]}"
+read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]}"
+read -r -a routing <<< "${ROUTING[@]}"
 
-connector_map=("payments" "payouts")
-
-# Check if PAYMENT_METHOD_LIST is exported (even as empty)
-if [[ -n "${PAYMENT_METHOD_LIST+x}" ]]; then
-  connector_map+=("payment_method_list")
-fi
-
-# Check if ROUTING is exported (even as empty)
-if [[ -n "${ROUTING+x}" ]]; then
-  connector_map+=("routing")
-fi
-
+# define arrays
+connector_map=()
 failed_connectors=()
+
+# Define an associative array to map environment variables to service names
+declare -A services=(
+  ["PAYMENTS"]="payments"
+  ["PAYOUTS"]="payouts"
+  ["PAYMENT_METHOD_LIST"]="payment_method_list"
+  ["ROUTING"]="routing"
+)
+
+# Loop through the associative array and check if each service is exported
+for var in "${!services[@]}"; do
+  if [[ -n "${!var+x}" ]]; then
+    connector_map+=("${services[$var]}")
+  fi
+done
 
 # Function to check if a command exists
 function command_exists() {
