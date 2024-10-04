@@ -1467,6 +1467,48 @@ pub struct JWTAuthProfileFromRoute {
     pub required_permission: Permission,
     pub minimum_entity_level: EntityType,
 }
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthProfileFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
+        if let Some(ref payload_profile_id) = payload.profile_id {
+            if *payload_profile_id != self.profile_id {
+                return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+            } else {
+                Ok((
+                    (),
+                    AuthenticationType::MerchantJwt {
+                        merchant_id: payload.merchant_id.clone(),
+                        user_id: Some(payload.user_id),
+                    },
+                ))
+            }
+        } else {
+            Ok((
+                (),
+                AuthenticationType::MerchantJwt {
+                    merchant_id: payload.merchant_id.clone(),
+                    user_id: Some(payload.user_id),
+                },
+            ))
+        }
+    }
+}
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAuthProfileFromRoute

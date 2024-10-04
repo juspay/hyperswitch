@@ -1160,10 +1160,9 @@ pub async fn update_default_routing_config_for_profile(
 #[cfg(feature = "v1")]
 pub async fn toggle_success_based_routing(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
     status: bool,
     profile_id: common_utils::id_type::ProfileId,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         &metrics::CONTEXT,
@@ -1173,12 +1172,21 @@ pub async fn toggle_success_based_routing(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
         Some(&profile_id),
-        merchant_account.get_id(),
+        &merchant_id,
     )
     .await?
     .get_required_value("Profile")
@@ -1205,7 +1213,7 @@ pub async fn toggle_success_based_routing(
         let algo = RoutingAlgorithm {
             algorithm_id: algorithm_id.clone(),
             profile_id: business_profile.get_id().to_owned(),
-            merchant_id: merchant_account.get_id().to_owned(),
+            merchant_id,
             name: "Dynamic routing algorithm".to_string(),
             description: None,
             kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,

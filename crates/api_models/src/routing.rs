@@ -550,6 +550,7 @@ pub struct SuccessBasedRoutingUpdateConfigQuery {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ToggleSuccessBasedRoutingWrapper {
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub status: bool,
 }
