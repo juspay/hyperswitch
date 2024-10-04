@@ -4,7 +4,6 @@ set -o nounset -euo pipefail -o errexit
 # define colors
 RESET='\033[0m'
 RED='\033[0;31m'
-GREEN='\033[0;32m'
 YELLOW='\033[0;33m]'
 
 # Define arrays for services, etc.
@@ -67,7 +66,7 @@ function run_tests() {
       # A service level test i.e., payment method list or routing
       [[ $service == "payment_method_list" ]] && service="payment-method-list"
 
-      echo "${GREEN}Running ${service} tests without connectors...${RESET}"
+      echo "Running ${service} tests without connectors..."
       export REPORT_NAME="${service}_report"
 
       if ! npm run "cypress:${service}"; then
@@ -75,7 +74,7 @@ function run_tests() {
       fi
     else
       # Connector test, i.e., payments or payouts
-      echo -e "${GREEN}Running tests for service: '${service}'\nWith connectors: [${connectors[*]}] in batch of ${jobs}..${RESET}."
+      echo -e "Running tests for service: '${service}'\nWith connectors: [${connectors[*]}] in batch of ${jobs}..."
 
       # Capture the output of execute_test
       echo "${connectors[@]}" | tr ' ' '\n' | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
