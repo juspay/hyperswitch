@@ -1,5 +1,5 @@
 use common_enums::enums::{self, AuthenticationType, Currency};
-use common_utils::pii::IpAddress;
+use common_utils::{pii::IpAddress, types::{MinorUnit, StringMajorUnit}};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -19,6 +19,20 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
+
+pub struct PowertranzRouterData<T> {
+    pub amount: StringMajorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(StringMajorUnit, T)> for PowertranzRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data: item,
+        }
+    }
+}
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
 
@@ -103,12 +117,12 @@ pub struct RedirectResponsePayload {
     pub spi_token: Secret<String>,
 }
 
-impl TryFrom<&PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
+impl TryFrom<&PowertranzRouterData<&PaymentsAuthorizeRouterData>> for PowertranzPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let source = match item.request.payment_method_data.clone() {
+    fn try_from(item: &PowertranzRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let source = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card) => {
-                let card_holder_name = item.get_optional_billing_full_name();
+                let card_holder_name = item.router_data.get_optional_billing_full_name();
                 Source::try_from((&card, card_holder_name))
             }
             PaymentMethodData::Wallet(_)
@@ -134,20 +148,20 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
-        let (three_d_secure, extended_data) = match item.auth_type {
-            AuthenticationType::ThreeDs => (true, Some(ExtendedData::try_from(item)?)),
+        let (three_d_secure, extended_data) = match item.router_data.auth_type {
+            AuthenticationType::ThreeDs => (true, Some(ExtendedData::try_from(item.router_data)?)),
             AuthenticationType::NoThreeDs => (false, None),
         };
         Ok(Self {
             transaction_identifier: Uuid::new_v4().to_string(),
             total_amount: utils::to_currency_base_unit_asf64(
-                item.request.amount,
-                item.request.currency,
+                item.router_data.request.amount,
+                item.router_data.request.currency,
             )?,
-            currency_code: Currency::iso_4217(&item.request.currency).to_string(),
+            currency_code: Currency::iso_4217(&item.router_data.request.currency).to_string(),
             three_d_secure,
             source,
-            order_identifier: item.connector_request_reference_id.clone(),
+            order_identifier: item.router_data.connector_request_reference_id.clone(),
             // billing_address,
             // shipping_address,
             extended_data,
