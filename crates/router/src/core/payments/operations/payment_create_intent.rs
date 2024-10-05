@@ -349,14 +349,10 @@ impl<F: Send + Clone>
         PaymentsCreateIntentOperation<'b, F>,
         operations::ValidateResult,
     )> {
-        let payment_id = common_utils::id_type::GlobalPaymentId::generate("33333")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error generating GlobalPaymentId")?;
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },

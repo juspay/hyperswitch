@@ -3,6 +3,8 @@ use api_models::{
     user::sample_data::SampleDataRequest,
 };
 use common_utils::{id_type, types::MinorUnit};
+#[cfg(feature = "v1")]
+use diesel_models::user::sample_data::PaymentAttemptBatchNew;
 use diesel_models::RefundNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
@@ -14,9 +16,6 @@ use crate::{
     core::errors::sample_data::{SampleDataError, SampleDataResult},
     SessionState,
 };
-
-#[cfg(feature = "v1")]
-use diesel_models::user::sample_data::PaymentAttemptBatchNew;
 
 #[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]

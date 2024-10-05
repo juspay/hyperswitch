@@ -14,6 +14,8 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
@@ -24,10 +26,6 @@ use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
-
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
@@ -115,7 +113,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
@@ -736,7 +734,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
@@ -746,7 +744,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         // Ignoring storage scheme for v2 implementation
         self.router_store
-            .update_payment_attempt_with_attempt_id(
+            .update_payment_attempt(
                 key_manager_state,
                 merchant_key_store,
                 this,

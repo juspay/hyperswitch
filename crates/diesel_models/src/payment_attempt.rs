@@ -224,6 +224,7 @@ pub struct PaymentAttemptNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub id: id_type::GlobalAttemptId,
 }
 
 #[cfg(feature = "v1")]
@@ -721,45 +722,48 @@ pub enum PaymentAttemptUpdate {
     // },
 }
 
+// TODO: uncomment fields as and when required
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
-    net_amount: Option<i64>,
-    status: Option<storage_enums::AttemptStatus>,
-    authentication_type: Option<storage_enums::AuthenticationType>,
-    error_message: Option<Option<String>>,
-    payment_method_id: Option<String>,
-    cancellation_reason: Option<String>,
-    modified_at: PrimitiveDateTime,
-    browser_info: Option<serde_json::Value>,
-    payment_token: Option<String>,
-    error_code: Option<Option<String>>,
-    connector_metadata: Option<serde_json::Value>,
-    payment_method_data: Option<serde_json::Value>,
-    payment_experience: Option<storage_enums::PaymentExperience>,
-    preprocessing_step_id: Option<String>,
-    error_reason: Option<Option<String>>,
-    connector_response_reference_id: Option<String>,
-    multiple_capture_count: Option<i16>,
-    surcharge_amount: Option<i64>,
-    tax_on_surcharge: Option<i64>,
-    amount_capturable: Option<i64>,
-    updated_by: String,
-    merchant_connector_id: Option<Option<id_type::MerchantConnectorAccountId>>,
-    authentication_data: Option<serde_json::Value>,
-    encoded_data: Option<String>,
-    unified_code: Option<Option<String>>,
-    unified_message: Option<Option<String>>,
-    external_three_ds_authentication_attempted: Option<bool>,
-    authentication_connector: Option<String>,
-    authentication_id: Option<String>,
-    fingerprint_id: Option<String>,
-    charge_id: Option<String>,
-    client_source: Option<String>,
-    client_version: Option<String>,
-    customer_acceptance: Option<pii::SecretSerdeValue>,
-    card_network: Option<String>,
+    // net_amount: Option<MinorUnit>,
+    pub status: Option<storage_enums::AttemptStatus>,
+    // authentication_type: Option<storage_enums::AuthenticationType>,
+    pub error_message: Option<String>,
+    pub connector_payment_id: Option<String>,
+    // payment_method_id: Option<String>,
+    // cancellation_reason: Option<String>,
+    pub modified_at: PrimitiveDateTime,
+    pub browser_info: Option<serde_json::Value>,
+    // payment_token: Option<String>,
+    pub error_code: Option<String>,
+    // connector_metadata: Option<serde_json::Value>,
+    // payment_method_data: Option<serde_json::Value>,
+    // payment_experience: Option<storage_enums::PaymentExperience>,
+    // preprocessing_step_id: Option<String>,
+    pub error_reason: Option<String>,
+    // connector_response_reference_id: Option<String>,
+    // multiple_capture_count: Option<i16>,
+    // pub surcharge_amount: Option<MinorUnit>,
+    // tax_on_surcharge: Option<MinorUnit>,
+    // amount_capturable: Option<MinorUnit>,
+    pub updated_by: String,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector: Option<String>,
+    // authentication_data: Option<serde_json::Value>,
+    // encoded_data: Option<String>,
+    pub unified_code: Option<Option<String>>,
+    pub unified_message: Option<Option<String>>,
+    // external_three_ds_authentication_attempted: Option<bool>,
+    // authentication_connector: Option<String>,
+    // authentication_id: Option<String>,
+    // fingerprint_id: Option<String>,
+    // charge_id: Option<String>,
+    // client_source: Option<String>,
+    // client_version: Option<String>,
+    // customer_acceptance: Option<pii::SecretSerdeValue>,
+    // card_network: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -815,13 +819,6 @@ pub struct PaymentAttemptUpdateInternal {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptUpdateInternal {
-    pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
-        todo!();
-    }
 }
 
 #[cfg(feature = "v1")]

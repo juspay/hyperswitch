@@ -467,6 +467,39 @@ pub struct AmountDetailsResponse {
     pub tax_on_surcharge: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct ConfirmIntentAmountDetailsResponse {
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
+    #[schema(value_type = u64, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize")]
+    pub order_amount: MinorUnit,
+    /// The currency of the order
+    #[schema(example = "USD", value_type = Currency)]
+    pub currency: common_enums::Currency,
+    /// The shipping cost of the order. This has to be collected from the merchant
+    pub shipping_cost: Option<MinorUnit>,
+    /// Tax amount related to the order. This will be calculated by the external tax provider
+    pub order_tax_amount: Option<MinorUnit>,
+    /// The action to whether calculate tax by calling external tax provider or not
+    #[schema(value_type = TaxCalculationOverride)]
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    /// The action to whether calculate surcharge or not
+    #[schema(value_type = SurchargeCalculationOverride)]
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    /// The surcharge amount to be added to the order, collected from the merchant
+    pub surcharge_amount: Option<MinorUnit>,
+    /// tax on surcharge amount
+    pub tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount of the order including tax, surcharge and shipping cost
+    pub net_amount: MinorUnit,
+    /// The amount that was requested to be captured for this payment
+    pub amount_to_capture: Option<MinorUnit>,
+    /// The amount that can be captured on the payment. Either in one go or through multiple captures.
+    /// This is applicable in case the capture method was either `manual` or `manual_multiple`
+    pub amount_capturable: MinorUnit,
+}
+
 #[cfg(feature = "v1")]
 #[derive(
     Default,
@@ -4337,6 +4370,22 @@ pub struct PaymentsConfirmIntentRequest {
     pub client_secret: common_utils::types::ClientSecret,
 }
 
+/// Error details for the payment
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct ErrorDetails {
+    /// The error code
+    pub code: String,
+    /// The error message
+    pub message: String,
+    /// The unified error code across all connectors.
+    /// This can be relied upon for taking decisions based on the error.
+    pub unified_code: Option<String>,
+    /// The unified error message across all connectors.
+    /// If there is a translation available, this will have the translated message
+    pub unified_message: Option<String>,
+}
+
 /// Response for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -4354,12 +4403,12 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(value_type = IntentStatus, example = "success")]
     pub status: api_enums::IntentStatus,
 
-    /// Amount related information for this order
-    pub amount: AmountDetailsResponse,
+    /// Amount related information for this payment and attempt
+    pub amount: ConfirmIntentAmountDetailsResponse,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
-    pub connector: common_enums::RoutableConnectors,
+    pub connector: String,
 
     /// It's a token used for client side verification.
     #[schema(value_type = String)]
@@ -4393,6 +4442,9 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// The browser information used for this payment
     pub browser_info: Option<BrowserInformation>,
+
+    /// Error details for the payment if any
+    pub error: Option<ErrorDetails>,
 }
 
 /// Fee information to be charged on the payment being collected

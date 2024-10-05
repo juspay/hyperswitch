@@ -3640,14 +3640,18 @@ pub async fn get_merchant_connector_account(
                         )
                     }
                     #[cfg(feature = "v2")]
-                    // get mca using id
                     {
-                        let _id = merchant_connector_id;
-                        let _ = key_store;
-                        let _ = profile_id;
-                        let _ = connector_name;
-                        let _ = key_manager_state;
-                        todo!()
+                        db.find_merchant_connector_account_by_id(
+                            &state.into(),
+                            merchant_connector_id,
+                            key_store,
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_connector_id.get_string_repr().to_string(),
+                            },
+                        )
                     }
                 } else {
                     #[cfg(feature = "v1")]

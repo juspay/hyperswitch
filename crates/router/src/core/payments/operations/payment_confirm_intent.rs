@@ -1,26 +1,21 @@
-use async_trait::async_trait;
-use error_stack::ResultExt;
-use router_env::{instrument, tracing};
-use tracing_futures::Instrument;
-
-use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-use hyperswitch_domain_models::payments::PaymentConfirmData;
-
 use api_models::payments::{HeaderPayload, PaymentsConfirmIntentRequest};
-
-use hyperswitch_domain_models::{
-    merchant_account::MerchantAccount,
-    merchant_key_store::MerchantKeyStore,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-};
-
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
     // payment_methods::PaymentMethodsData,
     payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
+use async_trait::async_trait;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    merchant_account::MerchantAccount,
+    merchant_key_store::MerchantKeyStore,
+    payments::{payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent},
+};
+use router_env::{instrument, tracing};
+use tracing_futures::Instrument;
 
+use super::{Domain, GetTracker, GetTrackerResponse, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         authentication,
@@ -41,8 +36,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-
-use super::GetTrackerResponse;
 
 trait PaymentsConfirmIntentBridge {
     async fn create_domain_model_from_request(
@@ -65,36 +58,44 @@ impl PaymentsConfirmIntentBridge for api_models::payments::PaymentsConfirmIntent
 
         // TODO: generate attempt id from intent id based on the merchant config for retries
         let id = common_utils::id_type::GlobalAttemptId::generate(&cell_id);
+        let intent_amount_details = payment_intent.amount_details.clone();
+
+        // TODO: move this to a impl function
+        let attempt_amount_details =
+            hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails {
+                net_amount: intent_amount_details.order_amount,
+                amount_to_capture: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                amount_capturable: common_utils::types::MinorUnit::new(0),
+                shipping_cost: None,
+                order_tax_amount: None,
+            };
 
         Ok(PaymentAttempt {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
-            amount_details: todo!(),
+            amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             connector: None,
-            error_message: None,
             authentication_type: payment_intent.authentication_type.clone(),
             created_at: now,
             modified_at: now,
             last_synced: None,
             cancellation_reason: None,
             browser_info: None,
-            error_code: None,
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
             payment_method_data: None,
             routing_result: None,
             preprocessing_step_id: None,
-            error_reason: None,
             multiple_capture_count: None,
             connector_response_reference_id: None,
             updated_by: storage_scheme.to_string(),
             authentication_data: None,
             encoded_data: None,
             merchant_connector_id: None,
-            unified_code: None,
-            unified_message: None,
             external_three_ds_authentication_attempted: None,
             authentication_connector: None,
             authentication_id: None,
@@ -112,6 +113,7 @@ impl PaymentsConfirmIntentBridge for api_models::payments::PaymentsConfirmIntent
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address: None,
+            error: None,
             id,
         })
     }
@@ -188,7 +190,13 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentCo
         request: &PaymentsConfirmIntentRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, operations::ValidateResult)> {
-        todo!()
+        let validate_result = operations::ValidateResult {
+            merchant_id: merchant_account.get_id().to_owned(),
+            storage_scheme: merchant_account.storage_scheme,
+            requeue: false,
+        };
+
+        Ok((Box::new(self), validate_result))
     }
 }
 
@@ -338,6 +346,70 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
     where
         F: 'b + Send,
     {
-        todo!()
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let intent_status = common_enums::IntentStatus::Processing;
+        let attempt_status = common_enums::AttemptStatus::Pending;
+
+        let connector = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .get_required_value("connector")
+            .attach_printable("Connector is none when constructing response")?;
+
+        let merchant_connector_id = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")
+            .attach_printable("Merchant connector id is none when constructing response")?;
+
+        let payment_intent_update =
+            hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
+                status: intent_status,
+                updated_by: storage_scheme.to_string(),
+            };
+
+        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
+            status: attempt_status,
+            updated_by: storage_scheme.to_string(),
+            connector: connector,
+            merchant_connector_id: merchant_connector_id,
+        };
+
+        // let conector_request_reference_id = payment_data.payment_attempt.id.get_string_repr();
+
+        let current_payment_intent = payment_data.payment_intent.clone();
+        let updated_payment_intent = db
+            .update_payment_intent(
+                key_manager_state,
+                current_payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+        payment_data.payment_intent = updated_payment_intent;
+
+        let current_payment_attempt = payment_data.payment_attempt.clone();
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                current_payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        Ok((Box::new(self), payment_data))
     }
 }

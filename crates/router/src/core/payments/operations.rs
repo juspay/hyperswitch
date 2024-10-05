@@ -40,6 +40,8 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
+pub use self::payment_confirm_intent::PaymentsIntentConfirm;
+#[cfg(feature = "v2")]
 pub use self::payment_create_intent::PaymentCreateIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
@@ -51,10 +53,6 @@ pub use self::{
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
-
-#[cfg(feature = "v2")]
-pub use self::payment_confirm_intent::PaymentsIntentConfirm;
-
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
@@ -115,7 +113,6 @@ pub struct ValidateResult {
 #[derive(Clone)]
 pub struct ValidateResult {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: common_utils::id_type::GlobalPaymentId,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
 }
@@ -298,7 +295,6 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,

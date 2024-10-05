@@ -91,7 +91,7 @@ impl PaymentIntent {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
     Skip,
@@ -100,7 +100,7 @@ pub enum TaxCalculationOverride {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
     Skip,
@@ -165,6 +165,14 @@ impl AmountDetails {
             TaxCalculationOverride::Skip => false,
             TaxCalculationOverride::Calculate => true,
         }
+    }
+
+    /// Calculate the net amount for the order
+    pub fn calculate_net_amount(&self) -> MinorUnit {
+        self.order_amount
+            + self.shipping_cost.unwrap_or(MinorUnit::zero())
+            + self.surcharge_amount.unwrap_or(MinorUnit::zero())
+            + self.tax_on_surcharge.unwrap_or(MinorUnit::zero())
     }
 }
 

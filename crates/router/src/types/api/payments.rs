@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
@@ -15,13 +17,8 @@ pub use api_models::payments::{
     PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
     VerifyResponse, WalletData,
 };
-
-#[cfg(feature = "v1")]
-pub use api_models::payments::PaymentsRequest;
-
 #[cfg(feature = "v2")]
 pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
-
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,

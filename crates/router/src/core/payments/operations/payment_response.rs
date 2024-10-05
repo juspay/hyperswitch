@@ -11,6 +11,8 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use router_derive;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
@@ -38,16 +40,13 @@ use crate::{
     },
     routes::{metrics, SessionState},
     types::{
-        self, api, domain,
+        self, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse, ErrorResponse,
     },
     utils,
 };
-
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::PaymentConfirmData;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -69,7 +68,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -93,7 +91,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -347,7 +344,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -507,7 +503,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -523,7 +518,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     {
         Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -571,7 +565,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -587,7 +580,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -612,7 +604,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     async fn update_tracker<'b>(
         &'b self,
         _db: &'b SessionState,
-        _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _router_data: types::RouterData<
             F,
@@ -691,7 +682,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -707,7 +697,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -730,7 +719,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -746,7 +734,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -771,7 +758,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -787,7 +773,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -810,7 +795,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -826,7 +810,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -851,7 +834,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -876,7 +858,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -972,7 +953,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -988,7 +968,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     {
         Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             response,
             key_store,
@@ -1028,26 +1007,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
-    state: &SessionState,
-    _payment_id: &api::PaymentIdType,
-    mut payment_data: PaymentData<F>,
-    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-    locale: &Option<String>,
-) -> RouterResult<PaymentData<F>> {
-    todo!()
-}
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
-    _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     key_store: &domain::MerchantKeyStore,
@@ -1922,9 +1886,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
-        payment_data: PaymentConfirmData<F>,
+        state: &'b SessionState,
+        mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
@@ -1937,6 +1900,142 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
     where
         F: 'b + Send,
     {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+
+        match response_router_data.response {
+            Ok(response) => match response {
+                types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charge_id,
+                } => {
+                    let attempt_status = response_router_data.status;
+                    let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                    let connector_payment_id = match resource_id {
+                        types::ResponseId::NoResponseId => None,
+                        types::ResponseId::ConnectorTransactionId(id)
+                        | types::ResponseId::EncodedData(id) => Some(id),
+                    };
+
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+                    let updated_payment_intent = db
+                        .update_payment_intent(
+                            key_manager_state,
+                            payment_data.payment_intent,
+                            payment_intent_update,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to update payment intent")?;
+                    payment_data.payment_intent = updated_payment_intent;
+
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id: connector_payment_id, updated_by: storage_scheme.to_string() };
+                    let updated_payment_attempt = db
+                        .update_payment_attempt(
+                            key_manager_state,
+                            key_store,
+                            payment_data.payment_attempt,
+                            payment_attempt_update,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to update payment attempt")?;
+                    payment_data.payment_attempt = updated_payment_attempt;
+                }
+                types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                } => todo!(),
+                types::PaymentsResponseData::SessionResponse { session_token } => todo!(),
+                types::PaymentsResponseData::SessionTokenResponse { session_token } => todo!(),
+                types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    resource_id,
+                    reason,
+                    connector_response_reference_id,
+                } => todo!(),
+                types::PaymentsResponseData::TokenizationResponse { token } => todo!(),
+                types::PaymentsResponseData::ConnectorCustomerResponse {
+                    connector_customer_id,
+                } => todo!(),
+                types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                } => todo!(),
+                types::PaymentsResponseData::PreProcessingResponse {
+                    pre_processing_id,
+                    connector_metadata,
+                    session_token,
+                    connector_response_reference_id,
+                } => todo!(),
+                types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status,
+                    connector_authorization_id,
+                    error_code,
+                    error_message,
+                } => todo!(),
+                types::PaymentsResponseData::PostProcessingResponse { session_token } => todo!(),
+            },
+            Err(ErrorResponse {
+                code,
+                message,
+                reason,
+                status_code,
+                attempt_status,
+                connector_transaction_id,
+            }) => {
+                let attempt_status = common_enums::AttemptStatus::Failure;
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+
+                let updated_payment_intent = db
+                    .update_payment_intent(
+                        key_manager_state,
+                        payment_data.payment_intent,
+                        payment_intent_update,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update payment intent")?;
+                payment_data.payment_intent = updated_payment_intent;
+
+                // TODO: populate unified code and message and translation by calling gsm and translation table
+                let error_details =
+                    hyperswitch_domain_models::payments::payment_attempt::ErrorDetails {
+                        code,
+                        message,
+                        reason,
+                        unified_code: None,
+                        unified_message: None,
+                    };
+
+                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentError { status: attempt_status, error: error_details,updated_by: storage_scheme.to_string() };
+                let updated_payment_attempt = db
+                    .update_payment_attempt(
+                        key_manager_state,
+                        key_store,
+                        payment_data.payment_attempt,
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update payment attempt")?;
+
+                payment_data.payment_attempt = updated_payment_attempt;
+            }
+        }
         // TODO: Implement this
         Ok(payment_data)
     }

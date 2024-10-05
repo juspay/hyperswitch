@@ -13,6 +13,8 @@ use common_utils::{
 };
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
@@ -39,9 +41,6 @@ use crate::{
     },
     utils::{OptionExt, ValueExt},
 };
-
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::PaymentConfirmData;
 
 #[cfg(feature = "v2")]
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
@@ -327,9 +326,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
         connector_request_reference_id: payment_data
             .payment_attempt
-            .connector_response_reference_id
-            .get_required_value("connector_reference_id")?
-            .clone(),
+            .id
+            .get_string_repr()
+            .to_owned(),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -820,7 +819,51 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
-        todo!()
+        let payment_intent = payment_data.get_payment_intent();
+        let payment_attempt = payment_data.get_payment_attempt();
+
+        let amount = api_models::payments::ConfirmIntentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            &payment_attempt.amount_details,
+        ));
+
+        let connector = payment_attempt
+            .connector
+            .clone()
+            .get_required_value("connector")
+            .attach_printable("Connector is none when constructing response")?;
+
+        let merchant_connector_id = payment_attempt
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")
+            .attach_printable("Merchant connector id is none when constructing response")?;
+
+        let error = payment_attempt
+            .error
+            .clone()
+            .map(|error| api_models::payments::ErrorDetails::foreign_from(error));
+
+        let response = Self {
+            id: payment_intent.id.clone(),
+            status: payment_intent.status.clone(),
+            amount,
+            connector,
+            client_secret: payment_intent.client_secret.clone(),
+            created: payment_intent.created_at.clone(),
+            payment_method_data: None,
+            payment_method_type: Some(payment_attempt.payment_method_type.clone()),
+            connector_transaction_id: payment_attempt.connector_payment_id.clone(),
+            reference_id: None,
+            merchant_connector_id,
+            browser_info: None,
+            error,
+        };
+
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
     }
 }
 
@@ -2803,6 +2846,63 @@ impl ForeignFrom<api_models::payments::AmountDetails>
                 ),
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    ForeignFrom<(
+        &hyperswitch_domain_models::payments::AmountDetails,
+        &hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails,
+    )> for api_models::payments::ConfirmIntentAmountDetailsResponse
+{
+    fn foreign_from(
+        (intent_amount_details, attempt_amount_details): (
+            &hyperswitch_domain_models::payments::AmountDetails,
+            &hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails,
+        ),
+    ) -> Self {
+        Self {
+            order_amount: intent_amount_details.order_amount,
+            currency: intent_amount_details.currency,
+            shipping_cost: attempt_amount_details.shipping_cost,
+            order_tax_amount: attempt_amount_details.order_tax_amount,
+            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+                intent_amount_details.skip_external_tax_calculation,
+            ),
+            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+                intent_amount_details.skip_surcharge_calculation,
+            ),
+            surcharge_amount: attempt_amount_details.surcharge_amount,
+            tax_on_surcharge: attempt_amount_details.tax_on_surcharge,
+            net_amount: attempt_amount_details.net_amount,
+            amount_to_capture: attempt_amount_details.amount_to_capture,
+            amount_capturable: attempt_amount_details.amount_capturable,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
+    for api_models::payments::ErrorDetails
+{
+    fn foreign_from(
+        amount_details: hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
+    ) -> Self {
+        let hyperswitch_domain_models::payments::payment_attempt::ErrorDetails {
+            code,
+            message,
+            reason,
+            unified_code,
+            unified_message,
+        } = amount_details;
+
+        Self {
+            code,
+            message: reason.unwrap_or(message),
+            unified_code,
+            unified_message,
         }
     }
 }

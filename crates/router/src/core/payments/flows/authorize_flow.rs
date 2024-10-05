@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use common_enums as enums;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
@@ -19,9 +21,6 @@ use crate::{
     types::{self, api, domain, transformers::ForeignFrom},
     utils::OptionExt,
 };
-
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::PaymentConfirmData;
 
 #[cfg(feature = "v2")]
 #[async_trait]
