@@ -47,8 +47,9 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
-dlocal.base_url = "https://sandbox.dlocal.com/"
 deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
+digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
+dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -284,6 +285,10 @@ apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
 samsung_pay = { currency = "USD,GBP,EUR" }
 
+[pm_filters.nexixpay]
+credit = { country = "AT,BE,CY,EE,FI,FR,DE,GR,IE,IT,LV,LT,LU,MT,NL,PT,SK,SI,ES,BG,HR,DK,GB,NO,PL,CZ,RO,SE,CH,HU", currency = "ARS,AUD,BHD,CAD,CLP,CNY,COP,HRK,CZK,DKK,HKD,HUF,INR,JPY,KZT,JOD,KRW,KWD,MYR,MXN,NGN,NOK,PHP,QAR,RUB,SAR,SGD,VND,ZAR,SEK,CHF,THB,AED,EGP,GBP,USD,TWD,BYN,RSD,AZN,RON,TRY,AOA,BGN,EUR,UAH,PLN,BRL" }
+debit = { country = "AT,BE,CY,EE,FI,FR,DE,GR,IE,IT,LV,LT,LU,MT,NL,PT,SK,SI,ES,BG,HR,DK,GB,NO,PL,CZ,RO,SE,CH,HU", currency = "ARS,AUD,BHD,CAD,CLP,CNY,COP,HRK,CZK,DKK,HKD,HUF,INR,JPY,KZT,JOD,KRW,KWD,MYR,MXN,NGN,NOK,PHP,QAR,RUB,SAR,SGD,VND,ZAR,SEK,CHF,THB,AED,EGP,GBP,USD,TWD,BYN,RSD,AZN,RON,TRY,AOA,BGN,EUR,UAH,PLN,BRL" }
+
 [pm_filters.braintree]
 paypal.currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD"
 
@@ -367,6 +372,7 @@ nmi.payment_method = "card"
 payme.payment_method = "card"
 deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
+nexixpay = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

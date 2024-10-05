@@ -37,10 +37,7 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
-    user_role::{
-        InsertUserRolePayload, ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload,
-        UserRoleInterface,
-    },
+    user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload, UserRoleInterface},
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
@@ -1604,7 +1601,6 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
@@ -1617,7 +1613,6 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
-                time_range,
                 profile_id_list,
                 storage_scheme,
             )
@@ -3020,40 +3015,9 @@ impl RedisConnInterface for KafkaStore {
 impl UserRoleInterface for KafkaStore {
     async fn insert_user_role(
         &self,
-        user_role: InsertUserRolePayload,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        user_role: storage::UserRoleNew,
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
-    }
-
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id(user_id, version)
-            .await
-    }
-
-    async fn find_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id_merchant_id(user_id, merchant_id, version)
-            .await
-    }
-
-    async fn list_user_roles_by_user_id_and_version(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_user_id_and_version(user_id, version)
-            .await
     }
 
     async fn find_user_role_by_user_id_and_lineage(
@@ -3112,16 +3076,6 @@ impl UserRoleInterface for KafkaStore {
                 profile_id,
                 version,
             )
-            .await
-    }
-
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_merchant_id(merchant_id, version)
             .await
     }
 

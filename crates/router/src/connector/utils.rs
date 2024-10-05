@@ -629,6 +629,7 @@ impl AddressData for api::Address {
 }
 
 pub trait PaymentsPreProcessingData {
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
@@ -695,6 +696,17 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
     }
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
