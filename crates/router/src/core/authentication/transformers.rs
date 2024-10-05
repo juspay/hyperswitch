@@ -62,6 +62,8 @@ pub fn construct_authentication_router_data(
         three_ds_requestor_url,
         threeds_method_comp_ind,
         webhook_url,
+
+        minor_amount: amount
     };
     construct_router_data(
         authentication_connector,
