@@ -1090,6 +1090,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_) => {
                 payment_data.payment_attempt.payment_method_data.clone()
             }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                payment_data.payment_attempt.payment_method_data.clone()
+            }
         },
         None => None,
     };

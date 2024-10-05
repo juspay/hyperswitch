@@ -121,6 +121,7 @@ pub enum RecurringDetails {
     MandateId(String),
     PaymentMethodId(String),
     ProcessorPaymentToken(ProcessorPaymentToken),
+    NetworkTransactionIdAndCardDetails(NetworkTransactionIdAndCardDetails),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
@@ -130,3 +131,22 @@ pub struct ProcessorPaymentToken {
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndCardDetails {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub network_transaction_id: Secret<String>,
+}
+
+
+
+
