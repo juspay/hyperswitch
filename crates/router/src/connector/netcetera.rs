@@ -1,11 +1,16 @@
 pub mod netcetera_types;
 pub mod transformers;
 
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent, types::{AmountConvertor, MinorUnit, MinorUnitForConnector}};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::authentication::ExternalAuthenticationPayload;
 use transformers::{self as netcetera, NetceteraRouterData};
 
+use super::utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -20,17 +25,15 @@ use crate::{
     utils::BytesExt,
 };
 
-use super::utils;
-
 #[derive(Clone)]
 pub struct Netcetera {
-    amount_convertor: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync)
+    amount_convertor: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Netcetera {
     pub fn new() -> &'static Self {
         &Self {
-            amount_convertor: &MinorUnitForConnector
+            amount_convertor: &MinorUnitForConnector,
         }
     }
 }
@@ -375,16 +378,18 @@ impl
         req: &types::authentication::ConnectorAuthenticationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let currency = req.request
-            .currency
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            })?;
-        let amount = req.request
-            .minor_amount
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?;
         let amount = utils::convert_amount(self.amount_convertor, amount, currency)?;
         let connector_router_data = NetceteraRouterData::try_from((amount, req))?;
         let req_obj = netcetera::NetceteraAuthenticationRequest::try_from(&connector_router_data);

@@ -63,7 +63,7 @@ pub fn construct_authentication_router_data(
         threeds_method_comp_ind,
         webhook_url,
 
-        minor_amount: amount
+        minor_amount: amount,
     };
     construct_router_data(
         authentication_connector,
