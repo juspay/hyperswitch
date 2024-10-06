@@ -5028,7 +5028,7 @@ pub fn decrypt_paze_token(
         .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
 
     let (deserialized_payload, _deserialized_header) =
-        jwe::deserialize_compact(&jws_body.secured_payload, &decrypter)
+        jwe::deserialize_compact(&jws_body.secured_payload.peek(), &decrypter)
             .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
     let encoded_secured_payload_element = String::from_utf8(deserialized_payload)
         .change_context(errors::PazeDecryptionError::DecryptionFailed)?
@@ -5051,7 +5051,7 @@ pub fn decrypt_paze_token(
 pub struct JwsBody {
     pub payload_id: String,
     pub session_id: String,
-    pub secured_payload: String,
+    pub secured_payload: masking::Secret<String>,
 }
 
 pub fn get_key_params_for_surcharge_details(

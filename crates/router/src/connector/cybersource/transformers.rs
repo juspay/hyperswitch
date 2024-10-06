@@ -21,7 +21,7 @@ use serde_json::Value;
 use crate::connector::utils::PayoutsData;
 use crate::{
     connector::utils::{
-        self, AddressData, AddressDetailsData, ApplePayDecrypt, CardData, NetworkTokenData,
+        self, AddressDetailsData, ApplePayDecrypt, CardData, NetworkTokenData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         PaymentsPreProcessingData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
         RecurringMandateData, RouterData,
@@ -1334,26 +1334,25 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let (first_name, last_name) = paze_data
-            .billing_address
-            .name
-            .unwrap_or(
-                item.router_data
-                    .get_optional_billing()
-                    .and_then(|address| address.get_optional_full_name())
+        let (first_name, last_name) = match paze_data.billing_address.name {
+            Some(name) => {
+                let (first_name, last_name) = name
+                    .peek()
+                    .split_once(' ')
+                    .map(|(first, last)| (first.to_string(), last.to_string()))
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "billing_address.name",
-                    })?,
-            )
-            .peek()
-            .split_once(' ')
-            .map(|(first, last)| (first.to_string(), last.to_string()))
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_address.name",
-            })?;
+                    })?;
+                (Secret::from(first_name), Secret::from(last_name))
+            }
+            None => (
+                item.router_data.get_billing_first_name()?,
+                item.router_data.get_billing_last_name()?,
+            ),
+        };
         let bill_to = BillTo {
-            first_name: Some(Secret::from(first_name)),
-            last_name: Some(Secret::from(last_name)),
+            first_name: Some(first_name),
+            last_name: Some(last_name),
             address1: paze_data.billing_address.line1,
             locality: paze_data.billing_address.city.map(|city| city.expose()),
             administrative_area: Some(Secret::from(

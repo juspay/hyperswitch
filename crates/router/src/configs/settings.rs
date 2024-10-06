@@ -96,7 +96,7 @@ pub struct Settings<S: SecretState> {
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
-    pub paze_decrypt_keys: SecretStateContainer<PazeDecryptConfig, S>,
+    pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,

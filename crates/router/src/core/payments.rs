@@ -2671,22 +2671,19 @@ async fn decide_payment_method_tokenize_action(
 ) -> RouterResult<TokenizationAction> {
     if let Some(storage_enums::PaymentMethodType::Paze) = payment_method_type {
         // Paze generates a one time use network token which should not be tokenized in the connector or router.
-        Ok(TokenizationAction::DecryptPazeToken(
-            PazePaymentProcessingDetails {
-                paze_private_key: state
-                    .conf
-                    .paze_decrypt_keys
-                    .get_inner()
-                    .paze_private_key
-                    .clone(),
-                paze_private_key_passphrase: state
-                    .conf
-                    .paze_decrypt_keys
-                    .get_inner()
-                    .paze_private_key_passphrase
-                    .clone(),
-            },
-        ))
+        match &state.conf.paze_decrypt_keys {
+            Some(paze_keys) => Ok(TokenizationAction::DecryptPazeToken(
+                PazePaymentProcessingDetails {
+                    paze_private_key: paze_keys.get_inner().paze_private_key.clone(),
+                    paze_private_key_passphrase: paze_keys
+                        .get_inner()
+                        .paze_private_key_passphrase
+                        .clone(),
+                },
+            )),
+            None => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch Paze configs"),
+        }
     } else {
         match pm_parent_token {
             None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {

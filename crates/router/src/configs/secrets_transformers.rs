@@ -410,12 +410,15 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt applepay decrypt configs");
 
     #[allow(clippy::expect_used)]
-    let paze_decrypt_keys = settings::PazeDecryptConfig::convert_to_raw_secret(
-        conf.paze_decrypt_keys,
-        secret_management_client,
-    )
-    .await
-    .expect("Failed to decrypt paze decrypt configs");
+    let paze_decrypt_keys = if let Some(paze_keys) = conf.paze_decrypt_keys {
+        Some(
+            settings::PazeDecryptConfig::convert_to_raw_secret(paze_keys, secret_management_client)
+                .await
+                .expect("Failed to decrypt paze decrypt configs"),
+        )
+    } else {
+        None
+    };
 
     #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
