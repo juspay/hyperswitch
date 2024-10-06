@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use api_models::{enums::FrmSuggestion, payments::PaymentsCreateIntentRequest};
 use async_trait::async_trait;
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{AsyncExt, ValueExt},
+};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -124,7 +127,13 @@ impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?;
+            .attach_printable("Unable to encrypt billing details")?
+            .map(|encrypted_value| {
+                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to deserialize decrypted value to Address")?;
 
         // Derivation of directly supplied Shipping Address data in our Payment Create Request
         // Encrypting our Shipping Address Details to be stored in Payment Intent
@@ -135,7 +144,19 @@ impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
+            .attach_printable("Unable to encrypt shipping details")?
+            .map(|encrypted_value| {
+                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to deserialize decrypted value to Address")?;
+        let order_details = self.order_details.clone().map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| masking::Secret::new(order_detail))
+                .collect()
+        });
         Ok(hyperswitch_domain_models::payments::PaymentIntent {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -156,10 +177,7 @@ impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
             setup_future_usage: self.setup_future_usage.unwrap_or_default(),
             client_secret,
             active_attempt: None,
-            order_details: self
-                .get_order_details_as_value()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting order details as value")?,
+            order_details,
             allowed_payment_method_types: self
                 .get_allowed_payment_method_types_as_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -174,7 +192,7 @@ impl PaymentsCreateIntentBridge for PaymentsCreateIntentRequest {
                 .attach_printable("Error getting feature metadata as value")?,
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
-            profile_id: self.profile_id.clone(),
+            profile_id: profile.get_id().clone(),
             payment_link_id: None,
             frm_merchant_decision: None,
             updated_by: merchant_account.storage_scheme.to_string(),
@@ -239,6 +257,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsCreateIntentRequest,
         merchant_account: &domain::MerchantAccount,
+        profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
@@ -255,7 +274,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
 
         let storage_scheme = merchant_account.storage_scheme;
 
-        let profile_id = request.profile_id.clone();
+        let profile_id = profile.get_id().clone();
 
         let profile = db
             .find_business_profile_by_profile_id(&(state).into(), key_store, &profile_id)
@@ -343,13 +362,12 @@ impl<F: Send + Clone>
         &'b self,
         _request: &PaymentsCreateIntentRequest,
         merchant_account: &'a domain::MerchantAccount,
+        cell_id: &common_utils::id_type::CellId,
     ) -> RouterResult<(
         PaymentsCreateIntentOperation<'b, F>,
         operations::ValidateResult,
     )> {
-        let payment_id = common_utils::id_type::GlobalPaymentId::generate("33333")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error generating GlobalPaymentId")?;
+        let payment_id = common_utils::id_type::GlobalPaymentId::generate(cell_id.clone());
         Ok((
             Box::new(self),
             operations::ValidateResult {

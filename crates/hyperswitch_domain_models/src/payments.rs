@@ -1,6 +1,9 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
+#[cfg(feature = "v2")]
+use api_models::payments::Address;
+use api_models::payments::OrderDetailsWithAmount;
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
 use masking::Secret;
@@ -206,7 +209,7 @@ pub struct PaymentIntent {
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt: Option<RemoteStorageObject<PaymentAttempt>>,
     /// The order details for the payment.
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
@@ -240,9 +243,9 @@ pub struct PaymentIntent {
     /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
     /// The billing address for the order in a denormalized form.
-    pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub billing_address: Option<Encryptable<Secret<Address>>>,
     /// The shipping address for the order in a denormalized form.
-    pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub shipping_address: Option<Encryptable<Secret<Address>>>,
     /// Capture method for the payment
     pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.

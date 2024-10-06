@@ -32,12 +32,9 @@ impl GlobalPaymentId {
     }
 
     /// Generate a new GlobalPaymentId from a cell id
-    pub fn generate(cell_id: &str) -> error_stack::Result<Self, GlobalPaymentIdError> {
-        let cell_id = super::CellId::from_str(cell_id)
-            .change_context(GlobalPaymentIdError::ConstructionError)
-            .attach_printable("Error generating GlobalPaymentId")?;
+    pub fn generate(cell_id: crate::id_type::CellId) -> Self {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
-        Ok(Self(global_id))
+        Self(global_id)
     }
 }
 

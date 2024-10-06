@@ -550,11 +550,11 @@ where
                 billing: payment_intent
                     .billing_address
                     .clone()
-                    .map(|address| address.into_inner()),
+                    .map(|billing| billing.into_inner().expose()),
                 shipping: payment_intent
                     .shipping_address
                     .clone()
-                    .map(|address| address.into_inner()),
+                    .map(|shipping| shipping.into_inner().expose()),
                 customer_id: payment_intent.customer_id.clone(),
                 customer_present: payment_intent.customer_present.clone(),
                 description: payment_intent.description.clone(),
@@ -562,7 +562,12 @@ where
                 setup_future_usage: payment_intent.setup_future_usage,
                 apply_mit_exemption: payment_intent.apply_mit_exemption.clone(),
                 statement_descriptor: payment_intent.statement_descriptor.clone(),
-                order_details: payment_intent.order_details.clone(),
+                order_details: payment_intent.order_details.clone().map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| order_detail.expose())
+                        .collect()
+                }),
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
                 metadata: payment_intent.metadata.clone(),
                 connector_metadata: payment_intent.connector_metadata.clone(),
@@ -2147,6 +2152,49 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
         })
     }
 }
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data.clone();
+
+        let order_details = additional_data
+            .payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| data.to_owned().expose())
+                    .collect()
+            });
+        let amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.amount.into());
+
+        Ok(Self {
+            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            minor_amount: amount,
+            currency: payment_data.currency,
+            country: payment_data.address.get_payment_method_billing().and_then(
+                |billing_address| {
+                    billing_address
+                        .address
+                        .as_ref()
+                        .and_then(|address| address.country)
+                },
+            ),
+            order_details,
+            surcharge_details: payment_data.surcharge_details,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

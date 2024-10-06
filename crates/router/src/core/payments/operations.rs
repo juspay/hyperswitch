@@ -113,12 +113,23 @@ pub struct ValidateResult {
     pub requeue: bool,
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R, D> {
     fn validate_request<'b>(
         &'b self,
         request: &R,
         merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
+}
+
+#[cfg(feature = "v2")]
+pub trait ValidateRequest<F, R, D> {
+    fn validate_request<'b>(
+        &'b self,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+        cell_id: &common_utils::id_type::CellId,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 
@@ -156,6 +167,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &R,
         merchant_account: &domain::MerchantAccount,
+        profile: &domain::Profile,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &api::HeaderPayload,

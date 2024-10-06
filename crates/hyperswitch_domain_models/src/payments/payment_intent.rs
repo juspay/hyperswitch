@@ -4,6 +4,7 @@ use common_utils::{
     crypto::{self, Encryptable},
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::{Encode, ValueExt},
     id_type,
     pii::{self, Email},
     type_name,
@@ -16,7 +17,7 @@ use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
 use error_stack::ResultExt;
-use masking::{Deserialize, PeekInterface, Secret};
+use masking::{Deserialize, ExposeInterface, PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use time::PrimitiveDateTime;
@@ -1522,7 +1523,17 @@ impl behaviour::Conversion for PaymentIntent {
             setup_future_usage: Some(setup_future_usage),
             client_secret,
             active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
-            order_details,
+            order_details: order_details
+                .map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "invalid value found for order_details".to_string(),
+                })?,
             allowed_payment_method_types,
             connector_metadata,
             feature_metadata,
@@ -1603,6 +1614,23 @@ impl behaviour::Conversion for PaymentIntent {
                     storage_model.surcharge_applicable,
                 ),
             };
+            let billing_address = data
+                .billing
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+
+            let shipping_address = data
+                .shipping
+                .map(|shipping| {
+                    shipping.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: storage_model.merchant_id,
@@ -1622,7 +1650,18 @@ impl behaviour::Conversion for PaymentIntent {
                 active_attempt: storage_model
                     .active_attempt_id
                     .map(RemoteStorageObject::ForeignID),
-                order_details: storage_model.order_details,
+                order_details: storage_model
+                    .order_details
+                    .map(|order_details| {
+                        order_details
+                            .into_iter()
+                            .map(|order_detail| {
+                                order_detail.expose().parse_value("OrderDetailsWithAmount")
+                            })
+                            .collect::<Result<Vec<_>, _>>()
+                    })
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
                 allowed_payment_method_types: storage_model.allowed_payment_method_types,
                 connector_metadata: storage_model.connector_metadata,
                 feature_metadata: storage_model.feature_metadata,
@@ -1642,8 +1681,8 @@ impl behaviour::Conversion for PaymentIntent {
                     ),
                 frm_metadata: storage_model.frm_metadata,
                 customer_details: data.customer_details,
-                billing_address: data.billing,
-                shipping_address: data.shipping,
+                billing_address,
+                shipping_address,
                 capture_method: storage_model.capture_method.unwrap_or_default(),
                 id: storage_model.id,
                 merchant_reference_id: storage_model.merchant_reference_id,
@@ -1691,7 +1730,18 @@ impl behaviour::Conversion for PaymentIntent {
             setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
             active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
-            order_details: self.order_details,
+            order_details: self
+                .order_details
+                .map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Invalid value found for ".to_string(),
+                })?,
             allowed_payment_method_types: self.allowed_payment_method_types,
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
@@ -1819,7 +1869,12 @@ impl behaviour::Conversion for PaymentIntent {
             let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Invalid batch operation data")?;
-
+            let billing_address: String = data
+                .billing
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()?;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
