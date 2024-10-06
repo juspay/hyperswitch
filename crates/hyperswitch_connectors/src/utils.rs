@@ -4,7 +4,7 @@ use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount
 use base64::Engine;
 use common_enums::{
     enums,
-    enums::{CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
+    enums::{AttemptStatus, CanadaStatesAbbreviation, FutureUsage, UsStatesAbbreviation},
 };
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -17,11 +17,12 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -161,6 +162,35 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
     amount_convertor
         .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
+pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
+    match status {
+        AttemptStatus::AuthenticationFailed
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::Failure => true,
+        AttemptStatus::Started
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending => false,
+    }
 }
 
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
@@ -692,6 +722,31 @@ impl<Flow, Request, Response> RouterData
     }
 }
 
+pub trait ApplePayDecrypt {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        ))
+    }
+}
+
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
 pub enum CardIssuer {
     AmericanExpress,
@@ -715,6 +770,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
@@ -773,6 +829,11 @@ impl CardData for Card {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
     }
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
         self.card_exp_month
@@ -1371,6 +1432,22 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
 }
 
+pub trait PaymentsPreProcessingRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+}
+
 pub trait BrowserInformationData {
     fn get_accept_header(&self) -> Result<String, Error>;
     fn get_language(&self) -> Result<String, Error>;
@@ -1458,6 +1535,18 @@ fn get_header_field(
         .ok_or(report!(
             errors::ConnectorError::WebhookSourceVerificationFailed
         ))?
+}
+
+pub trait CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error>;
+}
+
+impl CryptoData for hyperswitch_domain_models::payment_method_data::CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error> {
+        self.pay_currency
+            .clone()
+            .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
 }
 
 #[macro_export]

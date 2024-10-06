@@ -204,12 +204,17 @@ pub async fn deep_health_check_func(
 
     logger::debug!("Database health check begin");
 
-    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-            component: "Database",
-            message: err.to_string()
-        })
-    })?;
+    let db_status = state
+        .health_check_db()
+        .await
+        .map(|_| true)
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                component: "Database",
+                message,
+            })
+        })?;
 
     logger::debug!("Database health check end");
 
@@ -219,23 +224,26 @@ pub async fn deep_health_check_func(
         .health_check_redis()
         .await
         .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
                 component: "Redis",
-                message: err.to_string()
+                message,
             })
         })?;
 
-    let outgoing_req_check = state
-        .health_check_outgoing()
-        .await
-        .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
-                component: "Outgoing Request",
-                message: err.to_string()
-            })
-        })?;
+    let outgoing_req_check =
+        state
+            .health_check_outgoing()
+            .await
+            .map(|_| true)
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Outgoing Request",
+                    message,
+                })
+            })?;
 
     logger::debug!("Redis health check end");
 

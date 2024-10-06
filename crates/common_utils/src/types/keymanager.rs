@@ -25,7 +25,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct KeyManagerState {
-    pub enabled: Option<bool>,
+    pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
     #[cfg(feature = "km_forward_x_request_id")]

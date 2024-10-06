@@ -160,7 +160,6 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
-    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -209,6 +208,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Datatrans,
     Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
@@ -226,6 +226,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
@@ -1916,6 +1917,7 @@ pub enum CountryAlpha2 {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -3143,7 +3145,6 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal = 3,
     Organization = 2,
     Merchant = 1,
     Profile = 0,
@@ -3218,38 +3219,81 @@ pub enum DeleteStatus {
     Redacted,
 }
 
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SuccessBasedRoutingConclusiveState {
+    // pc: payment connector
+    // sc: success based routing outcome/first connector
+    // status: payment status
+    //
+    // status = success && pc == sc
+    TruePositive,
+    // status = failed && pc == sc
+    FalsePositive,
+    // status = failed && pc != sc
+    TrueNegative,
+    // status = success && pc != sc
+    FalseNegative,
+    // status = processing
+    NonDeterministic,
+}
+
 /// Whether 3ds authentication is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
     Enable,
     /// Skip 3ds authentication
+    #[default]
     Skip,
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
     Enable,
     /// Skip enabling payment link
+    #[default]
     Skip,
 }
 
-/// Whether mit exemption is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
     Apply,
     /// Skip applying MIT exemption
+    #[default]
     Skip,
 }
 
-/// Whether customer is present / absent during the payment
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+/// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
+    #[default]
     Present,
     /// Customer is absent during the payment
     Absent,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum TaxCalculationOverride {
+    /// Skip calling the external tax provider
+    #[default]
+    Skip,
+    /// Calculate tax by calling the external tax provider
+    Calculate,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum SurchargeCalculationOverride {
+    /// Skip calculating surcharge
+    #[default]
+    Skip,
+    /// Calculate surcharge
+    Calculate,
 }

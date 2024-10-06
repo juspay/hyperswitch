@@ -59,6 +59,15 @@ describe("Core APIs", () => {
         globalState
       );
     });
+    it("Second merchant account create call", () => {
+      cy.merchantAccountCreateCall(
+        fixtures.merchant_account_body.ma_create,
+        globalState
+      );
+    });
+    it("List merchant accounts call", () => {
+      cy.merchantAccountsListCall(globalState);
+    });
   });
 
   context("Business profile APIs", () => {
@@ -86,6 +95,16 @@ describe("Core APIs", () => {
         fixtures.business_profile_body.bp_update,
         globalState
       );
+    });
+    it("Second business profile create call", () => {
+      fixtures.business_profile_body.bp_create.profile_name = "HyperSx2";
+      cy.businessProfileCreateCall(
+        fixtures.business_profile_body.bp_create,
+        globalState
+      );
+    });
+    it("List business profiles", () => {
+      cy.businessProfilesListCall(globalState);
     });
   });
 
@@ -127,6 +146,9 @@ describe("Core APIs", () => {
         payment_methods_enabled
       );
     });
+    it("[Payment] Merchant connector accounts list call", () => {
+      cy.mcaListCall(globalState, null);
+    });
   });
 
   context("API Key APIs", () => {
@@ -148,6 +170,12 @@ describe("Core APIs", () => {
     });
     it("API Key update call", () => {
       cy.apiKeyUpdateCall(fixtures.api_key_body.api_key_update, globalState);
+    });
+    it("Second API Key create call", () => {
+      cy.apiKeyCreateCall(fixtures.api_key_body.api_key_create, globalState);
+    });
+    it("API Keys list call", () => {
+      cy.apiKeysListCall(globalState);
     });
   });
 });
