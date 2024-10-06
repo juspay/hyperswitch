@@ -5026,7 +5026,7 @@ pub fn decrypt_paze_token(
         .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
 
     let (deserialized_payload, _deserialized_header) =
-        jwe::deserialize_compact(&jws_body.secured_payload.peek(), &decrypter)
+        jwe::deserialize_compact(jws_body.secured_payload.peek(), &decrypter)
             .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
     let encoded_secured_payload_element = String::from_utf8(deserialized_payload)
         .change_context(errors::PazeDecryptionError::DecryptionFailed)?

@@ -2866,7 +2866,7 @@ where
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
                 apple_pay_flow,
-                payment_method_type.clone(),
+                *payment_method_type,
             )
             .await?;
 
