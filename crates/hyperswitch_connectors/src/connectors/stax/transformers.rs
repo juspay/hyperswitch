@@ -1,5 +1,8 @@
 use common_enums::enums;
-use common_utils::pii::Email;
+use common_utils::{
+    pii::Email,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
@@ -24,16 +27,13 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct StaxRouterData<T> {
-    pub amount: f64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for StaxRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for StaxRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -49,7 +49,7 @@ pub struct StaxPaymentsRequestMetaData {
 #[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequest {
     payment_method_id: Secret<String>,
-    total: f64,
+    total: MinorUnit,
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
@@ -378,7 +378,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaxCaptureRequest {
-    total: Option<f64>,
+    total: Option<MinorUnit>,
 }
 
 impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCaptureRequest {
@@ -395,7 +395,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCapture
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    pub total: f64,
+    pub total: MinorUnit,
 }
 
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
@@ -410,7 +410,7 @@ pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
     created_at: String,
-    total: f64,
+    total: MinorUnit,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
