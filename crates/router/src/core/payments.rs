@@ -1709,72 +1709,9 @@ where
         &call_connector_action,
     );
 
-    // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
-    // and the connector supports Apple Pay predecrypt
-    match &tokenization_action {
-        TokenizationAction::DecryptApplePayToken(payment_processing_details)
-        | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
-            payment_processing_details,
-        ) => {
-            let apple_pay_data = match payment_data.get_payment_method_data() {
-                Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
-                    wallet_data,
-                ))) => Some(
-                    ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data.clone()))
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?
-                        .decrypt(
-                            &payment_processing_details.payment_processing_certificate,
-                            &payment_processing_details.payment_processing_certificate_key,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                ),
-                _ => None,
-            };
-
-            let apple_pay_predecrypt = apple_pay_data
-                .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
-                    "ApplePayPredecryptData",
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            router_data.payment_method_token = Some(
-                hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                    Box::new(apple_pay_predecrypt),
-                ),
-            );
-        }
-        TokenizationAction::DecryptPazeToken(payment_processing_details) => {
-            let paze_data = match payment_data.get_payment_method_data() {
-                Some(domain::PaymentMethodData::Wallet(domain::WalletData::Paze(wallet_data))) => {
-                    Some(
-                        decrypt_paze_token(
-                            wallet_data.clone(),
-                            payment_processing_details.paze_private_key.clone(),
-                            payment_processing_details
-                                .paze_private_key_passphrase
-                                .clone(),
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("failed to decrypt paze token")?,
-                    )
-                }
-                _ => None,
-            };
-            let paze_decrypted_data = paze_data
-                .parse_value::<hyperswitch_domain_models::router_data::PazeDecryptedData>(
-                    "PazeDecryptedData",
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to parse PazeDecryptedData")?;
-            router_data.payment_method_token = Some(
-                hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(Box::new(
-                    paze_decrypted_data,
-                )),
-            );
-        }
-        _ => (),
-    };
+    router_data =
+        add_decrypted_payment_method_token(tokenization_action.clone(), payment_data, router_data)
+            .await?;
 
     let payment_method_token_response = router_data
         .add_payment_method_token(
@@ -1879,6 +1816,85 @@ where
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
     Ok((router_data, merchant_connector_account))
+}
+
+pub async fn add_decrypted_payment_method_token<F, Req, D>(
+    tokenization_action: TokenizationAction,
+    payment_data: &D,
+    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
+) -> RouterResult<RouterData<F, Req, router_types::PaymentsResponseData>>
+where
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+    Req: Send + Sync,
+{
+    // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
+    // and the connector supports Apple Pay predecrypt
+    match &tokenization_action {
+        TokenizationAction::DecryptApplePayToken(payment_processing_details)
+        | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
+            payment_processing_details,
+        ) => {
+            let apple_pay_data = match payment_data.get_payment_method_data() {
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                    wallet_data,
+                ))) => Some(
+                    ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data.clone()))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                        .decrypt(
+                            &payment_processing_details.payment_processing_certificate,
+                            &payment_processing_details.payment_processing_certificate_key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ),
+                _ => None,
+            };
+
+            let apple_pay_predecrypt = apple_pay_data
+                .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
+                    "ApplePayPredecryptData",
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            router_data.payment_method_token = Some(
+                hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    Box::new(apple_pay_predecrypt),
+                ),
+            );
+        }
+        TokenizationAction::DecryptPazeToken(payment_processing_details) => {
+            let paze_data = match payment_data.get_payment_method_data() {
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::Paze(wallet_data))) => {
+                    Some(
+                        decrypt_paze_token(
+                            wallet_data.clone(),
+                            payment_processing_details.paze_private_key.clone(),
+                            payment_processing_details
+                                .paze_private_key_passphrase
+                                .clone(),
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed to decrypt paze token")?,
+                    )
+                }
+                _ => None,
+            };
+            let paze_decrypted_data = paze_data
+                .parse_value::<hyperswitch_domain_models::router_data::PazeDecryptedData>(
+                    "PazeDecryptedData",
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to parse PazeDecryptedData")?;
+            router_data.payment_method_token = Some(
+                hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(Box::new(
+                    paze_decrypted_data,
+                )),
+            );
+        }
+        _ => (),
+    };
+    Ok(router_data)
 }
 
 pub async fn get_merchant_bank_data_for_open_banking_connectors(
