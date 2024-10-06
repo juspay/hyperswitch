@@ -8,6 +8,7 @@ use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
+    errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
@@ -1396,8 +1397,11 @@ impl GetAddressFromPaymentMethodData for Card {
 }
 
 impl Card {
-    fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
-        Self {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: AdditionalCardInfo,
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
+        Ok(Self {
             card_number: self.card_number.clone(),
             card_exp_month: self.card_exp_month.clone(),
             card_exp_year: self.card_exp_year.clone(),
@@ -1410,7 +1414,7 @@ impl Card {
             card_network: self
                 .card_network
                 .clone()
-                .or(additional_card_info.card_network),
+                .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
             card_issuing_country: self
                 .card_issuing_country
@@ -1418,7 +1422,7 @@ impl Card {
                 .or(additional_card_info.card_issuing_country),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
-        }
+        })
     }
 }
 
@@ -1862,16 +1866,16 @@ impl PaymentMethodData {
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: AdditionalPaymentData,
-    ) -> Self {
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
         if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
             match self {
-                Self::Card(card) => {
-                    Self::Card(card.apply_additional_card_info(*additional_card_info))
-                }
-                _ => self.to_owned(),
+                Self::Card(card) => Ok(Self::Card(
+                    card.apply_additional_card_info(*additional_card_info)?,
+                )),
+                _ => Ok(self.to_owned()),
             }
         } else {
-            self.to_owned()
+            Ok(self.to_owned())
         }
     }
 
@@ -3845,6 +3849,8 @@ pub struct SepaBankTransferInstructions {
     pub country: String,
     #[schema(value_type = String, example = "123456789")]
     pub iban: Secret<String>,
+    #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
+    pub reference: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

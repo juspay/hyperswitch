@@ -30,9 +30,9 @@ use crate::{
         admin,
         errors::{UserErrors, UserResult},
     },
-    db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
+    db::GlobalStorageInterface,
     routes::SessionState,
-    services::{self, authentication::UserFromToken, authorization::info},
+    services::{self, authentication::UserFromToken},
     types::transformers::ForeignFrom,
     utils::user::password,
 };
@@ -661,26 +661,17 @@ impl NewUser {
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
-        version: Option<UserRoleVersion>,
     ) -> UserResult<UserRole> {
         let org_id = self
             .get_new_merchant()
             .get_new_organization()
             .get_organization_id();
-        let merchant_id = self.get_new_merchant().get_merchant_id();
 
         let org_user_role = self
             .get_no_level_user_role(role_id, user_status)
-            .add_entity(OrganizationLevel {
-                org_id,
-                merchant_id,
-            });
+            .add_entity(OrganizationLevel { org_id });
 
-        match version {
-            Some(UserRoleVersion::V1) => org_user_role.insert_in_v1(&state).await,
-            Some(UserRoleVersion::V2) => org_user_role.insert_in_v2(&state).await,
-            None => org_user_role.insert_in_v1_and_v2(&state).await,
-        }
+        org_user_role.insert_in_v2(&state).await
     }
 }
 
@@ -1019,37 +1010,6 @@ impl UserFromStorage {
     }
 }
 
-impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
-    fn from(value: info::ModuleInfo) -> Self {
-        Self {
-            module: value.module.into(),
-            description: value.description,
-            permissions: value.permissions.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<info::PermissionModule> for user_role_api::PermissionModule {
-    fn from(value: info::PermissionModule) -> Self {
-        match value {
-            info::PermissionModule::Payments => Self::Payments,
-            info::PermissionModule::Refunds => Self::Refunds,
-            info::PermissionModule::MerchantAccount => Self::MerchantAccount,
-            info::PermissionModule::Connectors => Self::Connectors,
-            info::PermissionModule::Routing => Self::Routing,
-            info::PermissionModule::Analytics => Self::Analytics,
-            info::PermissionModule::Mandates => Self::Mandates,
-            info::PermissionModule::Customer => Self::Customer,
-            info::PermissionModule::Disputes => Self::Disputes,
-            info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
-            info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
-            info::PermissionModule::AccountCreate => Self::AccountCreate,
-            info::PermissionModule::Payouts => Self::Payouts,
-            info::PermissionModule::Recon => Self::Recon,
-        }
-    }
-}
-
 impl ForeignFrom<UserStatus> for user_role_api::UserStatus {
     fn foreign_from(value: UserStatus) -> Self {
         match value {
@@ -1119,8 +1079,6 @@ pub struct NoLevel;
 #[derive(Clone)]
 pub struct OrganizationLevel {
     pub org_id: id_type::OrganizationId,
-    // Keeping this to allow insertion of org_admins in V1
-    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
@@ -1174,32 +1132,46 @@ pub struct EntityInfo {
     entity_type: EntityType,
 }
 
-impl<E> NewUserRole<E>
-where
-    E: Clone,
-{
-    fn convert_to_new_v1_role(
-        self,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-    ) -> UserRoleNew {
-        UserRoleNew {
-            user_id: self.user_id,
-            role_id: self.role_id,
-            status: self.status,
-            created_by: self.created_by,
-            last_modified_by: self.last_modified_by,
-            created_at: self.created_at,
-            last_modified: self.last_modified,
-            org_id: Some(org_id),
-            merchant_id: Some(merchant_id),
+impl From<OrganizationLevel> for EntityInfo {
+    fn from(value: OrganizationLevel) -> Self {
+        Self {
+            entity_id: value.org_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Organization,
+            org_id: value.org_id,
+            merchant_id: None,
             profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
         }
     }
+}
 
+impl From<MerchantLevel> for EntityInfo {
+    fn from(value: MerchantLevel) -> Self {
+        Self {
+            entity_id: value.merchant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Merchant,
+            org_id: value.org_id,
+            profile_id: None,
+            merchant_id: Some(value.merchant_id),
+        }
+    }
+}
+
+impl From<ProfileLevel> for EntityInfo {
+    fn from(value: ProfileLevel) -> Self {
+        Self {
+            entity_id: value.profile_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Profile,
+            org_id: value.org_id,
+            merchant_id: Some(value.merchant_id),
+            profile_id: Some(value.profile_id),
+        }
+    }
+}
+
+impl<E> NewUserRole<E>
+where
+    E: Clone + Into<EntityInfo>,
+{
     fn convert_to_new_v2_role(self, entity: EntityInfo) -> UserRoleNew {
         UserRoleNew {
             user_id: self.user_id,
@@ -1218,116 +1190,15 @@ where
         }
     }
 
-    async fn insert_v1_and_v2_in_db_and_get_v2(
-        state: &SessionState,
-        v1_role: UserRoleNew,
-        v2_role: UserRoleNew,
-    ) -> UserResult<UserRole> {
-        let inserted_roles = state
-            .store
-            .insert_user_role(InsertUserRolePayload::V1AndV2(Box::new([v1_role, v2_role])))
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-
-        inserted_roles
-            .into_iter()
-            .find(|role| role.version == UserRoleVersion::V2)
-            .ok_or(report!(UserErrors::InternalServerError))
-    }
-}
-
-impl NewUserRole<OrganizationLevel> {
-    pub async fn insert_in_v1(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-
-        state
-            .store
-            .insert_user_role(InsertUserRolePayload::OnlyV1(new_v1_role))
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .pop()
-            .ok_or(report!(UserErrors::InternalServerError))
-    }
-
     pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
 
-        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: None,
-            profile_id: None,
-            entity_id: entity.org_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Organization,
-        });
+        let new_v2_role = self.convert_to_new_v2_role(entity.into());
+
         state
             .store
-            .insert_user_role(InsertUserRolePayload::OnlyV2(new_v2_role))
+            .insert_user_role(new_v2_role)
             .await
-            .change_context(UserErrors::InternalServerError)?
-            .pop()
-            .ok_or(report!(UserErrors::InternalServerError))
-    }
-
-    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-
-        let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: None,
-            profile_id: None,
-            entity_id: entity.org_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Organization,
-        });
-
-        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
-    }
-}
-
-impl NewUserRole<MerchantLevel> {
-    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-
-        let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: Some(entity.merchant_id.clone()),
-            profile_id: None,
-            entity_id: entity.merchant_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Merchant,
-        });
-
-        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
-    }
-}
-
-impl NewUserRole<ProfileLevel> {
-    pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: Some(entity.merchant_id.clone()),
-            profile_id: Some(entity.profile_id.clone()),
-            entity_id: entity.profile_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Profile,
-        });
-        state
-            .store
-            .insert_user_role(InsertUserRolePayload::OnlyV2(new_v2_role))
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .pop()
-            .ok_or(report!(UserErrors::InternalServerError))
+            .change_context(UserErrors::InternalServerError)
     }
 }
