@@ -1,0 +1,99 @@
+name: Create a nightly tag
+
+on:
+  schedule:
+    - cron: "0 0 * * 1-5" # Run workflow at 00:00 midnight UTC (05:30 AM IST) every Monday-Friday
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+
+  # The branch name that this workflow is allowed to run on.
+  # If the workflow is run on any other branch, this workflow will fail.
+  ALLOWED_BRANCH_NAME: main
+
+jobs:
+  update-postman-collections:
+    name: Update Postman collection JSON files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AUTO_RELEASE_PAT }}
+
+      - name: Check if the workflow is run on an allowed branch
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
+            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{ github.ref }}'"
+            exit 1
+          fi
+
+      - name: Check if the latest commit is a tag
+        shell: bash
+        run: |
+          if [[ -n "$(git tag --points-at HEAD)" ]]; then
+            echo "::error::The latest commit on the branch is already a tag"
+            exit 1
+          fi
+
+      - name: Update Postman collection files from Postman directories
+        shell: bash
+        run: |
+          # maybe we need to move this package.json as we need it in multiple workflows
+          npm ci
+
+          POSTMAN_DIR="postman/collection-dir"
+          POSTMAN_JSON_DIR="postman/collection-json"
+          NEWMAN_PATH="$(pwd)/node_modules/.bin"
+          export PATH="${NEWMAN_PATH}:${PATH}"
+
+          # generate Postman collection JSON files for all Postman collection directories
+          for connector_dir in "${POSTMAN_DIR}"/*
+          do
+            connector="$(basename "${connector_dir}")"
+            newman dir-import "${POSTMAN_DIR}/${connector}" -o "${POSTMAN_JSON_DIR}/${connector}.postman_collection.json"
+          done
+
+          if git add postman && ! git diff --staged --quiet postman; then
+            echo "POSTMAN_COLLECTION_FILES_UPDATED=true" >> $GITHUB_ENV
+            echo "Postman collection files have been modified"
+          else
+            echo "Postman collection files have no modifications"
+          fi
+
+      - name: Set git configuration
+        shell: bash
+        if: ${{ env.POSTMAN_COLLECTION_FILES_UPDATED == 'true' }}
+        run: |
+          git config --local user.name 'github-actions'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Commit and push updated Postman collections if modified
+        shell: bash
+        if: ${{ env.POSTMAN_COLLECTION_FILES_UPDATED == 'true' }}
+        run: |
+          git add postman
+          git commit --message 'chore(postman): update Postman collection files'
+
+          git push origin "${ALLOWED_BRANCH_NAME}"
+
+  create-nightly-tag:
+    name: Create a nightly tag
+    uses: ./.github/workflows/release-nightly-version-reusable.yml
+    needs:
+      - update-postman-collections
+    secrets:
+      token: ${{ secrets.AUTO_RELEASE_PAT }}

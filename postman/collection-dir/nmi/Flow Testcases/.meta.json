@@ -1,3 +1,7 @@
 {
-  "childrenOrder": ["QuickStart", "Happy Cases", "Variation Cases"]
+  "childrenOrder": [
+    "QuickStart",
+    "Happy Cases",
+    "Variation Cases"
+  ]
 }

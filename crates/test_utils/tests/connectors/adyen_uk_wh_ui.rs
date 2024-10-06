@@ -1,4 +1,3 @@
-use serial_test::serial;
 use thirtyfour::{prelude::*, WebDriver};
 
 use crate::{selenium::*, tester};
@@ -15,7 +14,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
     let conn = AdyenSeleniumTest {};
     conn.make_webhook_test(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/104"),
+        &format!("{CHECKOUT_BASE_URL}/saved/104"),
         vec![
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -28,7 +27,6 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
 }
 
 #[test]
-#[serial]
 fn should_make_webhook_test() {
     tester!(should_make_webhook);
 }

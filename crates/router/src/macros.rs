@@ -1,68 +1,35 @@
+pub use common_utils::{collect_missing_value_keys, newtype};
+
 #[macro_export]
-macro_rules! newtype_impl {
-    ($is_pub:vis, $name:ident, $ty_path:path) => {
-        impl std::ops::Deref for $name {
-            type Target = $ty_path;
+macro_rules! get_formatted_date_time {
+    ($date_format:tt) => {{
+        let format = time::macros::format_description!($date_format);
+        time::OffsetDateTime::now_utc()
+            .format(&format)
+            .change_context($crate::core::errors::ConnectorError::InvalidDateFormat)
+    }};
+}
 
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        impl std::ops::DerefMut for $name {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.0
-            }
-        }
-
-        impl From<$ty_path> for $name {
-            fn from(ty: $ty_path) -> Self {
-                Self(ty)
-            }
-        }
-
-        impl $name {
-            pub fn into_inner(self) -> $ty_path {
-                self.0
-            }
-        }
+#[macro_export]
+macro_rules! get_payment_link_config_value_based_on_priority {
+    ($config:expr, $business_config:expr, $field:ident, $default:expr) => {
+        $config
+            .as_ref()
+            .and_then(|pc_config| pc_config.theme_config.$field.clone())
+            .or_else(|| {
+                $business_config
+                    .as_ref()
+                    .and_then(|business_config| business_config.$field.clone())
+            })
+            .unwrap_or($default)
     };
 }
 
 #[macro_export]
-macro_rules! newtype {
-    ($is_pub:vis $name:ident = $ty_path:path) => {
-        $is_pub struct $name(pub $ty_path);
-
-        $crate::newtype_impl!($is_pub, $name, $ty_path);
-    };
-
-    ($is_pub:vis $name:ident = $ty_path:path, derives = ($($trt:path),*)) => {
-        #[derive($($trt),*)]
-        $is_pub struct $name(pub $ty_path);
-
-        $crate::newtype_impl!($is_pub, $name, $ty_path);
-    };
-}
-
-#[macro_export]
-macro_rules! async_spawn {
-    ($t:block) => {
-        tokio::spawn(async move { $t });
-    };
-}
-
-#[macro_export]
-macro_rules! collect_missing_value_keys {
-    [$(($key:literal, $option:expr)),+] => {
-        {
-            let mut keys: Vec<&'static str> = Vec::new();
-            $(
-                if $option.is_none() {
-                    keys.push($key);
-                }
-            )*
-            keys
-        }
+macro_rules! get_payment_link_config_value {
+    ($config:expr, $business_config:expr, $(($field:ident, $default:expr)),*) => {
+        (
+            $(get_payment_link_config_value_based_on_priority!($config, $business_config, $field, $default)),*
+        )
     };
 }

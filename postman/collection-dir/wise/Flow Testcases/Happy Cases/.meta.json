@@ -1,0 +1,6 @@
+{
+  "childrenOrder": [
+    "Scenario1 - Process Bacs Payout",
+    "Scenario2 - Process SEPA Payout"
+  ]
+}

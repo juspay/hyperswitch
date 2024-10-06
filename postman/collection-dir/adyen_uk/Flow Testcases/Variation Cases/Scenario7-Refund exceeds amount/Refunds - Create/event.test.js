@@ -50,10 +50,10 @@ if (jsonData?.error?.type) {
 // Response body should have value "invalid_request" for "error type"
 if (jsonData?.error?.message) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.message' matches 'Refund amount exceeds the payment amount'",
+    "[POST]::/payments - Content check if value for 'error.message' matches 'The refund amount exceeds the amount captured'",
     function () {
       pm.expect(jsonData.error.message).to.eql(
-        "Refund amount exceeds the payment amount",
+        "The refund amount exceeds the amount captured",
       );
     },
   );

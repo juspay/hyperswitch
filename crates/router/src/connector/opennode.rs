@@ -2,8 +2,8 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::crypto;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{crypto, request::RequestContent};
+use error_stack::ResultExt;
 use transformers as opennode;
 
 use self::opennode::OpennodeWebhookDetails;
@@ -11,6 +11,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -22,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{BytesExt, Encode},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -99,17 +100,23 @@ impl ConnectorCommon for Opennode {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: opennode::OpennodeErrorResponse = res
             .response
             .parse_struct("OpennodeErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: consts::NO_ERROR_CODE.to_string(),
             message: response.message,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -144,6 +151,20 @@ impl
         types::PaymentsResponseData,
     > for Opennode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Opennode".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -172,20 +193,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = opennode::OpennodeRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
-        let opennode_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            Encode::<opennode::OpennodePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(opennode_req))
+        let connector_req = opennode::OpennodePaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -202,7 +219,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -210,12 +229,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: opennode::OpennodePaymentsResponse = res
             .response
             .parse_struct("Opennode PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -227,8 +251,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -281,12 +306,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: opennode::OpennodePaymentsResponse = res
             .response
             .parse_struct("opennode PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -298,8 +328,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -358,22 +389,19 @@ impl api::IncomingWebhook for Opennode {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let base64_signature = notif.hashed_order;
         hex::decode(base64_signature)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?;
         Ok(message.to_string().into_bytes())
     }
@@ -383,7 +411,6 @@ impl api::IncomingWebhook for Opennode {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(notif.id),
@@ -395,7 +422,6 @@ impl api::IncomingWebhook for Opennode {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match notif.status {
@@ -416,11 +442,10 @@ impl api::IncomingWebhook for Opennode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+
+        Ok(Box::new(notif.status))
     }
 }

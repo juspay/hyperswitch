@@ -63,9 +63,9 @@ if (jsonData?.client_secret) {
 // Response body should have value "Succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'",
+    "[POST]::/payments/:id - Content check if value for 'status' matches 'partially_captured'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
+      pm.expect(jsonData.status).to.eql("partially_captured");
     },
   );
 }

@@ -1,10 +1,10 @@
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::print_stdout)]
 
 mod utils;
 
 #[actix_web::test]
 async fn payouts_todo() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let client = awc::Client::default();
     let mut response;

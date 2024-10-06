@@ -1,0 +1,27 @@
+name: PR Title Spell Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+jobs:
+  typos:
+    name: Spell check PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Store PR title in a file
+        shell: bash
+        env: 
+          TITLE: ${{ github.event.pull_request.title }} 
+        run: echo $TITLE > pr_title.txt
+
+      - name: Spell check
+        uses: crate-ci/typos@master
+        with:
+          files: ./pr_title.txt

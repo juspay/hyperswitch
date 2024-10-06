@@ -19,6 +19,8 @@ impl super::settings::SchedulerSettings {
 
         self.producer.validate()?;
 
+        self.server.validate()?;
+
         Ok(())
     }
 }
@@ -28,6 +30,16 @@ impl super::settings::ProducerSettings {
         common_utils::fp_utils::when(self.lock_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "producer lock key must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::Server {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "server host must not be empty".into(),
             ))
         })
     }

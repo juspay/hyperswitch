@@ -1,5 +1,5 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums, AccessToken, PaymentAddress};
+use router::types::{self, api, storage::enums, AccessToken};
 
 use crate::{
     connector_auth,
@@ -12,14 +12,14 @@ use crate::{
 struct IatapayTest;
 impl ConnectorActions for IatapayTest {}
 impl Connector for IatapayTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Iatapay;
-        types::api::ConnectorData {
-            connector: Box::new(&Iatapay),
-            connector_name: types::Connector::Iatapay,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Iatapay::new()),
+            types::Connector::Iatapay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -55,8 +55,9 @@ static CONNECTOR: IatapayTest = IatapayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
-        address: Some(PaymentAddress {
-            billing: Some(api::Address {
+        address: Some(types::PaymentAddress::new(
+            None,
+            Some(api::Address {
                 address: Some(api::AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
@@ -68,12 +69,14 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
-                    number: Some(Secret::new("1234567890".to_string())),
+                    number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
-            ..Default::default()
-        }),
+            None,
+            None,
+        )),
         access_token: get_access_token(),
         return_url: Some(String::from("https://hyperswitch.io")),
         ..Default::default()
@@ -153,7 +156,7 @@ async fn should_sync_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     "PE9OTYNP639XW".to_string(),
                 ),
                 ..Default::default()

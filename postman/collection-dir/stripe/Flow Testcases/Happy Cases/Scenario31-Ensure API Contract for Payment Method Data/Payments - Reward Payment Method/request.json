@@ -1,0 +1,34 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 6540,
+      "currency": "USD",
+      "payment_method": "reward",
+      "payment_method_type": "evoucher",
+      "payment_method_data": "reward"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
+  },
+  "description": "Create a Payment to ensure api contract is intact"
+}

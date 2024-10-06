@@ -1,23 +1,20 @@
 # Try out hyperswitch on your system
 
-**NOTE:**
-This guide is aimed at users and developers who wish to set up hyperswitch on
-their local systems and requires quite some time and effort.
-If you'd prefer trying out hyperswitch quickly without the hassle of setting up
-all dependencies, you can [try out hyperswitch sandbox environment][try-sandbox].
-
-There are two options to set up hyperswitch on your system:
-
-1. Use Docker Compose
-2. Set up a Rust environment and other dependencies on your system
+The simplest way to run hyperswitch locally is
+[with Docker Compose](#run-hyperswitch-using-docker-compose) by pulling the
+latest images from Docker Hub.
+However, if you're willing to modify the code and run it, or are a developer
+contributing to hyperswitch, then you can either
+[set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose),
+or [set up a Rust environment on your system](#set-up-a-rust-environment-and-other-dependencies).
 
 Check the Table Of Contents to jump to the relevant section.
 
-[try-sandbox]: ./try_sandbox.md
-
 **Table Of Contents:**
 
-- [Set up hyperswitch using Docker Compose](#set-up-hyperswitch-using-docker-compose)
+- [Run hyperswitch using Docker Compose](#run-hyperswitch-using-docker-compose)
+  - [Running additional services](#running-additional-services)
+- [Set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
   - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
@@ -33,7 +30,104 @@ Check the Table Of Contents to jump to the relevant section.
   - [Create a Payment](#create-a-payment)
   - [Create a Refund](#create-a-refund)
 
-## Set up hyperswitch using Docker Compose
+## Run hyperswitch using Docker Compose
+
+1. Install [Docker Compose][docker-compose-install].
+2. Clone the repository and switch to the project directory:
+
+   ```shell
+   git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
+   cd hyperswitch
+   ```
+
+3. (Optional) Configure the application using the
+   [`config/docker_compose.toml`][docker-compose-config] file.
+   The provided configuration should work as is.
+   If you do update the `docker_compose.toml` file, ensure to also update the
+   corresponding values in the [`docker-compose.yml`][docker-compose-yml] file.
+4. Start all the services using Docker Compose:
+
+   ```shell
+   docker compose up -d
+   ```
+
+   This should run the hyperswitch app server, web client and control center.
+   Wait for the `migration_runner` container to finish installing `diesel_cli`
+   and running migrations (approximately 2 minutes), and for the
+   `hyperswitch-web` container to finish compiling before proceeding further.
+   You can also choose to
+   [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+   in addition to the app server, web client and control center.
+
+5. Verify that the server is up and running by hitting the health endpoint:
+
+   ```shell
+   curl --head --request GET 'http://localhost:8080/health'
+   ```
+
+   If the command returned a `200 OK` status code, proceed with
+   [trying out our APIs](#try-out-our-apis).
+
+### Running additional services
+
+The default behaviour for docker compose only runs the following services:
+
+1. postgres
+2. redis (standalone)
+3. hyperswitch server
+4. hyperswitch control center
+5. hyperswitch web sdk
+
+You can run the scheduler, data and monitoring services by specifying suitable profile
+names to the above Docker Compose command.
+To understand more about the hyperswitch architecture and the components
+involved, check out the [architecture document][architecture].
+
+- To run the scheduler components (consumer and producer), you can specify
+  `--profile scheduler`:
+
+  ```shell
+  docker compose --profile scheduler up -d
+  ```
+
+- To run the monitoring services (Grafana, Promtail, Loki, Prometheus and Tempo),
+  you can specify `--profile monitoring`:
+
+  ```shell
+  docker compose --profile monitoring up -d
+  ```
+
+  You can then access Grafana at `http://localhost:3000` and view application
+  logs using the "Explore" tab, select Loki as the data source, and select the
+  container to query logs from.
+
+- To run the data services (Clickhouse, Kafka and Opensearch) you can specify the `olap` profile
+
+  ```shell
+  docker compose --profile olap up -d
+  ```
+
+  You can read more about using the data services [here][data-docs]
+
+- You can also specify multiple profile names by specifying the `--profile` flag
+  multiple times.
+  To run both the scheduler components and monitoring services, the Docker
+  Compose command would be:
+
+  ```shell
+  docker compose --profile scheduler --profile monitoring up -d
+  ```
+
+Once the services have been confirmed to be up and running, you can proceed with
+[trying out our APIs](#try-out-our-apis)
+
+[docker-compose-install]: https://docs.docker.com/compose/install/
+[docker-compose-config]: /config/docker_compose.toml
+[docker-compose-yml]: /docker-compose.yml
+[architecture]: /docs/architecture.md
+[data-docs]: /crates/analytics/docs/README.md
+
+## Set up a development environment using Docker Compose
 
 1. Install [Docker Compose][docker-compose-install].
 2. Clone the repository and switch to the project directory:
@@ -51,16 +145,17 @@ Check the Table Of Contents to jump to the relevant section.
 4. Start all the services using Docker Compose:
 
    ```shell
-   docker compose up -d
+   docker compose --file docker-compose-development.yml up -d
    ```
 
-5. Run database migrations:
+   This will compile the payments router, the primary component within
+   hyperswitch and then start it.
+   Depending on the specifications of your machine, compilation can take
+   around 15 minutes.
 
-   ```shell
-   docker compose run hyperswitch-server bash -c \
-      "cargo install diesel_cli && \
-      diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run"
-   ```
+5. (Optional) You can also choose to
+   [start the scheduler and/or monitoring services](#run-the-scheduler-and-monitoring-services)
+   in addition to the payments router.
 
 6. Verify that the server is up and running by hitting the health endpoint:
 
@@ -70,10 +165,6 @@ Check the Table Of Contents to jump to the relevant section.
 
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
-
-[docker-compose-install]: https://docs.docker.com/compose/install/
-[docker-compose-config]: /config/docker_compose.toml
-[docker-compose-yml]: /docker-compose.yml
 
 ## Set up a Rust environment and other dependencies
 
@@ -134,10 +225,10 @@ for your distribution and follow along.
 4. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
-5. Make sure your system has the `pkg-config` package and OpenSSL installed:
+5. Make sure your system has the `pkg-config` package and OpenSSL installed
 
    ```shell
    sudo apt install pkg-config libssl-dev
@@ -148,6 +239,7 @@ Once you're done with setting up the dependencies, proceed with
 
 [postgresql-install]: https://www.postgresql.org/download/
 [redis-install]: https://redis.io/docs/getting-started/installation/
+[wsl-config]: https://learn.microsoft.com/en-us/windows/wsl/wsl-config/
 
 ### Set up dependencies on Windows (Ubuntu on WSL2)
 
@@ -166,6 +258,8 @@ packages for your distribution and follow along.
    Launch the WSL instance and set up your username and password.
    The following steps assume that you are running the commands within the WSL
    shell environment.
+
+   > Note that a `SIGKILL` error may occur when compiling certain crates if WSL is unable to use sufficient memory. It may be necessary to allow up to 24GB of memory, but your mileage may vary. You may increase the amount of memory WSL can use via a `.wslconfig` file in your Windows user folder, or by creating a swap file in WSL itself. Refer to the [WSL configuration documentation][wsl-config] for more information.
 
 2. Install the stable Rust toolchain using `rustup`:
 
@@ -224,7 +318,7 @@ packages for your distribution and follow along.
 6. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
 7. Make sure your system has the `pkg-config` package and OpenSSL installed:
@@ -260,7 +354,7 @@ You can opt to use your favorite package manager instead.
 4. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
 5. Install OpenSSL with `winget`:
@@ -284,12 +378,9 @@ You can opt to use your favorite package manager instead.
 1. Install the stable Rust toolchain using `rustup`:
 
    ```shell
-   brew install rustup-init
-   rustup-init
+   brew install rustup
+   rustup default stable
    ```
-
-   When prompted, proceed with the `default` profile, which installs the stable
-   toolchain.
 
    Optionally, verify that the Rust compiler and `cargo` are successfully
    installed:
@@ -322,7 +413,7 @@ You can opt to use your favorite package manager instead.
 4. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
    If linking `diesel_cli` fails due to missing `libpq` (if the error message is
@@ -333,7 +424,7 @@ You can opt to use your favorite package manager instead.
    brew install libpq
    export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
 
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
    You may also choose to persist the value of `PQ_LIB_DIR` in your shell
@@ -341,6 +432,14 @@ You can opt to use your favorite package manager instead.
 
    ```shell
    echo 'PQ_LIB_DIR="$(brew --prefix libpq)/lib"' >> ~/.zshrc
+   ```
+
+5. Install a command runner called `just`:
+
+   In order to make running migrations easier, you can use a command runner called just
+
+   ```shell
+   cargo install just
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -384,10 +483,26 @@ Once you're done with setting up the dependencies, proceed with
    cd hyperswitch
    ```
 
-3. Run database migrations using `diesel_cli`:
+3. Run database migrations:
+
+   Export the `DATABASE_URL` env variable
 
    ```shell
-   diesel migration --database-url postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME run
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   ```
+
+   Run the migrations
+
+   - If you have just installed
+
+   ```shell
+   just migrate
+   ```
+
+   - Using the diesel-cli command
+
+   ```shell
+   diesel migration run
    ```
 
 Once you're done with setting up the database, proceed with

@@ -37,3 +37,16 @@ if (jsonData?.merchant_connector_id) {
     "INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.",
   );
 }
+
+// pm.collectionVariables - Set profile_id as variable for jsonData.payment_profile_id
+if (jsonData?.profile_id) {
+  pm.collectionVariables.set("payment_profile_id", jsonData.profile_id);
+  console.log(
+    "- use {{payment_profile_id}} as collection variable for value",
+    jsonData.profile_id,
+  );
+} else {
+  console.log(
+    "INFO - Unable to assign variable {{payment_profile_id}}, as jsonData.profile_id is undefined.",
+  );
+}

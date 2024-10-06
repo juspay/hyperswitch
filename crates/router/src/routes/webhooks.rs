@@ -5,7 +5,6 @@ use super::app::AppState;
 use crate::{
     core::{
         api_locking,
-        payment_methods::Oss,
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
@@ -16,19 +15,21 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
-    api::server_wrap(
-        flow,
+    Box::pin(api::server_wrap(
+        flow.clone(),
         state,
         &req,
         (),
-        |state, auth, _| {
-            webhooks::webhooks_wrapper::<W, Oss>(
+        |state, auth, _, req_state| {
+            webhooks::incoming_webhooks_wrapper::<W>(
+                &flow,
                 state.to_owned(),
+                req_state,
                 &req,
                 auth.merchant_account,
                 auth.key_store,
@@ -38,6 +39,6 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

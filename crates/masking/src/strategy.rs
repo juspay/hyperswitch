@@ -7,7 +7,9 @@ pub trait Strategy<T> {
 }
 
 /// Debug with type
-pub struct WithType;
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Debug, Copy, Clone)]
+pub enum WithType {}
 
 impl<T> Strategy<T> for WithType {
     fn fmt(_: &T, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -18,7 +20,7 @@ impl<T> Strategy<T> for WithType {
 }
 
 /// Debug without type
-pub struct WithoutType;
+pub enum WithoutType {}
 
 impl<T> Strategy<T> for WithoutType {
     fn fmt(_: &T, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {

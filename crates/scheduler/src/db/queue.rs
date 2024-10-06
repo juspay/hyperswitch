@@ -91,7 +91,7 @@ impl QueueInterface for Store {
 
                 #[allow(unused_must_use)]
                 Err(error) => {
-                    logger::error!(error=?error.current_context());
+                    logger::error!(?error);
                     conn.delete_key(lock_key).await;
                     false
                 }
@@ -101,7 +101,7 @@ impl QueueInterface for Store {
                 false
             }
             Err(error) => {
-                logger::error!(error=%error.current_context(), %tag, "Error while locking");
+                logger::error!(?error, %tag, "Error while locking");
                 false
             }
         })
@@ -112,7 +112,7 @@ impl QueueInterface for Store {
         Ok(match is_lock_released {
             Ok(_del_reply) => true,
             Err(error) => {
-                logger::error!(error=%error.current_context(), %tag, "Error while releasing lock");
+                logger::error!(?error, %tag, "Error while releasing lock");
                 false
             }
         })
@@ -144,7 +144,7 @@ impl QueueInterface for MockDb {
     ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
         // [#172]: Implement function for `MockDb`
         Err(ProcessTrackerError::ResourceFetchingFailed {
-            resource_name: "consumer_tasks",
+            resource_name: "consumer_tasks".to_string(),
         })?
     }
 

@@ -85,20 +85,20 @@ if (jsonData?.amount) {
   );
 }
 
-// Response body should have value "6000" for "amount_received"
+// Response body should have value "6540" for "amount_received"
 if (jsonData?.amount_received) {
   pm.test(
-    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'",
+    "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6540'",
     function () {
-      pm.expect(jsonData.amount_received).to.eql(6000);
+      pm.expect(jsonData.amount_received).to.eql(6540);
     },
   );
 }
 
-// Response body should have value "6540" for "amount_capturable"
+// Response body should have value "0" for "amount_capturable"
 if (jsonData?.amount) {
   pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 540'",
+    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 0'",
     function () {
       pm.expect(jsonData.amount_capturable).to.eql(0);
     },

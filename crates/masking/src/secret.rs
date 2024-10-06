@@ -4,7 +4,7 @@
 
 use std::{fmt, marker::PhantomData};
 
-use crate::{strategy::Strategy, PeekInterface};
+use crate::{strategy::Strategy, PeekInterface, StrongSecret};
 
 ///
 /// Secret thing.
@@ -12,8 +12,8 @@ use crate::{strategy::Strategy, PeekInterface};
 /// To get access to value use method `expose()` of trait [`crate::ExposeInterface`].
 ///
 /// ## Masking
-/// Use the [`crate::strategy::Strategy`] trait to implement a masking strategy on a unit struct
-/// and pass the unit struct as a second generic parameter to [`Secret`] while defining it.
+/// Use the [`crate::strategy::Strategy`] trait to implement a masking strategy on a zero-variant
+/// enum and pass this enum as a second generic parameter to [`Secret`] while defining it.
 /// [`Secret`] will take care of applying the masking strategy on the inner secret when being
 /// displayed.
 ///
@@ -24,7 +24,7 @@ use crate::{strategy::Strategy, PeekInterface};
 /// use masking::Secret;
 /// use std::fmt;
 ///
-/// struct MyStrategy;
+/// enum MyStrategy {}
 ///
 /// impl<T> Strategy<T> for MyStrategy
 /// where
@@ -80,6 +80,14 @@ where
         MaskingStrategy: Strategy<OtherSecretValue>,
     {
         f(self.inner_secret).into()
+    }
+
+    /// Convert to [`StrongSecret`]
+    pub fn into_strong(self) -> StrongSecret<SecretValue, MaskingStrategy>
+    where
+        SecretValue: zeroize::DefaultIsZeroes,
+    {
+        StrongSecret::new(self.inner_secret)
     }
 }
 

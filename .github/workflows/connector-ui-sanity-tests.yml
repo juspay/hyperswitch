@@ -82,24 +82,33 @@ jobs:
 
       - name: Checkout repository
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Decrypt connector auth file
+      - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
+          DESTINATION_FILE_NAME: "connector_auth.toml.gpg"
+          S3_SOURCE_FILE_NAME: "cf05a6ab-525e-4888-98b3-3b4a443b87c0.toml.gpg"
         shell: bash
-        run: ./scripts/decrypt_connector_auth.sh
+        run: |
+          mkdir -p ${HOME}/target/secrets ${HOME}/target/test
+          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "${HOME}/target/test/connector_auth.toml" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set connector auth file path in env
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
-        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+        run: echo "CONNECTOR_AUTH_FILE_PATH=${HOME}/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Set connector tests file path in env
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
-        run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
+        run: echo "CONNECTOR_TESTS_FILE_PATH=${HOME}/target/test/connector_tests.json" >> $GITHUB_ENV
 
       - name: Set ignore_browser_profile usage in env
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -113,10 +122,10 @@ jobs:
           toolchain: stable
 
       - name: Build and Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2.4.0
+        uses: Swatinem/rust-cache@v2.7.0
 
       - name: Install Diesel CLI with Postgres Support
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         with:
           crate: diesel_cli
@@ -154,9 +163,9 @@ jobs:
           failed_connectors=()
 
           for i in $(echo "$INPUT" | tr "," "\n"); do
-              echo $i
+              echo "${i}"
               if ! cargo test --package test_utils --test connectors -- "${i}_ui::" --test-threads=1; then
-                  failed_connectors+=("$i")
+                  failed_connectors+=("${i}")
               fi
           done
 

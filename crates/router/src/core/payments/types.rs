@@ -1,10 +1,28 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, num::TryFromIntError};
 
-use error_stack::{IntoReport, ResultExt};
+use api_models::payment_methods::SurchargeDetailsResponse;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{Encode, OptionExt},
+    types as common_types,
+};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+pub use hyperswitch_domain_models::router_request_types::{
+    AuthenticationData, PaymentCharges, SurchargeDetails,
+};
+use redis_interface::errors::RedisError;
+use router_env::{instrument, logger, tracing};
 
 use crate::{
+    consts as router_consts,
     core::errors::{self, RouterResult},
-    types::storage::{self, enums as storage_enums},
+    routes::SessionState,
+    types::{
+        domain::Profile,
+        storage::{self, enums as storage_enums},
+        transformers::ForeignTryFrom,
+    },
 };
 
 #[derive(Clone, Debug)]
@@ -26,7 +44,6 @@ impl MultipleCaptureData {
         let latest_capture = captures
             .last()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
             .attach_printable("Cannot create MultipleCaptureData with empty captures list")?
             .clone();
         let multiple_capture_data = Self {
@@ -65,31 +82,34 @@ impl MultipleCaptureData {
                 .and_modify(|capture| *capture = updated_capture.clone());
         }
     }
-    pub fn get_total_blocked_amount(&self) -> i64 {
-        self.all_captures.iter().fold(0, |accumulator, capture| {
-            accumulator
-                + match capture.1.status {
-                    storage_enums::CaptureStatus::Charged
-                    | storage_enums::CaptureStatus::Pending => capture.1.amount,
-                    storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => 0,
-                }
-        })
+    pub fn get_total_blocked_amount(&self) -> common_types::MinorUnit {
+        self.all_captures
+            .iter()
+            .fold(common_types::MinorUnit::new(0), |accumulator, capture| {
+                accumulator
+                    + match capture.1.status {
+                        storage_enums::CaptureStatus::Charged
+                        | storage_enums::CaptureStatus::Pending => capture.1.amount,
+                        storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
+                    }
+            })
     }
-    pub fn get_total_charged_amount(&self) -> i64 {
-        self.all_captures.iter().fold(0, |accumulator, capture| {
-            accumulator
-                + match capture.1.status {
-                    storage_enums::CaptureStatus::Charged => capture.1.amount,
-                    storage_enums::CaptureStatus::Pending
-                    | storage_enums::CaptureStatus::Started
-                    | storage_enums::CaptureStatus::Failed => 0,
-                }
-        })
+    pub fn get_total_charged_amount(&self) -> common_types::MinorUnit {
+        self.all_captures
+            .iter()
+            .fold(common_types::MinorUnit::new(0), |accumulator, capture| {
+                accumulator
+                    + match capture.1.status {
+                        storage_enums::CaptureStatus::Charged => capture.1.amount,
+                        storage_enums::CaptureStatus::Pending
+                        | storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => common_types::MinorUnit::new(0),
+                    }
+            })
     }
     pub fn get_captures_count(&self) -> RouterResult<i16> {
         i16::try_from(self.all_captures.len())
-            .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while converting from usize to i16")
     }
@@ -109,14 +129,17 @@ impl MultipleCaptureData {
                 accumulator
             })
     }
-    pub fn get_attempt_status(&self, authorized_amount: i64) -> storage_enums::AttemptStatus {
+    pub fn get_attempt_status(
+        &self,
+        authorized_amount: common_types::MinorUnit,
+    ) -> storage_enums::AttemptStatus {
         let total_captured_amount = self.get_total_charged_amount();
         if authorized_amount == total_captured_amount {
             return storage_enums::AttemptStatus::Charged;
         }
         let status_count_map = self.get_status_count();
         if status_count_map.get(&storage_enums::CaptureStatus::Charged) > Some(&0) {
-            storage_enums::AttemptStatus::PartialCharged
+            storage_enums::AttemptStatus::PartialChargedAndChargeable
         } else {
             storage_enums::AttemptStatus::CaptureInitiated
         }
@@ -162,5 +185,213 @@ impl MultipleCaptureData {
             .into_iter()
             .filter(|capture| capture.connector_capture_id.is_none())
             .collect()
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
+    type Error = TryFromIntError;
+    fn foreign_try_from(
+        (surcharge_details, payment_attempt): (&SurchargeDetails, &PaymentAttempt),
+    ) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
+    type Error = TryFromIntError;
+    fn foreign_try_from(
+        (surcharge_details, payment_attempt): (&SurchargeDetails, &PaymentAttempt),
+    ) -> Result<Self, Self::Error> {
+        let currency = payment_attempt.currency.unwrap_or_default();
+        let display_surcharge_amount = currency
+            .to_currency_base_unit_asf64(surcharge_details.surcharge_amount.get_amount_as_i64())?;
+        let display_tax_on_surcharge_amount = currency.to_currency_base_unit_asf64(
+            surcharge_details
+                .tax_on_surcharge_amount
+                .get_amount_as_i64(),
+        )?;
+        let display_final_amount = currency
+            .to_currency_base_unit_asf64(surcharge_details.final_amount.get_amount_as_i64())?;
+        let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
+            (surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount)
+                .get_amount_as_i64(),
+        )?;
+        Ok(Self {
+            surcharge: surcharge_details.surcharge.clone().into(),
+            tax_on_surcharge: surcharge_details.tax_on_surcharge.clone().map(Into::into),
+            display_surcharge_amount,
+            display_tax_on_surcharge_amount,
+            display_total_surcharge_amount,
+            display_final_amount,
+        })
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Clone, Debug, strum::Display)]
+pub enum SurchargeKey {
+    Token(String),
+    PaymentMethodData(
+        common_enums::PaymentMethod,
+        common_enums::PaymentMethodType,
+        Option<common_enums::CardNetwork>,
+    ),
+}
+
+#[derive(Clone, Debug)]
+pub struct SurchargeMetadata {
+    surcharge_results: HashMap<SurchargeKey, SurchargeDetails>,
+    pub payment_attempt_id: String,
+}
+
+impl SurchargeMetadata {
+    pub fn new(payment_attempt_id: String) -> Self {
+        Self {
+            surcharge_results: HashMap::new(),
+            payment_attempt_id,
+        }
+    }
+    pub fn is_empty_result(&self) -> bool {
+        self.surcharge_results.is_empty()
+    }
+    pub fn get_surcharge_results_size(&self) -> usize {
+        self.surcharge_results.len()
+    }
+    pub fn insert_surcharge_details(
+        &mut self,
+        surcharge_key: SurchargeKey,
+        surcharge_details: SurchargeDetails,
+    ) {
+        self.surcharge_results
+            .insert(surcharge_key, surcharge_details);
+    }
+    pub fn get_surcharge_details(&self, surcharge_key: SurchargeKey) -> Option<&SurchargeDetails> {
+        self.surcharge_results.get(&surcharge_key)
+    }
+    pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
+        format!("surcharge_metadata_{}", payment_attempt_id)
+    }
+    pub fn get_individual_surcharge_key_value_pairs(&self) -> Vec<(String, SurchargeDetails)> {
+        self.surcharge_results
+            .iter()
+            .map(|(surcharge_key, surcharge_details)| {
+                let key = Self::get_surcharge_details_redis_hashset_key(surcharge_key);
+                (key, surcharge_details.to_owned())
+            })
+            .collect()
+    }
+    pub fn get_surcharge_details_redis_hashset_key(surcharge_key: &SurchargeKey) -> String {
+        match surcharge_key {
+            SurchargeKey::Token(token) => {
+                format!("token_{}", token)
+            }
+            SurchargeKey::PaymentMethodData(payment_method, payment_method_type, card_network) => {
+                if let Some(card_network) = card_network {
+                    format!(
+                        "{}_{}_{}",
+                        payment_method, payment_method_type, card_network
+                    )
+                } else {
+                    format!("{}_{}", payment_method, payment_method_type)
+                }
+            }
+        }
+    }
+    #[instrument(skip_all)]
+    pub async fn persist_individual_surcharge_details_in_redis(
+        &self,
+        state: &SessionState,
+        business_profile: &Profile,
+    ) -> RouterResult<()> {
+        if !self.is_empty_result() {
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+            let redis_key = Self::get_surcharge_metadata_redis_key(&self.payment_attempt_id);
+
+            let mut value_list = Vec::with_capacity(self.get_surcharge_results_size());
+            for (key, value) in self.get_individual_surcharge_key_value_pairs().into_iter() {
+                value_list.push((
+                    key,
+                    value
+                        .encode_to_string_of_json()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to encode to string of json")?,
+                ));
+            }
+            let intent_fulfillment_time = business_profile
+                .get_order_fulfillment_time()
+                .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
+            redis_conn
+                .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to write to redis")?;
+            logger::debug!("Surcharge results stored in redis with key = {}", redis_key);
+        }
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_individual_surcharge_detail_from_redis(
+        state: &SessionState,
+        surcharge_key: SurchargeKey,
+        payment_attempt_id: &str,
+    ) -> CustomResult<SurchargeDetails, RedisError> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
+        let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
+        let result = redis_conn
+            .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
+            .await;
+        logger::debug!(
+            "Surcharge result fetched from redis with key = {} and {}",
+            redis_key,
+            value_key
+        );
+        result
+    }
+}
+
+impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
+        if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
+            let threeds_server_transaction_id = authentication
+                .threeds_server_transaction_id
+                .clone()
+                .get_required_value("threeds_server_transaction_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("threeds_server_transaction_id must not be null when authentication_status is success")?;
+            let message_version = authentication
+                .message_version
+                .clone()
+                .get_required_value("message_version")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "message_version must not be null when authentication_status is success",
+                )?;
+            let cavv = authentication
+                .cavv
+                .clone()
+                .get_required_value("cavv")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("cavv must not be null when authentication_status is success")?;
+            Ok(Self {
+                eci: authentication.eci.clone(),
+                cavv,
+                threeds_server_transaction_id,
+                message_version,
+                ds_trans_id: authentication.ds_trans_id.clone(),
+            })
+        } else {
+            Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
+        }
     }
 }

@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,18 +9,16 @@ use crate::{
 };
 
 impl DisputeNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Dispute> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Dispute {
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
@@ -36,7 +33,7 @@ impl Dispute {
 
     pub async fn find_by_merchant_id_dispute_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -50,8 +47,8 @@ impl Dispute {
 
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -70,7 +67,6 @@ impl Dispute {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn update(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,

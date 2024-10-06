@@ -1,0 +1,47 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{admin_api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "DELETE",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/accounts/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "accounts",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{merchant_id}}",
+        "description": "(Required) The unique identifier for the merchant account"
+      }
+    ]
+  },
+  "description": "Delete a Merchant Account"
+}

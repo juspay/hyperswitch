@@ -1,12 +1,10 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use error_stack::report;
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{errors, mandate::*, schema::mandate::dsl, PgPooledConn, StorageResult};
 
 impl MandateNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Mandate> {
         generics::generic_insert(conn, self).await
     }
@@ -15,7 +13,7 @@ impl MandateNew {
 impl Mandate {
     pub async fn find_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         mandate_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -29,7 +27,7 @@ impl Mandate {
 
     pub async fn find_by_merchant_id_connector_mandate_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_mandate_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -43,8 +41,8 @@ impl Mandate {
 
     pub async fn find_by_merchant_id_customer_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        customer_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        customer_id: &common_utils::id_type::CustomerId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -63,18 +61,24 @@ impl Mandate {
         .await
     }
 
+    //Fix this function once V2 mandate is schema is being built
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub async fn find_by_global_id(_conn: &PgPooledConn, _id: &str) -> StorageResult<Vec<Self>> {
+        todo!()
+    }
+
     pub async fn update_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         mandate_id: &str,
-        mandate: MandateUpdate,
+        mandate: MandateUpdateInternal,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::mandate_id.eq(mandate_id.to_owned())),
-            MandateUpdateInternal::from(mandate),
+            mandate,
         )
         .await?
         .first()

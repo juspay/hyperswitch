@@ -1,9 +1,9 @@
 use bb8::PooledConnection;
-use data_models::errors::StorageError;
 use diesel::PgConnection;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::errors::StorageError;
 
-use crate::{metrics, DatabaseStore};
+use crate::{errors::RedisErrorExt, metrics, DatabaseStore};
 
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,
@@ -28,7 +28,6 @@ pub async fn pg_connection_read<T: DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(StorageError::DatabaseConnectionError)
 }
 
@@ -43,7 +42,6 @@ pub async fn pg_connection_write<T: DatabaseStore>(
 
     pool.get()
         .await
-        .into_report()
         .change_context(StorageError::DatabaseConnectionError)
 }
 
@@ -64,7 +62,8 @@ where
                 metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
                 database_call_closure().await
             }
-            _ => Err(redis_error.change_context(StorageError::KVError)),
+            // Keeping the key empty here since the error would never go here.
+            _ => Err(redis_error.to_redis_failed_response("")),
         },
     }
 }

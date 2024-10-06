@@ -1,5 +1,4 @@
-#![forbid(unsafe_code)]
-#![warn(missing_docs, missing_debug_implementations)]
+#![warn(missing_debug_implementations)]
 
 //!
 //! Environment of payment router: logger, basic config, its environment awareness.

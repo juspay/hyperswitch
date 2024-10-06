@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -415,7 +408,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"worldline\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"key1\":\"{{connector_key1}}\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"bank_redirect\",\"payment_method_types\":[{\"payment_method_type\":\"ideal\",\"payment_experience\":null,\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"giropay\",\"payment_experience\":null,\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"debit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}]}"
+                  "raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"worldline\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"key1\":\"{{connector_key1}}\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"bank_redirect\",\"payment_method_types\":[{\"payment_method_type\":\"ideal\",\"payment_experience\":null,\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"giropay\",\"payment_experience\":null,\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"debit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}]}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",

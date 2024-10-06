@@ -67,3 +67,13 @@ if (jsonData?.error?.type) {
     },
   );
 }
+
+// Response body should have value "cancellation succeeded" for "payment status"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/payments/:id/cancel - Content check if value for 'jsonData.status' matches 'succeeded'",
+    function () {
+      pm.expect(jsonData.status).to.eql("succeeded");
+    },
+  );
+}

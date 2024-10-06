@@ -1,46 +1,44 @@
-use common_utils::generate_id_with_default_len;
-#[cfg(feature = "basilisk")]
-use error_stack::report;
-use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "basilisk")]
-use josekit::jwe;
+use common_enums::PaymentMethodType;
+use common_utils::{
+    crypto::{DecodeMessage, EncodeMessage, GcmAes256},
+    ext_traits::{BytesExt, Encode},
+    generate_id_with_default_len, id_type,
+    pii::Email,
+};
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, tracing};
-#[cfg(feature = "basilisk")]
+use router_env::{instrument, metrics::add_attributes, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
-#[cfg(feature = "basilisk")]
-use crate::routes::metrics;
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;
 use crate::{
-    configs::settings,
+    consts,
     core::errors::{self, CustomResult, RouterResult},
-    logger, routes,
+    db, logger, routes,
+    routes::metrics,
     types::{
-        api,
+        api, domain,
         storage::{self, enums},
     },
-    utils::{self, StringExt},
+    utils::StringExt,
 };
-#[cfg(feature = "basilisk")]
-use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
-#[cfg(feature = "basilisk")]
-use crate::{db, types::storage::ProcessTrackerExt};
-
-#[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
-#[cfg(feature = "basilisk")]
-const VAULT_VERSION: &str = "0";
 
 pub struct SupplementaryVaultData {
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_id: Option<String>,
 }
 
 pub trait Vaultable: Sized {
-    fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError>;
-    fn get_value2(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError>;
+    fn get_value2(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         Ok(String::new())
     }
     fn from_values(
@@ -49,25 +47,31 @@ pub trait Vaultable: Sized {
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError>;
 }
 
-impl Vaultable for api::Card {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value1 = api::TokenizedCardValue1 {
+impl Vaultable for domain::Card {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            name_on_card: Some(self.card_holder_name.peek().clone()),
-            nickname: None,
+            nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
             card_last_four: None,
             card_token: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value2 = api::TokenizedCardValue2 {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedCardValue2 {
             card_security_code: Some(self.card_cvc.peek().clone()),
             card_fingerprint: None,
             external_id: None,
@@ -75,7 +79,8 @@ impl Vaultable for api::Card {
             payment_method_id: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value2")
     }
@@ -84,26 +89,22 @@ impl Vaultable for api::Card {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api::TokenizedCardValue1 = value1
+        let value1: domain::TokenizedCardValue1 = value1
             .parse_struct("TokenizedCardValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into card value1")?;
 
-        let value2: api::TokenizedCardValue2 = value2
+        let value2: domain::TokenizedCardValue2 = value2
             .parse_struct("TokenizedCardValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into card value2")?;
 
         let card = Self {
-            card_number: value1
-                .card_number
-                .try_into()
-                .into_report()
+            card_number: cards::CardNumber::try_from(value1.card_number)
                 .change_context(errors::VaultError::ResponseDeserializationFailed)
                 .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
@@ -122,21 +123,29 @@ impl Vaultable for api::Card {
     }
 }
 
-impl Vaultable for api_models::payments::BankTransferData {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value1 = api_models::payment_methods::TokenizedBankTransferValue1 {
+impl Vaultable for domain::BankTransferData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankTransferValue1 {
             data: self.to_owned(),
         };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank transfer data")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value2 = api_models::payment_methods::TokenizedBankTransferValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankTransferValue2 { customer_id };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank transfer supplementary data")
     }
@@ -145,12 +154,12 @@ impl Vaultable for api_models::payments::BankTransferData {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api_models::payment_methods::TokenizedBankTransferValue1 = value1
+        let value1: domain::TokenizedBankTransferValue1 = value1
             .parse_struct("TokenizedBankTransferValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into bank transfer data")?;
 
-        let value2: api_models::payment_methods::TokenizedBankTransferValue2 = value2
+        let value2: domain::TokenizedBankTransferValue2 = value2
             .parse_struct("TokenizedBankTransferValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into supplementary bank transfer data")?;
@@ -166,21 +175,29 @@ impl Vaultable for api_models::payments::BankTransferData {
     }
 }
 
-impl Vaultable for api::WalletData {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value1 = api::TokenizedWalletValue1 {
+impl Vaultable for domain::WalletData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedWalletValue1 {
             data: self.to_owned(),
         };
 
-        utils::Encode::<api::TokenizedWalletValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode wallet data value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value2 = api::TokenizedWalletValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedWalletValue2 { customer_id };
 
-        utils::Encode::<api::TokenizedWalletValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode wallet data value2")
     }
@@ -189,12 +206,12 @@ impl Vaultable for api::WalletData {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api::TokenizedWalletValue1 = value1
+        let value1: domain::TokenizedWalletValue1 = value1
             .parse_struct("TokenizedWalletValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value1")?;
 
-        let value2: api::TokenizedWalletValue2 = value2
+        let value2: domain::TokenizedWalletValue2 = value2
             .parse_struct("TokenizedWalletValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value2")?;
@@ -210,21 +227,29 @@ impl Vaultable for api::WalletData {
     }
 }
 
-impl Vaultable for api_models::payments::BankRedirectData {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value1 = api_models::payment_methods::TokenizedBankRedirectValue1 {
+impl Vaultable for domain::BankRedirectData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankRedirectValue1 {
             data: self.to_owned(),
         };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank redirect data")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankRedirectValue2 { customer_id };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank redirect supplementary data")
     }
@@ -233,15 +258,67 @@ impl Vaultable for api_models::payments::BankRedirectData {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api_models::payment_methods::TokenizedBankRedirectValue1 = value1
+        let value1: domain::TokenizedBankRedirectValue1 = value1
             .parse_struct("TokenizedBankRedirectValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into bank redirect data")?;
 
-        let value2: api_models::payment_methods::TokenizedBankRedirectValue2 = value2
+        let value2: domain::TokenizedBankRedirectValue2 = value2
             .parse_struct("TokenizedBankRedirectValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into supplementary bank redirect data")?;
+
+        let bank_transfer_data = value1.data;
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_transfer_data, supp_data))
+    }
+}
+
+impl Vaultable for domain::BankDebitData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankDebitValue1 {
+            data: self.to_owned(),
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit data")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankDebitValue2 { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit supplementary data")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedBankDebitValue1 = value1
+            .parse_struct("TokenizedBankDebitValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank debit data")?;
+
+        let value2: domain::TokenizedBankDebitValue2 = value2
+            .parse_struct("TokenizedBankDebitValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank debit data")?;
 
         let bank_transfer_data = value1.data;
 
@@ -261,10 +338,14 @@ pub enum VaultPaymentMethod {
     Wallet(String),
     BankTransfer(String),
     BankRedirect(String),
+    BankDebit(String),
 }
 
-impl Vaultable for api::PaymentMethodData {
-    fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+impl Vaultable for domain::PaymentMethodData {
+    fn get_value1(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
@@ -274,17 +355,23 @@ impl Vaultable for api::PaymentMethodData {
             Self::BankRedirect(bank_redirect) => {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
             }
+            Self::BankDebit(bank_debit) => {
+                VaultPaymentMethod::BankDebit(bank_debit.get_value1(customer_id)?)
+            }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
-                .into_report()
                 .attach_printable("Payment method not supported")?,
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payment method value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value2(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
@@ -294,12 +381,15 @@ impl Vaultable for api::PaymentMethodData {
             Self::BankRedirect(bank_redirect) => {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
             }
+            Self::BankDebit(bank_debit) => {
+                VaultPaymentMethod::BankDebit(bank_debit.get_value2(customer_id)?)
+            }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
-                .into_report()
                 .attach_printable("Payment method not supported")?,
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payment method value2")
     }
@@ -320,11 +410,11 @@ impl Vaultable for api::PaymentMethodData {
 
         match (value1, value2) {
             (VaultPaymentMethod::Card(mvalue1), VaultPaymentMethod::Card(mvalue2)) => {
-                let (card, supp_data) = api::Card::from_values(mvalue1, mvalue2)?;
+                let (card, supp_data) = domain::Card::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Card(card), supp_data))
             }
             (VaultPaymentMethod::Wallet(mvalue1), VaultPaymentMethod::Wallet(mvalue2)) => {
-                let (wallet, supp_data) = api::WalletData::from_values(mvalue1, mvalue2)?;
+                let (wallet, supp_data) = domain::WalletData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Wallet(wallet), supp_data))
             }
             (
@@ -332,7 +422,7 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankTransfer(mvalue2),
             ) => {
                 let (bank_transfer, supp_data) =
-                    api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
+                    domain::BankTransferData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankTransfer(Box::new(bank_transfer)), supp_data))
             }
             (
@@ -340,12 +430,15 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankRedirect(mvalue2),
             ) => {
                 let (bank_redirect, supp_data) =
-                    api_models::payments::BankRedirectData::from_values(mvalue1, mvalue2)?;
+                    domain::BankRedirectData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+            (VaultPaymentMethod::BankDebit(mvalue1), VaultPaymentMethod::BankDebit(mvalue2)) => {
+                let (bank_debit, supp_data) = domain::BankDebitData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankDebit(bank_debit), supp_data))
             }
 
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
-                .into_report()
                 .attach_printable("Payment method not supported"),
         }
     }
@@ -353,23 +446,30 @@ impl Vaultable for api::PaymentMethodData {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::CardPayout {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
             exp_year: self.expiry_year.peek().clone(),
             exp_month: self.expiry_month.peek().clone(),
-            name_on_card: Some(self.card_holder_name.peek().clone()),
+            name_on_card: self.card_holder_name.clone().map(|n| n.peek().to_string()),
             nickname: None,
             card_last_four: None,
             card_token: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedCardValue2 {
             card_security_code: None,
             card_fingerprint: None,
@@ -378,7 +478,8 @@ impl Vaultable for api::CardPayout {
             payment_method_id: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value2")
     }
@@ -404,7 +505,7 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
+            card_holder_name: value1.name_on_card.map(masking::Secret::new),
         };
 
         let supp_data = SupplementaryVaultData {
@@ -417,25 +518,117 @@ impl Vaultable for api::CardPayout {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletSensitiveValues {
+    pub email: Option<Email>,
+    pub telephone_number: Option<masking::Secret<String>>,
+    pub wallet_id: Option<masking::Secret<String>>,
+    pub wallet_type: PaymentMethodType,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletInsensitiveValues {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[cfg(feature = "payouts")]
+impl Vaultable for api::WalletPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = match self {
+            Self::Paypal(paypal_data) => TokenizedWalletSensitiveValues {
+                email: paypal_data.email.clone(),
+                telephone_number: paypal_data.telephone_number.clone(),
+                wallet_id: paypal_data.paypal_id.clone(),
+                wallet_type: PaymentMethodType::Paypal,
+            },
+            Self::Venmo(venmo_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: venmo_data.telephone_number.clone(),
+                wallet_id: None,
+                wallet_type: PaymentMethodType::Venmo,
+            },
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data - TokenizedWalletSensitiveValues")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = TokenizedWalletInsensitiveValues { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode data - TokenizedWalletInsensitiveValues")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedWalletSensitiveValues = value1
+            .parse_struct("TokenizedWalletSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data wallet_sensitive_data")?;
+
+        let value2: TokenizedWalletInsensitiveValues = value2
+            .parse_struct("TokenizedWalletInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data wallet_insensitive_data")?;
+
+        let wallet = match value1.wallet_type {
+            PaymentMethodType::Paypal => Self::Paypal(api_models::payouts::Paypal {
+                email: value1.email,
+                telephone_number: value1.telephone_number,
+                paypal_id: value1.wallet_id,
+            }),
+            PaymentMethodType::Venmo => Self::Venmo(api_models::payouts::Venmo {
+                telephone_number: value1.telephone_number,
+            }),
+            _ => Err(errors::VaultError::PayoutMethodNotSupported)?,
+        };
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((wallet, supp_data))
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankSensitiveValues {
     pub bank_account_number: Option<masking::Secret<String>>,
     pub bank_routing_number: Option<masking::Secret<String>>,
     pub bic: Option<masking::Secret<String>>,
     pub bank_sort_code: Option<masking::Secret<String>>,
     pub iban: Option<masking::Secret<String>>,
+    pub pix_key: Option<masking::Secret<String>>,
+    pub tax_id: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankInsensitiveValues {
-    pub customer_id: Option<String>,
-    pub bank_name: String,
-    pub bank_country_code: api::enums::CountryAlpha2,
-    pub bank_city: String,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub bank_name: Option<String>,
+    pub bank_country_code: Option<api::enums::CountryAlpha2>,
+    pub bank_city: Option<String>,
+    pub bank_branch: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::BankPayout {
-    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let bank_sensitive_data = match self {
             Self::Ach(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.clone()),
@@ -443,6 +636,8 @@ impl Vaultable for api::BankPayout {
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
+                pix_key: None,
+                tax_id: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -450,6 +645,8 @@ impl Vaultable for api::BankPayout {
                 bic: None,
                 bank_sort_code: Some(b.bank_sort_code.to_owned()),
                 iban: None,
+                pix_key: None,
+                tax_id: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -457,43 +654,65 @@ impl Vaultable for api::BankPayout {
                 bic: b.bic.to_owned(),
                 bank_sort_code: None,
                 iban: Some(b.iban.to_owned()),
+                pix_key: None,
+                tax_id: None,
+            },
+            Self::Pix(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.to_owned()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: Some(bank_details.pix_key.to_owned()),
+                tax_id: bank_details.tax_id.to_owned(),
             },
         };
 
-        utils::Encode::<TokenizedBankSensitiveValues>::encode_to_string_of_json(
-            &bank_sensitive_data,
-        )
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode wallet data bank_sensitive_data")
+        bank_sensitive_data
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode data - bank_sensitive_data")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let bank_insensitive_data = match self {
             Self::Ach(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
+                bank_branch: None,
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
+                bank_branch: None,
             },
-            Self::Sepa(b) => TokenizedBankInsensitiveValues {
+            Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
-                bank_name: b.bank_name.to_owned(),
-                bank_country_code: b.bank_country_code.to_owned(),
-                bank_city: b.bank_city.to_owned(),
+                bank_name: bank_details.bank_name.to_owned(),
+                bank_country_code: bank_details.bank_country_code.to_owned(),
+                bank_city: bank_details.bank_city.to_owned(),
+                bank_branch: None,
+            },
+            Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.to_owned(),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.to_owned(),
             },
         };
 
-        utils::Encode::<TokenizedBankInsensitiveValues>::encode_to_string_of_json(
-            &bank_insensitive_data,
-        )
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode wallet data bank_insensitive_data")
+        bank_insensitive_data
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data bank_insensitive_data")
     }
 
     fn from_values(
@@ -511,35 +730,53 @@ impl Vaultable for api::BankPayout {
             .attach_printable("Could not deserialize into wallet data bank_insensitive_data")?;
 
         let bank = match (
-            // ACH + BACS
+            // ACH + BACS + PIX
             bank_sensitive_data.bank_account_number.to_owned(),
             bank_sensitive_data.bank_routing_number.to_owned(), // ACH
             bank_sensitive_data.bank_sort_code.to_owned(),      // BACS
             // SEPA
             bank_sensitive_data.iban.to_owned(),
             bank_sensitive_data.bic,
+            // PIX
+            bank_sensitive_data.pix_key,
+            bank_sensitive_data.tax_id,
         ) {
-            (Some(ban), Some(brn), None, None, None) => Self::Ach(payouts::AchBankTransfer {
-                bank_account_number: ban,
-                bank_routing_number: brn,
-                bank_name: bank_insensitive_data.bank_name,
-                bank_country_code: bank_insensitive_data.bank_country_code,
-                bank_city: bank_insensitive_data.bank_city,
-            }),
-            (Some(ban), None, Some(bsc), None, None) => Self::Bacs(payouts::BacsBankTransfer {
-                bank_account_number: ban,
-                bank_sort_code: bsc,
-                bank_name: bank_insensitive_data.bank_name,
-                bank_country_code: bank_insensitive_data.bank_country_code,
-                bank_city: bank_insensitive_data.bank_city,
-            }),
-            (None, None, None, Some(iban), bic) => Self::Sepa(payouts::SepaBankTransfer {
-                iban,
-                bic,
-                bank_name: bank_insensitive_data.bank_name,
-                bank_country_code: bank_insensitive_data.bank_country_code,
-                bank_city: bank_insensitive_data.bank_city,
-            }),
+            (Some(ban), Some(brn), None, None, None, None, None) => {
+                Self::Ach(payouts::AchBankTransfer {
+                    bank_account_number: ban,
+                    bank_routing_number: brn,
+                    bank_name: bank_insensitive_data.bank_name,
+                    bank_country_code: bank_insensitive_data.bank_country_code,
+                    bank_city: bank_insensitive_data.bank_city,
+                })
+            }
+            (Some(ban), None, Some(bsc), None, None, None, None) => {
+                Self::Bacs(payouts::BacsBankTransfer {
+                    bank_account_number: ban,
+                    bank_sort_code: bsc,
+                    bank_name: bank_insensitive_data.bank_name,
+                    bank_country_code: bank_insensitive_data.bank_country_code,
+                    bank_city: bank_insensitive_data.bank_city,
+                })
+            }
+            (None, None, None, Some(iban), bic, None, None) => {
+                Self::Sepa(payouts::SepaBankTransfer {
+                    iban,
+                    bic,
+                    bank_name: bank_insensitive_data.bank_name,
+                    bank_country_code: bank_insensitive_data.bank_country_code,
+                    bank_city: bank_insensitive_data.bank_city,
+                })
+            }
+            (Some(ban), None, None, None, None, Some(pix_key), tax_id) => {
+                Self::Pix(payouts::PixBankTransfer {
+                    bank_account_number: ban,
+                    bank_branch: bank_insensitive_data.bank_branch,
+                    bank_name: bank_insensitive_data.bank_name,
+                    pix_key,
+                    tax_id,
+                })
+            }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
@@ -558,28 +795,39 @@ impl Vaultable for api::BankPayout {
 pub enum VaultPayoutMethod {
     Card(String),
     Bank(String),
+    Wallet(String),
 }
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::PayoutMethodData {
-    fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value1(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value1(customer_id)?),
             Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value1(customer_id)?),
+            Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payout method value1")
     }
 
-    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value2(customer_id)?),
             Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value2(customer_id)?),
+            Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payout method value2")
     }
@@ -607,8 +855,11 @@ impl Vaultable for api::PayoutMethodData {
                 let (bank, supp_data) = api::BankPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Bank(bank), supp_data))
             }
+            (VaultPayoutMethod::Wallet(mvalue1), VaultPayoutMethod::Wallet(mvalue2)) => {
+                let (wallet, supp_data) = api::WalletPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::Wallet(wallet), supp_data))
+            }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
-                .into_report()
                 .attach_printable("Payout method not supported"),
         }
     }
@@ -622,198 +873,17 @@ pub struct MockTokenizeDBValue {
 
 pub struct Vault;
 
-#[cfg(not(feature = "basilisk"))]
 impl Vault {
     #[instrument(skip_all)]
     pub async fn get_payment_method_data_from_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
-        let config = state
-            .store
-            .find_config_by_key(lookup_key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not find payment method in vault")?;
-
-        let tokenize_value: MockTokenizeDBValue = config
-            .config
-            .parse_struct("MockTokenizeDBValue")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize Mock tokenize db value")?;
-
-        let (payment_method, supp_data) =
-            api::PaymentMethodData::from_values(tokenize_value.value1, tokenize_value.value2)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error parsing Payment Method from Values")?;
-
-        Ok((Some(payment_method), supp_data))
-    }
-
-    #[cfg(feature = "payouts")]
-    #[instrument(skip_all)]
-    pub async fn get_payout_method_data_from_temporary_locker(
-        state: &routes::AppState,
-        lookup_key: &str,
-    ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
-        let config = state
-            .store
-            .find_config_by_key(lookup_key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not find payment method in vault")?;
-
-        let tokenize_value: MockTokenizeDBValue = config
-            .config
-            .parse_struct("MockTokenizeDBValue")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize Mock tokenize db value")?;
-
-        let (payout_method, supp_data) =
-            api::PayoutMethodData::from_values(tokenize_value.value1, tokenize_value.value2)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error parsing Payout Method from Values")?;
-
-        Ok((Some(payout_method), supp_data))
-    }
-
-    #[cfg(feature = "payouts")]
-    #[instrument(skip_all)]
-    pub async fn store_payout_method_data_in_locker(
-        state: &routes::AppState,
-        token_id: Option<String>,
-        payout_method: &api::PayoutMethodData,
-        customer_id: Option<String>,
-    ) -> RouterResult<String> {
-        let value1 = payout_method
-            .get_value1(customer_id.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value1 for locker")?;
-
-        let value2 = payout_method
-            .get_value2(customer_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value2 for locker")?;
-
-        let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
-
-        let db_value = MockTokenizeDBValue { value1, value2 };
-
-        let value_string =
-            utils::Encode::<MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode payout method as mock tokenize db value")?;
-
-        let already_present = state.store.find_config_by_key(&lookup_key).await;
-
-        if already_present.is_err() {
-            let config = storage::ConfigNew {
-                key: lookup_key.clone(),
-                config: value_string,
-            };
-
-            state
-                .store
-                .insert_config(config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed insert")?;
-        } else {
-            let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string),
-            };
-            state
-                .store
-                .update_config_by_key(&lookup_key, config_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed update")?;
-        }
-
-        Ok(lookup_key)
-    }
-
-    #[instrument(skip_all)]
-    pub async fn store_payment_method_data_in_locker(
-        state: &routes::AppState,
-        token_id: Option<String>,
-        payment_method: &api::PaymentMethodData,
-        customer_id: Option<String>,
-        _pm: enums::PaymentMethod,
-    ) -> RouterResult<String> {
-        let value1 = payment_method
-            .get_value1(customer_id.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value1 for locker")?;
-
-        let value2 = payment_method
-            .get_value2(customer_id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value12 for locker")?;
-
-        let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
-
-        let db_value = MockTokenizeDBValue { value1, value2 };
-
-        let value_string =
-            utils::Encode::<MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encode payment method as mock tokenize db value")?;
-
-        let already_present = state.store.find_config_by_key(&lookup_key).await;
-
-        if already_present.is_err() {
-            let config = storage::ConfigNew {
-                key: lookup_key.clone(),
-                config: value_string,
-            };
-
-            state
-                .store
-                .insert_config(config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed insert")?;
-        } else {
-            let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string),
-            };
-            state
-                .store
-                .update_config_by_key(&lookup_key, config_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed update")?;
-        }
-
-        Ok(lookup_key)
-    }
-
-    #[instrument(skip_all)]
-    pub async fn delete_locker_payment_method_by_lookup_key(
-        state: &routes::AppState,
-        lookup_key: &Option<String>,
-    ) {
-        let db = &*state.store;
-        if let Some(id) = lookup_key {
-            match db.delete_config_by_key(id).await {
-                Ok(_) => logger::info!("Card Deleted from locker mock up"),
-                Err(err) => logger::error!("Err: Card Delete from locker Failed : {}", err),
-            }
-        }
-    }
-}
-
-#[cfg(feature = "basilisk")]
-impl Vault {
-    #[instrument(skip_all)]
-    pub async fn get_payment_method_data_from_locker(
-        state: &routes::AppState,
-        lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
-        let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<(Option<domain::PaymentMethodData>, SupplementaryVaultData)> {
+        let de_tokenize =
+            get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payment_method, customer_id) =
-            api::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
+            domain::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error parsing Payment Method from Values")?;
 
@@ -822,11 +892,12 @@ impl Vault {
 
     #[instrument(skip_all)]
     pub async fn store_payment_method_data_in_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         token_id: Option<String>,
-        payment_method: &api::PaymentMethodData,
-        customer_id: Option<String>,
+        payment_method: &domain::PaymentMethodData,
+        customer_id: Option<id_type::CustomerId>,
         pm: enums::PaymentMethod,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -840,7 +911,14 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        let lookup_key = create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            lookup_key,
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
@@ -849,10 +927,12 @@ impl Vault {
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
     pub async fn get_payout_method_data_from_temporary_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         lookup_key: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
-        let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
+        let de_tokenize =
+            get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payout_method, supp_data) =
             api::PayoutMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -864,10 +944,11 @@ impl Vault {
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
     pub async fn store_payout_method_data_in_locker(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
-        customer_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
@@ -879,9 +960,17 @@ impl Vault {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting Value2 for locker")?;
 
-        let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
+        let lookup_key =
+            token_id.unwrap_or_else(|| generate_id_with_default_len("temporary_token"));
 
-        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        let lookup_key = create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            lookup_key,
+            merchant_key_store.key.get_inner(),
+        )
+        .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         // scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
@@ -889,302 +978,231 @@ impl Vault {
 
     #[instrument(skip_all)]
     pub async fn delete_locker_payment_method_by_lookup_key(
-        state: &routes::AppState,
+        state: &routes::SessionState,
         lookup_key: &Option<String>,
     ) {
         if let Some(lookup_key) = lookup_key {
-            let delete_resp = delete_tokenized_data(state, lookup_key).await;
-            match delete_resp {
-                Ok(resp) => {
-                    if resp == "Ok" {
-                        logger::info!("Card From locker deleted Successfully")
-                    } else {
-                        logger::error!("Error: Deleting Card From Locker : {:?}", resp)
-                    }
-                }
-                Err(err) => logger::error!("Err: Deleting Card From Locker : {:?}", err),
-            }
+            delete_tokenized_data(state, lookup_key)
+                .await
+                .map(|_| logger::info!("Card From locker deleted Successfully"))
+                .map_err(|err| logger::error!("Error: Deleting Card From Redis Locker : {:?}", err))
+                .ok();
         }
     }
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
-pub fn get_key_id(keys: &settings::Jwekey) -> &str {
-    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
-    if key_identifier == "1" {
-        &keys.locker_key_identifier1
-    } else {
-        &keys.locker_key_identifier2
-    }
+
+#[inline(always)]
+fn get_redis_locker_key(lookup_key: &str) -> String {
+    format!("{}_{}", consts::LOCKER_REDIS_PREFIX, lookup_key)
 }
 
-#[cfg(feature = "basilisk")]
-async fn get_locker_jwe_keys(
-    keys: &settings::ActiveKmsSecrets,
-) -> CustomResult<(String, String), errors::EncryptionError> {
-    let keys = keys.jwekey.peek();
-    let key_id = get_key_id(keys);
-    let (public_key, private_key) = if key_id == keys.locker_key_identifier1 {
-        (&keys.locker_encryption_key1, &keys.locker_decryption_key1)
-    } else if key_id == keys.locker_key_identifier2 {
-        (&keys.locker_encryption_key2, &keys.locker_decryption_key2)
-    } else {
-        return Err(errors::EncryptionError.into());
-    };
-
-    Ok((public_key.to_string(), private_key.to_string()))
-}
-
-#[cfg(feature = "basilisk")]
+#[instrument(skip(state, value1, value2))]
 pub async fn create_tokenize(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     value1: String,
     value2: Option<String>,
     lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<String> {
-    metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-    let payload_to_be_encrypted = api::TokenizePayloadRequest {
-        value1,
-        value2: value2.unwrap_or_default(),
-        lookup_key,
-        service_name: VAULT_SERVICE_NAME.to_string(),
-    };
-    let payload = utils::Encode::<api::TokenizePayloadRequest>::encode_to_string_of_json(
-        &payload_to_be_encrypted,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let redis_key = get_redis_locker_key(lookup_key.as_str());
+    let func = || async {
+        metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+        let payload_to_be_encrypted = api::TokenizePayloadRequest {
+            value1: value1.clone(),
+            value2: value2.clone().unwrap_or_default(),
+            lookup_key: lookup_key.clone(),
+            service_name: VAULT_SERVICE_NAME.to_string(),
+        };
 
-    let create_tokenize_request = api::TokenizePayloadEncrypted {
-        payload: encrypted_payload,
-        key_id: get_key_id(&state.conf.jwekey).to_string(),
-        version: Some(VAULT_VERSION.to_string()),
-    };
-    let request = payment_methods::mk_crud_locker_request(
-        &state.conf.locker,
-        "/tokenize",
-        create_tokenize_request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Making tokenize request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let payload = payload_to_be_encrypted
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    match response {
-        Ok(r) => {
-            let resp: api::TokenizePayloadEncrypted = r
-                .response
-                .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let alg = jwe::RSA_OAEP_256;
-            let decrypted_payload = services::decrypt_jwe(
-                &resp.payload,
-                services::KeyIdCheck::RequestResponseKeyId((
-                    get_key_id(&state.conf.jwekey),
-                    &resp.key_id,
-                )),
-                private_key,
-                alg,
+        let encrypted_payload = GcmAes256
+            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode redis temp locker data")?;
+
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        redis_conn
+            .set_key_if_not_exists_with_expiry(
+                redis_key.as_str(),
+                bytes::Bytes::from(encrypted_payload),
+                Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
             )
             .await
+            .map(|_| lookup_key.clone())
+            .inspect_err(|error| {
+                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                logger::error!(?error, "Failed to store tokenized data in Redis");
+            })
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
-            let get_response: api::GetTokenizePayloadResponse = decrypted_payload
-                .parse_struct("GetTokenizePayloadResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error getting GetTokenizePayloadResponse from tokenize response",
-                )?;
-            Ok(get_response.lookup_key)
+            .attach_printable("Error from redis locker")
+    };
+
+    match func().await {
+        Ok(s) => {
+            logger::info!(
+                "Insert payload in redis locker successful with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
         }
         Err(err) => {
-            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+            logger::error!("Redis Temp locker Failed: {:?}", err);
+            Err(err)
         }
     }
 }
 
-#[cfg(feature = "basilisk")]
+#[instrument(skip(state))]
 pub async fn get_tokenized_data(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     lookup_key: &str,
-    should_get_value2: bool,
+    _should_get_value2: bool,
+    encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<api::TokenizePayloadRequest> {
-    metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-    let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
-        lookup_key: lookup_key.to_string(),
-        get_value2: should_get_value2,
-        service_name: VAULT_SERVICE_NAME.to_string(),
-    };
-    let payload = serde_json::to_string(&payload_to_be_encrypted)
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
+    let redis_key = get_redis_locker_key(lookup_key);
+    let func = || async {
+        metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
-    let create_tokenize_request = api::TokenizePayloadEncrypted {
-        payload: encrypted_payload,
-        key_id: get_key_id(&state.conf.jwekey).to_string(),
-        version: Some("0".to_string()),
-    };
-    let request = payment_methods::mk_crud_locker_request(
-        &state.conf.locker,
-        "/tokenize/get",
-        create_tokenize_request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Making Get Tokenized request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    match response {
-        Ok(r) => {
-            let resp: api::TokenizePayloadEncrypted = r
-                .response
-                .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let alg = jwe::RSA_OAEP_256;
-            let decrypted_payload = services::decrypt_jwe(
-                &resp.payload,
-                services::KeyIdCheck::RequestResponseKeyId((
-                    get_key_id(&state.conf.jwekey),
-                    &resp.key_id,
-                )),
-                private_key,
-                alg,
-            )
-            .await
+        let redis_conn = state
+            .store
+            .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted")?;
-            let get_response: api::TokenizePayloadRequest = decrypted_payload
-                .parse_struct("TokenizePayloadRequest")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
-            Ok(get_response)
-        }
-        Err(err) => {
-            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            match err.status_code {
-                404 => Err(errors::ApiErrorResponse::UnprocessableEntity {
+            .attach_printable("Failed to get redis connection")?;
+
+        let response = redis_conn.get_key::<bytes::Bytes>(redis_key.as_str()).await;
+
+        match response {
+            Ok(resp) => {
+                let decrypted_payload = GcmAes256
+                    .decode_message(
+                        encryption_key.peek().as_ref(),
+                        masking::Secret::new(resp.into()),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to decode redis temp locker data")?;
+
+                let get_response: api::TokenizePayloadRequest =
+                    bytes::Bytes::from(decrypted_payload)
+                        .parse_struct("TokenizePayloadRequest")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Error getting TokenizePayloadRequest from tokenize response",
+                        )?;
+
+                Ok(get_response)
+            }
+            Err(err) => {
+                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Token is invalid or expired".into(),
-                }
-                .into()),
-                _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable(format!("Got error from the basilisk locker: {err:?}")),
+                })
             }
         }
+    };
+
+    match func().await {
+        Ok(s) => {
+            logger::info!(
+                "Fetch payload in redis locker successful with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
+        }
+        Err(err) => {
+            logger::error!("Redis Temp locker Failed: {:?}", err);
+            Err(err)
+        }
     }
 }
 
-#[cfg(feature = "basilisk")]
+#[instrument(skip(state))]
 pub async fn delete_tokenized_data(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     lookup_key: &str,
-) -> RouterResult<String> {
-    metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-    let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
-        lookup_key: lookup_key.to_string(),
-        service_name: VAULT_SERVICE_NAME.to_string(),
-    };
-    let payload = serde_json::to_string(&payload_to_be_encrypted)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error serializing api::DeleteTokenizeByTokenRequest")?;
+) -> RouterResult<()> {
+    let redis_key = get_redis_locker_key(lookup_key);
+    let func = || async {
+        metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
 
-    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
-    let create_tokenize_request = api::TokenizePayloadEncrypted {
-        payload: encrypted_payload,
-        key_id: get_key_id(&state.conf.jwekey).to_string(),
-        version: Some("0".to_string()),
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let response = redis_conn.delete_key(redis_key.as_str()).await;
+
+        match response {
+            Ok(redis_interface::DelReply::KeyDeleted) => Ok(()),
+            Ok(redis_interface::DelReply::KeyNotDeleted) => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Token invalid or expired")
+            }
+            Err(err) => {
+                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| {
+                    format!("Failed to delete from redis locker: {err:?}")
+                })
+            }
+        }
     };
-    let request = payment_methods::mk_crud_locker_request(
-        &state.conf.locker,
-        "/tokenize/delete/token",
-        create_tokenize_request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Making Delete Tokenized request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while making /tokenize/delete/token call to the locker")?;
-    match response {
-        Ok(r) => {
-            let delete_response = std::str::from_utf8(&r.response)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for basilisk delete response")?;
-            Ok(delete_response.to_string())
+    match func().await {
+        Ok(s) => {
+            logger::info!(
+                "Delete payload in redis locker successful with lookup key: {:?}",
+                redis_key
+            );
+            Ok(s)
         }
         Err(err) => {
-            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+            logger::error!("Redis Temp locker Failed: {:?}", err);
+            Err(err)
         }
     }
 }
 
 // ********************************************** PROCESS TRACKER **********************************************
-#[cfg(feature = "basilisk")]
+
 pub async fn add_delete_tokenized_data_task(
     db: &dyn db::StorageInterface,
     lookup_key: &str,
     pm: enums::PaymentMethod,
 ) -> RouterResult<()> {
-    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
-    let current_time = common_utils::date_time::now();
-    let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
+    let runner = storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow;
+    let process_tracker_id = format!("{runner}_{lookup_key}");
+    let task = runner.to_string();
+    let tag = ["BASILISK-V3"];
+    let tracking_data = storage::TokenizeCoreWorkflow {
         lookup_key: lookup_key.to_owned(),
         pm,
-    })
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
-
-    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
-
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{runner}_{lookup_key}"),
-        name: Some(String::from(runner)),
-        tag: vec![String::from("BASILISK-V3")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time,
-        rule: String::new(),
-        tracking_data,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
     };
+    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0)
+        .await
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to obtain initial process tracker schedule time")?;
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        &task,
+        runner,
+        tag,
+        tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct delete tokenized data process tracker task")?;
+
     let response = db.insert_process(process_tracker_entry).await;
     response.map(|_| ()).or_else(|err| {
         if err.current_context().is_db_unique_violation() {
@@ -1195,16 +1213,14 @@ pub async fn add_delete_tokenized_data_task(
     })
 }
 
-#[cfg(feature = "basilisk")]
 pub async fn start_tokenize_data_workflow(
-    state: &routes::AppState,
+    state: &routes::SessionState,
     tokenize_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
     let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
         tokenize_tracker.tracking_data.clone(),
     )
-    .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| {
         format!(
@@ -1213,23 +1229,16 @@ pub async fn start_tokenize_data_workflow(
         )
     })?;
 
-    let delete_resp = delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await;
-    match delete_resp {
-        Ok(resp) => {
-            if resp == "Ok" {
-                logger::info!("Card From locker deleted Successfully");
-                //mark task as finished
-                let id = tokenize_tracker.id.clone();
-                tokenize_tracker
-                    .clone()
-                    .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
-                    .await?;
-            } else {
-                logger::error!("Error: Deleting Card From Locker : {:?}", resp);
-                retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
-                    .await?;
-                metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
-            }
+    match delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await {
+        Ok(()) => {
+            logger::info!("Card From locker deleted Successfully");
+            //mark task as finished
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    tokenize_tracker.clone(),
+                    diesel_models::process_tracker::business_status::COMPLETED_BY_PT,
+                )
+                .await?;
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {:?}", err);
@@ -1241,7 +1250,6 @@ pub async fn start_tokenize_data_workflow(
     Ok(())
 }
 
-#[cfg(feature = "basilisk")]
 pub async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
     pm: &enums::PaymentMethod,
@@ -1255,8 +1263,8 @@ pub async fn get_delete_tokenize_schedule_time(
     .await;
     let mapping = match redis_mapping {
         Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
             process_data::PaymentMethodsPTMapping::default()
         }
     };
@@ -1265,7 +1273,6 @@ pub async fn get_delete_tokenize_schedule_time(
     process_tracker_utils::get_time_from_delta(time_delta)
 }
 
-#[cfg(feature = "basilisk")]
 pub async fn retry_delete_tokenize(
     db: &dyn db::StorageInterface,
     pm: &enums::PaymentMethod,
@@ -1274,10 +1281,28 @@ pub async fn retry_delete_tokenize(
     let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
-        None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
+        Some(s_time) => {
+            let retry_schedule = db
+                .as_scheduler()
+                .retry_process(pt, s_time)
                 .await
+                .map_err(Into::into);
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &add_attributes([("flow", "DeleteTokenizeData")]),
+            );
+            retry_schedule
         }
+        None => db
+            .as_scheduler()
+            .finish_process_with_business_status(
+                pt,
+                diesel_models::process_tracker::business_status::RETRIES_EXCEEDED,
+            )
+            .await
+            .map_err(Into::into),
     }
 }
+
+// Fallback logic of old temp locker needs to be removed later

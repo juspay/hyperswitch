@@ -1,6 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
-use router::types::{self, api, storage::enums};
+use router::types::{self, domain, storage::enums};
 
 use crate::{
     connector_auth,
@@ -12,12 +12,12 @@ impl ConnectorActions for NmiTest {}
 impl utils::Connector for NmiTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nmi;
-        types::api::ConnectorData {
-            connector: Box::new(&Nmi),
-            connector_name: types::Connector::Nmi,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Nmi::new()),
+            types::Connector::Nmi,
+            types::api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -38,7 +38,7 @@ static CONNECTOR: NmiTest = NmiTest {};
 
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
             card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
@@ -60,10 +60,10 @@ async fn should_only_authorize_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -87,10 +87,10 @@ async fn should_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -110,10 +110,10 @@ async fn should_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -136,10 +136,10 @@ async fn should_partially_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -167,10 +167,10 @@ async fn should_partially_capture_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -194,10 +194,10 @@ async fn should_void_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -223,10 +223,10 @@ async fn should_void_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Voided,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -250,10 +250,10 @@ async fn should_refund_manually_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -273,10 +273,10 @@ async fn should_refund_manually_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -319,10 +319,10 @@ async fn should_partially_refund_manually_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -349,10 +349,10 @@ async fn should_partially_refund_manually_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -402,10 +402,10 @@ async fn should_make_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,
@@ -429,10 +429,10 @@ async fn should_refund_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,
@@ -475,10 +475,10 @@ async fn should_partially_refund_succeeded_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,
@@ -528,10 +528,10 @@ async fn should_refund_succeeded_payment_multiple_times() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,
@@ -600,10 +600,10 @@ async fn should_fail_void_payment_for_auto_capture() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,
@@ -633,10 +633,10 @@ async fn should_fail_capture_for_invalid_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -645,7 +645,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
     let capture_response = CONNECTOR
-        .capture_payment("7899353591".to_string(), None, None)
+        .capture_payment("9123456789".to_string(), None, None)
         .await
         .unwrap();
     assert_eq!(capture_response.status, enums::AttemptStatus::CaptureFailed);
@@ -665,10 +665,10 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Pending,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                     transaction_id.clone(),
                 ),
-                capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,

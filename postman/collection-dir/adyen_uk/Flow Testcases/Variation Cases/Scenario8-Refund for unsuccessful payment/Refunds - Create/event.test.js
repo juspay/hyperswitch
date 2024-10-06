@@ -50,10 +50,10 @@ if (jsonData?.error?.type) {
 // Response body should have value "invalid_request" for "error type"
 if (jsonData?.error?.message) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.message' matches 'The payment has not succeeded yet. Please pass a successful payment to initiate refund'",
+    "[POST]::/payments - Content check if value for 'error.message' matches 'This Payment could not be refund because it has a status of requires_confirmation. The expected state is succeeded, partially_captured'",
     function () {
       pm.expect(jsonData.error.message).to.eql(
-        "The payment has not succeeded yet. Please pass a successful payment to initiate refund",
+        "This Payment could not be refund because it has a status of requires_confirmation. The expected state is succeeded, partially_captured",
       );
     },
   );

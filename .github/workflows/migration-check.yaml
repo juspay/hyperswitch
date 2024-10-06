@@ -25,6 +25,13 @@ jobs:
     name: Verify consistency of migrations with `schema.rs` file
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch_db
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: 5432
+
     services:
       postgres:
         image: postgres
@@ -38,29 +45,47 @@ jobs:
         ports:
           - 5432:5432
 
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
 
-      - uses: baptiste0928/cargo-install@v2.1.0
+      - uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
 
-      - name: Verify `diesel migration run`
+      - uses: baptiste0928/cargo-install@v2.2.0
+        with:
+          crate: just
+        
+      - name: Create database
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration run --locked-schema
+        run: just resurrect hyperswitch_db
 
-      - name: Verify `diesel migration redo`
+      - name: Verify `diesel migration run for v1`
         shell: bash
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration redo -a --locked-schema
+        run: just migrate run --locked-schema
+
+      - name: Verify `diesel migration redo for v1`
+        shell: bash
+        run: just migrate redo --locked-schema --all
+      
+      - name: Drop `DB for v2 column ordering mismatch`
+        shell: bash
+        run: just resurrect hyperswitch_db
+
+      - name: Verify `diesel migration run for v2`
+        shell: bash
+        run: just migrate_v2 run --locked-schema
+
+      - name: Verify `diesel migration redo for v2`
+        shell: bash
+        run: just migrate_v2 redo --locked-schema --all
+

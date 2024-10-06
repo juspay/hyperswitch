@@ -50,6 +50,19 @@
           }
         }
       },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "sundari"
+        },
+        "email": "narayan@example.com"
+      },
       "client_secret": "{{client_secret}}"
     }
   },

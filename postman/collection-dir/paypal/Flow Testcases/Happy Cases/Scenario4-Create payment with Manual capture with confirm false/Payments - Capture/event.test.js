@@ -63,13 +63,13 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "processing" for "status"
+// Response body should have value "partially_captured" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'processing'",
+    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'partially_captured'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
-    },
+      pm.expect(jsonData.status).to.eql("partially_captured");
+    }
   );
 }
 
@@ -101,9 +101,9 @@ if (jsonData?.amount_received) {
 // Response body should have value "6540" for "amount_capturable"
 if (jsonData?.amount_capturable) {
   pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 540'",
+    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 6540'",
     function () {
-      pm.expect(jsonData.amount_capturable).to.eql(540);
+      pm.expect(jsonData.amount_capturable).to.eql(6540);
     },
   );
 }

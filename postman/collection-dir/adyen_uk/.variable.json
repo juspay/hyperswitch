@@ -40,6 +40,11 @@
       "value": ""
     },
     {
+      "key": "payout_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "merchant_connector_id",
       "value": ""
     },
@@ -88,6 +93,16 @@
     },
     {
       "key": "connector_api_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payout_profile_id",
       "value": "",
       "type": "string"
     }

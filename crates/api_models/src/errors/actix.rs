@@ -17,6 +17,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::MethodNotAllowed(_) => StatusCode::METHOD_NOT_ALLOWED,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Self::DomainError(_) => StatusCode::OK,
         }
     }
 

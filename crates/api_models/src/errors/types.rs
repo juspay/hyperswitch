@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use reqwest::StatusCode;
+use serde::Serialize;
 
 #[derive(Debug, serde::Serialize)]
 pub enum ErrorType {
@@ -69,16 +70,19 @@ impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
 #[derive(Debug, serde::Serialize, Default, Clone)]
 pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connector: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector_transaction_id: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
+#[serde(tag = "type", content = "value")]
 pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     ForbiddenCommonResource(ApiError),
@@ -88,10 +92,11 @@ pub enum ApiErrorResponse {
     Unprocessable(ApiError),
     InternalServerError(ApiError),
     NotImplemented(ApiError),
-    ConnectorError(ApiError, StatusCode),
+    ConnectorError(ApiError, #[serde(skip_serializing)] StatusCode),
     NotFound(ApiError),
     MethodNotAllowed(ApiError),
     BadRequest(ApiError),
+    DomainError(ApiError),
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -120,6 +125,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
+            | Self::DomainError(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -137,6 +143,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
+            | Self::DomainError(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -154,6 +161,7 @@ impl ApiErrorResponse {
             | Self::NotFound(_)
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
+            Self::DomainError(_) => "blocked",
             Self::ConnectorError(_, _) => "connector",
         }
     }

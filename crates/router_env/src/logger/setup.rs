@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+use ::config::ConfigError;
 use opentelemetry::{
     global, runtime,
     sdk::{
@@ -16,6 +17,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
+use serde_json::ser::{CompactFormatter, PrettyFormatter};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -31,11 +33,12 @@ pub struct TelemetryGuard {
 /// Setup logging sub-system specifying the logging configuration, service (binary) name, and a
 /// list of external crates for which a more verbose logging must be enabled. All crates within the
 /// current cargo workspace are automatically considered for verbose logging.
+#[allow(clippy::print_stdout)] // The logger hasn't been initialized yet
 pub fn setup(
     config: &config::Log,
     service_name: &str,
     crates_to_filter: impl AsRef<[&'static str]>,
-) -> TelemetryGuard {
+) -> error_stack::Result<TelemetryGuard, ConfigError> {
     let mut guards = Vec::new();
 
     // Setup OpenTelemetry traces and metrics
@@ -68,8 +71,9 @@ pub fn setup(
             &crates_to_filter,
         );
         println!("Using file logging filter: {file_filter}");
-
-        Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
+        let layer = FormattingLayer::new(service_name, file_writer, CompactFormatter)?
+            .with_filter(file_filter);
+        Some(layer)
     } else {
         None
     };
@@ -103,9 +107,21 @@ pub fn setup(
             }
             config::LogFormat::Json => {
                 error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
-                let logging_layer =
-                    FormattingLayer::new(service_name, console_writer).with_filter(console_filter);
-                subscriber.with(logging_layer).init();
+                subscriber
+                    .with(
+                        FormattingLayer::new(service_name, console_writer, CompactFormatter)?
+                            .with_filter(console_filter),
+                    )
+                    .init();
+            }
+            config::LogFormat::PrettyJson => {
+                error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
+                subscriber
+                    .with(
+                        FormattingLayer::new(service_name, console_writer, PrettyFormatter::new())?
+                            .with_filter(console_filter),
+                    )
+                    .init();
             }
         }
     } else {
@@ -114,10 +130,10 @@ pub fn setup(
 
     // Returning the TelemetryGuard for logs to be printed and metrics to be collected until it is
     // dropped
-    TelemetryGuard {
+    Ok(TelemetryGuard {
         _log_guards: guards,
         _metrics_controller,
-    }
+    })
 }
 
 fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBuilder {
@@ -253,9 +269,10 @@ fn setup_tracing_pipeline(
         .with_exporter(get_opentelemetry_exporter(config))
         .with_batch_config(batch_config)
         .with_trace_config(trace_config)
-        .install_batch(opentelemetry::runtime::TokioCurrentThread)
+        .install_batch(runtime::TokioCurrentThread)
         .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
 
+    #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
     if config.ignore_errors {
         traces_layer_result
             .map_err(|error| {
@@ -300,6 +317,7 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         )]))
         .build();
 
+    #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
     if config.ignore_errors {
         metrics_controller_result
             .map_err(|error| eprintln!("Failed to setup metrics pipeline: {error:?}"))

@@ -4,7 +4,6 @@
 //!
 
 use common_utils::errors::CustomResult;
-use error_stack::IntoReport;
 use fred::types::RedisValue as FredRedisValue;
 
 use crate::errors;
@@ -28,10 +27,22 @@ impl RedisValue {
     pub fn into_inner(self) -> FredRedisValue {
         self.inner
     }
+
+    pub fn from_bytes(val: Vec<u8>) -> Self {
+        Self {
+            inner: FredRedisValue::Bytes(val.into()),
+        }
+    }
     pub fn from_string(value: String) -> Self {
         Self {
             inner: FredRedisValue::String(value.into()),
         }
+    }
+}
+
+impl From<RedisValue> for FredRedisValue {
+    fn from(v: RedisValue) -> Self {
+        v.inner
     }
 }
 
@@ -52,6 +63,12 @@ pub struct RedisSettings {
     /// TTL for hash-tables in seconds
     pub default_hash_ttl: u32,
     pub stream_read_count: u64,
+    pub auto_pipeline: bool,
+    pub disable_auto_backpressure: bool,
+    pub max_in_flight_commands: u64,
+    pub default_command_timeout: u64,
+    pub max_feed_count: u64,
+    pub unresponsive_timeout: u64,
 }
 
 impl RedisSettings {
@@ -63,15 +80,23 @@ impl RedisSettings {
             Err(errors::RedisError::InvalidConfiguration(
                 "Redis `host` must be specified".into(),
             ))
-            .into_report()
         })?;
 
         when(self.cluster_enabled && self.cluster_urls.is_empty(), || {
             Err(errors::RedisError::InvalidConfiguration(
                 "Redis `cluster_urls` must be specified if `cluster_enabled` is `true`".into(),
             ))
-            .into_report()
-        })
+        })?;
+
+        when(
+            self.default_command_timeout < self.unresponsive_timeout,
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Unresponsive timeout cannot be greater than the command timeout".into(),
+                )
+                .into())
+            },
+        )
     }
 }
 
@@ -89,6 +114,12 @@ impl Default for RedisSettings {
             default_ttl: 300,
             stream_read_count: 1,
             default_hash_ttl: 900,
+            auto_pipeline: true,
+            disable_auto_backpressure: false,
+            max_in_flight_commands: 5000,
+            default_command_timeout: 30,
+            max_feed_count: 200,
+            unresponsive_timeout: 10,
         }
     }
 }
@@ -241,6 +272,25 @@ impl fred::types::FromRedis for DelReply {
             _ => Err(fred::error::RedisError::new(
                 fred::error::RedisErrorKind::Unknown,
                 "Unexpected del command reply",
+            )),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SaddReply {
+    KeySet,
+    KeyNotSet,
+}
+
+impl fred::types::FromRedis for SaddReply {
+    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+        match value {
+            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
+            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
+            _ => Err(fred::error::RedisError::new(
+                fred::error::RedisErrorKind::Unknown,
+                "Unexpected sadd command reply",
             )),
         }
     }

@@ -6,7 +6,7 @@ pm.test("[GET]::/payments/:id - Status code is 2xx", function () {
 // Validate if response header has matching content-type
 pm.test("[GET]::/payments/:id - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
-    "application/json",
+    "application/json"
   );
 });
 
@@ -26,11 +26,11 @@ if (jsonData?.payment_id) {
   pm.collectionVariables.set("payment_id", jsonData.payment_id);
   console.log(
     "- use {{payment_id}} as collection variable for value",
-    jsonData.payment_id,
+    jsonData.payment_id
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.",
+    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined."
   );
 }
 
@@ -39,11 +39,11 @@ if (jsonData?.mandate_id) {
   pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
   console.log(
     "- use {{mandate_id}} as collection variable for value",
-    jsonData.mandate_id,
+    jsonData.mandate_id
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
+    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined."
   );
 }
 
@@ -52,21 +52,21 @@ if (jsonData?.client_secret) {
   pm.collectionVariables.set("client_secret", jsonData.client_secret);
   console.log(
     "- use {{client_secret}} as collection variable for value",
-    jsonData.client_secret,
+    jsonData.client_secret
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.",
+    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined."
   );
 }
 
-// Response body should have value "processing" for "status"
+// Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'processing'",
+    "[POST]::/payments - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
-    },
+      pm.expect(jsonData.status).to.eql("succeeded");
+    }
   );
 }
 
@@ -81,7 +81,7 @@ if (jsonData?.amount) {
     "[post]:://payments/:id/capture - Content check if value for 'amount' matches '6540'",
     function () {
       pm.expect(jsonData.amount).to.eql(6540);
-    },
+    }
   );
 }
 
@@ -91,16 +91,16 @@ if (jsonData?.amount_received) {
     "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'",
     function () {
       pm.expect(jsonData.amount_received).to.eql(6540);
-    },
+    }
   );
 }
 
 // Response body should have value "6540" for "amount_capturable"
 if (jsonData?.amount_capturable) {
   pm.test(
-    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 540'",
+    "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 6540'",
     function () {
-      pm.expect(jsonData.amount_capturable).to.eql(0);
-    },
+      pm.expect(jsonData.amount_capturable).to.eql(6540);
+    }
   );
 }

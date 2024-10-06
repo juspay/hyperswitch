@@ -1,28 +1,38 @@
-use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{
+    pii,
+    types::{ChargeRefunds, MinorUnit},
+};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::refund};
 
 #[derive(
-    Clone, Debug, Eq, Identifiable, Queryable, PartialEq, serde::Serialize, serde::Deserialize,
+    Clone,
+    Debug,
+    Eq,
+    Identifiable,
+    Queryable,
+    Selectable,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
 )]
-#[diesel(table_name = refund)]
+#[diesel(table_name = refund, primary_key(refund_id), check_for_backend(diesel::pg::Pg))]
 pub struct Refund {
-    pub id: i32,
     pub internal_reference_id: String,
     pub refund_id: String, //merchant_reference id
-    pub payment_id: String,
-    pub merchant_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_transaction_id: String,
     pub connector: String,
     pub connector_refund_id: Option<String>,
     pub external_reference_id: Option<String>,
     pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
+    pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
@@ -31,20 +41,21 @@ pub struct Refund {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub updated_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
     pub refund_reason: Option<String>,
     pub refund_error_code: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub charges: Option<ChargeRefunds>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(
     Clone,
     Debug,
-    Default,
     Eq,
     PartialEq,
     Insertable,
@@ -56,31 +67,33 @@ pub struct Refund {
 #[diesel(table_name = refund)]
 pub struct RefundNew {
     pub refund_id: String,
-    pub payment_id: String,
-    pub merchant_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub internal_reference_id: String,
     pub external_reference_id: Option<String>,
     pub connector_transaction_id: String,
     pub connector: String,
     pub connector_refund_id: Option<String>,
     pub refund_type: storage_enums::RefundType,
-    pub total_amount: i64,
+    pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub refund_amount: i64,
+    pub refund_amount: MinorUnit,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
     pub refund_reason: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub charges: Option<ChargeRefunds>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -109,10 +122,17 @@ pub enum RefundUpdate {
         refund_error_message: Option<String>,
         refund_error_code: Option<String>,
         updated_by: String,
+        connector_refund_id: Option<String>,
+    },
+    ManualUpdate {
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        updated_by: String,
     },
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
 pub struct RefundUpdateInternal {
     connector_refund_id: Option<String>,
@@ -124,6 +144,7 @@ pub struct RefundUpdateInternal {
     refund_reason: Option<String>,
     refund_error_code: Option<String>,
     updated_by: String,
+    modified_at: PrimitiveDateTime,
 }
 
 impl RefundUpdateInternal {
@@ -138,6 +159,7 @@ impl RefundUpdateInternal {
             refund_reason: self.refund_reason,
             refund_error_code: self.refund_error_code,
             updated_by: self.updated_by,
+            modified_at: self.modified_at,
             ..source
         }
     }
@@ -160,7 +182,10 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 refund_arn: Some(refund_arn),
                 updated_by,
-                ..Default::default()
+                metadata: None,
+                refund_reason: None,
+                refund_error_code: None,
+                modified_at: common_utils::date_time::now(),
             },
             RefundUpdate::MetadataAndReasonUpdate {
                 metadata,
@@ -170,7 +195,13 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 metadata,
                 refund_reason: reason,
                 updated_by,
-                ..Default::default()
+                connector_refund_id: None,
+                refund_status: None,
+                sent_to_gateway: None,
+                refund_error_message: None,
+                refund_arn: None,
+                refund_error_code: None,
+                modified_at: common_utils::date_time::now(),
             },
             RefundUpdate::StatusUpdate {
                 connector_refund_id,
@@ -182,9 +213,32 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 sent_to_gateway: Some(sent_to_gateway),
                 refund_status: Some(refund_status),
                 updated_by,
-                ..Default::default()
+                refund_error_message: None,
+                refund_arn: None,
+                metadata: None,
+                refund_reason: None,
+                refund_error_code: None,
+                modified_at: common_utils::date_time::now(),
             },
             RefundUpdate::ErrorUpdate {
+                refund_status,
+                refund_error_message,
+                refund_error_code,
+                updated_by,
+                connector_refund_id,
+            } => Self {
+                refund_status,
+                refund_error_message,
+                refund_error_code,
+                updated_by,
+                connector_refund_id,
+                sent_to_gateway: None,
+                refund_arn: None,
+                metadata: None,
+                refund_reason: None,
+                modified_at: common_utils::date_time::now(),
+            },
+            RefundUpdate::ManualUpdate {
                 refund_status,
                 refund_error_message,
                 refund_error_code,
@@ -194,7 +248,12 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 refund_error_code,
                 updated_by,
-                ..Default::default()
+                connector_refund_id: None,
+                sent_to_gateway: None,
+                refund_arn: None,
+                metadata: None,
+                refund_reason: None,
+                modified_at: common_utils::date_time::now(),
             },
         }
     }
@@ -202,19 +261,29 @@ impl From<RefundUpdate> for RefundUpdateInternal {
 
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
-        let pa_update: RefundUpdateInternal = self.into();
+        let RefundUpdateInternal {
+            connector_refund_id,
+            refund_status,
+            sent_to_gateway,
+            refund_error_message,
+            refund_arn,
+            metadata,
+            refund_reason,
+            refund_error_code,
+            updated_by,
+            modified_at: _,
+        } = self.into();
         Refund {
-            connector_refund_id: pa_update.connector_refund_id.or(source.connector_refund_id),
-            refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
-            sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
-            refund_error_message: pa_update
-                .refund_error_message
-                .or(source.refund_error_message),
-            refund_error_code: pa_update.refund_error_code.or(source.refund_error_code),
-            refund_arn: pa_update.refund_arn.or(source.refund_arn),
-            metadata: pa_update.metadata.or(source.metadata),
-            refund_reason: pa_update.refund_reason.or(source.refund_reason),
-            updated_by: pa_update.updated_by,
+            connector_refund_id: connector_refund_id.or(source.connector_refund_id),
+            refund_status: refund_status.unwrap_or(source.refund_status),
+            sent_to_gateway: sent_to_gateway.unwrap_or(source.sent_to_gateway),
+            refund_error_message: refund_error_message.or(source.refund_error_message),
+            refund_error_code: refund_error_code.or(source.refund_error_code),
+            refund_arn: refund_arn.or(source.refund_arn),
+            metadata: metadata.or(source.metadata),
+            refund_reason: refund_reason.or(source.refund_reason),
+            updated_by,
+            modified_at: common_utils::date_time::now(),
             ..source
         }
     }
@@ -224,6 +293,53 @@ impl RefundUpdate {
 pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: String,
-    pub merchant_id: String,
-    pub payment_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::PaymentId,
+}
+
+impl common_utils::events::ApiEventMetric for Refund {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Refund {
+            payment_id: Some(self.payment_id.clone()),
+            refund_id: self.refund_id.clone(),
+        })
+    }
+}
+
+mod tests {
+    #[test]
+    fn test_backwards_compatibility() {
+        let serialized_refund = r#"{
+    "internal_reference_id": "internal_ref_123",
+    "refund_id": "refund_456",
+    "payment_id": "payment_789",
+    "merchant_id": "merchant_123",
+    "connector_transaction_id": "connector_txn_789",
+    "connector": "stripe",
+    "connector_refund_id": null,
+    "external_reference_id": null,
+    "refund_type": "instant_refund",
+    "total_amount": 10000,
+    "currency": "USD",
+    "refund_amount": 9500,
+    "refund_status": "Success",
+    "sent_to_gateway": true,
+    "refund_error_message": null,
+    "metadata": null,
+    "refund_arn": null,
+    "created_at": "2024-02-26T12:00:00Z",
+    "updated_at": "2024-02-26T12:00:00Z",
+    "description": null,
+    "attempt_id": "attempt_123",
+    "refund_reason": null,
+    "refund_error_code": null,
+    "profile_id": null,
+    "updated_by": "admin",
+    "merchant_connector_id": null,
+    "charges": null
+}"#;
+        let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
+
+        assert!(deserialized.is_ok());
+    }
 }

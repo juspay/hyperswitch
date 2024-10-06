@@ -42,7 +42,7 @@ impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
 }
 
 impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
-    for error_stack::Result<T, data_models::errors::StorageError>
+    for error_stack::Result<T, hyperswitch_domain_models::errors::StorageError>
 {
     #[track_caller]
     fn to_not_found_response(
@@ -51,8 +51,10 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                data_models::errors::StorageError::ValueNotFound(_) => not_found_response,
-                data_models::errors::StorageError::CustomerRedacted => {
+                hyperswitch_domain_models::errors::StorageError::ValueNotFound(_) => {
+                    not_found_response
+                }
+                hyperswitch_domain_models::errors::StorageError::CustomerRedacted => {
                     errors::ApiErrorResponse::CustomerRedacted
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
@@ -68,7 +70,9 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                data_models::errors::StorageError::DuplicateValue { .. } => duplicate_response,
+                hyperswitch_domain_models::errors::StorageError::DuplicateValue { .. } => {
+                    duplicate_response
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(new_err)
@@ -136,25 +140,88 @@ pub trait ConnectorErrorExt<T> {
 
 impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> {
     fn to_refund_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
-        self.map_err(|err| {
-            let data = match err.current_context() {
-                errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
-                    let response_str = std::str::from_utf8(bytes);
-                    match response_str {
-                        Ok(s) => serde_json::from_str(s)
-                            .map_err(
-                                |error| logger::error!(%error,"Failed to convert response to JSON"),
-                            )
-                            .ok(),
-                        Err(error) => {
-                            logger::error!(%error,"Failed to convert response to UTF8 string");
-                            None
-                        }
+        self.map_err(|err| match err.current_context() {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                let response_str = std::str::from_utf8(bytes);
+                let data = match response_str {
+                    Ok(s) => serde_json::from_str(s)
+                        .map_err(
+                            |error| logger::error!(%error,"Failed to convert response to JSON"),
+                        )
+                        .ok(),
+                    Err(error) => {
+                        logger::error!(%error,"Failed to convert response to UTF8 string");
+                        None
                     }
+                };
+                err.change_context(errors::ApiErrorResponse::RefundFailed { data })
+            }
+            errors::ConnectorError::NotImplemented(reason) => {
+                errors::ApiErrorResponse::NotImplemented {
+                    message: errors::NotImplementedMessage::Reason(reason.to_string()),
                 }
-                _ => None,
-            };
-            err.change_context(errors::ApiErrorResponse::RefundFailed { data })
+                .into()
+            }
+            errors::ConnectorError::NotSupported { message, connector } => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: format!("{message} is not supported by {connector}"),
+                }
+                .into()
+            }
+            errors::ConnectorError::FailedToObtainIntegrationUrl
+            | errors::ConnectorError::RequestEncodingFailed
+            | errors::ConnectorError::RequestEncodingFailedWithReason(_)
+            | errors::ConnectorError::ParsingFailed
+            | errors::ConnectorError::ResponseDeserializationFailed
+            | errors::ConnectorError::UnexpectedResponseError(_)
+            | errors::ConnectorError::RoutingRulesParsingError
+            | errors::ConnectorError::FailedToObtainPreferredConnector
+            | errors::ConnectorError::ProcessingStepFailed(_)
+            | errors::ConnectorError::InvalidConnectorName
+            | errors::ConnectorError::InvalidWallet
+            | errors::ConnectorError::ResponseHandlingFailed
+            | errors::ConnectorError::MissingRequiredField { .. }
+            | errors::ConnectorError::MissingRequiredFields { .. }
+            | errors::ConnectorError::FailedToObtainAuthType
+            | errors::ConnectorError::FailedToObtainCertificate
+            | errors::ConnectorError::NoConnectorMetaData
+            | errors::ConnectorError::NoConnectorWalletDetails
+            | errors::ConnectorError::FailedToObtainCertificateKey
+            | errors::ConnectorError::FlowNotSupported { .. }
+            | errors::ConnectorError::CaptureMethodNotSupported
+            | errors::ConnectorError::MissingConnectorMandateID
+            | errors::ConnectorError::MissingConnectorMandateMetadata
+            | errors::ConnectorError::MissingConnectorTransactionID
+            | errors::ConnectorError::MissingConnectorRefundID
+            | errors::ConnectorError::MissingApplePayTokenData
+            | errors::ConnectorError::WebhooksNotImplemented
+            | errors::ConnectorError::WebhookBodyDecodingFailed
+            | errors::ConnectorError::WebhookSignatureNotFound
+            | errors::ConnectorError::WebhookSourceVerificationFailed
+            | errors::ConnectorError::WebhookVerificationSecretNotFound
+            | errors::ConnectorError::WebhookVerificationSecretInvalid
+            | errors::ConnectorError::WebhookReferenceIdNotFound
+            | errors::ConnectorError::WebhookEventTypeNotFound
+            | errors::ConnectorError::WebhookResourceObjectNotFound
+            | errors::ConnectorError::WebhookResponseEncodingFailed
+            | errors::ConnectorError::InvalidDateFormat
+            | errors::ConnectorError::DateFormattingFailed
+            | errors::ConnectorError::InvalidDataFormat { .. }
+            | errors::ConnectorError::MismatchedPaymentData
+            | errors::ConnectorError::InvalidWalletToken { .. }
+            | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
+            | errors::ConnectorError::FileValidationFailed { .. }
+            | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
+            | errors::ConnectorError::FailedAtConnector { .. }
+            | errors::ConnectorError::MissingPaymentMethodType
+            | errors::ConnectorError::InSufficientBalanceInPaymentMethod
+            | errors::ConnectorError::RequestTimeoutReceived
+            | errors::ConnectorError::CurrencyNotSupported { .. }
+            | errors::ConnectorError::InvalidConnectorConfig { .. }
+            | errors::ConnectorError::AmountConversionFailed { .. }
+            | errors::ConnectorError::GenericError { .. } => {
+                err.change_context(errors::ApiErrorResponse::RefundFailed { data: None })
+            }
         })
     }
 
@@ -184,7 +251,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
-                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                        message: errors::NotImplementedMessage::Reason(
                             reason.to_string(),
                         ),
                     }
@@ -204,6 +271,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
+                errors::ConnectorError::InvalidWalletToken {wallet_name} => errors::ApiErrorResponse::InvalidWalletToken {wallet_name: wallet_name.to_string()},
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
                 errors::ConnectorError::FailedToObtainAuthType =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
                 errors::ConnectorError::InvalidConnectorConfig { config }  => errors::ApiErrorResponse::InvalidConnectorConfiguration { config: config.to_string() },
@@ -219,10 +287,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidWallet |
                 errors::ConnectorError::ResponseHandlingFailed |
                 errors::ConnectorError::FailedToObtainCertificate |
-                errors::ConnectorError::NoConnectorMetaData |
+                errors::ConnectorError::NoConnectorMetaData | errors::ConnectorError::NoConnectorWalletDetails |
                 errors::ConnectorError::FailedToObtainCertificateKey |
                 errors::ConnectorError::CaptureMethodNotSupported |
                 errors::ConnectorError::MissingConnectorMandateID |
+                errors::ConnectorError::MissingConnectorMandateMetadata |
                 errors::ConnectorError::MissingConnectorTransactionID |
                 errors::ConnectorError::MissingConnectorRefundID |
                 errors::ConnectorError::MissingApplePayTokenData |
@@ -238,7 +307,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::WebhookResponseEncodingFailed |
                 errors::ConnectorError::InvalidDateFormat |
                 errors::ConnectorError::DateFormattingFailed |
-                errors::ConnectorError::InvalidWalletToken |
                 errors::ConnectorError::MissingConnectorRelatedTransactionID { .. } |
                 errors::ConnectorError::FileValidationFailed { .. } |
                 errors::ConnectorError::MissingConnectorRedirectionPayload { .. } |
@@ -246,7 +314,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::MissingPaymentMethodType |
                 errors::ConnectorError::InSufficientBalanceInPaymentMethod |
                 errors::ConnectorError::RequestTimeoutReceived |
-                errors::ConnectorError::ProcessingStepFailed(None) => errors::ApiErrorResponse::InternalServerError
+                errors::ConnectorError::ProcessingStepFailed(None)|
+                errors::ConnectorError::GenericError {..} |
+                errors::ConnectorError::AmountConversionFailed => errors::ApiErrorResponse::InternalServerError
             };
             err.change_context(error)
         })
@@ -286,6 +356,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         config: field_name.to_string(),
                     }
                 }
+                errors::ConnectorError::InvalidWalletToken { wallet_name } => {
+                    errors::ApiErrorResponse::InvalidWalletToken {
+                        wallet_name: wallet_name.to_string(),
+                    }
+                }
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)
                 | errors::ConnectorError::ParsingFailed
@@ -300,12 +375,14 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::FailedToObtainAuthType
                 | errors::ConnectorError::FailedToObtainCertificate
                 | errors::ConnectorError::NoConnectorMetaData
+                | errors::ConnectorError::NoConnectorWalletDetails
                 | errors::ConnectorError::FailedToObtainCertificateKey
                 | errors::ConnectorError::NotImplemented(_)
                 | errors::ConnectorError::NotSupported { .. }
                 | errors::ConnectorError::FlowNotSupported { .. }
                 | errors::ConnectorError::CaptureMethodNotSupported
                 | errors::ConnectorError::MissingConnectorMandateID
+                | errors::ConnectorError::MissingConnectorMandateMetadata
                 | errors::ConnectorError::MissingConnectorTransactionID
                 | errors::ConnectorError::MissingConnectorRefundID
                 | errors::ConnectorError::MissingApplePayTokenData
@@ -323,7 +400,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::DateFormattingFailed
                 | errors::ConnectorError::InvalidDataFormat { .. }
                 | errors::ConnectorError::MismatchedPaymentData
-                | errors::ConnectorError::InvalidWalletToken
                 | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
                 | errors::ConnectorError::FileValidationFailed { .. }
                 | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
@@ -332,7 +408,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::InSufficientBalanceInPaymentMethod
                 | errors::ConnectorError::RequestTimeoutReceived
                 | errors::ConnectorError::CurrencyNotSupported { .. }
-                | errors::ConnectorError::ProcessingStepFailed(None) => {
+                | errors::ConnectorError::ProcessingStepFailed(None)
+                | errors::ConnectorError::AmountConversionFailed { .. }
+                | errors::ConnectorError::GenericError { .. } => {
                     logger::error!(%error,"Setup Mandate flow failed");
                     errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
                 }
@@ -400,6 +478,21 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         field_names: field_names.to_vec(),
                     }
                 }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: format!("{} by {}", message, connector),
+                    }
+                }
+                errors::ConnectorError::NotImplemented(reason) => {
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(reason.to_string()),
+                    }
+                }
+                errors::ConnectorError::InvalidConnectorConfig { config } => {
+                    errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: config.to_string(),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
@@ -417,5 +510,58 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 _ => Err(error),
             },
         }
+    }
+}
+
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<errors::RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
+        match self.current_context() {
+            errors::RedisError::NotFound => self.change_context(
+                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
+            ),
+            errors::RedisError::SetNxFailed => {
+                self.change_context(errors::StorageError::DuplicateValue {
+                    entity: "redis",
+                    key: Some(key.to_string()),
+                })
+            }
+            _ => self.change_context(errors::StorageError::KVError),
+        }
+    }
+}
+
+#[cfg(feature = "olap")]
+impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors::StorageError> {
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::UserErrors,
+    ) -> error_stack::Result<T, errors::UserErrors> {
+        self.map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(not_found_response)
+            } else {
+                e.change_context(errors::UserErrors::InternalServerError)
+            }
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::UserErrors,
+    ) -> error_stack::Result<T, errors::UserErrors> {
+        self.map_err(|e| {
+            if e.current_context().is_db_unique_violation() {
+                e.change_context(duplicate_response)
+            } else {
+                e.change_context(errors::UserErrors::InternalServerError)
+            }
+        })
     }
 }

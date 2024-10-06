@@ -60,12 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "requires_confirmation" for "status"
+// Response body should have value "requires_payment_method" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_payment_method'",
     function () {
-      pm.expect(jsonData.status).to.eql("requires_confirmation");
+      pm.expect(jsonData.status).to.eql("requires_payment_method");
     },
   );
 }

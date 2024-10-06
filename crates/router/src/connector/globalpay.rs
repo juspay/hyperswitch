@@ -1,12 +1,11 @@
 mod requests;
+use super::utils as connector_utils;
 mod response;
 pub mod transformers;
-
-use std::fmt::Debug;
-
-use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use serde_json::Value;
 
@@ -17,14 +16,14 @@ use self::{
         GlobalpayRefreshTokenResponse,
     },
 };
-use super::utils::RefundsRequestData;
+use super::utils::{PaymentMethodDataType, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::{utils as connector_utils, utils as conn_utils},
     core::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -34,13 +33,24 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
+        transformers::ForeignTryFrom,
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt},
+    utils::{crypto, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Globalpay;
+#[derive(Clone)]
+pub struct Globalpay {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+}
+
+impl Globalpay {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Globalpay
 where
@@ -59,7 +69,9 @@ where
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
             ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
             (
@@ -93,17 +105,23 @@ impl ConnectorCommon for Globalpay {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: transformers::GlobalpayErrorResponse = res
             .response
             .parse_struct("Globalpay ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -112,6 +130,7 @@ impl ConnectorValidation for Globalpay {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -122,6 +141,22 @@ impl ConnectorValidation for Globalpay {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::Ideal,
+            PaymentMethodDataType::Sofort,
+            PaymentMethodDataType::Eps,
+            PaymentMethodDataType::Giropay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -164,10 +199,9 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let globalpay_req = types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::Json(Box::new(serde_json::json!({}))))
     }
 
     fn build_request(
@@ -185,8 +219,8 @@ impl
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req,
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
                 )?)
                 .build(),
         ))
@@ -195,12 +229,16 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .switch()?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -213,8 +251,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -262,7 +301,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
-                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -270,19 +311,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = GlobalpayRefreshTokenRequest::try_from(req)?;
-        let globalpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = GlobalpayRefreshTokenRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         let response: GlobalpayRefreshTokenResponse = res
@@ -290,29 +328,37 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        types::ResponseRouterData {
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: GlobalpayRefreshTokenErrorResponse = res
             .response
             .parse_struct("Globalpay ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
             message: response.detailed_error_description,
             reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -339,6 +385,20 @@ impl
         types::PaymentsResponseData,
     > for Globalpay
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Globalpay".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentVoid for Globalpay {}
@@ -381,7 +441,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -389,39 +451,48 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = requests::GlobalpayCancelRequest::try_from(req)?;
-        let globalpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = req
+            .request
+            .minor_amount
+            .and_then(|amount| {
+                req.request.currency.map(|currency| {
+                    connector_utils::convert_amount(self.amount_converter, amount, currency)
+                })
+            })
+            .transpose()?;
+        let connector_router_data = requests::GlobalpayCancelRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayCancelRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -474,24 +545,30 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let is_multiple_capture_sync = match data.request.sync_type {
             types::SyncRequestType::MultipleCaptureSync(_) => true,
             types::SyncRequestType::SinglePaymentSync => false,
         };
-        types::RouterData::try_from((
+        types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -539,14 +616,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = requests::GlobalpayCaptureRequest::try_from(req)?;
-        let globalpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -562,7 +642,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .set_body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -570,26 +652,29 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -628,14 +713,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
-        let globalpay_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+        let connector_req = GlobalpayPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -653,7 +741,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -661,26 +751,29 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -718,14 +811,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = requests::GlobalpayRefundRequest::try_from(req)?;
-        let globalpay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(globalpay_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = requests::GlobalPayRouterData::from((amount, req));
+        let connector_req = requests::GlobalpayRefundRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -740,7 +836,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -748,12 +846,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("globalpay RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -765,8 +868,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -809,7 +913,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -817,26 +920,29 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -854,22 +960,20 @@ impl api::IncomingWebhook for Globalpay {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature = conn_utils::get_header_key_value("x-gp-signature", request.headers)?;
+        let signature = connector_utils::get_header_key_value("x-gp-signature", request.headers)?;
         Ok(signature.as_bytes().to_vec())
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let payload: Value = request.body.parse_struct("GlobalpayWebhookBody").switch()?;
         let mut payload_str = serde_json::to_string(&payload)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let sec = std::str::from_utf8(&connector_webhook_secrets.secret)
-            .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         payload_str.push_str(sec);
         Ok(payload_str.into_bytes())
@@ -912,14 +1016,13 @@ impl api::IncomingWebhook for Globalpay {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Value, errors::ConnectorError> {
-        let details = std::str::from_utf8(request.body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json = serde_json::from_str(details)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+        Ok(Box::new(
+            request
+                .body
+                .parse_struct::<GlobalpayPaymentsResponse>("GlobalpayPaymentsResponse")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?,
+        ))
     }
 }
 
@@ -931,7 +1034,9 @@ impl services::ConnectorRedirectResponse for Globalpay {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync
+            | services::PaymentAction::CompleteAuthorize
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

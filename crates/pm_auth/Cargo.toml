@@ -1,0 +1,32 @@
+[package]
+name = "pm_auth"
+description = "Open banking services"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
+
+[features]
+v1 = ["api_models/v1"]
+
+[dependencies]
+# First party crates
+api_models = { version = "0.1.0", path = "../api_models" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
+masking = { version = "0.1.0", path = "../masking" }
+
+# Third party crates
+async-trait = "0.1.79"
+bytes = "1.6.0"
+error-stack = "0.4.1"
+http = "0.2.12"
+mime = "0.3.17"
+serde = "1.0.197"
+serde_json = "1.0.115"
+strum = { version = "0.26.2", features = ["derive"] }
+thiserror = "1.0.58"
+
+[lints]
+workspace = true
