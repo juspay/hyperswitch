@@ -13126,8 +13126,7 @@
       "PaymentsCreateIntentRequest": {
         "type": "object",
         "required": [
-          "amount_details",
-          "profile_id"
+          "amount_details"
         ],
         "properties": {
           "amount_details": {
@@ -13140,10 +13139,6 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "The business profile to be used for this payment"
           },
           "routing_algorithm_id": {
             "type": "string",
