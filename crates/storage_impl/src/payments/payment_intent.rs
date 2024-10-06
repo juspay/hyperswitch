@@ -940,13 +940,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 };
 
                 if let Some(card_network) = &params.card_network {
-                    // TODO: Change this when card_network is consistent in db
                     let mut extended_networks = Vec::new();
                     for network in card_network {
                         extended_networks.push(network.to_string());
-                        extended_networks.push(format!("\"{}\"", network));
-                        extended_networks
-                            .push(format!("\"{}\"", network.to_string().to_uppercase()));
+                        extended_networks.push(network.to_string().to_uppercase());
                     }
 
                     query = query.filter(pa_dsl::card_network.eq_any(extended_networks));
