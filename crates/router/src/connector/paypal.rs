@@ -733,25 +733,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-
-        // match response {
-        //     PaypalAuthResponse::PaypalOrdersResponse(response) => {
-        //         event_builder.map(|i| i.set_response_body(&response));
-        //         router_env::logger::info!(connector_response=?response);
-
-        //         types::RouterData::try_from(types::ResponseRouterData {
-        //             response,
-        //             data: data.clone(),
-        //             http_code: res.status_code,
-        //         })
-        //     }
-        //     PaypalAuthResponse::PaypalRedirectResponse(_) |
-        //     PaypalAuthResponse::PaypalThreeDsResponse(_) => {
-        //         Err(errors::ConnectorError::NotImplemented(
-        //             "not implemented for Paypal Create Order flow".to_string(),
-        //         ).into())
-        //     }
-        // }
     }
 
     fn get_error_response(

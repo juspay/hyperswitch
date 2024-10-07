@@ -687,16 +687,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
 {
     async fn update_tracker<'b>(
         &'b self,
-        _db: &'b SessionState,
+        db: &'b SessionState,
         _payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        _router_data: types::RouterData<
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
             F,
             types::PaymentsCreateOrderData,
             types::PaymentsResponseData,
         >,
-        _key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
@@ -707,10 +707,88 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
     where
         F: 'b + Send,
     {
-        let order_id = payment_data
-            .payment_attempt
-            .connector_transaction_id
-            .clone();
+        match router_data.response.clone() {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id,
+                connector_metadata,
+                ..
+            }) => {
+                let connector_transaction_id = match resource_id {
+                    types::ResponseId::NoResponseId => None,
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
+                };
+                let payment_intent_update = storage::PaymentIntentUpdate::CreateOrderUpdate {
+                    status: api_models::enums::IntentStatus::foreign_from(
+                        payment_data.payment_attempt.status,
+                    ),
+                    updated_by: payment_data.payment_intent.updated_by.clone(),
+                };
+                println!("$$$payment_intent_update{:?}", payment_intent_update);
+                let m_db = db.clone().store;
+                let payment_intent = payment_data.payment_intent.clone();
+                let key_manager_state: KeyManagerState = db.into();
+
+                let updated_payment_intent = m_db
+                    .update_payment_intent(
+                        &key_manager_state,
+                        payment_intent,
+                        payment_intent_update,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                let payment_attempt_update = storage::PaymentAttemptUpdate::CreateOrderUpdate {
+                    connector_transaction_id: connector_transaction_id.clone(),
+                    updated_by: storage_scheme.clone().to_string(),
+                    status: payment_data.payment_attempt.status,
+                    connector_metadata,
+                };
+                #[cfg(feature = "v1")]
+                let updated_payment_attempt = m_db
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                #[cfg(feature = "v2")]
+                let updated_payment_attempt = m_db
+                    .update_payment_attempt_with_attempt_id(
+                        &db.into(),
+                        key_store,
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                payment_data.payment_intent = updated_payment_intent;
+                payment_data.payment_attempt = updated_payment_attempt;
+            }
+            Err(err) => {
+                Err(errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector: payment_data
+                        .payment_attempt
+                        .connector
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("connector_not found")?,
+                    status_code: err.status_code,
+                    reason: err.reason,
+                })?;
+            }
+            _ => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in CreateOrder flow")?;
+            }
+        }
         //order_id
         Ok(payment_data)
     }
