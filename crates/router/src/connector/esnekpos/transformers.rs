@@ -2,6 +2,7 @@ use common_utils::{
     pii::{self},
     types::StringMajorUnit,
 };
+use hyperswitch_connectors::utils::PhoneDetailsData;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -85,177 +86,74 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
     fn try_from(
         item: &EsnekposRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let card_holder_name: Result<Secret<String>, errors::ConnectorError> =
-            match item.router_data.get_optional_billing_full_name() {
-                Some(name) => Ok(name),
-                None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
-                }),
-            };
+        match item.router_data.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(req_card) => {
+                let card_holder_name: Secret<String> = item.router_data.get_billing_full_name()?;
 
-        match card_holder_name {
-            Ok(card_holder_name) => {
-                match item.router_data.request.payment_method_data.clone() {
-                    domain::PaymentMethodData::Card(req_card) => {
-                        let credit_card = EsnekposCard {
-                            cc_number: req_card.card_number,
-                            exp_month: req_card.card_exp_month,
-                            exp_year: req_card.card_exp_year,
-                            cc_cvc: req_card.card_cvc,
-                            cc_owner: card_holder_name,
-                            // TODO(adnanjpg): get the installment number from the request
-                            installment_number: Secret::new(0),
-                            complete: item.router_data.request.is_auto_capture()?,
-                        };
+                let credit_card = EsnekposCard {
+                    cc_number: req_card.card_number,
+                    exp_month: req_card.card_exp_month,
+                    exp_year: req_card.card_exp_year,
+                    cc_cvc: req_card.card_cvc,
+                    cc_owner: card_holder_name,
+                    // TODO(adnanjpg): get the installment number from the request
+                    installment_number: Secret::new(0),
+                    complete: item.router_data.request.is_auto_capture()?,
+                };
 
-                        let billing_details = item.router_data.get_billing();
+                let req = item.router_data.request.clone();
 
-                        match billing_details.as_ref().map(|bd| *bd) {
-                            Err(e) => {
-                                router_env::logger::error!("Error: {:?}", e);
-                                Err(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "billing_details",
-                                }
-                                .into())
-                            }
-                            Ok(bill) => {
-                                let billing_details = bill.clone();
+                let mailobj = req.get_email()?;
+                let mail = mailobj.expose().expose();
 
-                                let req = item.router_data.request.clone();
+                let phone_details = item.router_data.get_billing_phone()?;
+                let phone = phone_details
+                    .get_number_with_nullable_country_code()?
+                    .expose();
 
-                                let mailobj = req.get_email()?;
-                                let mail = mailobj.expose().expose();
+                let line1 = item.router_data.get_optional_billing_line1();
+                let line2 = item.router_data.get_optional_billing_line2();
 
-                                let phoneobj = billing_details.phone.clone();
+                let customer = EsnekposPaymentRequestCustomer {
+                    // pub struct Email(Secret<String, EmailStrategy>);
+                    mail,
+                    phone,
+                    first_name: item.router_data.get_optional_billing_first_name(),
+                    last_name: item.router_data.get_optional_billing_last_name(),
+                    city: item.router_data.get_optional_billing_city(),
+                    state: item.router_data.get_optional_billing_state(),
+                    address: match (line1, line2) {
+                        (Some(line1), Some(line2)) => {
+                            let line1val = line1.expose();
+                            let line2val = line2.expose();
 
-                                let phone = match phoneobj {
-                                    Some(phone) => {
-                                        let number = phone.number;
-                                        let country_code_with_ex = phone.country_code;
-
-                                        match (number, country_code_with_ex) {
-                                            (Some(number), Some(country_code)) => {
-                                                // remove the + sign from the country code
-                                                let country_code =
-                                                    country_code.trim_start_matches('+');
-                                                let number =
-                                                    format!("{}{}", country_code, number.expose());
-
-                                                number
-                                            }
-                                            (Some(number), None) => {
-                                                format!("{:?}", number.expose())
-                                            }
-                                            (None, Some(_country_code)) => {
-                                                return Err(
-                                                    errors::ConnectorError::MissingRequiredField {
-                                                        field_name: "phone",
-                                                    }
-                                                    .into(),
-                                                )
-                                            }
-                                            (None, None) => {
-                                                return Err(
-                                                    errors::ConnectorError::MissingRequiredField {
-                                                        field_name: "phone",
-                                                    }
-                                                    .into(),
-                                                )
-                                            }
-                                        }
-                                    }
-                                    None => {
-                                        return Err(errors::ConnectorError::MissingRequiredField {
-                                            field_name: "phone",
-                                        }
-                                        .into())
-                                    }
-                                };
-
-                                let address = billing_details.address.clone();
-
-                                let customer_res: Result<
-                                    EsnekposPaymentRequestCustomer,
-                                    errors::ConnectorError,
-                                > = Ok(EsnekposPaymentRequestCustomer {
-                                    // pub struct Email(Secret<String, EmailStrategy>);
-                                    mail,
-                                    phone,
-                                    first_name: match address.clone() {
-                                        Some(address) => address.first_name,
-                                        None => None,
-                                    },
-                                    last_name: match address.clone() {
-                                        Some(address) => address.last_name,
-                                        None => None,
-                                    },
-                                    city: match address.clone() {
-                                        Some(address) => address.city,
-                                        None => None,
-                                    },
-                                    state: match address.clone() {
-                                        Some(address) => address.state,
-                                        None => None,
-                                    },
-                                    address: match address.clone() {
-                                        Some(address) => {
-                                            let line1 = address.line1.clone();
-                                            let line2 = address.line2.clone();
-
-                                            match (line1, line2) {
-                                                (Some(line1), Some(line2)) => {
-                                                    let line1val = format!("{:?}", line1);
-                                                    let line2val = format!("{:?}", line2);
-
-                                                    let addstr =
-                                                        format!("{}, {}", line1val, line2val);
-                                                    Some(Secret::new(addstr))
-                                                }
-                                                (Some(line1), None) => Some(line1),
-                                                (None, Some(line2)) => Some(line2),
-                                                (None, None) => None,
-                                            }
-                                        }
-                                        None => None,
-                                    },
-                                    client_ip: req.get_ip_address_as_optional().clone(),
-                                });
-                                let customer = match customer_res {
-                                    Ok(customer) => customer,
-                                    Err(e) => return Err(e.into()),
-                                };
-
-                                let auth = EsnekposAuthType::try_from(
-                                    &item.router_data.connector_auth_type,
-                                )?;
-
-                                Ok(Self {
-                                    config: EsnekposPaymentRequestConfig {
-                                        merchant: auth.merchant.expose(),
-                                        merchant_key: auth.merchant_key.expose(),
-                                        back_url: item.router_data.request.get_return_url()?,
-                                        order_ref_number: item.router_data.payment_id.clone(),
-                                        prices_currency: item
-                                            .router_data
-                                            .request
-                                            .currency
-                                            .to_string(),
-                                        order_amount: item.amount.get_amount_as_string(),
-                                    },
-                                    credit_card,
-                                    customer,
-                                    product: vec![],
-                                })
-                            }
+                            let addstr = format!("{}, {}", line1val, line2val);
+                            Some(Secret::new(addstr))
                         }
-                    }
-                    _ => Err(
-                        errors::ConnectorError::NotImplemented("Payment methods".to_string())
-                            .into(),
-                    ),
-                }
+                        (Some(line1), None) => Some(line1),
+                        (None, Some(line2)) => Some(line2),
+                        (None, None) => None,
+                    },
+                    client_ip: req.get_ip_address_as_optional().clone(),
+                };
+
+                let auth = EsnekposAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+                Ok(Self {
+                    config: EsnekposPaymentRequestConfig {
+                        merchant: auth.merchant.expose(),
+                        merchant_key: auth.merchant_key.expose(),
+                        back_url: item.router_data.request.get_return_url()?,
+                        order_ref_number: item.router_data.payment_id.clone(),
+                        prices_currency: item.router_data.request.currency.to_string(),
+                        order_amount: item.amount.get_amount_as_string(),
+                    },
+                    credit_card,
+                    customer,
+                    product: vec![],
+                })
             }
-            Err(e) => Err(e.into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
