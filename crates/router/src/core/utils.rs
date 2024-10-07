@@ -1527,12 +1527,10 @@ impl GetPaymentMethodDataForNetworkTransactionId for api_models::mandates::Recur
         hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
     )> {
         let network_transaction_id_and_card_details = match self {
-            api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
-                network_transaction_id_and_card_details,
-            ) => Ok(network_transaction_id_and_card_details),
-            api_models::mandates::RecurringDetails::MandateId(_)
-            | api_models::mandates::RecurringDetails::PaymentMethodId(_)
-            | api_models::mandates::RecurringDetails::ProcessorPaymentToken(_) => {
+            Self::NetworkTransactionIdAndCardDetails(network_transaction_id_and_card_details) => {
+                Ok(network_transaction_id_and_card_details)
+            }
+            Self::MandateId(_) | Self::PaymentMethodId(_) | Self::ProcessorPaymentToken(_) => {
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
             }
         }?;

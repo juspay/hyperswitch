@@ -796,6 +796,11 @@ where
 
     add_connector_http_status_code_metrics(connector_http_status_code);
 
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    let routable_connectors = convert_connector_data_to_routable_connectors(&[connector.clone()])
+        .map_err(|e| logger::error!(routable_connector_error=?e))
+        .unwrap_or_default();
+
     let mut payment_data = operation
         .to_post_update_tracker()?
         .update_tracker(
