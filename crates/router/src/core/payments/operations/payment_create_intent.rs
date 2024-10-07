@@ -318,7 +318,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
             operation: Box::new(self),
             customer_details: None,
             payment_data,
-            business_profile: profile,
             mandate_type: None,
         };
 
@@ -385,7 +384,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIn
     for PaymentCreateIntent
 {
     #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
+    async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut payments::PaymentIntentData<F>,

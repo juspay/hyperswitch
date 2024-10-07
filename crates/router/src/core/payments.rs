@@ -706,8 +706,7 @@ where
         operation,
         customer_details,
         mut payment_data,
-        business_profile,
-        mandate_type,
+        mandate_type: _,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -724,7 +723,7 @@ where
 
     let (_operation, customer) = operation
         .to_domain()?
-        .get_or_create_customer_details(
+        .get_customer_details(
             state,
             &mut payment_data,
             customer_details,
