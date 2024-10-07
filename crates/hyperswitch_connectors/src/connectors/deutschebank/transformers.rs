@@ -146,6 +146,8 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
             .and_then(|mandate_id| mandate_id.mandate_reference_id)
         {
             None => {
+                /// To facilitate one-off payments via SEPA with Deutsche Bank, we are considering not storing the connector mandate ID in our system if future usage is on-session. 
+                /// We will only check for customer acceptance to make a one-off payment. we will be storing the connector mandate details only when setup future usage is off-session.
                 if item.router_data.request.customer_acceptance.is_some() {
                     match item.router_data.request.payment_method_data.clone() {
                         PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
