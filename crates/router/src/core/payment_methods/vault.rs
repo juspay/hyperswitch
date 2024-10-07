@@ -26,7 +26,10 @@ use crate::{
     utils::StringExt,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{core::payment_methods::transformers as pm_transforms, utils::ConnectorResponseExt, headers,  services, settings, types::payment_methods as pm_types};
+use crate::{
+    core::payment_methods::transformers as pm_transforms, headers, services, settings,
+    types::payment_methods as pm_types, utils::ConnectorResponseExt,
+};
 const VAULT_SERVICE_NAME: &str = "CARD";
 
 pub struct SupplementaryVaultData {
