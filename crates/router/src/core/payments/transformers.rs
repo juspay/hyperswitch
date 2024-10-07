@@ -2057,7 +2057,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;
-        let amount = payment_data.payment_intent.amount;
+        let amount = payment_data.payment_attempt.net_amount.get_total_amount();
 
         Ok(Self {
             net_amount: amount + order_tax_amount, //need to change after we move to connector module
