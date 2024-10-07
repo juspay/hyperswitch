@@ -2006,7 +2006,7 @@ pub async fn retrieve_card_with_permanent_token(
                             bank_code: None,
                             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
                         };
-                        
+
                         Ok(
                             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                                 card_details_for_network_transaction_id,
@@ -4511,8 +4511,8 @@ pub async fn get_additional_payment_data(
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
             {
-                Ok(Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
-                    api_models::payments::AdditionalCardInfo {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Card(
+                    Box::new(api_models::payments::AdditionalCardInfo {
                         card_issuer: card_data.card_issuer.to_owned(),
                         card_network: card_data.card_network.clone(),
                         card_type: card_data.card_type.to_owned(),
@@ -4527,8 +4527,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
-                    },
-                ))))
+                    }),
+                )))
             } else {
                 let card_info = card_isin
                     .clone()

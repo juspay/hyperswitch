@@ -146,7 +146,3 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub nick_name: Option<Secret<String>>,
     pub network_transaction_id: Secret<String>,
 }
-
-
-
-
