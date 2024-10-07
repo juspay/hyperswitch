@@ -5669,7 +5669,7 @@ where
 #[cfg(feature = "v2")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
-    payment_data: &mut D,
+    payment_data: &D,
 ) -> CustomResult<Option<enums::FutureUsage>, errors::ApiErrorResponse>
 where
     F: Clone,
