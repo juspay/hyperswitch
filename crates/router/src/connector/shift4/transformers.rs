@@ -1,6 +1,6 @@
 use api_models::payments;
 use cards::CardNumber;
-use common_utils::pii::SecretSerdeValue;
+use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -95,7 +95,7 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
 }
 #[derive(Debug, Serialize)]
 pub struct Shift4PaymentsRequest {
-    amount: String,
+    amount: MinorUnit,
     currency: enums::Currency,
     captured: bool,
     #[serde(flatten)]
@@ -205,7 +205,7 @@ where
         item: &types::RouterData<T, Req, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let submit_for_settlement = item.request.is_automatic_capture()?;
-        let amount = item.request.get_amount_required()?.to_string();
+        let amount = MinorUnit::new(item.request.get_amount_required()?);
         let currency = item.request.get_currency_required()?;
         let payment_method = Shift4PaymentMethod::try_from(item)?;
         Ok(Self {
@@ -449,7 +449,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
                 let card_token: Shift4CardToken =
                     to_connector_meta(item.request.connector_meta.clone())?;
                 Ok(Self {
-                    amount: item.request.amount.to_string(),
+                    amount: MinorUnit::new(item.request.amount),
                     currency: item.request.currency,
                     payment_method: Shift4PaymentMethod::CardsNon3DSRequest(Box::new(
                         CardsNon3DSRequest {
@@ -651,7 +651,7 @@ pub struct Shift4WebhookObjectResource {
 pub struct Shift4NonThreeDsResponse {
     pub id: String,
     pub currency: String,
-    pub amount: u32,
+    pub amount: MinorUnit,
     pub status: Shift4PaymentStatus,
     pub captured: bool,
     pub refunded: bool,
@@ -687,7 +687,7 @@ pub struct Token {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct ThreeDSecureInfo {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub enrolled: bool,
     #[serde(rename = "liabilityShift")]
@@ -814,7 +814,7 @@ impl<T, F>
 #[serde(rename_all = "camelCase")]
 pub struct Shift4RefundRequest {
     charge_id: String,
-    amount: i64,
+    amount: MinorUnit,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
@@ -822,7 +822,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.refund_amount,
+            amount: MinorUnit::new(item.request.refund_amount),
         })
     }
 }
@@ -840,7 +840,7 @@ impl From<Shift4RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub charge: String,
     pub status: Shift4RefundStatus,
