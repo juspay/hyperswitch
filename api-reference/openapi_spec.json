@@ -1156,7 +1156,7 @@
         ]
       }
     },
-    "/organization/{organization_id}": {
+    "/organization/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -1166,7 +1166,7 @@
         "operationId": "Retrieve an Organization",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
@@ -1205,7 +1205,7 @@
         "operationId": "Update an Organization",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
@@ -8712,6 +8712,7 @@
           "multisafepay",
           "netcetera",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
@@ -21221,6 +21222,18 @@
           "is_network_tokenization_enabled": {
             "type": "boolean",
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+          },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "nullable": true
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true,
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -21252,7 +21265,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
-          "is_network_tokenization_enabled"
+          "is_network_tokenization_enabled",
+          "is_auto_retries_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -21437,6 +21451,18 @@
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
             "default": false,
             "example": false
+          },
+          "is_auto_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if is_auto_retries_enabled is enabled or not.",
+            "default": false,
+            "example": false
+          },
+          "max_auto_retries_enabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true
           }
         }
       },
@@ -22328,6 +22354,7 @@
           "mollie",
           "multisafepay",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
@@ -22961,7 +22988,8 @@
           "account_holder_name",
           "bic",
           "country",
-          "iban"
+          "iban",
+          "reference"
         ],
         "properties": {
           "account_holder_name": {
@@ -22978,6 +23006,10 @@
           "iban": {
             "type": "string",
             "example": "123456789"
+          },
+          "reference": {
+            "type": "string",
+            "example": "U2PVVSEV4V9Y"
           }
         }
       },

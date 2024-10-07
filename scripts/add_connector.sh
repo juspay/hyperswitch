@@ -6,18 +6,19 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen adyenplatform airwallex applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource datatrans deutschebank dlocal dummyconnector ebanx esnekpos fiserv fiservemea fiuu forte globalpay globepay gocardless gpayments helcim iatapay itaubank klarna mifinity mollie multisafepay netcetera nexinets nexixpay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal payu placetopay plaid powertranz prophetpay rapyd razorpay shift4 square stax stripe taxjar threedsecureio thunes trustpay tsys volt wellsfargo wellsfargopayout wise worldline worldpay zsl "$1")
-    IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
-    res=`echo ${sorted[@]}`
+    connectors=(aci adyen adyenplatform airwallex applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector ebanx esnekpos fiserv fiservemea fiuu forte globalpay globepay gocardless gpayments helcim iatapay itaubank klarna mifinity mollie multisafepay netcetera nexinets nexixpay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal payu placetopay plaid powertranz prophetpay rapyd razorpay shift4 square stax stripe taxjar threedsecureio thunes trustpay tsys volt wellsfargo wellsfargopayout wise worldline worldpay zsl "$1")
+    IFS=$'\n' sorted=($(sort <<<"${connectors[*]}"))
+    unset IFS
+    res=$(echo ${sorted[@]})
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
     for i in "${!sorted[@]}"; do
-    if [ "${sorted[$i]}" = "$1" ] && [ $i != "0" ]; then
-        # Find and return the connector name where this new connector should be added next to it
-        eval "$2='${sorted[i-1]}'"
-        mv $self.tmp $self
-        rm $self.tmp-e
-        return 0
-    fi
+        if [ "${sorted[$i]}" = "$1" ] && [ $i != "0" ]; then
+            # Find and return the connector name where this new connector should be added next to it
+            eval "$2='${sorted[i - 1]}'"
+            mv $self.tmp $self
+            rm $self.tmp-e
+            return 0
+        fi
     done
     mv $self.tmp $self
     rm $self.tmp-e
@@ -26,13 +27,16 @@ function find_prev_connector() {
 }
 
 payment_gateway=$(echo $1 | tr '[:upper:]' '[:lower:]')
-base_url=$2;
-payment_gateway_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${payment_gateway:0:1})${payment_gateway:1}"
+base_url=$2
+payment_gateway_camelcase="$(tr '[:lower:]' '[:upper:]' <<<${payment_gateway:0:1})${payment_gateway:1}"
 src="crates/router/src"
 conn="crates/hyperswitch_connectors/src/connectors"
 tests="../../tests/connectors"
 test_utils="../../../test_utils/src"
-SCRIPT="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SCRIPT="$(
+    cd -- "$(dirname "$0")" >/dev/null 2>&1
+    pwd -P
+)"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -50,7 +54,7 @@ git checkout $conn.rs $src/types/api.rs $src/configs/settings.rs config/developm
 # Add enum for this connector in required places
 previous_connector=''
 find_prev_connector $payment_gateway previous_connector
-previous_connector_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${previous_connector:0:1})${previous_connector:1}"
+previous_connector_camelcase="$(tr '[:lower:]' '[:upper:]' <<<${previous_connector:0:1})${previous_connector:1}"
 sed -i'' -e "s|pub mod $previous_connector;|pub mod $previous_connector;\npub mod ${payment_gateway};|" $conn.rs
 sed -i'' -e "s/};/, ${payment_gateway}::${payment_gateway_camelcase},\n};/" $conn.rs
 sed -i'' -e "0,/};/s/};/, ${payment_gateway}, ${payment_gateway}::${payment_gateway_camelcase},\n};/" $src/connector.rs
@@ -58,7 +62,7 @@ sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcas
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tRoutableConnectors::${payment_gateway_camelcase} => euclid_enums::Connector::${payment_gateway_camelcase},|" crates/api_models/src/routing.rs
 sed -i'' -e "s/pub $previous_connector: \(.*\)/pub $previous_connector: \1\n\tpub ${payment_gateway}: ConnectorParams,/" crates/hyperswitch_interfaces/src/configs.rs
 sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url \1\n${payment_gateway}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
-sed  -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${payment_gateway}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
+sed -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${payment_gateway}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/enums.rs
 sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n\t\t\t| Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/enums.rs
 sed -i '' -e "s/\(match connector_name {\)/\1\n\t\tapi_enums::Connector::${payment_gateway_camelcase} => {${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(val)?;Ok(())}/" $src/core/admin.rs
@@ -86,7 +90,7 @@ git checkout ${tests}/main.rs ${test_utils}/connector_auth.rs ${tests}/sample_au
 # Add enum for this connector in test folder
 sed -i'' -e "s/mod utils;/mod ${payment_gateway};\nmod utils;/" ${tests}/main.rs
 sed -i'' -e "s/    pub $previous_connector: \(.*\)/\tpub $previous_connector: \1\n\tpub ${payment_gateway}: Option<HeaderKey>,/" ${test_utils}/connector_auth.rs
-echo "\n\n[${payment_gateway}]\napi_key=\"API Key\"" >> ${tests}/sample_auth.toml
+echo "\n\n[${payment_gateway}]\napi_key=\"API Key\"" >>${tests}/sample_auth.toml
 
 # Remove temporary files created in above step
 rm ${tests}/main.rs-e ${test_utils}/connector_auth.rs-e

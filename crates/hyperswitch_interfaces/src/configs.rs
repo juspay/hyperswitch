@@ -30,6 +30,7 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub datatrans: ConnectorParams,
     pub deutschebank: ConnectorParams,
+    pub digitalvirgo: ConnectorParams,
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
@@ -59,7 +60,7 @@ pub struct Connectors {
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
-    pub paybox: ConnectorParams,
+    pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,

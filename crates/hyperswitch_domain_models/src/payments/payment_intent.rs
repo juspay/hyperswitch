@@ -1,14 +1,14 @@
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    crypto::Encryptable,
+    crypto::{self, Encryptable},
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
     pii::{self, Email},
     type_name,
     types::{
-        keymanager::{self, KeyManagerState},
+        keymanager::{self, KeyManagerState, ToEncryptable},
         MinorUnit,
     },
 };
@@ -17,14 +17,17 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use masking::{Deserialize, PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
-use super::{payment_attempt::PaymentAttempt, PaymentIntent};
+#[cfg(all(feature = "v1", feature = "olap"))]
+use super::payment_attempt::PaymentAttempt;
+use super::PaymentIntent;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    type_encryption::{crypto_operation, CryptoOperation},
     RemoteStorageObject,
 };
 #[async_trait::async_trait]
@@ -46,7 +49,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -56,7 +59,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
@@ -65,17 +68,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    async fn get_active_payment_attempt(
-        &self,
-        payment: &mut PaymentIntent,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
-
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -85,11 +78,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -99,11 +88,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -111,11 +96,7 @@ pub trait PaymentIntentInterface {
         constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -125,11 +106,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -146,7 +123,7 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: Option<MinorUnit>,
@@ -171,7 +148,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
@@ -203,7 +180,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -286,7 +263,7 @@ pub enum PaymentIntentUpdate {
 }
 
 // TODO: remove all enum variants and create new variants that should be used for v2
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
@@ -359,7 +336,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -392,7 +369,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
@@ -436,7 +413,7 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         todo!()
@@ -614,7 +591,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
@@ -815,7 +792,7 @@ use diesel_models::{
     PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         todo!()
@@ -959,7 +936,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         match value {
@@ -1131,7 +1108,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
 }
 
 // TODO: evaluate if we will be using the same update struct for v2 as well, uncomment this and make necessary changes if necessary
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
         todo!()
@@ -1199,7 +1176,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
         let modified_at = common_utils::date_time::now();
@@ -1474,7 +1451,7 @@ where
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;
@@ -1592,17 +1569,25 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| async {
-                crypto_operation(
-                    state,
-                    type_name!(Self::DstType),
-                    CryptoOperation::DecryptOptional(inner),
-                    key_manager_identifier.clone(),
-                    key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-            };
+            let decrypted_data = crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentIntentAddress::to_encryptable(
+                    EncryptedPaymentIntentAddress {
+                        billing: storage_model.billing_address,
+                        shipping: storage_model.shipping_address,
+                        customer_details: storage_model.customer_details,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
 
             let amount_details = super::AmountDetails {
                 order_amount: storage_model.amount,
@@ -1652,18 +1637,9 @@ impl behaviour::Conversion for PaymentIntent {
                         storage_model.request_external_three_ds_authentication,
                     ),
                 frm_metadata: storage_model.frm_metadata,
-                customer_details: storage_model
-                    .customer_details
-                    .async_lift(inner_decrypt)
-                    .await?,
-                billing_address: storage_model
-                    .billing_address
-                    .async_lift(inner_decrypt)
-                    .await?,
-                shipping_address: storage_model
-                    .shipping_address
-                    .async_lift(inner_decrypt)
-                    .await?,
+                customer_details: data.customer_details,
+                billing_address: data.billing,
+                shipping_address: data.shipping,
                 capture_method: storage_model.capture_method,
                 id: storage_model.id,
                 merchant_reference_id: storage_model.merchant_reference_id,
@@ -1747,7 +1723,7 @@ impl behaviour::Conversion for PaymentIntent {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;
@@ -1820,17 +1796,26 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| async {
-                crypto_operation(
-                    state,
-                    type_name!(Self::DstType),
-                    CryptoOperation::DecryptOptional(inner),
-                    key_manager_identifier.clone(),
-                    key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-            };
+            let decrypted_data = crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentIntentAddress::to_encryptable(
+                    EncryptedPaymentIntentAddress {
+                        billing: storage_model.billing_details,
+                        shipping: storage_model.shipping_details,
+                        customer_details: storage_model.customer_details,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -1878,19 +1863,10 @@ impl behaviour::Conversion for PaymentIntent {
                 frm_metadata: storage_model.frm_metadata,
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
-                customer_details: storage_model
-                    .customer_details
-                    .async_lift(inner_decrypt)
-                    .await?,
-                billing_details: storage_model
-                    .billing_details
-                    .async_lift(inner_decrypt)
-                    .await?,
+                customer_details: data.customer_details,
+                billing_details: data.billing,
                 merchant_order_reference_id: storage_model.merchant_order_reference_id,
-                shipping_details: storage_model
-                    .shipping_details
-                    .async_lift(inner_decrypt)
-                    .await?,
+                shipping_details: data.shipping,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
@@ -1957,5 +1933,75 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
         })
+    }
+}
+
+pub struct EncryptedPaymentIntentAddress {
+    pub shipping: Option<Encryption>,
+    pub billing: Option<Encryption>,
+    pub customer_details: Option<Encryption>,
+}
+
+pub struct PaymentAddressFromRequest {
+    pub shipping: Option<Secret<serde_json::Value>>,
+    pub billing: Option<Secret<serde_json::Value>>,
+    pub customer_details: Option<Secret<serde_json::Value>>,
+}
+
+pub struct DecryptedPaymentIntentAddress {
+    pub shipping: crypto::OptionalEncryptableValue,
+    pub billing: crypto::OptionalEncryptableValue,
+    pub customer_details: crypto::OptionalEncryptableValue,
+}
+
+impl ToEncryptable<DecryptedPaymentIntentAddress, Secret<serde_json::Value>, Encryption>
+    for EncryptedPaymentIntentAddress
+{
+    fn from_encryptable(
+        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
+    ) -> CustomResult<DecryptedPaymentIntentAddress, common_utils::errors::ParsingError> {
+        Ok(DecryptedPaymentIntentAddress {
+            shipping: hashmap.remove("shipping"),
+            billing: hashmap.remove("billing"),
+            customer_details: hashmap.remove("customer_details"),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Encryption> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+
+        self.shipping.map(|s| map.insert("shipping".to_string(), s));
+        self.billing.map(|s| map.insert("billing".to_string(), s));
+        self.customer_details
+            .map(|s| map.insert("customer_details".to_string(), s));
+        map
+    }
+}
+
+impl
+    ToEncryptable<
+        DecryptedPaymentIntentAddress,
+        Secret<serde_json::Value>,
+        Secret<serde_json::Value>,
+    > for PaymentAddressFromRequest
+{
+    fn from_encryptable(
+        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
+    ) -> CustomResult<DecryptedPaymentIntentAddress, common_utils::errors::ParsingError> {
+        Ok(DecryptedPaymentIntentAddress {
+            shipping: hashmap.remove("shipping"),
+            billing: hashmap.remove("billing"),
+            customer_details: hashmap.remove("customer_details"),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+
+        self.shipping.map(|s| map.insert("shipping".to_string(), s));
+        self.billing.map(|s| map.insert("billing".to_string(), s));
+        self.customer_details
+            .map(|s| map.insert("customer_details".to_string(), s));
+        map
     }
 }
