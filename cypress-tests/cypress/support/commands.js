@@ -973,11 +973,11 @@ Cypress.Commands.add(
         );
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
-        expect(response.body.merchant_connector_id, "connectorId").to.equal(
+        expect(response.body.merchant_connector_id, "connector_id").to.equal(
           globalState.get("merchantConnectorId")
         );
         expect(response.body.customer, "customer").to.not.be.empty;
-        expect(response.body.billing, "billingAddress").to.not.be.empty;
+        expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(
           response.body.connector_transaction_id,
@@ -1305,11 +1305,11 @@ Cypress.Commands.add(
         );
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
-        expect(response.body.merchant_connector_id, "connectorId").to.equal(
+        expect(response.body.merchant_connector_id, "connector_id").to.equal(
           globalState.get("merchantConnectorId")
         );
         expect(response.body.customer, "customer").to.not.be.empty;
-        expect(response.body.billing, "billingAddress").to.not.be.empty;
+        expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(
           response.body.connector_transaction_id,
@@ -1527,7 +1527,7 @@ Cypress.Commands.add(
       expect(response.body.payment_id).to.equal(payment_id);
       expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
       expect(response.body.profile_id, "profile_id").to.not.be.null;
-      expect(response.body.billing, "billingAddress").to.not.be.empty;
+      expect(response.body.billing, "billing_address").to.not.be.empty;
       expect(response.body.customer, "customer").to.not.be.empty;
       if (
         ["succeeded", "processing", "requires_customer_action"].includes(
@@ -1540,7 +1540,7 @@ Cypress.Commands.add(
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
         expect(response.body.payment_method, "payment_method").to.not.be.null;
-        expect(response.body.merchant_connector_id, "connectorId").to.equal(
+        expect(response.body.merchant_connector_id, "connector_id").to.equal(
           globalState.get("merchantConnectorId")
         );
         expect(
