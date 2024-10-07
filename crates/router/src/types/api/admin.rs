@@ -168,12 +168,14 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
+            is_auto_retries_enabled: item.is_auto_retries_enabled,
+            max_auto_retries_enabled: item.max_auto_retries_enabled,
         })
     }
 }
 
 #[cfg(feature = "v2")]
-impl ForeignTryFrom<domain::Profile> for admin::ProfileResponse {
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
@@ -193,7 +195,7 @@ impl ForeignTryFrom<domain::Profile> for admin::ProfileResponse {
 
         let order_fulfillment_time = item
             .order_fulfillment_time
-            .map(api_models::admin::OrderFulfillmentTime::try_new)
+            .map(admin::OrderFulfillmentTime::try_new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
 
@@ -353,5 +355,7 @@ pub async fn create_profile_from_merchant_account(
         is_tax_connector_enabled: request.is_tax_connector_enabled,
         dynamic_routing_algorithm: None,
         is_network_tokenization_enabled: request.is_network_tokenization_enabled,
+        is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
+        max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
     }))
 }

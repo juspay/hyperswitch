@@ -6,8 +6,13 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::FutureUsage;
-use common_utils::{ext_traits::ValueExt, pii, types::SemanticVersion};
+use common_utils::{
+    ext_traits::{OptionExt, ValueExt},
+    pii,
+    types::SemanticVersion,
+};
 use error_stack::ResultExt;
+use josekit::jwt::decode_header;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -121,10 +126,13 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
-                let card_issuer = ccard.get_card_issuer();
-                let card_type = match card_issuer {
-                    Ok(issuer) => Some(String::from(issuer)),
-                    Err(_) => None,
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
                 };
                 (
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -455,6 +463,14 @@ pub struct SamsungPayTokenizedCard {
 pub struct SamsungPayPaymentInformation {
     fluid_data: FluidData,
     tokenized_card: SamsungPayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SamsungPayFluidDataValue {
+    public_key_hash: Secret<String>,
+    version: String,
+    data: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1148,10 +1164,13 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let card_issuer = ccard.get_card_issuer();
-        let card_type = match card_issuer {
-            Ok(issuer) => Some(String::from(issuer)),
-            Err(_) => None,
+        let card_type = match ccard
+            .card_network
+            .clone()
+            .and_then(get_cybersource_card_type)
+        {
+            Some(card_network) => Some(card_network.to_string()),
+            None => ccard.get_card_issuer().ok().map(String::from),
         };
 
         let security_code = if item
@@ -1323,10 +1342,13 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
-        let card_issuer = ccard.get_card_issuer();
-        let card_type = match card_issuer {
-            Ok(issuer) => Some(String::from(issuer)),
-            Err(_) => None,
+        let card_type = match ccard
+            .card_network
+            .clone()
+            .and_then(get_cybersource_card_type)
+        {
+            Some(card_network) => Some(card_network.to_string()),
+            None => ccard.get_card_issuer().ok().map(String::from),
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1531,13 +1553,17 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
+        let samsung_pay_fluid_data_value =
+            get_samsung_pay_fluid_data_value(&samsung_pay_data.payment_credential.token_data)?;
+
+        let samsung_pay_fluid_data_str = serde_json::to_string(&samsung_pay_fluid_data_value)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize samsung pay fluid data")?;
+
         let payment_information =
             PaymentInformation::SamsungPay(Box::new(SamsungPayPaymentInformation {
                 fluid_data: FluidData {
-                    value: Secret::from(
-                        consts::BASE64_ENGINE
-                            .encode(samsung_pay_data.payment_credential.token_data.data.peek()),
-                    ),
+                    value: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_fluid_data_str)),
                     descriptor: Some(
                         consts::BASE64_ENGINE.encode(FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY),
                     ),
@@ -1569,6 +1595,28 @@ impl
             merchant_defined_information,
         })
     }
+}
+
+fn get_samsung_pay_fluid_data_value(
+    samsung_pay_token_data: &hyperswitch_domain_models::payment_method_data::SamsungPayTokenData,
+) -> Result<SamsungPayFluidDataValue, error_stack::Report<errors::ConnectorError>> {
+    let samsung_pay_header = decode_header(samsung_pay_token_data.data.clone().peek())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to decode samsung pay header")?;
+
+    let samsung_pay_kid_optional = samsung_pay_header.claim("kid").and_then(|kid| kid.as_str());
+
+    let samsung_pay_fluid_data_value = SamsungPayFluidDataValue {
+        public_key_hash: Secret::new(
+            samsung_pay_kid_optional
+                .get_required_value("samsung pay public_key_hash")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ),
+        version: samsung_pay_token_data.version.clone(),
+        data: Secret::new(consts::BASE64_ENGINE.encode(samsung_pay_token_data.data.peek())),
+    };
+    Ok(samsung_pay_fluid_data_value)
 }
 
 impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
@@ -1802,10 +1850,13 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
-                let card_issuer = ccard.get_card_issuer();
-                let card_type = match card_issuer {
-                    Ok(issuer) => Some(String::from(issuer)),
-                    Err(_) => None,
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
                 };
                 let payment_information =
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2526,10 +2577,13 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
         )?;
         let payment_information = match payment_method_data {
             domain::PaymentMethodData::Card(ccard) => {
-                let card_issuer = ccard.get_card_issuer();
-                let card_type = match card_issuer {
-                    Ok(issuer) => Some(String::from(issuer)),
-                    Err(_) => None,
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
                 };
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {
@@ -3782,5 +3836,21 @@ pub fn get_error_reason(
         (None, Some(details), None) => Some(details),
         (None, None, Some(avs_message)) => Some(avs_message),
         (None, None, None) => None,
+    }
+}
+
+fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<&'static str> {
+    match card_network {
+        common_enums::CardNetwork::Visa => Some("001"),
+        common_enums::CardNetwork::Mastercard => Some("002"),
+        common_enums::CardNetwork::AmericanExpress => Some("003"),
+        common_enums::CardNetwork::JCB => Some("007"),
+        common_enums::CardNetwork::DinersClub => Some("005"),
+        common_enums::CardNetwork::Discover => Some("004"),
+        common_enums::CardNetwork::CartesBancaires => Some("006"),
+        common_enums::CardNetwork::UnionPay => Some("062"),
+        //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
+        common_enums::CardNetwork::Maestro => Some("042"),
+        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
     }
 }

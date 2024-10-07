@@ -85,7 +85,7 @@ pub struct PayerInfo {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PreferredCheckoutMethod {
-    Vpa,
+    Vpa, //Passing this in UPI_COLLECT will trigger an S2S payment call which is not required.
     Qr,
 }
 
@@ -102,6 +102,7 @@ pub struct IatapayPaymentsRequest {
     notification_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     payer_info: Option<PayerInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     preferred_checkout_method: Option<PreferredCheckoutMethod>,
 }
 
@@ -137,7 +138,7 @@ impl
                         upi_data.vpa_id.map(|id| PayerInfo {
                             token_id: id.switch_strategy(),
                         }),
-                        Some(PreferredCheckoutMethod::Vpa),
+                        None,
                     ),
                     domain::UpiData::UpiIntent(_) => (
                         common_enums::CountryAlpha2::IN,

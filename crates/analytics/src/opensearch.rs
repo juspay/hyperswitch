@@ -104,6 +104,8 @@ pub enum OpenSearchError {
     IndexAccessNotPermittedError(SearchIndex),
     #[error("Opensearch unknown error")]
     UnknownError,
+    #[error("Opensearch access forbidden error")]
+    AccessForbiddenError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -159,6 +161,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             Self::UnknownError => {
                 ApiErrorResponse::InternalServerError(ApiError::new("IR", 6, "Unknown error", None))
             }
+            Self::AccessForbiddenError => ApiErrorResponse::ForbiddenCommonResource(ApiError::new(
+                "IR",
+                7,
+                "Access Forbidden error",
+                None,
+            )),
         }
     }
 }
@@ -280,7 +288,10 @@ impl HealthCheck for OpenSearchClient {
         if health.status != OpenSearchHealthStatus::Red {
             Ok(())
         } else {
-            Err(QueryExecutionError::DatabaseError.into())
+            Err::<(), error_stack::Report<QueryExecutionError>>(
+                QueryExecutionError::DatabaseError.into(),
+            )
+            .attach_printable_lazy(|| format!("Opensearch cluster health is red: {health:?}"))
         }
     }
 }

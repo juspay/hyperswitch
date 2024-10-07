@@ -290,7 +290,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Nexinets => Self::Nexinets,
-            // api_enums::Connector::Nexixpay => Self::Nexixpay,
+            api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Novalnet => Self::Novalnet,
@@ -1289,6 +1289,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
     fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
         let connector_transaction_id = payment_attempt
@@ -1481,6 +1482,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
         Option<&storage::PaymentAttempt>,

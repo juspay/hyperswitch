@@ -8,6 +8,7 @@ use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
+    errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
@@ -133,15 +134,13 @@ pub struct PaymentsCreateIntentRequest {
 
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
-    pub routing_algorithm_id: Option<String>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = CaptureMethod, example = "automatic")]
-    #[serde(default)]
-    pub capture_method: api_enums::CaptureMethod,
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
-    #[serde(default)]
-    pub authentication_type: api_enums::AuthenticationType,
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
@@ -154,9 +153,8 @@ pub struct PaymentsCreateIntentRequest {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
-    #[serde(default)]
-    pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
+    #[schema(example = true, value_type = Option<PresenceOfCustomerDuringPayment>)]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
 
     /// A description for the payment
     #[schema(example = "It's my first payment request", value_type = Option<String>)]
@@ -166,14 +164,12 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
-    #[schema(value_type = FutureUsage, example = "off_session")]
-    #[serde(default)]
-    pub setup_future_usage: api_enums::FutureUsage,
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = MitExemptionRequest)]
-    #[serde(default)]
-    pub apply_mit_exemption: common_enums::MitExemptionRequest,
+    #[schema(value_type = Option<MitExemptionRequest>)]
+    pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 22, example = "Hyperswitch Router", value_type = Option<String>)]
@@ -203,18 +199,16 @@ pub struct PaymentsCreateIntentRequest {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = EnablePaymentLinkRequest)]
-    #[serde(default)]
-    pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
+    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
     #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
     pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = RequestIncrementalAuthorization)]
-    #[serde(default)]
-    pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
+    #[schema(value_type = Option<RequestIncrementalAuthorization>)]
+    pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
@@ -226,9 +220,9 @@ pub struct PaymentsCreateIntentRequest {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = External3dsAuthenticationRequest)]
-    #[serde(default)]
-    pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+    #[schema(value_type = Option<External3dsAuthenticationRequest>)]
+    pub request_external_three_ds_authentication:
+        Option<common_enums::External3dsAuthenticationRequest>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -239,8 +233,8 @@ pub struct PaymentsCreateIntentResponse {
     pub amount_details: AmountDetails,
 
     /// It's a token used for client side verification.
-    #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Option<Secret<String>>,
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Secret<String>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -254,14 +248,12 @@ pub struct PaymentsCreateIntentResponse {
 
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
-    pub routing_algorithm_id: Option<String>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
 
     #[schema(value_type = CaptureMethod, example = "automatic")]
-    #[serde(default)]
     pub capture_method: api_enums::CaptureMethod,
 
     #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
-    #[serde(default)]
     pub authentication_type: api_enums::AuthenticationType,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -276,7 +268,6 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = true, value_type = PresenceOfCustomerDuringPayment)]
-    #[serde(default)]
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 
     /// A description for the payment
@@ -288,12 +279,10 @@ pub struct PaymentsCreateIntentResponse {
     pub return_url: Option<Url>,
 
     #[schema(value_type = FutureUsage, example = "off_session")]
-    #[serde(default)]
     pub setup_future_usage: api_enums::FutureUsage,
 
     /// Apply MIT exemption for a payment
     #[schema(value_type = MitExemptionRequest)]
-    #[serde(default)]
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -325,7 +314,6 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]
-    #[serde(default)]
     pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
     /// Configure a custom payment link for the particular payment
@@ -334,10 +322,9 @@ pub struct PaymentsCreateIntentResponse {
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = RequestIncrementalAuthorization)]
-    #[serde(default)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
     #[schema(example = 900)]
     pub session_expiry: Option<u32>,
@@ -348,7 +335,6 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
-    #[serde(default)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
 }
 
@@ -364,8 +350,8 @@ pub struct AmountDetails {
     currency: common_enums::Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
-    /// Tax details related to the order. This will be calculated by the external tax provider
-    tax_details: Option<TaxDetails>,
+    /// Tax amount related to the order. This will be calculated by the external tax provider
+    order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
     #[schema(value_type = TaxCalculationOverride)]
@@ -378,32 +364,6 @@ pub struct AmountDetails {
     surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     tax_on_surcharge: Option<MinorUnit>,
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct TaxDetails {
-    /// This is the tax related information that is calculated irrespective of any payment method.
-    /// This is calculated when the order is created with shipping details
-    pub default: Option<DefaultTax>,
-
-    /// This is the tax related information that is calculated based on the payment method
-    /// This is calculated when calling the /calculate_tax API
-    pub payment_method_type: Option<PaymentMethodTypeTax>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct PaymentMethodTypeTax {
-    /// The order tax amount for the payment method type
-    pub order_tax_amount: MinorUnit,
-    /// The payment method type
-    #[schema(value_type = PaymentMethodType, example = "google_pay")]
-    pub pmt: common_enums::PaymentMethodType,
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct DefaultTax {
-    /// The order tax amount for the default tax
-    pub order_tax_amount: MinorUnit,
 }
 
 #[derive(
@@ -1437,8 +1397,11 @@ impl GetAddressFromPaymentMethodData for Card {
 }
 
 impl Card {
-    fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
-        Self {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: AdditionalCardInfo,
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
+        Ok(Self {
             card_number: self.card_number.clone(),
             card_exp_month: self.card_exp_month.clone(),
             card_exp_year: self.card_exp_year.clone(),
@@ -1451,7 +1414,7 @@ impl Card {
             card_network: self
                 .card_network
                 .clone()
-                .or(additional_card_info.card_network),
+                .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
             card_issuing_country: self
                 .card_issuing_country
@@ -1459,7 +1422,7 @@ impl Card {
                 .or(additional_card_info.card_issuing_country),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
-        }
+        })
     }
 }
 
@@ -1899,16 +1862,16 @@ impl PaymentMethodData {
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: AdditionalPaymentData,
-    ) -> Self {
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
         if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
             match self {
-                Self::Card(card) => {
-                    Self::Card(card.apply_additional_card_info(*additional_card_info))
-                }
-                _ => self.to_owned(),
+                Self::Card(card) => Ok(Self::Card(
+                    card.apply_additional_card_info(*additional_card_info)?,
+                )),
+                _ => Ok(self.to_owned()),
             }
         } else {
-            self.to_owned()
+            Ok(self.to_owned())
         }
     }
 
@@ -3837,6 +3800,8 @@ pub struct SepaBankTransferInstructions {
     pub country: String,
     #[schema(value_type = String, example = "123456789")]
     pub iban: Secret<String>,
+    #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
+    pub reference: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4950,14 +4915,31 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SamsungPaySessionTokenData {
-    #[serde(rename = "samsung_pay")]
-    pub data: SamsungPayMetadata,
+#[serde(rename_all = "snake_case")]
+pub enum SamsungPayCombinedMetadata {
+    // This is to support the Samsung Pay decryption flow with application credentials,
+    // where the private key, certificates, or any other information required for decryption
+    // will be obtained from the environment variables.
+    ApplicationCredentials(SamsungPayApplicationCredentials),
+    MerchantCredentials(SamsungPayMerchantCredentials),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SamsungPayMetadata {
+pub struct SamsungPaySessionTokenData {
+    #[serde(rename = "samsung_pay")]
+    pub data: SamsungPayCombinedMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SamsungPayMerchantCredentials {
     pub service_id: String,
+    pub merchant_display_name: String,
+    pub merchant_business_country: api_enums::CountryAlpha2,
+    pub allowed_brands: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SamsungPayApplicationCredentials {
     pub merchant_display_name: String,
     pub merchant_business_country: api_enums::CountryAlpha2,
     pub allowed_brands: Vec<String>,
