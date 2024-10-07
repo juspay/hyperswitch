@@ -15,7 +15,7 @@ impl utils::Connector for Shift4Test {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Shift4;
         utils::construct_connector_data_old(
-            Box::new(&Shift4),
+            Box::new(Shift4::new()),
             types::Connector::Shift4,
             types::api::GetToken::Connector,
             None,
