@@ -134,10 +134,6 @@ pub struct PaymentsCreateIntentRequest {
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
-    /// The business profile to be used for this payment
-    #[schema(value_type = String)]
-    pub profile_id: id_type::ProfileId,
-
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
@@ -329,11 +325,11 @@ pub struct PaymentsCreateIntentResponse {
 
     /// The billing details of the payment. This address will be used for invoicing.
     #[schema(value_type = Option<Address>)]
-    pub billing: Option<pii::SecretSerdeValue>,
+    pub billing: Option<Address>,
 
     /// The shipping address for the payment
     #[schema(value_type = Option<Address>)]
-    pub shipping: Option<pii::SecretSerdeValue>,
+    pub shipping: Option<Address>,
 
     /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -369,7 +365,7 @@ pub struct PaymentsCreateIntentResponse {
         "amount" : 69000
         "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
@@ -3550,6 +3546,8 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
+impl masking::SerializableSecret for Address {}
+
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
     pub fn unify_address(self, other: Option<&Self>) -> Self {
@@ -4967,6 +4965,8 @@ pub struct OrderDetailsWithAmount {
     /// The tax code for the product
     pub product_tax_code: Option<String>,
 }
+
+impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]

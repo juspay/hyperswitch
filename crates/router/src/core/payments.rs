@@ -816,7 +816,7 @@ pub async fn payments_intent_operation_core<F, Req, Op, D>(
     state: &SessionState,
     _req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    profile_id_from_auth_layer: Option<id_type::ProfileId>,
+    profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -833,9 +833,11 @@ where
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
-    let (operation, validate_result) = operation
-        .to_validate_request()?
-        .validate_request(&req, &merchant_account)?;
+    let (operation, validate_result) = operation.to_validate_request()?.validate_request(
+        &req,
+        &merchant_account,
+        &state.conf.cell_information.id,
+    )?;
 
     let payment_id = common_utils::id_type::GlobalPaymentId::generate("33333")
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -845,8 +847,7 @@ where
         operation,
         customer_details,
         mut payment_data,
-        business_profile,
-        mandate_type,
+        mandate_type: _,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -854,20 +855,16 @@ where
             &payment_id,
             &req,
             &merchant_account,
+            &profile,
             &key_store,
             auth_flow,
             &header_payload,
         )
         .await?;
 
-    utils::validate_profile_id_from_auth_layer(
-        profile_id_from_auth_layer,
-        &payment_data.get_payment_intent().clone(),
-    )?;
-
     let (_operation, customer) = operation
         .to_domain()?
-        .get_or_create_customer_details(
+        .get_customer_details(
             state,
             &mut payment_data,
             customer_details,
@@ -1192,7 +1189,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<id_type::ProfileId>,
+    profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -1210,7 +1207,7 @@ where
         &state,
         req_state,
         merchant_account,
-        profile_id,
+        profile,
         key_store,
         operation.clone(),
         req,
@@ -2613,10 +2610,12 @@ where
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
-            } else if (connector.connector_name == router_types::Connector::Nuvei
-                || connector.connector_name == router_types::Connector::Shift4)
-                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                && !is_operation_complete_authorize(&operation)
+            } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && ((connector.connector_name == router_types::Connector::Nexixpay
+                    && is_operation_complete_authorize(&operation))
+                    || ((connector.connector_name == router_types::Connector::Nuvei
+                        || connector.connector_name == router_types::Connector::Shift4)
+                        && !is_operation_complete_authorize(&operation)))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 (router_data, should_continue_payment)

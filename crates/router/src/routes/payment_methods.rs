@@ -19,11 +19,15 @@ use crate::core::payment_methods::{
 };
 use crate::{
     core::{
-        api_locking, errors,
-        errors::utils::StorageErrorExt,
+        api_locking,
+        errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards},
     },
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{
+        api,
+        authentication::{self as auth, AuthenticationData},
+        authorization::permissions::Permission,
+    },
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
@@ -86,7 +90,7 @@ pub async fn create_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| async move {
+        |state, auth: auth::AuthenticationDataV2, req, _| async move {
             Box::pin(create_payment_method(
                 &state,
                 req,
@@ -115,7 +119,7 @@ pub async fn create_payment_method_intent_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| async move {
+        |state, auth: auth::AuthenticationDataV2, req, _| async move {
             Box::pin(payment_method_intent_create(
                 &state,
                 req,
@@ -197,7 +201,7 @@ pub async fn payment_method_update_api(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationDataV2, req, _| {
             update_payment_method(
                 state,
                 auth.merchant_account,
@@ -230,7 +234,7 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth, pm, _| {
+        |state, auth: auth::AuthenticationDataV2, pm, _| {
             retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -680,7 +684,7 @@ pub async fn initiate_pm_collect_link_flow(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: AuthenticationData, req, _| {
             payment_methods_routes::initiate_pm_collect_link(
                 state,
                 auth.merchant_account,

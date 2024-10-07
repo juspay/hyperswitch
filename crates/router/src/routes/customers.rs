@@ -23,7 +23,9 @@ pub async fn customers_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            create_customer(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
@@ -132,7 +134,7 @@ pub async fn customers_list(
         state,
         &req,
         payload,
-        |state, auth, request, _| {
+        |state, auth: auth::AuthenticationData, request, _| {
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
@@ -209,7 +211,7 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             update_customer(
                 state,
                 auth.merchant_account,
@@ -246,7 +248,9 @@ pub async fn customers_delete(
         state,
         &req,
         payload,
-        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth: auth::AuthenticationData, req, _| {
+            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
