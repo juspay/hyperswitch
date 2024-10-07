@@ -13735,6 +13735,7 @@
       "NextActionCall": {
         "type": "string",
         "enum": [
+          "create_order",
           "confirm",
           "sync",
           "complete_authorize"
