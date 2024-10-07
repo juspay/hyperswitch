@@ -1857,7 +1857,7 @@ pub async fn delete_payment_method(
     let _customer = db
         .find_customer_by_global_id(
             key_manager_state,
-            &payment_method.customer_id.get_string_repr(),
+            payment_method.customer_id.get_string_repr(),
             merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,

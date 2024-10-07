@@ -17,17 +17,16 @@ use crate::types::api::payouts;
 use crate::{
     consts,
     core::errors::{self, CustomResult, RouterResult},
-    db, headers, logger, routes,
+    db, logger, routes,
     routes::metrics,
-    services, settings,
     types::{
-        api, domain, payment_methods as pm_types,
+        api, domain,
         storage::{self, enums},
     },
     utils::StringExt,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{core::payment_methods::transformers as pm_transforms, utils::ConnectorResponseExt};
+use crate::{core::payment_methods::transformers as pm_transforms, utils::ConnectorResponseExt, headers,  services, settings, types::payment_methods as pm_types};
 const VAULT_SERVICE_NAME: &str = "CARD";
 
 pub struct SupplementaryVaultData {
@@ -1182,7 +1181,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: Vec<u8>,
-) -> errors::CustomResult<request::Request, errors::VaultError> {
+) -> CustomResult<request::Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jws = services::encryption::jws_sign_payload(
@@ -1202,9 +1201,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
         headers::CONTENT_TYPE,
         consts::VAULT_HEADER_CONTENT_TYPE.into(),
     );
-    request.set_body(common_utils::request::RequestContent::Json(Box::new(
-        jwe_payload,
-    )));
+    request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
 
