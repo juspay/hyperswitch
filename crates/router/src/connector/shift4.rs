@@ -2,7 +2,11 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    types::{MinorUnit, StringMinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use transformers as shift4;
@@ -27,8 +31,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Shift4;
+#[derive(Clone)]
+pub struct Shift4 {
+    amount_converter: &'static (dyn AmountConverter<Output = MinorUnit> + Sync),
+}
+
+impl Shift4 {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Shift4
 where
