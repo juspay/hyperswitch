@@ -5317,6 +5317,8 @@ pub struct SdkNextAction {
 #[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionCall {
+    /// The next action call is Create Order
+    CreateOrder,
     /// The next action call is confirm
     Confirm,
     /// The next action call is sync

@@ -1454,7 +1454,7 @@ impl<F, T>
         ));
         let link = get_redirect_url(item.response.links.clone())?;
 
-        let next_action = Some(api_models::payments::NextActionCall::CompleteAuthorize);
+        let next_action = Some(api_models::payments::NextActionCall::Confirm);
 
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,

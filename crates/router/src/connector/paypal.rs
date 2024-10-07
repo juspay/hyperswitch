@@ -778,6 +778,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
         let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
+        let payment_method_type = req.request.payment_method_type.clone();
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         let printrequest =
             common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
