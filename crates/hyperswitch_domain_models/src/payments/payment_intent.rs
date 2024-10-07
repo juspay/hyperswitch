@@ -1,10 +1,11 @@
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::{self, Encryptable},
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::{Encode, ValueExt},
     id_type,
     pii::{self, Email},
     type_name,
@@ -17,7 +18,9 @@ use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
 use error_stack::ResultExt;
-use masking::{Deserialize, ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use masking::ExposeInterface;
+use masking::{Deserialize, PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use time::PrimitiveDateTime;
@@ -1869,12 +1872,7 @@ impl behaviour::Conversion for PaymentIntent {
             let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Invalid batch operation data")?;
-            let billing_address: String = data
-                .billing
-                .map(|billing| {
-                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
-                })
-                .transpose()?;
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

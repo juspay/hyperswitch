@@ -383,6 +383,9 @@ where
                 .attach_printable("API key is empty");
         }
 
+        let profile_id =
+            get_header_value_by_key(headers::X_PROFILE_ID.to_string(), request_headers)?;
+
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
             let config = state.conf();
@@ -2172,6 +2175,20 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
                 ))
         })
         .transpose()
+}
+use common_utils::ext_traits::ByteSliceExt;
+pub fn get_header_value_by_key_and_deserialize<'a, T: masking::Deserialize<'a>>(
+    key: String,
+    headers: &HeaderMap,
+    type_name: &str,
+) -> RouterResult<Option<T>> {
+    get_header_value_by_key(key, headers)?
+        .map(|str_value| str_value.as_bytes().parse_struct(type_name))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "X-Profile-Id header".to_string(),
+            expected_format: "Valid ProfileId".to_string(),
+        })
 }
 
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {

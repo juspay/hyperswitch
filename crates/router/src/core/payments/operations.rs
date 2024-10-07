@@ -502,11 +502,11 @@ where
     #[cfg(feature = "v2")]
     async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -607,11 +607,11 @@ where
     #[cfg(feature = "v2")]
     async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
