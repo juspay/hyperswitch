@@ -806,7 +806,10 @@ async fn handle_new_user_invitation(
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
-            EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Organization => email_types::Entity {
+                entity_id: user_from_token.org_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Organization,
+            },
             EntityType::Merchant => email_types::Entity {
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Merchant,
@@ -1012,7 +1015,7 @@ pub async fn accept_invite_from_email_token_only_flow(
         &state,
         user_from_db.get_user_id(),
         &org_id,
-        &merchant_id,
+        merchant_id.as_ref(),
         profile_id.as_ref(),
         UserRoleUpdate::UpdateStatus {
             status: UserStatus::Active,
