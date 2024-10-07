@@ -87,6 +87,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_update,
         routes::merchant_account::profiles_list,
 
+        // Routes for payments
+        routes::payments::payments_connector_session,
+
         // Routes for profile
         routes::profile::profile_create,
         routes::profile::profile_retrieve,
