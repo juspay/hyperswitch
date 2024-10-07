@@ -724,7 +724,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
                     ),
                     updated_by: payment_data.payment_intent.updated_by.clone(),
                 };
-                println!("$$$payment_intent_update{:?}", payment_intent_update);
                 let m_db = db.clone().store;
                 let payment_intent = payment_data.payment_intent.clone();
                 let key_manager_state: KeyManagerState = db.into();
@@ -789,7 +788,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
                     .attach_printable("Unexpected response in CreateOrder flow")?;
             }
         }
-        //order_id
         Ok(payment_data)
     }
 }

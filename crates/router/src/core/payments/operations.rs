@@ -10,6 +10,7 @@ pub mod payment_complete_authorize;
 pub mod payment_confirm;
 #[cfg(feature = "v1")]
 pub mod payment_create;
+#[cfg(feature = "v1")]
 pub mod payment_create_order;
 #[cfg(feature = "v1")]
 pub mod payment_reject;

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
@@ -12,16 +12,12 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, PaymentData},
-        utils as core_utils,
     },
-    db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
     services,
     types::{
-        self,
-        api::{self, ConnectorCallType, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
     },
@@ -232,13 +228,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequest>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b SessionState,
+        _state: &'b SessionState,
         _req_state: ReqState,
-        mut payment_data: PaymentData<F>,
+        payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
+        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOrderOperation<'b, F>, PaymentData<F>)>

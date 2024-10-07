@@ -3901,7 +3901,6 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed eligibility analysis and fallback")?;
         }
-        println!("$$$connectors: {:?}", connectors);
 
         let connector_data = connectors
             .into_iter()

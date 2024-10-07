@@ -456,78 +456,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for Paypa
             purchase_units,
             payment_source,
         })
-
-        // match item.router_data.request.payment_method_data {
-        //     domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-        //         domain::WalletData::PaypalSdk(_) => {
-        //             let payment_source =
-        //                 Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
-        //                     experience_context: ContextStruct {
-        //                         return_url: None,
-        //                         cancel_url: None,
-        //                         shipping_preference: ShippingPreference::GetFromFile,
-        //                         user_action: Some(UserAction::PayNow),
-        //                     },
-        //                 }));
-
-        //             Ok(Self {
-        //                 intent,
-        //                 purchase_units,
-        //                 payment_source,
-        //             })
-        //         }
-        //          domain::WalletData::PaypalRedirect(_)
-        //         | domain::WalletData::AliPayQr(_)
-        //         | domain::WalletData::AliPayRedirect(_)
-        //         | domain::WalletData::AliPayHkRedirect(_)
-        //         | domain::WalletData::MomoRedirect(_)
-        //         | domain::WalletData::KakaoPayRedirect(_)
-        //         | domain::WalletData::GoPayRedirect(_)
-        //         | domain::WalletData::GcashRedirect(_)
-        //         | domain::WalletData::ApplePay(_)
-        //         | domain::WalletData::ApplePayRedirect(_)
-        //         | domain::WalletData::ApplePayThirdPartySdk(_)
-        //         | domain::WalletData::DanaRedirect {}
-        //         | domain::WalletData::GooglePay(_)
-        //         | domain::WalletData::GooglePayRedirect(_)
-        //         | domain::WalletData::GooglePayThirdPartySdk(_)
-        //         | domain::WalletData::MbWayRedirect(_)
-        //         | domain::WalletData::MobilePayRedirect(_)
-        //         | domain::WalletData::SamsungPay(_)
-        //         | domain::WalletData::TwintRedirect {}
-        //         | domain::WalletData::VippsRedirect {}
-        //         | domain::WalletData::TouchNGoRedirect(_)
-        //         | domain::WalletData::WeChatPayRedirect(_)
-        //         | domain::WalletData::WeChatPayQr(_)
-        //         | domain::WalletData::CashappQr(_)
-        //         | domain::WalletData::SwishQr(_)
-        //         | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
-        //             utils::get_unimplemented_payment_method_error_message("Paypal"),
-        //         ))?,
-        //     },
-        //     domain::PaymentMethodData::Card(_)
-        //     | domain::PaymentMethodData::BankDebit(_)
-        //     | domain::PaymentMethodData::BankTransfer(_)
-        //     | domain::PaymentMethodData::BankRedirect(_)
-        //     | domain::PaymentMethodData::PayLater(_)
-        //     | domain::PaymentMethodData::CardRedirect(_)
-        //     | domain::PaymentMethodData::Reward
-        //     | domain::PaymentMethodData::RealTimePayment(_)
-        //     | domain::PaymentMethodData::Crypto(_)
-        //     | domain::PaymentMethodData::Upi(_)
-        //     | domain::PaymentMethodData::OpenBanking(_)
-        //     | domain::PaymentMethodData::CardToken(_)
-        //     | domain::PaymentMethodData::Voucher(_)
-        //     | domain::PaymentMethodData::GiftCard(_)
-        //     | domain::PaymentMethodData::MandatePayment
-        //     | domain::PaymentMethodData::NetworkToken(_) => {
-        //         Err(errors::ConnectorError::NotImplemented(
-        //             utils::get_unimplemented_payment_method_error_message("Paypal"),
-        //         )
-        //         .into())
-        //     }
-
-        // }
     }
 }
 
@@ -1439,14 +1367,25 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::CreateOrder,
+            PaypalRedirectResponse,
+            types::PaymentsCreateOrderData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsCreateOrderRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            api::CreateOrder,
+            PaypalRedirectResponse,
+            types::PaymentsCreateOrderData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let status = storage_enums::AttemptStatus::foreign_from((
             item.response.clone().status,
@@ -1454,6 +1393,7 @@ impl<F, T>
         ));
         let link = get_redirect_url(item.response.links.clone())?;
 
+        // For Paypal SDK flow, we need to trigger SDK client and then Confirm
         let next_action = Some(api_models::payments::NextActionCall::Confirm);
 
         let connector_meta = serde_json::json!(PaypalMeta {
@@ -1486,18 +1426,24 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    ForeignTryFrom<(
-        types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
-        domain::PaymentMethodData,
-    )> for types::RouterData<F, T, types::PaymentsResponseData>
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::Authorize,
+            PaypalRedirectResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(
-        (item, payment_method_data): (
-            types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
-            domain::PaymentMethodData,
-        ),
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::Authorize,
+            PaypalRedirectResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let status = storage_enums::AttemptStatus::foreign_from((
             item.response.clone().status,
@@ -1505,21 +1451,11 @@ impl<F, T>
         ));
         let link = get_redirect_url(item.response.links.clone())?;
 
-        // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
-        let next_action =
-            if let domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) =
-                payment_method_data
-            {
-                Some(api_models::payments::NextActionCall::CompleteAuthorize)
-            } else {
-                None
-            };
-
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
             psync_flow: item.response.intent,
-            next_action,
+            next_action: None,
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
