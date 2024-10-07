@@ -104,6 +104,8 @@ pub enum OpenSearchError {
     IndexAccessNotPermittedError(SearchIndex),
     #[error("Opensearch unknown error")]
     UnknownError,
+    #[error("Opensearch access forbidden error")]
+    AccessForbiddenError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -159,6 +161,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             Self::UnknownError => {
                 ApiErrorResponse::InternalServerError(ApiError::new("IR", 6, "Unknown error", None))
             }
+            Self::AccessForbiddenError => ApiErrorResponse::ForbiddenCommonResource(ApiError::new(
+                "IR",
+                7,
+                "Access Forbidden error",
+                None,
+            )),
         }
     }
 }
