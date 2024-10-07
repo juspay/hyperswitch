@@ -745,7 +745,7 @@ pub async fn get_token_for_recurring_mandate(
 
     let original_payment_authorized_amount = original_payment_attempt
         .clone()
-        .map(|pi| pi.net_amount.get_total_amount().get_amount_as_i64());
+        .map(|pa| pa.net_amount.get_total_amount().get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
     let customer = req.get_customer_id().get_required_value("customer_id")?;

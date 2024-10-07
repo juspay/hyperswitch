@@ -397,6 +397,12 @@ impl NetAmount {
             + self.tax_on_surcharge.unwrap_or_default()
     }
 
+    pub fn get_total_amount_excluding_surcharge(&self) -> MinorUnit {
+        self.order_amount
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
+    }
+
     pub fn set_order_amount(&mut self, order_amount: MinorUnit) {
         self.order_amount = order_amount;
     }

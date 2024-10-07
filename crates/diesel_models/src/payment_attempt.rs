@@ -290,9 +290,10 @@ impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount (surcharge) + shipping_cost + order_tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
         self.amount
-            + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-            + self.tax_amount.unwrap_or(MinorUnit::new(0))
-            + self.shipping_cost.unwrap_or(MinorUnit::new(0))
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_amount.unwrap_or_default()
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
     }
 
     pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
