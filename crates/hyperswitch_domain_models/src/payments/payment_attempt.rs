@@ -273,15 +273,12 @@ pub struct PaymentAttempt {
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: MinorUnit,
-    pub net_amount: MinorUnit,
+    pub net_amount: NetAmount,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<MinorUnit>,
-    pub surcharge_amount: Option<MinorUnit>,
-    pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
@@ -334,8 +331,95 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+pub struct NetAmount {
+    /// The payment amount
+    order_amount: MinorUnit,
+    /// The shipping cost of the order
+    shipping_cost: Option<MinorUnit>,
+    /// Tax amount related to the order
+    order_tax_amount: Option<MinorUnit>,
+    /// The surcharge amount to be added to the order
+    surcharge_amount: Option<MinorUnit>,
+    /// tax on surcharge amount
+    tax_on_surcharge: Option<MinorUnit>,
+}
+
+impl NetAmount {
+    pub fn new(
+        order_amount: MinorUnit,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
+        surcharge_amount: Option<MinorUnit>,
+        tax_on_surcharge: Option<MinorUnit>,
+    ) -> Self {
+        Self {
+            order_amount,
+            shipping_cost,
+            order_tax_amount,
+            surcharge_amount,
+            tax_on_surcharge,
+        }
+    }
+
+    pub fn get_order_amount(&self) -> MinorUnit {
+        self.order_amount
+    }
+
+    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+        self.shipping_cost
+    }
+
+    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+
+    pub fn get_surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+    }
+
+    pub fn get_tax_on_surcharge(&self) -> Option<MinorUnit> {
+        self.tax_on_surcharge
+    }
+
+    pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+            .map(|surcharge_amount| surcharge_amount + self.tax_on_surcharge.unwrap_or_default())
+    }
+
+    pub fn get_total_amount(&self) -> MinorUnit {
+        self.order_amount
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_on_surcharge.unwrap_or_default()
+    }
+
+    pub fn get_total_amount_excluding_surcharge(&self) -> MinorUnit {
+        self.order_amount
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
+    }
+
+    pub fn set_order_amount(&mut self, order_amount: MinorUnit) {
+        self.order_amount = order_amount;
+    }
+
+    pub fn set_order_tax_amount(&mut self, order_tax_amount: Option<MinorUnit>) {
+        self.order_tax_amount = order_tax_amount;
+    }
+
+    pub fn set_surcharge_details(
+        &mut self,
+        surcharge_details: Option<crate::router_request_types::SurchargeDetails>,
+    ) {
+        self.surcharge_amount = surcharge_details
+            .clone()
+            .map(|details| details.surcharge_amount);
+        self.tax_on_surcharge = surcharge_details.map(|details| details.tax_on_surcharge_amount);
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -352,14 +436,11 @@ impl PaymentAttempt {
 #[cfg(feature = "v1")]
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or_default()
-            + self.tax_amount.unwrap_or_default()
+        self.net_amount.get_total_amount()
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
-        self.surcharge_amount
-            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or_default())
+        self.net_amount.get_total_surcharge_amount()
     }
 }
 
@@ -429,18 +510,15 @@ pub struct PaymentAttemptNew {
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: MinorUnit,
     /// amount + surcharge_amount + tax_amount
     /// This field will always be derived before updating in the Database
-    pub net_amount: MinorUnit,
+    pub net_amount: NetAmount,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<MinorUnit>,
-    pub surcharge_amount: Option<MinorUnit>,
-    pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -490,8 +568,6 @@ pub struct PaymentAttemptNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -503,24 +579,6 @@ impl PaymentAttemptNew {
 
     pub fn populate_derived_fields(self) -> Self {
         todo!()
-    }
-}
-
-#[cfg(feature = "v1")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or_default()
-            + self.tax_amount.unwrap_or_default()
-            + self.shipping_cost.unwrap_or_default()
-            + self.order_tax_amount.unwrap_or_default()
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = payment_attempt_new.calculate_net_amount();
-        payment_attempt_new
     }
 }
 
@@ -756,14 +814,14 @@ impl behaviour::Conversion for PaymentAttempt {
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount,
+            amount: self.net_amount.get_order_amount(),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
             offer_amount: self.offer_amount,
-            surcharge_amount: self.surcharge_amount,
-            tax_amount: self.tax_amount,
+            surcharge_amount: self.net_amount.get_surcharge_amount(),
+            tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             connector_transaction_id: self.connector_transaction_id,
@@ -798,7 +856,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encoded_data: self.encoded_data,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
-            net_amount: Some(self.net_amount),
+            net_amount: Some(self.net_amount.get_total_amount()),
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
             authentication_connector: self.authentication_connector,
@@ -813,8 +871,8 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
-            order_tax_amount: self.order_tax_amount,
-            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.net_amount.get_order_tax_amount(),
+            shipping_cost: self.net_amount.get_shipping_cost(),
         })
     }
 
@@ -828,21 +886,23 @@ impl behaviour::Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
-            let net_amount = storage_model.get_or_calculate_net_amount();
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
                 attempt_id: storage_model.attempt_id,
                 status: storage_model.status,
-                amount: storage_model.amount,
-                net_amount,
+                net_amount: NetAmount::new(
+                    storage_model.amount,
+                    storage_model.shipping_cost,
+                    storage_model.order_tax_amount,
+                    storage_model.surcharge_amount,
+                    storage_model.tax_amount,
+                ),
                 currency: storage_model.currency,
                 save_to_locker: storage_model.save_to_locker,
                 connector: storage_model.connector,
                 error_message: storage_model.error_message,
                 offer_amount: storage_model.offer_amount,
-                surcharge_amount: storage_model.surcharge_amount,
-                tax_amount: storage_model.tax_amount,
                 payment_method_id: storage_model.payment_method_id,
                 payment_method: storage_model.payment_method,
                 connector_transaction_id: storage_model.connector_transaction_id,
@@ -890,8 +950,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 customer_acceptance: storage_model.customer_acceptance,
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
-                order_tax_amount: storage_model.order_tax_amount,
-                shipping_cost: storage_model.shipping_cost,
             })
         }
         .await
@@ -915,14 +973,14 @@ impl behaviour::Conversion for PaymentAttempt {
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
             status: self.status,
-            amount: self.amount,
+            amount: self.net_amount.get_order_amount(),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
             error_message: self.error_message,
             offer_amount: self.offer_amount,
-            surcharge_amount: self.surcharge_amount,
-            tax_amount: self.tax_amount,
+            surcharge_amount: self.net_amount.get_surcharge_amount(),
+            tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
             capture_method: self.capture_method,
@@ -956,7 +1014,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encoded_data: self.encoded_data,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
-            net_amount: Some(self.net_amount),
+            net_amount: Some(self.net_amount.get_total_amount()),
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
             authentication_connector: self.authentication_connector,
@@ -971,8 +1029,8 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
-            order_tax_amount: self.order_tax_amount,
-            shipping_cost: self.shipping_cost,
+            order_tax_amount: self.net_amount.get_order_tax_amount(),
+            shipping_cost: self.net_amount.get_shipping_cost(),
         })
     }
 }

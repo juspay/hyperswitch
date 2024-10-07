@@ -316,6 +316,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                 }),
                 default: None,
             });
+            payment_data
+                .payment_attempt
+                .net_amount
+                .set_order_tax_amount(Some(tax_response.order_tax_amount));
             Ok(())
         } else {
             Ok(())

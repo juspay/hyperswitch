@@ -150,7 +150,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type.to_owned(),
@@ -158,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             key_store,
             None,
             payment_intent.customer_id.as_ref(),
-        )
+        ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
 
@@ -186,7 +186,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = request
             .amount
-            .unwrap_or_else(|| payment_attempt.amount.into());
+            .unwrap_or_else(|| payment_attempt.net_amount.get_order_amount().into());
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
@@ -348,8 +348,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     let amount = request
                         .amount
                         .map(Into::into)
-                        .unwrap_or(payment_attempt.amount);
-                    payment_attempt.amount = amount;
+                        .unwrap_or(payment_attempt.net_amount.get_order_amount());
+                    payment_attempt.net_amount.set_order_amount(amount);
                     payment_intent.amount = amount;
                     let surcharge_amount = request
                         .surcharge_details
@@ -613,6 +613,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
                 }),
                 payment_method_type: None,
             });
+
+            payment_data
+                .payment_attempt
+                .net_amount
+                .set_order_tax_amount(Some(tax_response.order_tax_amount));
 
             Ok(())
         } else {
