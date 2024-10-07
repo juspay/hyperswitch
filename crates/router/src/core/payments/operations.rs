@@ -133,7 +133,6 @@ pub trait ValidateRequest<F, R, D> {
         &'b self,
         request: &R,
         merchant_account: &domain::MerchantAccount,
-        cell_id: &common_utils::id_type::CellId,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 

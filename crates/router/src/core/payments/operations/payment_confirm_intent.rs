@@ -211,8 +211,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         merchant_account: &MerchantAccount,
+        profile: &domain::Profile,
         key_store: &MerchantKeyStore,
-        auth_flow: services::AuthFlow,
         header_payload: &HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>>
     {
@@ -266,7 +266,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             operation: Box::new(self),
             customer_details: None,
             payment_data,
-            business_profile: profile,
             mandate_type: None,
         };
 
@@ -278,22 +277,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentsIntentConfirm
 {
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
+    async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
         request: Option<CustomerDetails>,
-        key_store: &MerchantKeyStore,
-        storage_scheme: common_enums::enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        // TODO: Modify this trait function appropriately for v2
-        // This should always return a customer, the result can be an enum
-        // The enum will have two variants
-        // CustomerDetails - Actual customer details of recurring customer
-        // GuestCustomer - Details of a guest customer
-
         Ok((Box::new(self), None))
     }
 

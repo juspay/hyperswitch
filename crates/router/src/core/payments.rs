@@ -110,13 +110,12 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    profile_id_from_auth_layer: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
     operation: Op,
     req: Req,
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
-    auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
@@ -147,7 +146,6 @@ where
         operation,
         customer_details,
         mut payment_data,
-        business_profile,
         mandate_type,
     } = operation
         .to_get_tracker()?
@@ -156,20 +154,15 @@ where
             &payment_id,
             &req,
             &merchant_account,
+            &profile,
             &key_store,
-            auth_flow,
             &header_payload,
         )
         .await?;
 
-    utils::validate_profile_id_from_auth_layer(
-        profile_id_from_auth_layer,
-        &payment_data.get_payment_intent().clone(),
-    )?;
-
     let (_operation, customer) = operation
         .to_domain()?
-        .get_or_create_customer_details(
+        .get_customer_details(
             state,
             &mut payment_data,
             customer_details,
@@ -185,7 +178,7 @@ where
         state,
         &req,
         &merchant_account,
-        &business_profile,
+        &profile,
         &key_store,
         &mut payment_data,
         None,
@@ -214,7 +207,7 @@ where
                     None,
                     #[cfg(not(feature = "frm"))]
                     None,
-                    &business_profile,
+                    &profile,
                     false,
                 )
                 .await?;
@@ -1235,15 +1228,11 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    // TODO: get business profile from auth layer
-    profile_id: Option<id_type::ProfileId>,
-    // TODO: if we are relying on key store, do we need this
+    profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
     payment_id: id_type::GlobalPaymentId,
-    // TODO: do we need to rely on the auth flow
-    auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
@@ -1271,8 +1260,8 @@ where
             &state,
             req_state,
             merchant_account,
-            profile_id,
             key_store,
+            profile,
             operation.clone(),
             req,
             payment_id,
