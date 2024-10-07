@@ -5,7 +5,6 @@ pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bamboraapac;
 pub mod bankofamerica;
-pub mod billwerk;
 pub mod bluesnap;
 pub mod boku;
 pub mod braintree;
@@ -65,7 +64,7 @@ pub use hyperswitch_connectors::connectors::{
     fiuu::Fiuu, globepay, globepay::Globepay, helcim, helcim::Helcim, mollie, mollie::Mollie,
     nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet, powertranz, powertranz::Powertranz,
     stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt,
-    volt::Volt, worldline, worldline::Worldline,
+    volt::Volt, worldline, worldline::Worldline, billwerk, billwerk::Billwerk,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -73,7 +72,7 @@ pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
     authorizedotnet::Authorizedotnet, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    billwerk::Billwerk, bluesnap::Bluesnap, boku::Boku, braintree::Braintree, checkout::Checkout,
+    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, checkout::Checkout,
     cybersource::Cybersource, datatrans::Datatrans, dlocal::Dlocal, ebanx::Ebanx, forte::Forte,
     globalpay::Globalpay, gocardless::Gocardless, gpayments::Gpayments, iatapay::Iatapay,
     itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, multisafepay::Multisafepay,
