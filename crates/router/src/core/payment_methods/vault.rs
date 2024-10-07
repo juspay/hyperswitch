@@ -26,7 +26,6 @@ use crate::{
     },
     utils::StringExt,
 };
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{core::payment_methods::transformers as pm_transforms, utils::ConnectorResponseExt};
 const VAULT_SERVICE_NAME: &str = "CARD";
