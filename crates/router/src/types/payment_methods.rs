@@ -23,21 +23,6 @@ pub trait VaultingDataInterface {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct VaultId(String);
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl VaultId {
-    pub fn get_string_repr(&self) -> &String {
-        &self.0
-    }
-
-    pub fn generate(id: String) -> Self {
-        Self(id)
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequest {
     pub data: String,
     pub key: String,
@@ -53,7 +38,7 @@ pub struct VaultFingerprintResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
 }
@@ -62,7 +47,7 @@ pub struct AddVaultRequest<D> {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
 
@@ -153,7 +138,7 @@ pub struct SavedPMLPaymentsInfo {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -166,12 +151,12 @@ pub struct VaultRetrieveResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteRequest {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteResponse {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
 }

@@ -1124,7 +1124,7 @@ pub async fn create_payment_method_in_db(
     req: &api::PaymentMethodCreate,
     customer_id: &id_type::CustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
-    locker_id: Option<String>,
+    locker_id: Option<domain::VaultId>,
     merchant_id: &id_type::MerchantId,
     pm_metadata: Option<common_utils::pii::SecretSerdeValue>,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
@@ -1276,7 +1276,7 @@ pub async fn vault_payment_method(
     pmd: &pm_types::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    existing_vault_id: Option<String>,
+    existing_vault_id: Option<domain::VaultId>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let db = &*state.store;
 
@@ -1339,10 +1339,12 @@ async fn get_pm_list_context(
                     storage::PaymentTokenData::permanent_card(
                         Some(pm.get_id().clone()),
                         pm.locker_id
-                            .clone()
+                            .as_ref()
+                            .map(|id| id.get_string_repr().clone())
                             .or(Some(pm.get_id().get_string_repr().to_owned())),
                         pm.locker_id
-                            .clone()
+                            .as_ref()
+                            .map(|id| id.get_string_repr().clone())
                             .unwrap_or(pm.get_id().get_string_repr().to_owned()),
                     ),
                 ),
@@ -1846,13 +1848,11 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let vault_id = pm_types::VaultId::generate(
-        payment_method
-            .locker_id
-            .clone()
-            .get_required_value("locker_id")
-            .attach_printable("Missing locker_id in PaymentMethod")?,
-    );
+    let vault_id = payment_method
+        .locker_id
+        .clone()
+        .get_required_value("locker_id")
+        .attach_printable("Missing locker_id in PaymentMethod")?;
 
     let _customer = db
         .find_customer_by_global_id(

@@ -1277,13 +1277,12 @@ pub async fn vault_payment_method_in_locker(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     pmd: &pm_types::PaymentMethodVaultingData,
-    existing_vault_id: Option<String>,
+    existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
         entity_id: merchant_account.get_id().to_owned(),
-        vault_id: pm_types::VaultId::generate(
-            existing_vault_id.unwrap_or(uuid::Uuid::now_v7().to_string()),
-        ),
+        vault_id: existing_vault_id
+            .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     }
@@ -1313,14 +1312,13 @@ pub async fn retrieve_payment_method_from_vault(
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
         entity_id: merchant_account.get_id().to_owned(),
-        vault_id: pm_types::VaultId::generate(
-            pm.locker_id
-                .clone()
-                .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
-                })
-                .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
-        ),
+        vault_id: pm
+            .locker_id
+            .clone()
+            .ok_or(errors::VaultError::MissingRequiredField {
+                field_name: "locker_id",
+            })
+            .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
     }
     .encode_to_vec()
     .change_context(errors::VaultError::RequestEncodingFailed)
@@ -1344,7 +1342,7 @@ pub async fn retrieve_payment_method_from_vault(
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    vault_id: pm_types::VaultId,
+    vault_id: domain::VaultId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
         entity_id: merchant_account.get_id().to_owned(),
