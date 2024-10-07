@@ -67,7 +67,7 @@ pub async fn revoke_mandate(
         state,
         &req,
         mandate_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),

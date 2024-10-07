@@ -126,7 +126,7 @@ impl ApiEventMetric for payments::PaymentsRequest {
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsCreateIntentRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
+        None
     }
 }
 

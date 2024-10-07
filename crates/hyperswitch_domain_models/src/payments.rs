@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::Address;
+#[cfg(feature = "v2")]
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;

@@ -23,11 +23,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards},
     },
-    services::{
-        api,
-        authentication::{self as auth, AuthenticationData},
-        authorization::permissions::Permission,
-    },
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
@@ -61,7 +57,7 @@ pub async fn create_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| async move {
+        |state, auth: auth::AuthenticationData, req, _| async move {
             Box::pin(cards::get_client_secret_or_add_payment_method(
                 &state,
                 req,
@@ -165,7 +161,7 @@ pub async fn confirm_payment_method_intent_api(
         state,
         &req,
         inner_payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             let pm_id = pm_id.clone();
             async move {
                 Box::pin(payment_method_intent_confirm(
@@ -373,7 +369,7 @@ pub async fn save_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             Box::pin(cards::add_payment_method_data(
                 state,
                 req,
@@ -406,7 +402,7 @@ pub async fn list_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
@@ -463,7 +459,7 @@ pub async fn list_customer_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
@@ -525,7 +521,7 @@ pub async fn list_customer_payment_method_for_payment(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
@@ -590,7 +586,7 @@ pub async fn list_customer_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
@@ -655,7 +651,7 @@ pub async fn list_customer_payment_method_api_client(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
@@ -684,7 +680,7 @@ pub async fn initiate_pm_collect_link_flow(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payment_methods_routes::initiate_pm_collect_link(
                 state,
                 auth.merchant_account,
@@ -716,7 +712,7 @@ pub async fn render_pm_collect_link(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payment_methods_routes::render_pm_collect_link(
                 state,
                 auth.merchant_account,
@@ -751,7 +747,7 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth, pm, _| {
+        |state, auth: auth::AuthenticationData, pm, _| {
             cards::retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -785,7 +781,7 @@ pub async fn payment_method_update_api(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::update_customer_payment_method(
                 state,
                 auth.merchant_account,
@@ -820,7 +816,7 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         pm,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::delete_payment_method(state, auth.merchant_account, req, auth.key_store)
         },
         &*ephemeral_auth,
