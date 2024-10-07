@@ -555,11 +555,6 @@ pub struct ToggleSuccessBasedRoutingWrapper {
     pub status: bool,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ToggleSuccessBasedRoutingPath {
-    #[schema(value_type = String)]
-    pub profile_id: common_utils::id_type::ProfileId,
-}
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
