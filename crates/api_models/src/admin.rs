@@ -2332,6 +2332,9 @@ pub struct ProfileResponse {
     /// If set to `true` is_network_tokenization_enabled will be checked.
     #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
+
+    /// Indicates if CVV should be collected during payment or not.
+    pub should_collect_cvv_during_payment: bool,
 }
 
 #[cfg(feature = "v1")]

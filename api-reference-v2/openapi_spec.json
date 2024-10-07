@@ -16596,7 +16596,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
-          "is_network_tokenization_enabled"
+          "is_network_tokenization_enabled",
+          "should_collect_cvv_during_payment"
         ],
         "properties": {
           "merchant_id": {
@@ -16772,6 +16773,10 @@
             "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
             "default": false,
             "example": false
+          },
+          "should_collect_cvv_during_payment": {
+            "type": "boolean",
+            "description": "Indicates if CVV should be collected during payment or not."
           }
         }
       },
