@@ -871,6 +871,11 @@ impl Settings<SecuredSecret> {
             .map(|x| x.get_inner().validate())
             .transpose()?;
 
+        self.paze_decrypt_keys
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
         self.key_manager.get_inner().validate()?;
 
         Ok(())

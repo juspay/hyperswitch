@@ -1840,13 +1840,15 @@ where
                     wallet_data,
                 ))) => Some(
                     ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data.clone()))
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed to parse apple pay token to json")?
                         .decrypt(
                             &payment_processing_details.payment_processing_certificate,
                             &payment_processing_details.payment_processing_certificate_key,
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed to decrypt apple pay token")?,
                 ),
                 _ => None,
             };
@@ -1855,7 +1857,10 @@ where
                 .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptData>(
                     "ApplePayPredecryptData",
                 )
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "failed to parse decrypted apple pay response to ApplePayPredecryptData",
+                )?;
 
             router_data.payment_method_token = Some(
                 hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
