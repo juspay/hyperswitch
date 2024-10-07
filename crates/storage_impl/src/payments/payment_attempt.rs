@@ -538,6 +538,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     profile_id: payment_attempt.profile_id.clone(),
                     shipping_cost: payment_attempt.shipping_cost,
                     order_tax_amount: payment_attempt.order_tax_amount,
+                    connector_transaction_data: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -670,7 +671,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             key_str.as_str(),
                             &this.merchant_id,
                             updated_attempt.attempt_id.as_str(),
-                            connector_transaction_id.as_str(),
+                            &connector_transaction_id.get_id(),
                             storage_scheme,
                         )
                         .await?;
@@ -682,7 +683,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                                 key_str.as_str(),
                                 &this.merchant_id,
                                 updated_attempt.attempt_id.as_str(),
-                                connector_transaction_id.as_str(),
+                                &connector_transaction_id.get_id(),
                                 storage_scheme,
                             )
                             .await?;
@@ -1604,6 +1605,7 @@ impl DataModelExt for PaymentAttempt {
             profile_id: self.profile_id,
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
+            connector_transaction_data: self.connector_transaction_data,
         }
     }
 
@@ -1675,6 +1677,7 @@ impl DataModelExt for PaymentAttempt {
             profile_id: storage_model.profile_id,
             shipping_cost: storage_model.shipping_cost,
             order_tax_amount: storage_model.order_tax_amount,
+            connector_transaction_data: storage_model.connector_transaction_data,
         }
     }
 }
@@ -2013,6 +2016,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_transaction_data,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -2034,6 +2038,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_transaction_data,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -2045,6 +2050,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             } => DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
                 connector,
@@ -2055,6 +2061,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             },
             Self::StatusUpdate { status, updated_by } => {
                 DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
@@ -2072,6 +2079,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                connector_transaction_data,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -2085,6 +2093,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                connector_transaction_data,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -2103,6 +2112,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             } => DieselPaymentAttemptUpdate::PreprocessingUpdate {
                 status,
                 payment_method_id,
@@ -2111,6 +2121,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             },
             Self::RejectUpdate {
                 status,
@@ -2139,6 +2150,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 charge_id,
                 updated_by,
+                connector_transaction_data,
             } => DieselPaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
                 encoded_data,
@@ -2146,6 +2158,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 charge_id,
                 updated_by,
+                connector_transaction_data,
             },
             Self::IncrementalAuthorizationAmountUpdate {
                 amount,
@@ -2176,6 +2189,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_transaction_data,
             } => DieselPaymentAttemptUpdate::ManualUpdate {
                 status,
                 error_code,
@@ -2185,6 +2199,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_transaction_data,
             },
         }
     }
@@ -2369,6 +2384,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_transaction_data,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -2390,6 +2406,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_transaction_data,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2401,6 +2418,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             } => Self::UnresolvedResponseUpdate {
                 status,
                 connector,
@@ -2411,6 +2429,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             },
             DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by } => {
                 Self::StatusUpdate { status, updated_by }
@@ -2428,6 +2447,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                connector_transaction_data,
             } => Self::ErrorUpdate {
                 connector,
                 status,
@@ -2441,6 +2461,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                connector_transaction_data,
             },
             DieselPaymentAttemptUpdate::CaptureUpdate {
                 amount_to_capture,
@@ -2459,6 +2480,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             } => Self::PreprocessingUpdate {
                 status,
                 payment_method_id,
@@ -2467,6 +2489,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 connector_response_reference_id,
                 updated_by,
+                connector_transaction_data,
             },
             DieselPaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2495,6 +2518,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 charge_id,
                 updated_by,
+                connector_transaction_data,
             } => Self::ConnectorResponse {
                 authentication_data,
                 encoded_data,
@@ -2502,6 +2526,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector,
                 charge_id,
                 updated_by,
+                connector_transaction_data,
             },
             DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
@@ -2532,6 +2557,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_transaction_data,
             } => Self::ManualUpdate {
                 status,
                 error_code,
@@ -2541,6 +2567,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_transaction_data,
             },
         }
     }

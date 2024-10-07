@@ -1,8 +1,11 @@
 ALTER TABLE payment_attempt
-ALTER COLUMN connector_transaction_id TYPE VARCHAR(128);
+DROP COLUMN IF EXISTS connector_transaction_data;
 
 ALTER TABLE refund
-ALTER COLUMN connector_transaction_id TYPE VARCHAR(128);
+DROP COLUMN IF EXISTS connector_refund_data;
 
 ALTER TABLE refund
-ALTER COLUMN connector_refund_id TYPE VARCHAR(128);
+DROP COLUMN IF EXISTS connector_transaction_data;
+
+ALTER TABLE captures
+DROP COLUMN IF EXISTS connector_capture_data;

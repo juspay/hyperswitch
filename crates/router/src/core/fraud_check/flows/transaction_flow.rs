@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, types::ConnectorTransactionIdTrait};
 use error_stack::ResultExt;
 
 use crate::{
@@ -102,7 +102,10 @@ impl
                 payment_method,
                 error_code: self.payment_attempt.error_code.clone(),
                 error_message: self.payment_attempt.error_message.clone(),
-                connector_transaction_id: self.payment_attempt.connector_transaction_id.clone(),
+                connector_transaction_id: self
+                    .payment_attempt
+                    .get_optional_connector_transaction_id()
+                    .cloned(),
                 connector: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {

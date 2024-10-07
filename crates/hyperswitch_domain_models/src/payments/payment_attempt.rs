@@ -5,7 +5,7 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        MinorUnit,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
 use diesel_models::{
@@ -179,7 +179,7 @@ pub struct PaymentAttempt {
     pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub connector_transaction_id: Option<String>,
+    pub connector_transaction_id: Option<ConnectorTransactionId>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
@@ -231,6 +231,7 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_transaction_data: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -243,6 +244,25 @@ impl PaymentAttempt {
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
             .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or_default())
+    }
+}
+
+impl ConnectorTransactionIdTrait for PaymentAttempt {
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        match self
+            .connector_transaction_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_txn_id(self.connector_transaction_data.as_ref()))
+            .transpose()
+        {
+            Ok(txn_id) => txn_id,
+
+            // In case hashed data is missing from DB, use the hashed ID as connector transaction ID
+            Err(_) => self
+                .connector_transaction_id
+                .as_ref()
+                .map(|txn_id| txn_id.get_id()),
+        }
     }
 }
 
@@ -437,7 +457,7 @@ pub enum PaymentAttemptUpdate {
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
-        connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<ConnectorTransactionId>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<String>,
         mandate_id: Option<String>,
@@ -455,17 +475,19 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_transaction_data: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
-        connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<ConnectorTransactionId>,
         payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         updated_by: String,
+        connector_transaction_data: Option<String>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -481,9 +503,10 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
-        connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<ConnectorTransactionId>,
         payment_method_data: Option<serde_json::Value>,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        connector_transaction_data: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -500,17 +523,19 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
-        connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<ConnectorTransactionId>,
         connector_response_reference_id: Option<String>,
         updated_by: String,
+        connector_transaction_data: Option<String>,
     },
     ConnectorResponse {
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
-        connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<ConnectorTransactionId>,
         connector: Option<String>,
         charge_id: Option<String>,
         updated_by: String,
+        connector_transaction_data: Option<String>,
     },
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
@@ -531,7 +556,8 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<String>,
         unified_message: Option<String>,
-        connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<ConnectorTransactionId>,
+        connector_transaction_data: Option<String>,
     },
 }
 
@@ -1763,6 +1789,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
+            connector_transaction_data: self.connector_transaction_data,
         })
     }
 
@@ -1840,6 +1867,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 organization_id: storage_model.organization_id,
                 order_tax_amount: storage_model.order_tax_amount,
                 shipping_cost: storage_model.shipping_cost,
+                connector_transaction_data: storage_model.connector_transaction_data,
             })
         }
         .await

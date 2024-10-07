@@ -189,6 +189,7 @@ impl PaymentAttemptInterface for MockDb {
             profile_id: payment_attempt.profile_id,
             shipping_cost: payment_attempt.shipping_cost,
             order_tax_amount: payment_attempt.order_tax_amount,
+            connector_transaction_data: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

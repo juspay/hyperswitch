@@ -38,6 +38,7 @@ pub mod refunds_v2;
 
 use std::{fmt::Debug, str::FromStr};
 
+use common_utils::types::ConnectorTransactionIdTrait;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
@@ -81,7 +82,9 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         &self,
         payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        Ok(payment_attempt.connector_transaction_id)
+        Ok(payment_attempt
+            .get_optional_connector_transaction_id()
+            .cloned())
     }
 }
 
