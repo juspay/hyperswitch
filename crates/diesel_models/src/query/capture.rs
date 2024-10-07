@@ -1,3 +1,6 @@
+use common_utils::types::ConnectorTransactionIdTrait;
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+
 use super::generics;
 use crate::{
     capture::{Capture, CaptureNew, CaptureUpdate, CaptureUpdateInternal},
@@ -5,8 +8,6 @@ use crate::{
     schema::captures::dsl,
     PgPooledConn, StorageResult,
 };
-use common_utils::types::ConnectorTransactionIdTrait;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 impl CaptureNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Capture> {
