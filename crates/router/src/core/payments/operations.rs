@@ -183,11 +183,11 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 }
 
-#[cfg(feature = "v2")]
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
+    #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
-    async fn get_customer_details<'a>(
+    async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
@@ -196,103 +196,9 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
-    #[allow(clippy::too_many_arguments)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        state: &'a SessionState,
-        payment_data: &mut D,
-        storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
-        business_profile: &domain::Profile,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, R, D>,
-        Option<domain::PaymentMethodData>,
-        Option<String>,
-    )>;
-
-    async fn add_task_to_process_tracker<'a>(
-        &'a self,
-        _db: &'a SessionState,
-        _payment_attempt: &storage::PaymentAttempt,
-        _requeue: bool,
-        _schedule_time: Option<time::PrimitiveDateTime>,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        merchant_account: &domain::MerchantAccount,
-        state: &SessionState,
-        request: &R,
-        payment_intent: &storage::PaymentIntent,
-        mechant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
-
-    async fn populate_payment_data<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _merchant_account: &domain::MerchantAccount,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn call_external_three_ds_authentication_if_eligible<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _should_continue_confirm_transaction: &mut bool,
-        _connector_call_type: &ConnectorCallType,
-        _merchant_account: &domain::Profile,
-        _key_store: &domain::MerchantKeyStore,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn payments_dynamic_tax_calculation<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _connector_call_type: &ConnectorCallType,
-        _business_profile: &domain::Profile,
-        _key_store: &domain::MerchantKeyStore,
-        _merchant_account: &domain::MerchantAccount,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
-    async fn guard_payment_against_blocklist<'a>(
-        &'a self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut D,
-    ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        Ok(false)
-    }
-
-    async fn store_extended_card_info_temporarily<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_id: &common_utils::id_type::PaymentId,
-        _business_profile: &domain::Profile,
-        _payment_method_data: Option<&domain::PaymentMethodData>,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
-    }
-}
-
-#[cfg(feature = "v1")]
-#[async_trait]
-pub trait Domain<F: Clone, R, D>: Send + Sync {
+    #[cfg(feature = "v2")]
     /// This will fetch customer details, (this operation is flow specific)
-    async fn get_or_create_customer_details<'a>(
+    async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
@@ -712,10 +618,10 @@ where
     #[cfg(feature = "v2")]
     async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
+        _merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (

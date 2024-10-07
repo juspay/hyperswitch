@@ -2179,8 +2179,8 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
 use common_utils::ext_traits::ByteSliceExt;
 pub fn get_header_value_by_key_and_deserialize<'a, T: masking::Deserialize<'a>>(
     key: String,
-    headers: &HeaderMap,
-    type_name: &str,
+    headers: &'a HeaderMap,
+    type_name: &'static str,
 ) -> RouterResult<Option<T>> {
     get_header_value_by_key(key, headers)?
         .map(|str_value| str_value.as_bytes().parse_struct(type_name))
