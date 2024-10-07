@@ -1281,7 +1281,7 @@ pub async fn vault_payment_method(
     let db = &*state.store;
 
     // get fingerprint_id from locker
-    let fingerprint_id_from_locker = cards::get_fingerprint_id_from_locker(state, pmd)
+    let fingerprint_id_from_locker = vault::get_fingerprint_id_from_locker(state, pmd)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get fingerprint_id from vault")?;
@@ -1306,7 +1306,7 @@ pub async fn vault_payment_method(
     )?;
 
     let resp_from_locker =
-        cards::vault_payment_method_in_locker(state, merchant_account, pmd, existing_vault_id)
+        vault::vault_payment_method_in_locker(state, merchant_account, pmd, existing_vault_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to vault payment method in locker")?;
@@ -1768,7 +1768,7 @@ pub async fn update_payment_method(
     )?;
 
     let pmd: pm_types::PaymentMethodVaultingData =
-        cards::retrieve_payment_method_from_vault(&state, &merchant_account, &payment_method)
+        vault::retrieve_payment_method_from_vault(&state, &merchant_account, &payment_method)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method from vault")?
@@ -1846,12 +1846,18 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let locker_id = payment_method.locker_id.clone();
+    let vault_id = pm_types::VaultId::generate(
+        payment_method
+            .locker_id
+            .clone()
+            .get_required_value("locker_id")
+            .attach_printable("Missing locker_id in PaymentMethod")?,
+    );
 
     let _customer = db
-        .find_customer_by_merchant_reference_id_merchant_id(
+        .find_customer_by_global_id(
             key_manager_state,
-            &payment_method.customer_id,
+            &payment_method.customer_id.get_string_repr(),
             merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
@@ -1875,7 +1881,7 @@ pub async fn delete_payment_method(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment method in db")?;
 
-    cards::delete_payment_method_from_vault(&state, &merchant_account, locker_id)
+    vault::delete_payment_method_data_from_vault(&state, &merchant_account, vault_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
