@@ -321,7 +321,7 @@ impl From<EsnekposPaymentStatus> for enums::AttemptStatus {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub struct EsnekposPaymentsResponse {
+pub struct EsnekposPaymentResponse {
     pub order_ref_number: String,
     pub status: EsnekposPaymentStatus,
     pub return_code: String,
@@ -347,17 +347,12 @@ pub struct EsnekposPaymentsResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, EsnekposPaymentsResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, EsnekposPaymentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            EsnekposPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, EsnekposPaymentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),

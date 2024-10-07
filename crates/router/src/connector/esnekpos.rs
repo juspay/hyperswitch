@@ -210,7 +210,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: esnekpos::EsnekposPaymentsResponse = res
+        let response: esnekpos::EsnekposPaymentResponse = res
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -242,9 +242,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "ConnectorIntegration<api::PSync build_request method".to_string(),
-        )
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "sync".to_string(),
+            connector: "esnekpos".to_string(),
+        }
         .into())
     }
 }
@@ -306,7 +307,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: esnekpos::EsnekposPaymentsResponse = res
+        let response: esnekpos::EsnekposPaymentResponse = res
             .response
             .parse_struct("Esnekpos PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -341,9 +342,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "ConnectorIntegration<api::Execute build_request method".to_string(),
-        )
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "execute".to_string(),
+            connector: "esnekpos".to_string(),
+        }
         .into())
     }
 }
@@ -354,9 +356,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "ConnectorIntegration<api::RSync build_request method".to_string(),
-        )
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "sync".to_string(),
+            connector: "esnekpos".to_string(),
+        }
         .into())
     }
 }
