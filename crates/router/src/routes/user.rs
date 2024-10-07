@@ -682,6 +682,23 @@ pub async fn check_two_factor_auth_status(
     .await
 }
 
+pub async fn check_two_factor_auth_status_with_attempts(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::check_two_factor_auth_status_with_attempts(state, user),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn get_sso_auth_url(
     state: web::Data<AppState>,
     req: HttpRequest,

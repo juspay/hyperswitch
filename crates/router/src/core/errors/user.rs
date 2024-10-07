@@ -73,6 +73,10 @@ pub enum UserErrors {
     #[error("TotpRequired")]
     TotpRequired,
     #[error("InvalidRecoveryCode")]
+    MaxTotpAttemptsReached,
+    #[error("MaxTotpAttemptsReached")]
+    MaxRecoveryCodeAttemptsReached,
+    #[error("MaxRecoveryCodeAttemptsReached")]
     InvalidRecoveryCode,
     #[error("TwoFactorAuthRequired")]
     TwoFactorAuthRequired,
@@ -229,6 +233,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::JwtProfileIdMissing => {
                 AER::Unauthorized(ApiError::new(sub_code, 47, self.get_error_message(), None))
             }
+            Self::MaxTotpAttemptsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 48, self.get_error_message(), None))
+            }
+            Self::MaxRecoveryCodeAttemptsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 49, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -269,6 +279,10 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
+            Self::MaxTotpAttemptsReached => "Maximum totp attempts per user reached",
+            Self::MaxRecoveryCodeAttemptsReached => {
+                "Maximum recovery code attempts per user reached"
+            }
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",

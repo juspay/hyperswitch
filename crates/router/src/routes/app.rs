@@ -1846,6 +1846,10 @@ impl User {
             web::scope("/2fa")
                 .service(web::resource("").route(web::get().to(user::check_two_factor_auth_status)))
                 .service(
+                    web::resource("/v2")
+                        .route(web::get().to(user::check_two_factor_auth_status_with_attempts)),
+                )
+                .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(user::totp_begin)))
                         .service(web::resource("/reset").route(web::get().to(user::totp_reset)))
