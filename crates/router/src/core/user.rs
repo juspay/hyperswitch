@@ -647,7 +647,14 @@ async fn handle_existing_user_invitation(
     };
 
     let _user_role = match role_info.get_entity_type() {
-        EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+        EntityType::Organization => {
+            user_role
+                .add_entity(domain::OrganizationLevel {
+                    org_id: user_from_token.org_id.clone(),
+                })
+                .insert_in_v2(state)
+                .await?
+        }
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
@@ -678,7 +685,10 @@ async fn handle_existing_user_invitation(
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
-            EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Organization => email_types::Entity {
+                entity_id: user_from_token.org_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Organization,
+            },
             EntityType::Merchant => email_types::Entity {
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Merchant,
