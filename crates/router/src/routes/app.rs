@@ -43,7 +43,7 @@ use super::payouts::*;
 ))]
 use super::pm_auth;
 #[cfg(feature = "oltp")]
-use super::poll::retrieve_poll_status;
+use super::poll;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(feature = "olap")]
@@ -1455,12 +1455,14 @@ impl ApplePayCertificatesMigration {
 
 pub struct Poll;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Poll {
     pub fn server(config: AppState) -> Scope {
         web::scope("/poll")
             .app_data(web::Data::new(config))
-            .service(web::resource("/status/{poll_id}").route(web::get().to(retrieve_poll_status)))
+            .service(
+                web::resource("/status/{poll_id}").route(web::get().to(poll::retrieve_poll_status)),
+            )
     }
 }
 

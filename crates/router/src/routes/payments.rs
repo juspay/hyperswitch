@@ -140,7 +140,6 @@ pub async fn payments_create_intent(
                 auth.key_store,
                 payments::operations::PaymentCreateIntent,
                 req,
-                api::AuthFlow::Client,
                 header_payload.clone(),
             )
         },
@@ -1915,7 +1914,10 @@ pub async fn payment_confirm_intent(
 ) -> impl Responder {
     use hyperswitch_domain_models::payments::PaymentConfirmData;
 
-    use crate::services::AuthFlow;
+    use crate::{
+        routes::payments::internal_payload_types::PaymentsGenericRequestWithResourceId,
+        services::AuthFlow,
+    };
 
     let flow = Flow::PaymentsConfirmIntent;
 
@@ -1953,7 +1955,12 @@ pub async fn payment_confirm_intent(
         state,
         &req,
         internal_payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
+        |state,
+         auth: auth::AuthenticationDataV2,
+         req: PaymentsGenericRequestWithResourceId<
+            api_models::payments::PaymentsConfirmIntentRequest,
+        >,
+         req_state| async {
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
@@ -1970,12 +1977,11 @@ pub async fn payment_confirm_intent(
                 state,
                 req_state,
                 auth.merchant_account,
-                auth.profile_id,
+                auth.profile,
                 auth.key_store,
                 operation,
                 request,
                 payment_id,
-                AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
             )

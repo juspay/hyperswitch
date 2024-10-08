@@ -574,6 +574,7 @@ where
     Op: Debug,
     D: OperationSessionGetters<F>,
 {
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         data: D,
@@ -586,8 +587,22 @@ where
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self>;
+
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        data: D,
+        customer: Option<domain::Customer>,
+        base_url: &str,
+        operation: Op,
+        connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self>;
 }
 
+#[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsResponse
 where
     F: Clone,
@@ -743,7 +758,6 @@ where
     fn generate_response(
         payment_data: D,
         _customer: Option<domain::Customer>,
-        _auth_flow: services::AuthFlow,
         _base_url: &str,
         operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
@@ -816,7 +830,6 @@ where
     fn generate_response(
         payment_data: D,
         _customer: Option<domain::Customer>,
-        _auth_flow: services::AuthFlow,
         _base_url: &str,
         operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
@@ -923,6 +936,7 @@ impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::VerifyResponse
 where
     F: Clone,
@@ -2961,7 +2975,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
     for api_models::payments::AmountDetailsResponse
 {
     fn foreign_from(amount_details: hyperswitch_domain_models::payments::AmountDetails) -> Self {
-        Self::new(api_models::payments::AmountDetailsSetter {
+        Self {
             order_amount: amount_details.order_amount.into(),
             currency: amount_details.currency,
             shipping_cost: amount_details.shipping_cost,
@@ -2976,7 +2990,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             ),
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
-        })
+        }
     }
 }
 

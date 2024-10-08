@@ -264,9 +264,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
-            customer_details: None,
             payment_data,
-            mandate_type: None,
         };
 
         Ok(get_trackers_response)
@@ -281,7 +279,6 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        request: Option<CustomerDetails>,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>

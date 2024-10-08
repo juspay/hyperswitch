@@ -955,7 +955,7 @@ impl<'a> HeaderMapStruct<'a> {
             .attach_printable(format!("Failed to find header key: {}", key))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`X-Merchant-Id` in headers",
+                field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {}",
@@ -970,6 +970,18 @@ impl<'a> HeaderMapStruct<'a> {
                 id_type::MerchantId::wrap(merchant_id).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
+                    },
+                )
+            })
+    }
+
+    pub fn get_profile_id_from_header(&self) -> RouterResult<id_type::ProfileId> {
+        self.get_mandatory_header_value_by_key(headers::X_PROFILE_ID.into())
+            .map(|val| val.to_owned())
+            .and_then(|profile_id| {
+                id_type::ProfileId::wrap(profile_id).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_PROFILE_ID),
                     },
                 )
             })
@@ -1164,6 +1176,58 @@ where
                     },
                 )
             })
+    }
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for PublishableKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let publishable_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let key_manager_state = &(&state.session_state()).into();
+        let authentication_data = state
+            .store()
+            .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+
+        let profile_id = HeaderMapStruct::new(request_headers).get_profile_id_from_header()?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &authentication_data.key_store,
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let merchant_id = authentication_data.merchant_account.get_id().clone();
+
+        Ok((
+            AuthenticationDataV2 {
+                merchant_account: authentication_data.merchant_account,
+                key_store: authentication_data.key_store,
+                profile,
+            },
+            AuthenticationType::PublishableKey { merchant_id },
+        ))
     }
 }
 

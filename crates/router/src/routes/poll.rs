@@ -8,6 +8,7 @@ use crate::{
     types::api::PollId,
 };
 
+#[cfg(feature = "v1")]
 /// Poll - Retrieve Poll Status
 #[utoipa::path(
     get,
