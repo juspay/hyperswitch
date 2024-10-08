@@ -1593,6 +1593,7 @@ pub enum PaymentMethodType {
     OpenBankingUk,
     PayBright,
     Paypal,
+    Paze,
     Pix,
     PaySafeCard,
     Przelewy24,
