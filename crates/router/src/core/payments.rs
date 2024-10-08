@@ -871,7 +871,6 @@ pub async fn call_surcharge_decision_management_for_session_flow(
                     .net_amount
                     .get_tax_on_surcharge()
                     .unwrap_or_default(),
-                final_amount: payment_attempt.net_amount.get_total_amount(),
             },
         )))
     } else {

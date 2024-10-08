@@ -286,48 +286,6 @@ pub struct PaymentAttemptNew {
 }
 
 #[cfg(feature = "v1")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount (surcharge) + shipping_cost + order_tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or_default()
-            + self.tax_amount.unwrap_or_default()
-            + self.shipping_cost.unwrap_or_default()
-            + self.order_tax_amount.unwrap_or_default()
-    }
-
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
-}
-
-#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {

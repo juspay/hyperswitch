@@ -880,6 +880,14 @@ impl RequestSurchargeDetails {
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_amount.unwrap_or_default()
     }
+
+    pub fn get_surcharge_amount(&self) -> MinorUnit {
+        self.surcharge_amount
+    }
+
+    pub fn get_tax_amount(&self) -> Option<MinorUnit> {
+        self.tax_amount
+    }
 }
 
 #[derive(Default, Debug, Clone)]

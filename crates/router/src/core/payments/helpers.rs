@@ -911,38 +911,18 @@ pub fn validate_amount_to_capture_and_capture_method(
     payment_attempt: Option<&PaymentAttempt>,
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    let option_net_amount = hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request_and_payment_attempt(
+        request,
+        payment_attempt,
+    );
     let capture_method = request
         .capture_method
         .or(payment_attempt
             .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
         .unwrap_or_default();
     if capture_method == api_enums::CaptureMethod::Automatic {
-        let original_amount =
-            request.amount.map(MinorUnit::from).or(payment_attempt
-                .map(|payment_attempt| payment_attempt.net_amount.get_order_amount()));
-        let surcharge_amount = request
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .or_else(|| {
-                payment_attempt.map(|payment_attempt| {
-                    payment_attempt
-                        .net_amount
-                        .get_surcharge_amount()
-                        .unwrap_or_default()
-                        + payment_attempt
-                            .net_amount
-                            .get_tax_on_surcharge()
-                            .unwrap_or_default()
-                })
-            })
-            .unwrap_or_default();
-        let shipping_cost = request
-            .shipping_cost
-            .or(payment_attempt
-                .and_then(|payment_attempt| payment_attempt.net_amount.get_shipping_cost()))
-            .unwrap_or_default();
-        let total_capturable_amount = original_amount
-            .map(|original_amount| original_amount + surcharge_amount + shipping_cost);
+        let total_capturable_amount =
+            option_net_amount.map(|net_amount| net_amount.get_total_amount());
 
         let amount_to_capture = request
             .amount_to_capture

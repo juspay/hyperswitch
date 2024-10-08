@@ -706,7 +706,7 @@ where
         .to_currency_base_unit(
             payment_attempt
                 .net_amount
-                .get_order_amount()
+                .get_total_amount()
                 .get_amount_as_i64(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -2102,11 +2102,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+        #[cfg(feature = "v1")]
+        let amount = payment_data.payment_attempt.net_amount.get_total_amount();
+        #[cfg(feature = "v2")]
+        let amount = payment_data.payment_attempt.net_amount;
 
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module

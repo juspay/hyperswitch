@@ -512,8 +512,6 @@ pub struct SurchargeDetails {
     pub surcharge_amount: MinorUnit,
     /// tax on surcharge amount for this payment
     pub tax_on_surcharge_amount: MinorUnit,
-    /// sum of original amount,
-    pub final_amount: MinorUnit,
 }
 
 impl SurchargeDetails {
@@ -527,6 +525,10 @@ impl SurchargeDetails {
     }
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
+    }
+
+    pub fn get_final_amount(&self) -> MinorUnit {
+        self.original_amount + self.get_total_surcharge_amount()
     }
 }
 
@@ -553,9 +555,6 @@ impl
             tax_on_surcharge: None,
             surcharge_amount,
             tax_on_surcharge_amount,
-            final_amount: payment_attempt.net_amount.get_order_amount()
-                + surcharge_amount
-                + tax_on_surcharge_amount,
         }
     }
 }

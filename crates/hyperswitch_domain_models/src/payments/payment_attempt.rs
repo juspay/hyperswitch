@@ -11,6 +11,7 @@ use common_utils::{
 };
 use diesel_models::{
     PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use error_stack::ResultExt;
 use masking::Secret;
@@ -397,12 +398,6 @@ impl NetAmount {
             + self.tax_on_surcharge.unwrap_or_default()
     }
 
-    pub fn get_total_amount_excluding_surcharge(&self) -> MinorUnit {
-        self.order_amount
-            + self.shipping_cost.unwrap_or_default()
-            + self.order_tax_amount.unwrap_or_default()
-    }
-
     pub fn set_order_amount(&mut self, order_amount: MinorUnit) {
         self.order_amount = order_amount;
     }
@@ -438,6 +433,47 @@ impl NetAmount {
             surcharge_amount,
             tax_on_surcharge,
         }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn from_payments_request_and_payment_attempt(
+        payments_request: &api_models::payments::PaymentsRequest,
+        payment_attempt: Option<&PaymentAttempt>,
+    ) -> Option<Self> {
+        let option_order_amount = payments_request
+            .amount
+            .map(MinorUnit::from)
+            .or(payment_attempt
+                .map(|payment_attempt| payment_attempt.net_amount.get_order_amount()));
+        option_order_amount.map(|order_amount| {
+            let shipping_cost = payments_request.shipping_cost.or(payment_attempt
+                .and_then(|payment_attempt| payment_attempt.net_amount.get_shipping_cost()));
+            let order_tax_amount = payment_attempt
+                .and_then(|payment_attempt| payment_attempt.net_amount.get_order_tax_amount());
+            let surcharge_amount = payments_request
+                .surcharge_details
+                .map(|surcharge_details| surcharge_details.get_surcharge_amount())
+                .or_else(|| {
+                    payment_attempt.and_then(|payment_attempt| {
+                        payment_attempt.net_amount.get_surcharge_amount()
+                    })
+                });
+            let tax_on_surcharge = payments_request
+                .surcharge_details
+                .and_then(|surcharge_details| surcharge_details.get_tax_amount())
+                .or_else(|| {
+                    payment_attempt.and_then(|payment_attempt| {
+                        payment_attempt.net_amount.get_tax_on_surcharge()
+                    })
+                });
+            Self {
+                order_amount,
+                shipping_cost,
+                order_tax_amount,
+                surcharge_amount,
+                tax_on_surcharge,
+            }
+        })
     }
 }
 
@@ -589,23 +625,11 @@ pub struct PaymentAttemptNew {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(feature = "v2")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        todo!()
-    }
-}
-
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
-        amount: MinorUnit,
+        net_amount: NetAmount,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -617,8 +641,6 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<MinorUnit>,
         capture_method: Option<storage_enums::CaptureMethod>,
-        surcharge_amount: Option<MinorUnit>,
-        tax_amount: Option<MinorUnit>,
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
@@ -638,7 +660,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     ConfirmUpdate {
-        amount: MinorUnit,
+        net_amount: NetAmount,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -656,8 +678,6 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         amount_capturable: Option<MinorUnit>,
         updated_by: String,
-        surcharge_amount: Option<MinorUnit>,
-        tax_amount: Option<MinorUnit>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         external_three_ds_authentication_attempted: Option<bool>,
         authentication_connector: Option<String>,
@@ -668,8 +688,6 @@ pub enum PaymentAttemptUpdate {
         client_source: Option<String>,
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
-        shipping_cost: Option<MinorUnit>,
-        order_tax_amount: Option<MinorUnit>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -771,7 +789,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
-        amount: MinorUnit,
+        net_amount: NetAmount,
         amount_capturable: MinorUnit,
     },
     AuthenticationUpdate {
@@ -791,6 +809,359 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
     },
+}
+
+#[cfg(feature = "v1")]
+impl PaymentAttemptUpdate {
+    pub fn to_storage_model(self) -> diesel_models::PaymentAttemptUpdate {
+        match self {
+            Self::Update {
+                net_amount,
+                currency,
+                status,
+                authentication_type,
+                payment_method,
+                payment_token,
+                payment_method_data,
+                payment_method_type,
+                payment_experience,
+                business_sub_label,
+                amount_to_capture,
+                capture_method,
+                fingerprint_id,
+                payment_method_billing_address_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::Update {
+                amount: net_amount.get_order_amount(),
+                currency,
+                status,
+                authentication_type,
+                payment_method,
+                payment_token,
+                payment_method_data,
+                payment_method_type,
+                payment_experience,
+                business_sub_label,
+                amount_to_capture,
+                capture_method,
+                surcharge_amount: net_amount.get_surcharge_amount(),
+                tax_amount: net_amount.get_tax_on_surcharge(),
+                fingerprint_id,
+                payment_method_billing_address_id,
+                updated_by,
+            },
+            Self::UpdateTrackers {
+                payment_token,
+                connector,
+                straight_through_algorithm,
+                amount_capturable,
+                updated_by,
+                surcharge_amount,
+                tax_amount,
+                merchant_connector_id,
+            } => DieselPaymentAttemptUpdate::UpdateTrackers {
+                payment_token,
+                connector,
+                straight_through_algorithm,
+                amount_capturable,
+                surcharge_amount,
+                tax_amount,
+                updated_by,
+                merchant_connector_id,
+            },
+            Self::AuthenticationTypeUpdate {
+                authentication_type,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
+                authentication_type,
+                updated_by,
+            },
+            Self::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            },
+            Self::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            },
+            Self::ConfirmUpdate {
+                net_amount,
+                currency,
+                status,
+                authentication_type,
+                capture_method,
+                payment_method,
+                browser_info,
+                connector,
+                payment_token,
+                payment_method_data,
+                payment_method_type,
+                payment_experience,
+                business_sub_label,
+                straight_through_algorithm,
+                error_code,
+                error_message,
+                amount_capturable,
+                fingerprint_id,
+                updated_by,
+                merchant_connector_id: connector_id,
+                payment_method_id,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                payment_method_billing_address_id,
+                client_source,
+                client_version,
+                customer_acceptance,
+            } => DieselPaymentAttemptUpdate::ConfirmUpdate {
+                amount: net_amount.get_order_amount(),
+                currency,
+                status,
+                authentication_type,
+                capture_method,
+                payment_method,
+                browser_info,
+                connector,
+                payment_token,
+                payment_method_data,
+                payment_method_type,
+                payment_experience,
+                business_sub_label,
+                straight_through_algorithm,
+                error_code,
+                error_message,
+                amount_capturable,
+                surcharge_amount: net_amount.get_surcharge_amount(),
+                tax_amount: net_amount.get_tax_on_surcharge(),
+                fingerprint_id,
+                updated_by,
+                merchant_connector_id: connector_id,
+                payment_method_id,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                payment_method_billing_address_id,
+                client_source,
+                client_version,
+                customer_acceptance,
+                shipping_cost: net_amount.get_shipping_cost(),
+                order_tax_amount: net_amount.get_order_tax_amount(),
+            },
+            Self::VoidUpdate {
+                status,
+                cancellation_reason,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::VoidUpdate {
+                status,
+                cancellation_reason,
+                updated_by,
+            },
+            Self::ResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                authentication_type,
+                payment_method_id,
+                mandate_id,
+                connector_metadata,
+                payment_token,
+                error_code,
+                error_message,
+                error_reason,
+                connector_response_reference_id,
+                amount_capturable,
+                updated_by,
+                authentication_data,
+                encoded_data,
+                unified_code,
+                unified_message,
+                payment_method_data,
+                charge_id,
+            } => DieselPaymentAttemptUpdate::ResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                authentication_type,
+                payment_method_id,
+                mandate_id,
+                connector_metadata,
+                payment_token,
+                error_code,
+                error_message,
+                error_reason,
+                connector_response_reference_id,
+                amount_capturable,
+                updated_by,
+                authentication_data,
+                encoded_data,
+                unified_code,
+                unified_message,
+                payment_method_data,
+                charge_id,
+            },
+            Self::UnresolvedResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                payment_method_id,
+                error_code,
+                error_message,
+                error_reason,
+                connector_response_reference_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                payment_method_id,
+                error_code,
+                error_message,
+                error_reason,
+                connector_response_reference_id,
+                updated_by,
+            },
+            Self::StatusUpdate { status, updated_by } => {
+                DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
+            }
+            Self::ErrorUpdate {
+                connector,
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                amount_capturable,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+                payment_method_data,
+                authentication_type,
+            } => DieselPaymentAttemptUpdate::ErrorUpdate {
+                connector,
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                amount_capturable,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+                payment_method_data,
+                authentication_type,
+            },
+            Self::CaptureUpdate {
+                multiple_capture_count,
+                updated_by,
+                amount_to_capture,
+            } => DieselPaymentAttemptUpdate::CaptureUpdate {
+                multiple_capture_count,
+                updated_by,
+                amount_to_capture,
+            },
+            Self::PreprocessingUpdate {
+                status,
+                payment_method_id,
+                connector_metadata,
+                preprocessing_step_id,
+                connector_transaction_id,
+                connector_response_reference_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::PreprocessingUpdate {
+                status,
+                payment_method_id,
+                connector_metadata,
+                preprocessing_step_id,
+                connector_transaction_id,
+                connector_response_reference_id,
+                updated_by,
+            },
+            Self::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            },
+            Self::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
+                updated_by,
+            },
+            Self::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                charge_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::ConnectorResponse {
+                authentication_data,
+                encoded_data,
+                connector_transaction_id,
+                connector,
+                charge_id,
+                updated_by,
+            },
+            Self::IncrementalAuthorizationAmountUpdate {
+                net_amount,
+                amount_capturable,
+            } => DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+                amount: net_amount.get_order_amount(),
+                amount_capturable,
+            },
+            Self::AuthenticationUpdate {
+                status,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::AuthenticationUpdate {
+                status,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                updated_by,
+            },
+            Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+            } => DieselPaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_transaction_id,
+            },
+        }
+    }
 }
 
 // TODO: Add fields as necessary

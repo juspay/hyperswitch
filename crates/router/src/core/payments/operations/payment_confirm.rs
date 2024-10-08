@@ -1301,7 +1301,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
-                        amount: payment_data.payment_attempt.net_amount.get_order_amount(),
                         currency: payment_data.currency,
                         status: attempt_status,
                         payment_method,
@@ -1320,8 +1319,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         amount_capturable: Some(authorized_amount),
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
-                        surcharge_amount,
-                        tax_amount,
                         external_three_ds_authentication_attempted,
                         authentication_connector,
                         authentication_id,
@@ -1331,11 +1328,17 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         client_source,
                         client_version,
                         customer_acceptance: payment_data.payment_attempt.customer_acceptance,
-                        shipping_cost: payment_data.payment_intent.shipping_cost,
-                        order_tax_amount: payment_data
-                            .payment_attempt
-                            .net_amount
-                            .get_order_tax_amount(),
+                        net_amount:
+                            hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                                payment_data.payment_attempt.net_amount.get_order_amount(),
+                                payment_data.payment_intent.shipping_cost,
+                                payment_data
+                                    .payment_attempt
+                                    .net_amount
+                                    .get_order_tax_amount(),
+                                surcharge_amount,
+                                tax_amount,
+                            ),
                     },
                     storage_scheme,
                 )
