@@ -2214,6 +2214,12 @@ pub struct StripeBankRedirectDetails {
     attached_payment_method: Option<Secret<String>>,
 }
 
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct StripeCashappDetails {
+    buyer_id: Option<String>,
+    cashtag: Option<String>,
+}
+
 impl Deref for PaymentIntentSyncResponse {
     type Target = PaymentIntentResponse;
 
@@ -2252,6 +2258,9 @@ pub enum StripePaymentMethodDetailsResponse {
     Przelewy24,
     Card {
         card: StripeAdditionalCardDetails,
+    },
+    Cashapp {
+        cashapp: StripeCashappDetails,
     },
     Klarna,
     Affirm,
@@ -2310,7 +2319,8 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Bacs
             | Self::Wechatpay
             | Self::Alipay
-            | Self::CustomerBalance => None,
+            | Self::CustomerBalance
+            | Self::Cashapp { .. } => None,
         }
     }
 }
@@ -2625,6 +2635,7 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Wechatpay)
                             | Some(StripePaymentMethodDetailsResponse::Alipay)
                             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
+                            | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
                             | None => payment_method_id.expose(),
                         }
                     }
