@@ -8884,6 +8884,11 @@
             "type": "object",
             "description": "This field contains the Samsung Pay certificates and credentials",
             "nullable": true
+          },
+          "paze": {
+            "type": "object",
+            "description": "This field contains the Paze certificates and credentials",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16185,6 +16190,7 @@
           "open_banking_uk",
           "pay_bright",
           "paypal",
+          "paze",
           "pix",
           "pay_safe_card",
           "przelewy24",
@@ -23140,6 +23146,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PazeSessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paze"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -24392,6 +24419,17 @@
             "properties": {
               "paypal_sdk": {
                 "$ref": "#/components/schemas/PayPalWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paze"
+            ],
+            "properties": {
+              "paze": {
+                "$ref": "#/components/schemas/PazeWalletData"
               }
             }
           },
