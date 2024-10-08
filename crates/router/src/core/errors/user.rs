@@ -274,7 +274,9 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
-            Self::MaxAttemptsReached(error_message) => error_message,
+            Self::MaxAttemptsReached(resource) => {
+                format!("Max attempts reached for {}", resource)
+            }
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",

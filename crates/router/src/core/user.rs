@@ -1673,13 +1673,10 @@ pub async fn verify_totp(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
-    if tfa_utils::get_totp_attempts_in_redis(&state, &user_token.user_id).await?
+    if tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?
         == consts::user::TOTP_MAX_ATTEMPTS
     {
-        return Err(UserErrors::MaxAttemptsReached(
-            "Maximum TOTP attempts per user reached".to_string(),
-        )
-        .into());
+        return Err(UserErrors::MaxAttemptsReached("TOTP".to_string()).into());
     }
 
     let user_totp_secret = user_from_db
@@ -1855,13 +1852,10 @@ pub async fn verify_recovery_code(
         return Err(UserErrors::TwoFactorAuthNotSetup.into());
     }
 
-    if tfa_utils::get_recovery_code_attempts_in_redis(&state, &user_token.user_id).await?
+    if tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?
         == consts::user::RECOVERY_CODE_MAX_ATTEMPTS
     {
-        return Err(UserErrors::MaxAttemptsReached(
-            "Maximum recovery code attempts per user reached".to_string(),
-        )
-        .into());
+        return Err(UserErrors::MaxAttemptsReached("Recovery Code".to_string()).into());
     }
 
     let mut recovery_codes = user_from_db
@@ -1982,12 +1976,12 @@ pub async fn check_two_factor_auth_status_with_attempts(
     let totp = user_api::TwoFactorAuthAttempts {
         is_completed: tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?,
         remaining_attempts: consts::user::TOTP_MAX_ATTEMPTS
-            - tfa_utils::get_totp_attempts_in_redis(&state, &user_token.user_id).await?,
+            - tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?,
     };
     let recovery_code = user_api::TwoFactorAuthAttempts {
         is_completed: tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?,
         remaining_attempts: consts::user::RECOVERY_CODE_MAX_ATTEMPTS
-            - tfa_utils::get_recovery_code_attempts_in_redis(&state, &user_token.user_id).await?,
+            - tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?,
     };
     Ok(ApplicationResponse::Json(user_api::TwoFactorStatus {
         status: Some(user_api::TwoFactorAuthStatusResponseWithAttempts {

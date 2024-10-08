@@ -54,7 +54,7 @@ pub async fn insert_totp_attempts_in_redis(state: &SessionState, user_id: &str) 
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_ATTEMPTS_PREFIX, user_id);
 
-    let user_attempts_value = get_totp_attempts_in_redis(state, user_id).await?;
+    let user_attempts_value = get_totp_attempts_from_redis(state, user_id).await?;
     redis_conn
         .set_key_with_expiry(
             key.as_str(),
@@ -64,7 +64,7 @@ pub async fn insert_totp_attempts_in_redis(state: &SessionState, user_id: &str) 
         .await
         .change_context(UserErrors::InternalServerError)
 }
-pub async fn get_totp_attempts_in_redis(state: &SessionState, user_id: &str) -> UserResult<u8> {
+pub async fn get_totp_attempts_from_redis(state: &SessionState, user_id: &str) -> UserResult<u8> {
     let redis_conn = super::get_redis_connection(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_ATTEMPTS_PREFIX, user_id);
     redis_conn
@@ -85,7 +85,7 @@ pub async fn insert_recovery_code_attempts_in_redis(
         user_id
     );
 
-    let user_attempts_value = get_recovery_code_attempts_in_redis(state, user_id).await?;
+    let user_attempts_value = get_recovery_code_attempts_from_redis(state, user_id).await?;
     redis_conn
         .set_key_with_expiry(
             key.as_str(),
@@ -96,7 +96,7 @@ pub async fn insert_recovery_code_attempts_in_redis(
         .change_context(UserErrors::InternalServerError)
 }
 
-pub async fn get_recovery_code_attempts_in_redis(
+pub async fn get_recovery_code_attempts_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<u8> {
