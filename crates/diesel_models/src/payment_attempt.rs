@@ -150,19 +150,6 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
 }
 
-#[cfg(feature = "v1")]
-impl PaymentAttempt {
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount.unwrap_or(
-            self.amount
-                + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-                + self.tax_amount.unwrap_or(MinorUnit::new(0))
-                + self.shipping_cost.unwrap_or(MinorUnit::new(0))
-                + self.order_tax_amount.unwrap_or(MinorUnit::new(0)),
-        )
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,
@@ -303,9 +290,10 @@ impl PaymentAttemptNew {
     /// returns amount + surcharge_amount + tax_amount (surcharge) + shipping_cost + order_tax_amount
     pub fn calculate_net_amount(&self) -> MinorUnit {
         self.amount
-            + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-            + self.tax_amount.unwrap_or(MinorUnit::new(0))
-            + self.shipping_cost.unwrap_or(MinorUnit::new(0))
+            + self.surcharge_amount.unwrap_or_default()
+            + self.tax_amount.unwrap_or_default()
+            + self.shipping_cost.unwrap_or_default()
+            + self.order_tax_amount.unwrap_or_default()
     }
 
     pub fn get_or_calculate_net_amount(&self) -> MinorUnit {

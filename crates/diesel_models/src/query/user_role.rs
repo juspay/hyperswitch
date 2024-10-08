@@ -119,7 +119,7 @@ impl UserRole {
         conn: &PgPooledConn,
         user_id: String,
         org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
+        merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         update: UserRoleUpdate,
         version: UserRoleVersion,

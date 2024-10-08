@@ -84,7 +84,7 @@ clippy :
 # 	make euclid-wasm
 
 euclid-wasm:
-	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector
+	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector,v1
 
 # Run Rust tests of project.
 #

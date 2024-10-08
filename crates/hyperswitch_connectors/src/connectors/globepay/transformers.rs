@@ -74,6 +74,7 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalRedirect(_)
                 | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}

@@ -1747,6 +1747,7 @@ fn get_wallet_data(
         | domain::WalletData::MbWayRedirect(_)
         | domain::WalletData::MobilePayRedirect(_)
         | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::Paze(_)
         | domain::WalletData::SamsungPay(_)
         | domain::WalletData::TwintRedirect {}
         | domain::WalletData::VippsRedirect {}

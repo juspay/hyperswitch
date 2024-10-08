@@ -56,7 +56,10 @@ impl DashboardRequestPayload {
                 | (Connector::Stripe, WeChatPay) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
-                (_, GooglePay) | (_, ApplePay) | (_, PaymentMethodType::SamsungPay) => {
+                (_, GooglePay)
+                | (_, ApplePay)
+                | (_, PaymentMethodType::SamsungPay)
+                | (_, PaymentMethodType::Paze) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),

@@ -37,7 +37,8 @@
     {
       "group": "Payments",
       "pages": [
-        "api-reference/payments/payments--create-intent"
+        "api-reference/payments/payments--create-intent",
+        "api-reference/payments/payments--session-token"
       ]
     },
     {
