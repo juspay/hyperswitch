@@ -858,6 +858,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_order_reference_id: None,
             integrity_object: None,
             order_tax_amount: None,
+            order_tax_rate: None,
         }
     }
 }

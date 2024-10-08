@@ -196,6 +196,10 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
 
         let connector_router_data = taxjar::TaxjarRouterData::from((amount, shipping, req));
         let connector_req = taxjar::TaxjarPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$taxjar connector_request {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(

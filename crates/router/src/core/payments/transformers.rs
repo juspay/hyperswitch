@@ -17,7 +17,10 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
-use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
+use super::{
+    flows::Feature, types::AuthenticationData, OperationSessionGetters, OperationSessionSetters,
+    PaymentData,
+};
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
@@ -1743,6 +1746,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone()
             .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount));
 
+        let order_tax_rate = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_rate));
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1789,6 +1798,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_order_reference_id,
             integrity_object: None,
             order_tax_amount,
+            order_tax_rate,
         })
     }
 }
@@ -2070,10 +2080,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .clone()
             .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount));
         let amount = payment_data.payment_intent.amount;
-        let net_amount = match order_tax_amount {
-            Some(tax) => amount + tax,
-            None => amount,
-        };
+        let net_amount = payment_data.payment_attempt.net_amount.get_total_amount();
 
         let order_details = additional_data
             .payment_data
@@ -2094,12 +2101,20 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             })
             .transpose()?;
 
+        let order_tax_rate = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_rate));
+        println!("$$tax_ratecore: {:?}", order_tax_rate);
         Ok(Self {
             net_amount, //need to change after we move to connector module
             order_tax_amount,
             currency: payment_data.currency,
             session_id: payment_data.session_id,
             order_details,
+            amount,
+            order_tax_rate,
         })
     }
 }

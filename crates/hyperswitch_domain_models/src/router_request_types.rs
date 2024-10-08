@@ -5,7 +5,7 @@ use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
     id_type, pii,
-    types::{self as common_types, MinorUnit},
+    types::{self as common_types, FloatMajorUnit, MinorUnit},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -72,6 +72,7 @@ pub struct PaymentsAuthorizeData {
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub order_tax_rate: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -839,6 +840,8 @@ pub struct SdkPaymentsSessionUpdateData {
     pub currency: storage_enums::Currency,
     pub session_id: Option<String>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub amount: MinorUnit,
+    pub order_tax_rate: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
