@@ -154,9 +154,6 @@ jobs:
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          # start postgres service
-          systemctl start postgresql.service
-          
           # connect to hyperswitch_db
           psql -U db_user -d hyperswitch_db
 
