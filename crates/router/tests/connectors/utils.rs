@@ -947,6 +947,7 @@ impl Default for PaymentAuthorizeType {
             charges: None,
             integrity_object: None,
             merchant_order_reference_id: None,
+            mandate_contract_id: None
         };
         Self(data)
     }
