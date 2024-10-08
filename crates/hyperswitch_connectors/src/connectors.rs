@@ -19,11 +19,12 @@ pub mod thunes;
 pub mod tsys;
 pub mod volt;
 pub mod worldline;
+pub mod forte;
 
 pub use self::{
     bambora::Bambora, bitpay::Bitpay, cashtocode::Cashtocode, coinbase::Coinbase,
     cryptopay::Cryptopay, deutschebank::Deutschebank, fiserv::Fiserv, fiservemea::Fiservemea,
     fiuu::Fiuu, globepay::Globepay, helcim::Helcim, mollie::Mollie, nexixpay::Nexixpay,
     novalnet::Novalnet, powertranz::Powertranz, stax::Stax, taxjar::Taxjar, thunes::Thunes,
-    tsys::Tsys, volt::Volt, worldline::Worldline,
+    tsys::Tsys, volt::Volt, worldline::Worldline, forte::Forte,
 };

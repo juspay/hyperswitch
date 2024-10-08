@@ -1,14 +1,38 @@
+// use cards::CardNumber;
+// use common_utils::types::FloatMajorUnit;
+// use masking::{PeekInterface, Secret};
+// use serde::{Deserialize, Serialize};
+
+// use crate::{
+//     connector::utils::{
+//         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+//     },
+//     core::errors,
+//     types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+// };
+
 use cards::CardNumber;
+use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
+
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, AddressDetailsData, ForeignFrom, CardData as _,
+        PaymentsAuthorizeRequestData, RouterData as _,
     },
-    core::errors,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -90,7 +114,7 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
             ))?
         }
         match item.request.payment_method_data {
-            domain::PaymentMethodData::Card(ref ccard) => {
+            PaymentMethodData::Card(ref ccard) => {
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
@@ -120,22 +144,22 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
                     card,
                 })
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment {}
-            | domain::PaymentMethodData::Reward {}
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment {}
+            | PaymentMethodData::Reward {}
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Forte"),
                 ))?
@@ -152,11 +176,11 @@ pub struct ForteAuthType {
     pub(super) api_secret_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
+impl TryFrom<&ConnectorAuthType> for ForteAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::MultiAuthKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
@@ -277,20 +301,20 @@ pub struct ForteMeta {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, FortePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.response.response_code;
         let action = item.response.action;
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((response_code, action)),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
@@ -323,23 +347,23 @@ pub struct FortePaymentsSyncResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, FortePaymentsSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             FortePaymentsSyncResponse,
             T,
-            types::PaymentsResponseData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
@@ -397,18 +421,18 @@ pub struct ForteCaptureResponse {
     pub response: CaptureResponseStatus,
 }
 
-impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
+impl TryFrom<PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
     for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>,
+        item: PaymentsCaptureResponseRouterData<ForteCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.response.response_code),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
@@ -466,18 +490,18 @@ pub struct ForteCancelResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, ForteCancelResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.response.response_code),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
@@ -560,15 +584,15 @@ pub struct RefundResponse {
     pub response: ResponseStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.response.response_code),
             }),
@@ -583,15 +607,15 @@ pub struct RefundSyncResponse {
     transaction_id: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>>
+    for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
+        item: RefundsResponseRouterData<RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),

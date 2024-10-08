@@ -1638,6 +1638,10 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
+pub trait ForeignFrom<F> {
+    fn foreign_from(from: F) -> Self;
+}
+
 #[derive(Debug)]
 pub struct QrImage {
     pub data: String,
