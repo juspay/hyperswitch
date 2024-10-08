@@ -861,21 +861,17 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
-        let tax_on_surcharge_amount = payment_attempt
-            .net_amount
-            .get_tax_on_surcharge()
-            .unwrap_or_default();
-        let final_amount = payment_attempt.net_amount.get_order_amount()
-            + surcharge_amount
-            + tax_on_surcharge_amount;
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
                 original_amount: payment_attempt.net_amount.get_order_amount(),
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
-                tax_on_surcharge_amount,
-                final_amount,
+                tax_on_surcharge_amount: payment_attempt
+                    .net_amount
+                    .get_tax_on_surcharge()
+                    .unwrap_or_default(),
+                final_amount: payment_attempt.net_amount.get_total_amount(),
             },
         )))
     } else {

@@ -1117,12 +1117,6 @@ impl PaymentCreate {
         } else {
             payment_id.get_attempt_id(1)
         };
-        let surcharge_amount = request
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
-        let tax_amount = request
-            .surcharge_details
-            .and_then(|surcharge_details| surcharge_details.tax_amount);
 
         if request.mandate_data.as_ref().map_or(false, |mandate_data| {
             mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
@@ -1173,12 +1167,9 @@ impl PaymentCreate {
                 external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
-                net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
+                    request,
                     MinorUnit::from(amount),
-                    request.shipping_cost,
-                    None,
-                    surcharge_amount,
-                    tax_amount,
                 ),
                 save_to_locker: None,
                 connector: None,

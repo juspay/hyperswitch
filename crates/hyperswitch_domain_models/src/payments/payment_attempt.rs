@@ -24,7 +24,7 @@ use crate::merchant_key_store::MerchantKeyStore;
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    ForeignIDRef,
+    router_request_types, ForeignIDRef,
 };
 
 #[async_trait::async_trait]
@@ -413,12 +413,31 @@ impl NetAmount {
 
     pub fn set_surcharge_details(
         &mut self,
-        surcharge_details: Option<crate::router_request_types::SurchargeDetails>,
+        surcharge_details: Option<router_request_types::SurchargeDetails>,
     ) {
         self.surcharge_amount = surcharge_details
             .clone()
             .map(|details| details.surcharge_amount);
         self.tax_on_surcharge = surcharge_details.map(|details| details.tax_on_surcharge_amount);
+    }
+
+    pub fn from_payments_request(
+        payments_request: &api_models::payments::PaymentsRequest,
+        order_amount: MinorUnit,
+    ) -> Self {
+        let surcharge_amount = payments_request
+            .surcharge_details
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_on_surcharge = payments_request
+            .surcharge_details
+            .and_then(|surcharge_details| surcharge_details.tax_amount);
+        Self {
+            order_amount,
+            shipping_cost: payments_request.shipping_cost,
+            order_tax_amount: None,
+            surcharge_amount,
+            tax_on_surcharge,
+        }
     }
 }
 
