@@ -212,8 +212,9 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
                 .tax_on_surcharge_amount
                 .get_amount_as_i64(),
         )?;
-        let display_final_amount = currency
-            .to_currency_base_unit_asf64(surcharge_details.final_amount.get_amount_as_i64())?;
+        let display_final_amount = currency.to_currency_base_unit_asf64(
+            surcharge_details.get_final_amount().get_amount_as_i64(),
+        )?;
         let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
             (surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount)
                 .get_amount_as_i64(),

@@ -457,11 +457,7 @@ fn get_surcharge_details_from_surcharge_output(
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
         surcharge_decision_configs::SurchargeOutput::Rate(percentage) => percentage
-            .apply_and_ceil_result(
-                payment_attempt
-                    .net_amount
-                    .get_total_amount_excluding_surcharge(),
-            )
+            .apply_and_ceil_result(payment_attempt.net_amount.get_total_amount())
             .change_context(ConfigError::DslExecutionError)
             .attach_printable("Failed to Calculate surcharge amount by applying percentage")?,
     };
@@ -489,9 +485,6 @@ fn get_surcharge_details_from_surcharge_output(
         tax_on_surcharge: surcharge_details.tax_on_surcharge,
         surcharge_amount,
         tax_on_surcharge_amount,
-        final_amount: payment_attempt.net_amount.get_order_amount()
-            + surcharge_amount
-            + tax_on_surcharge_amount,
     })
 }
 
