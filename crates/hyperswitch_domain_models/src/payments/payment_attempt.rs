@@ -715,7 +715,6 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
     },
     PostSessionTokensUpdate {
-        status: storage_enums::AttemptStatus,
         updated_by: String,
         connector_transaction_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,

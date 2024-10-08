@@ -2031,12 +2031,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
             },
             Self::PostSessionTokensUpdate {
-                status,
                 updated_by,
                 connector_transaction_id,
                 connector_metadata,
             } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
-                status,
                 updated_by,
                 connector_transaction_id,
                 connector_metadata,
@@ -2398,12 +2396,10 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
             },
             DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
-                status,
                 updated_by,
                 connector_transaction_id,
                 connector_metadata,
             } => Self::PostSessionTokensUpdate {
-                status,
                 updated_by,
                 connector_transaction_id,
                 connector_metadata,

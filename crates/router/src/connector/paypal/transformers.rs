@@ -1393,7 +1393,6 @@ impl
             item.response.clone().status,
             item.response.intent.clone(),
         ));
-        println!("$$status: {:?}", status);
         let link = get_redirect_url(item.response.links.clone())?;
 
         // For Paypal SDK flow, we need to trigger SDK client and then Confirm

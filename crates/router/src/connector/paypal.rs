@@ -719,7 +719,6 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsPostSessionTokensRouterData, errors::ConnectorError> {
-        println!("$$$res: {:?}", res.response);
         let response: paypal::PaypalRedirectResponse = res
             .response
             .parse_struct("PaypalRedirectResponse")

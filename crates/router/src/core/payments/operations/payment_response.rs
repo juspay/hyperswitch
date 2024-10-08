@@ -695,7 +695,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
             types::PaymentsPostSessionTokensData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
+        _key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
@@ -718,29 +718,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     types::ResponseId::ConnectorTransactionId(id)
                     | types::ResponseId::EncodedData(id) => Some(id),
                 };
-                let payment_intent_update = storage::PaymentIntentUpdate::PostSessionTokensUpdate {
-                    status: api_models::enums::IntentStatus::foreign_from(router_data.status),
-                    updated_by: payment_data.payment_intent.updated_by.clone(),
-                };
                 let m_db = db.clone().store;
-                let payment_intent = payment_data.payment_intent.clone();
-                let key_manager_state: KeyManagerState = db.into();
-
-                let updated_payment_intent = m_db
-                    .update_payment_intent(
-                        &key_manager_state,
-                        payment_intent,
-                        payment_intent_update,
-                        key_store,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 let payment_attempt_update =
                     storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
                         connector_transaction_id: connector_transaction_id.clone(),
                         updated_by: storage_scheme.clone().to_string(),
-                        status: router_data.status,
                         connector_metadata,
                     };
                 #[cfg(feature = "v1")]
@@ -763,8 +745,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-                payment_data.payment_intent = updated_payment_intent;
                 payment_data.payment_attempt = updated_payment_attempt;
             }
             Err(err) => {

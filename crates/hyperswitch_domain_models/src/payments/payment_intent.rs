@@ -260,10 +260,6 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
-    PostSessionTokensUpdate {
-        status: storage_enums::IntentStatus,
-        updated_by: String,
-    },
 }
 
 // TODO: remove all enum variants and create new variants that should be used for v2
@@ -788,11 +784,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details,
                 ..Default::default()
             },
-            PaymentIntentUpdate::PostSessionTokensUpdate { status, updated_by } => Self {
-                status: Some(status),
-                updated_by,
-                ..Default::default()
-            },
         }
     }
 }
@@ -1112,9 +1103,6 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 shipping_details: shipping_details.map(Encryption::from),
             },
-            PaymentIntentUpdate::PostSessionTokensUpdate { status, updated_by } => {
-                Self::PostSessionTokensUpdate { status, updated_by }
-            }
         }
     }
 }
