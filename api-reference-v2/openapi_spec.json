@@ -10051,7 +10051,7 @@
       "NextActionCall": {
         "type": "string",
         "enum": [
-          "create_order",
+          "post_session_tokens",
           "confirm",
           "sync",
           "complete_authorize"
@@ -13486,43 +13486,6 @@
         },
         "additionalProperties": false
       },
-      "PaymentsCreateOrderRequest": {
-        "type": "object",
-        "required": [
-          "client_secret",
-          "payment_method_type",
-          "payment_method"
-        ],
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "Client Secret"
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          }
-        }
-      },
-      "PaymentsCreateOrderResponse": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "order_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          },
-          "order_id": {
-            "type": "string",
-            "description": "A unique identifier for a order provided by the connector"
-          }
-        }
-      },
       "PaymentsCreateRequest": {
         "type": "object",
         "required": [
@@ -14571,6 +14534,43 @@
             "type": "string",
             "description": "Reason for incremental authorization",
             "nullable": true
+          }
+        }
+      },
+      "PaymentsPostSessionTokensRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_method"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          }
+        }
+      },
+      "PaymentsPostSessionTokensResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "order_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "order_id": {
+            "type": "string",
+            "description": "A unique identifier for a order provided by the connector"
           }
         }
       },
