@@ -16,8 +16,7 @@ export const getConnectorDetails = (connectorId) => {
 };
 
 function getValueByKey(jsonObject, key) {
-  const data =
-    typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
+  const data = typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
     return data[key];

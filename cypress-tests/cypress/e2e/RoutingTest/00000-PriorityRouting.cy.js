@@ -66,16 +66,8 @@ describe("Priority Based Routing Test", () => {
           merchant_connector_id: globalState.get("adyenMcaId"),
         },
       ];
-      cy.addRoutingConfig(
-        fixtures.routingConfigBody,
-        req_data,
-        res_data,
-        "priority",
-        routing_data,
-        globalState
-      );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      cy.addRoutingConfig(fixtures.routingConfigBody, req_data, res_data, "priority", routing_data, globalState);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-routing-call-test", () => {
@@ -83,8 +75,7 @@ describe("Priority Based Routing Test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.retrieveRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("activate-routing-call-test", () => {
@@ -92,13 +83,11 @@ describe("Priority Based Routing Test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.activateRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("payment-routing-test", () => {
-      let data =
-        utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+      let data = utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPaymentTest(
@@ -109,8 +98,7 @@ describe("Priority Based Routing Test", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -155,16 +143,8 @@ describe("Priority Based Routing Test", () => {
           merchant_connector_id: globalState.get("stripeMcaId"),
         },
       ];
-      cy.addRoutingConfig(
-        fixtures.routingConfigBody,
-        req_data,
-        res_data,
-        "priority",
-        routing_data,
-        globalState
-      );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      cy.addRoutingConfig(fixtures.routingConfigBody, req_data, res_data, "priority", routing_data, globalState);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-routing-call-test", () => {
@@ -172,8 +152,7 @@ describe("Priority Based Routing Test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.retrieveRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("activate-routing-call-test", () => {
@@ -181,13 +160,11 @@ describe("Priority Based Routing Test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.activateRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("payment-routing-test", () => {
-      let data =
-        utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
+      let data = utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPaymentTest(
@@ -198,8 +175,7 @@ describe("Priority Based Routing Test", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (should_continue) should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-payment-call-test", () => {

@@ -30,10 +30,7 @@ module.exports = defineConfig({
         const screenshotPath = details.path;
 
         // Extract filename without extension
-        const name = path.basename(
-          screenshotPath,
-          path.extname(screenshotPath)
-        );
+        const name = path.basename(screenshotPath, path.extname(screenshotPath));
 
         // Define a new name with a connectorId
         const newName = `[${connectorId}] ${name}.png`;

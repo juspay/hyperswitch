@@ -17,9 +17,7 @@
   "devDependencies": {
     "cypress": "^13.14.1",
     "cypress-mochawesome-reporter": "^3.8.2",
-    "jsqr": "^1.4.0"
-  },
-  "dependencies": {
-    "prettier": "^3.3.2"
+    "jsqr": "^1.4.0",
+    "prettier": "^3.3.3"
   }
 }
