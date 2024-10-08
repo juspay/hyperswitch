@@ -113,20 +113,13 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
 
         let profile_id = profile.get_id().clone();
 
-        let profile = db
-            .find_business_profile_by_profile_id(&(state).into(), key_store, &profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-
         let payment_intent_domain =
             hyperswitch_domain_models::payments::PaymentIntent::create_domain_model_from_request(
                 state.into(),
                 key_store,
                 payment_id,
                 merchant_account,
-                &profile,
+                profile,
                 request.clone(),
             )
             .await?;

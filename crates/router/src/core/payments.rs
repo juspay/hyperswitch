@@ -695,7 +695,7 @@ where
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
-    let (operation, validate_result) = operation
+    let (operation, _validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
