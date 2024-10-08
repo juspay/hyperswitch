@@ -5,6 +5,9 @@ set -x
 # Treat unset variables as an error, and prevent errors in a pipeline from being masked
 set -euo pipefail
 
+# Initialize tmp_file globally
+tmp_file=""
+
 # Define arrays for services, etc.
 # Read service arrays from environment variables
 read -r -a payments <<< "${PAYMENTS[@]:-}"
@@ -12,7 +15,7 @@ read -r -a payouts <<< "${PAYOUTS[@]:-}"
 read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]:-}"
 read -r -a routing <<< "${ROUTING[@]:-}"
 
-# define arrays
+# Define arrays
 connector_map=()
 failed_connectors=()
 
@@ -50,11 +53,14 @@ function command_exists() {
 function read_service_arrays() {
   # Loop through the associative array and check if each service is exported
   for var in "${!services[@]}"; do
-    if [[ -n "${!var+x}" ]]; then
+    if [[ -n "${!var:-}" ]]; then
       connector_map+=("${services[$var]}")
+    else
+      print_color "yellow" "Environment variable ${var} is not set. Skipping..."
     fi
   done
 }
+export -f read_service_arrays
 
 # Function to execute Cypress tests
 function execute_test() {
@@ -80,10 +86,10 @@ export -f execute_test
 # Function to run tests
 function run_tests() {
   local jobs="${1:-1}"
-  local tmp_file=$(mktemp)
+  tmp_file=$(mktemp)
 
   # Ensure temporary file is removed on script exit
-  trap 'rm -f "${tmp_file}"' EXIT
+  trap 'cleanup' EXIT
 
   for service in "${connector_map[@]}"; do
     # Use indirect reference to get the array by service name
@@ -117,7 +123,6 @@ function run_tests() {
   else
     print_color "green" "Cypress tests execution successful!"
   fi
-
 }
 
 # Function to check and install dependencies
@@ -142,10 +147,17 @@ function check_dependencies() {
   done
 }
 
+# Cleanup function to handle exit
 function cleanup() {
   print_color "yellow" "Cleaning up..."
-  cd -
+  if [[ -d "cypress-tests" ]]; then
+    cd - || return
+  fi
   unset PAYMENTS PAYOUTS PAYMENT_METHOD_LIST ROUTING
+
+  if [[ -n "${tmp_file}" && -f "${tmp_file}" ]]; then
+    rm -f "${tmp_file}"
+  fi
 }
 
 # Main function
@@ -175,8 +187,6 @@ function main() {
       run_tests 1
       ;;
   esac
-
-  cleanup
 }
 
 # Execute the main function with passed arguments
