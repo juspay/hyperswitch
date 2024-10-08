@@ -228,6 +228,9 @@ pub struct PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
+impl PaymentsCreateIntentRequest {}
+
+#[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
         &self,
@@ -414,25 +417,49 @@ pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize")]
-    pub order_amount: Amount,
+    order_amount: Amount,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
-    pub currency: common_enums::Currency,
+    currency: common_enums::Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
-    pub shipping_cost: Option<MinorUnit>,
+    shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
-    pub order_tax_amount: Option<MinorUnit>,
+    order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
     #[schema(value_type = TaxCalculationOverride)]
-    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[serde(default)]
     #[schema(value_type = SurchargeCalculationOverride)]
-    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
-    pub surcharge_amount: Option<MinorUnit>,
+    surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
+    tax_on_surcharge: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+pub struct AmountDetailsSetter {
+    pub order_amount: Amount,
+    pub currency: common_enums::Currency,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+pub struct AmountDetailsResponseSetter {
+    pub order_amount: Amount,
+    pub currency: common_enums::Currency,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
 }
 
@@ -441,7 +468,6 @@ pub struct AmountDetails {
 pub struct AmountDetailsResponse {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
-    #[serde(default, deserialize_with = "amount::deserialize")]
     pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
@@ -454,7 +480,6 @@ pub struct AmountDetailsResponse {
     #[schema(value_type = TaxCalculationOverride)]
     pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
-    #[serde(default)]
     #[schema(value_type = SurchargeCalculationOverride)]
     pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
@@ -494,6 +519,46 @@ pub struct ConfirmIntentAmountDetailsResponse {
     /// The amount that can be captured on the payment. Either in one go or through multiple captures.
     /// This is applicable in case the capture method was either `manual` or `manual_multiple`
     pub amount_capturable: MinorUnit,
+}
+
+#[cfg(feature = "v2")]
+impl AmountDetails {
+    pub fn new(amount_details_setter: AmountDetailsSetter) -> Self {
+        Self {
+            order_amount: amount_details_setter.order_amount,
+            currency: amount_details_setter.currency,
+            shipping_cost: amount_details_setter.shipping_cost,
+            order_tax_amount: amount_details_setter.order_tax_amount,
+            skip_external_tax_calculation: amount_details_setter.skip_external_tax_calculation,
+            skip_surcharge_calculation: amount_details_setter.skip_surcharge_calculation,
+            surcharge_amount: amount_details_setter.surcharge_amount,
+            tax_on_surcharge: amount_details_setter.tax_on_surcharge,
+        }
+    }
+    pub fn order_amount(&self) -> Amount {
+        self.order_amount
+    }
+    pub fn currency(&self) -> common_enums::Currency {
+        self.currency
+    }
+    pub fn shipping_cost(&self) -> Option<MinorUnit> {
+        self.shipping_cost
+    }
+    pub fn order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+    pub fn skip_external_tax_calculation(&self) -> common_enums::TaxCalculationOverride {
+        self.skip_external_tax_calculation.clone()
+    }
+    pub fn skip_surcharge_calculation(&self) -> common_enums::SurchargeCalculationOverride {
+        self.skip_surcharge_calculation.clone()
+    }
+    pub fn surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+    }
+    pub fn tax_on_surcharge(&self) -> Option<MinorUnit> {
+        self.tax_on_surcharge
+    }
 }
 
 #[cfg(feature = "v1")]

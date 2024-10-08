@@ -54,3 +54,153 @@ impl<T: ForeignIDRef> RemoteStorageObject<T> {
         }
     }
 }
+
+use std::fmt::Debug;
+
+use common_utils::{ext_traits::Encode, type_name, types::keymanager};
+use diesel_models::payment_method;
+use error_stack::ResultExt;
+use masking::PeekInterface;
+
+pub async fn create_encrypted_data<T>(
+    key_manager_state: &keymanager::KeyManagerState,
+    key_store: &merchant_key_store::MerchantKeyStore,
+    data: T,
+) -> Result<
+    common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
+    error_stack::Report<errors::StorageError>,
+>
+where
+    T: Debug + serde::Serialize,
+{
+    let key = key_store.key.get_inner().peek();
+    let identifier = keymanager::Identifier::Merchant(key_store.merchant_id.clone());
+
+    let encoded_data = Encode::encode_to_value(&data)
+        .change_context(errors::StorageError::SerializationFailed)
+        .attach_printable("Unable to encode data")?;
+
+    let secret_data = masking::Secret::<_, masking::WithType>::new(encoded_data);
+
+    let encrypted_data = type_encryption::crypto_operation(
+        key_manager_state,
+        type_name!(payment_method::PaymentMethod),
+        type_encryption::CryptoOperation::Encrypt(secret_data),
+        identifier.clone(),
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(errors::StorageError::EncryptionError)
+    .attach_printable("Unable to encrypt data")?;
+
+    Ok(encrypted_data)
+}
+
+pub trait ForeignFrom<F> {
+    /// Convert from a foreign type to the current type
+    fn foreign_from(from: F) -> Self;
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
+    for diesel_models::payment_intent::PaymentLinkConfigRequestForPayments
+{
+    fn foreign_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
+        Self {
+            theme: item.theme,
+            logo: item.logo,
+            seller_name: item.seller_name,
+            sdk_layout: item.sdk_layout,
+            display_sdk_only: item.display_sdk_only,
+            enabled_saved_payment_method: item.enabled_saved_payment_method,
+            transaction_details: item.transaction_details.map(|transaction_details| {
+                transaction_details
+                    .into_iter()
+                    .map(|transaction_detail| {
+                        diesel_models::PaymentLinkTransactionDetails::foreign_from(
+                            transaction_detail,
+                        )
+                    })
+                    .collect()
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::PaymentLinkTransactionDetails>
+    for diesel_models::PaymentLinkTransactionDetails
+{
+    fn foreign_from(from: api_models::admin::PaymentLinkTransactionDetails) -> Self {
+        Self {
+            key: from.key,
+            value: from.value,
+            ui_configuration: from
+                .ui_configuration
+                .map(diesel_models::TransactionDetailsUiConfiguration::foreign_from),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::TransactionDetailsUiConfiguration>
+    for diesel_models::TransactionDetailsUiConfiguration
+{
+    fn foreign_from(from: api_models::admin::TransactionDetailsUiConfiguration) -> Self {
+        Self {
+            position: from.position,
+            is_key_bold: from.is_key_bold,
+            is_value_bold: from.is_value_bold,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::payments::AmountDetails> for payments::AmountDetails {
+    fn foreign_from(amount_details: api_models::payments::AmountDetails) -> Self {
+        Self {
+            order_amount: amount_details.order_amount().into(),
+            currency: amount_details.currency(),
+            shipping_cost: amount_details.shipping_cost(),
+            tax_details: Some(diesel_models::TaxDetails {
+                default: amount_details
+                    .order_tax_amount()
+                    .map(|order_tax_amount| diesel_models::DefaultTax { order_tax_amount }),
+                payment_method_type: None,
+            }),
+            skip_external_tax_calculation: payments::TaxCalculationOverride::foreign_from(
+                amount_details.skip_external_tax_calculation(),
+            ),
+            skip_surcharge_calculation: payments::SurchargeCalculationOverride::foreign_from(
+                amount_details.skip_surcharge_calculation(),
+            ),
+            surcharge_amount: amount_details.surcharge_amount(),
+            tax_on_surcharge: amount_details.tax_on_surcharge(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<common_enums::SurchargeCalculationOverride>
+    for payments::SurchargeCalculationOverride
+{
+    fn foreign_from(
+        surcharge_calculation_override: common_enums::SurchargeCalculationOverride,
+    ) -> Self {
+        match surcharge_calculation_override {
+            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
+            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
+    fn foreign_from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
+        match tax_calculation_override {
+            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
+            common_enums::TaxCalculationOverride::Skip => Self::Skip,
+        }
+    }
+}

@@ -5,8 +5,14 @@ use std::marker::PhantomData;
 use api_models::payments::Address;
 #[cfg(feature = "v2")]
 use api_models::payments::OrderDetailsWithAmount;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::{AsyncExt, ValueExt};
+#[cfg(feature = "v2")]
+use common_utils::types::keymanager;
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 use masking::Secret;
 use time::PrimitiveDateTime;
 
@@ -17,6 +23,8 @@ use common_enums as storage_enums;
 
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
+#[cfg(feature = "v2")]
+use crate::{errors, ForeignFrom};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -273,6 +281,153 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntent {
+    fn get_request_incremental_authorization_value(
+        request: &api_models::payments::PaymentsCreateIntentRequest,
+    ) -> common_utils::errors::CustomResult<
+        common_enums::RequestIncrementalAuthorization,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        request.request_incremental_authorization
+            .map(|request_incremental_authorization| {
+                if request_incremental_authorization == common_enums::RequestIncrementalAuthorization::True {
+                    if request.capture_method == Some(common_enums::CaptureMethod::Automatic) {
+                        Err(errors::api_error_response::ApiErrorResponse::InvalidRequestData { message: "incremental authorization is not supported when capture_method is automatic".to_owned() })?
+                    }
+                    Ok(common_enums::RequestIncrementalAuthorization::True)
+                } else {
+                    Ok(common_enums::RequestIncrementalAuthorization::False)
+                }
+            })
+            .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
+    }
+    pub async fn create_domain_model_from_request(
+        state: keymanager::KeyManagerState,
+        key_store: &crate::merchant_key_store::MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        profile: &crate::business_profile::Profile,
+        request: api_models::payments::PaymentsCreateIntentRequest,
+    ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
+    {
+        let allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting allowed payment method types as value")?;
+        let connector_metadata = request
+            .get_connector_metadata_as_value()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting connector metadata as value")?;
+        let feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting feature metadata as value")?;
+        let request_incremental_authorization =
+            Self::get_request_incremental_authorization_value(&request)?;
+        let session_expiry =
+            common_utils::date_time::now().saturating_add(time::Duration::seconds(
+                request.session_expiry.map(i64::from).unwrap_or(
+                    profile
+                        .session_expiry
+                        .unwrap_or(common_utils::consts::DEFAULT_SESSION_EXPIRY),
+                ),
+            ));
+        let client_secret = common_utils::types::ClientSecret::new(
+            payment_id.clone(),
+            common_utils::generate_time_ordered_id_without_prefix(),
+        );
+        // Derivation of directly supplied Billing Address data in our Payment Create Request
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let billing_address = request
+            .billing
+            .async_map(|billing_details| {
+                crate::create_encrypted_data(&state, key_store, billing_details)
+            })
+            .await
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?
+            .map(|encrypted_value| {
+                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to deserialize decrypted value to Address")?;
+
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_address = request
+            .shipping
+            .async_map(|shipping_details| {
+                crate::create_encrypted_data(&state, key_store, shipping_details)
+            })
+            .await
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?
+            .map(|encrypted_value| {
+                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to deserialize decrypted value to Address")?;
+        let order_details = request
+            .order_details
+            .map(|order_details| order_details.into_iter().map(Secret::new).collect());
+        Ok(Self {
+            id: payment_id.clone(),
+            merchant_id: merchant_account.get_id().clone(),
+            // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
+            status: common_enums::IntentStatus::RequiresPaymentMethod,
+            amount_details: AmountDetails::foreign_from(request.amount_details),
+            amount_captured: None,
+            customer_id: request.customer_id,
+            description: request.description,
+            return_url: request.return_url,
+            metadata: request.metadata,
+            statement_descriptor: request.statement_descriptor,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            last_synced: None,
+            setup_future_usage: request.setup_future_usage.unwrap_or_default(),
+            client_secret,
+            active_attempt: None,
+            order_details,
+            allowed_payment_method_types,
+            connector_metadata,
+            feature_metadata,
+            // Attempt count is 0 in create intent as no attempt is made yet
+            attempt_count: 0,
+            profile_id: profile.get_id().clone(),
+            payment_link_id: None,
+            frm_merchant_decision: None,
+            updated_by: merchant_account.storage_scheme.to_string(),
+            request_incremental_authorization,
+            // Authorization count is 0 in create intent as no authorization is made yet
+            authorization_count: Some(0),
+            session_expiry,
+            request_external_three_ds_authentication: request
+                .request_external_three_ds_authentication
+                .unwrap_or_default(),
+            frm_metadata: request.frm_metadata,
+            customer_details: None,
+            merchant_reference_id: request.merchant_reference_id,
+            billing_address,
+            shipping_address,
+            capture_method: request.capture_method.unwrap_or_default(),
+            authentication_type: request.authentication_type.unwrap_or_default(),
+            prerouting_algorithm: None,
+            organization_id: merchant_account.organization_id.clone(),
+            enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
+            apply_mit_exemption: request.apply_mit_exemption.unwrap_or_default(),
+            customer_present: request.customer_present.unwrap_or_default(),
+            payment_link_config: request.payment_link_config.map(ForeignFrom::foreign_from),
+            routing_algorithm_id: request.routing_algorithm_id,
+        })
+    }
 }
 
 #[cfg(feature = "v2")]

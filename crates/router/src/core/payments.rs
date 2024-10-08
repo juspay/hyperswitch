@@ -144,9 +144,7 @@ where
 
     let operations::GetTrackerResponse {
         operation,
-        customer_details,
         mut payment_data,
-        mandate_type,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -165,7 +163,6 @@ where
         .get_customer_details(
             state,
             &mut payment_data,
-            customer_details,
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -182,7 +179,7 @@ where
         &key_store,
         &mut payment_data,
         None,
-        mandate_type,
+        None,
     )
     .await?;
 
@@ -813,7 +810,6 @@ pub async fn payments_intent_operation_core<F, Req, Op, D>(
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
-    auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
@@ -826,21 +822,17 @@ where
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
-    let (operation, validate_result) = operation.to_validate_request()?.validate_request(
-        &req,
-        &merchant_account,
-        &state.conf.cell_information.id,
-    )?;
+    let (operation, _validate_result) = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
 
-    let payment_id = common_utils::id_type::GlobalPaymentId::generate("33333")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error generating GlobalPaymentId")?;
+    let payment_id = id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone());
+
+    tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
     let operations::GetTrackerResponse {
         operation,
-        customer_details,
         mut payment_data,
-        mandate_type: _,
     } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -850,7 +842,6 @@ where
             &merchant_account,
             &profile,
             &key_store,
-            auth_flow,
             &header_payload,
         )
         .await?;
@@ -860,7 +851,6 @@ where
         .get_customer_details(
             state,
             &mut payment_data,
-            customer_details,
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -1186,7 +1176,6 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
-    auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
@@ -1204,7 +1193,6 @@ where
         key_store,
         operation.clone(),
         req,
-        auth_flow,
         header_payload.clone(),
     )
     .await?;
@@ -1212,7 +1200,6 @@ where
     Res::generate_response(
         payment_data,
         customer,
-        auth_flow,
         &state.base_url,
         operation,
         &state.conf.connector_request_reference_id_config,
@@ -1266,7 +1253,6 @@ where
             req,
             payment_id,
             call_connector_action,
-            auth_flow,
             header_payload.clone(),
         )
         .await?;
@@ -1274,7 +1260,6 @@ where
     Res::generate_response(
         payment_data,
         customer,
-        auth_flow,
         &state.base_url,
         operation,
         &state.conf.connector_request_reference_id_config,

@@ -139,9 +139,7 @@ pub trait ValidateRequest<F, R, D> {
 #[cfg(feature = "v2")]
 pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub operation: BoxedOperation<'a, F, R, D>,
-    pub customer_details: Option<CustomerDetails>,
     pub payment_data: D,
-    pub mandate_type: Option<api::MandateTransactionType>,
 }
 
 #[cfg(feature = "v1")]
@@ -205,7 +203,6 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
-        request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
@@ -412,7 +409,6 @@ where
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
@@ -517,7 +513,6 @@ where
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
@@ -622,7 +617,6 @@ where
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
@@ -706,7 +700,6 @@ where
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
