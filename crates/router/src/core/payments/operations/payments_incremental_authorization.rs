@@ -168,6 +168,7 @@ impl<F: Send + Clone>
             recurring_details: None,
             poll_config: None,
             tax_data: None,
+            mandate_contract_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

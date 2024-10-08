@@ -5767,3 +5767,12 @@ pub fn validate_platform_fees_for_marketplace(
         }
     }
 }
+
+pub fn create_mandate_contract_id() -> String {
+    Uuid::new_v4()
+        .simple()
+        .to_string()
+        .get(..16)
+        .unwrap_or("")
+        .to_owned()
+}

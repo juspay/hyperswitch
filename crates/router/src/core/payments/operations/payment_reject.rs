@@ -188,6 +188,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
             recurring_details: None,
             poll_config: None,
             tax_data: None,
+            mandate_contract_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
