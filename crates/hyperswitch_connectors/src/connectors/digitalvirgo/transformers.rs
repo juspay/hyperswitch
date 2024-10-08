@@ -157,8 +157,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, Paymen
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DigitalvirgoPaymentSyncStatus {
     Accepted,
-    #[serde(rename = "PAYED")]
-    Paid,
+    Payed,
     Pending,
     Cancelled,
     Rejected,
@@ -169,7 +168,7 @@ impl From<DigitalvirgoPaymentSyncStatus> for common_enums::AttemptStatus {
     fn from(item: DigitalvirgoPaymentSyncStatus) -> Self {
         match item {
             DigitalvirgoPaymentSyncStatus::Accepted => Self::AuthenticationPending,
-            DigitalvirgoPaymentSyncStatus::Paid => Self::Charged,
+            DigitalvirgoPaymentSyncStatus::Payed => Self::Charged,
             DigitalvirgoPaymentSyncStatus::Pending | DigitalvirgoPaymentSyncStatus::Locked => {
                 Self::Pending
             }
