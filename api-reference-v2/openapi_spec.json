@@ -17144,6 +17144,39 @@
           }
         }
       },
+      "PazeSessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_name",
+          "client_profile_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Paze Client ID"
+          },
+          "client_name": {
+            "type": "string",
+            "description": "Client Name to be displayed on the Paze screen"
+          },
+          "client_profile_id": {
+            "type": "string",
+            "description": "Paze Client Profile ID"
+          }
+        }
+      },
+      "PazeWalletData": {
+        "type": "object",
+        "required": [
+          "complete_response"
+        ],
+        "properties": {
+          "complete_response": {
+            "type": "string"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {

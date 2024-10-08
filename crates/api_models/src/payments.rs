@@ -2898,6 +2898,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PazeWalletData {
+    #[schema(value_type = String)]
     pub complete_response: Secret<String>,
 }
 
