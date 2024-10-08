@@ -520,15 +520,18 @@ impl Payments {
         route = route.service(
             web::resource("/create-intent").route(web::post().to(payments::payments_create_intent)),
         );
-        route = route
-            .service(
-                web::resource("/{payment_id}/confirm-intent")
-                    .route(web::post().to(payments::payment_confirm_intent)),
-            )
-            .service(
-                web::resource("/{payment_id}/create_external_sdk_tokens")
-                    .route(web::post().to(payments::payments_connector_session)),
-            );
+
+        route = route.service(
+            web::scope("/{payment_id}")
+                .service(
+                    web::resource("/confirm-intent")
+                        .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/create_external_sdk_tokens")
+                        .route(web::post().to(payments::payments_connector_session)),
+                ),
+        );
 
         route
     }

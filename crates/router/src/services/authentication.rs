@@ -58,6 +58,7 @@ pub struct AuthenticationData {
     pub profile_id: Option<id_type::ProfileId>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct AuthenticationDataV2 {
     pub merchant_account: domain::MerchantAccount,
@@ -282,6 +283,7 @@ impl AuthInfo for AuthenticationData {
     }
 }
 
+#[cfg(feature = "v2")]
 impl AuthInfo for AuthenticationDataV2 {
     fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         Some(self.merchant_account.get_id())
@@ -365,6 +367,7 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for ApiKeyAuth
 where
@@ -641,7 +644,7 @@ where
     }
 }
 
-#[cfg(feature = "partial-auth")]
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
 #[async_trait]
 impl<A, I> AuthenticateAndFetch<AuthenticationDataV2, A> for HeaderAuth<I>
 where
@@ -975,6 +978,7 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
+    #[cfg(feature = "v2")]
     pub fn get_profile_id_from_header(&self) -> RouterResult<id_type::ProfileId> {
         self.get_mandatory_header_value_by_key(headers::X_PROFILE_ID.into())
             .map(|val| val.to_owned())
@@ -1179,6 +1183,7 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for PublishableKeyAuth
 where
@@ -1840,6 +1845,7 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for JWTAuth
 where

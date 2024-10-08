@@ -3787,15 +3787,29 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let merchant_connector_id =
-        id_type::MerchantConnectorAccountId::wrap("mca_NPNo1nsrMfdtmTitPdvo".to_string()).unwrap();
+    // Currently rule based routing and other routing features are not implemented for v2
+    // So we are using the default fallback connector for now
+    // Eligibility analysis is not yet implemented
 
-    // TODO: fix this once routing is implemented for v2
-    let connector_name = "stripe";
+    let fallback_config = super::admin::ProfileWrapper::new(business_profile.clone())
+        .get_default_fallback_list_of_connector_under_profile()
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let first_chosen_connector = fallback_config
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+    let connector_name = first_chosen_connector.connector.to_string();
+    let merchant_connector_id = first_chosen_connector
+        .merchant_connector_id
+        .clone()
+        .get_required_value("merchant_connector_id")?;
+
     payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        connector_name,
+        &connector_name,
         api::GetToken::Connector,
         Some(merchant_connector_id),
     )?;
