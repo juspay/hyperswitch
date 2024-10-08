@@ -1971,8 +1971,7 @@ pub struct ProfileCreate {
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
 
@@ -2086,8 +2085,7 @@ pub struct ProfileCreate {
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
 }
@@ -2208,8 +2206,7 @@ pub struct ProfileResponse {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
 
@@ -2328,8 +2325,7 @@ pub struct ProfileResponse {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
 
@@ -2449,7 +2445,7 @@ pub struct ProfileUpdate {
     #[serde(default)]
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// Indicates if network tokenization is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
 
     /// Indicates if is_auto_retries_enabled is enabled or not.
@@ -2558,7 +2554,7 @@ pub struct ProfileUpdate {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// Indicates if network tokenization is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
 }
 
