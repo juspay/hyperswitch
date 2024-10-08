@@ -261,8 +261,11 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 > {
     match entity_type {
         EntityType::Organization => {
-            let org_id = id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id))
-                .change_context(UserErrors::InternalServerError)?;
+            let Ok(org_id) =
+                id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id.clone()))
+            else {
+                return Ok(None);
+            };
 
             let user_roles = state
                 .store
@@ -282,7 +285,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Ok(None);
+                return Err(UserErrors::InternalServerError.into());
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
@@ -326,7 +329,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Ok(None);
+                return Err(UserErrors::InternalServerError.into());
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
@@ -371,7 +374,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Ok(None);
+                return Err(UserErrors::InternalServerError.into());
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
