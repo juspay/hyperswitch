@@ -450,6 +450,7 @@ pub struct AmountDetailsSetter {
     pub tax_on_surcharge: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v2")]
 impl AmountDetails {
     pub fn new(amount_details_setter: AmountDetailsSetter) -> Self {
         Self {

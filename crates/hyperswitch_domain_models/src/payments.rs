@@ -5,14 +5,13 @@ use std::marker::PhantomData;
 use api_models::payments::Address;
 #[cfg(feature = "v2")]
 use api_models::payments::OrderDetailsWithAmount;
-use common_utils::{
-    self,
-    crypto::Encryptable,
-    ext_traits::{AsyncExt, ValueExt},
-    id_type, pii,
-    types::{keymanager, MinorUnit},
-};
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::{AsyncExt, ValueExt};
+#[cfg(feature = "v2")]
+use common_utils::types::keymanager;
+use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
+#[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -23,7 +22,9 @@ pub mod payment_intent;
 use common_enums as storage_enums;
 
 use self::payment_attempt::PaymentAttempt;
-use crate::{errors, ForeignFrom, RemoteStorageObject};
+use crate::RemoteStorageObject;
+#[cfg(feature = "v2")]
+use crate::{errors, ForeignFrom};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]

@@ -83,7 +83,7 @@ where
     let secret_data = masking::Secret::<_, masking::WithType>::new(encoded_data);
 
     let encrypted_data = type_encryption::crypto_operation(
-        &key_manager_state,
+        key_manager_state,
         type_name!(payment_method::PaymentMethod),
         type_encryption::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),
@@ -102,6 +102,7 @@ pub trait ForeignFrom<F> {
     fn foreign_from(from: F) -> Self;
 }
 
+#[cfg(feature = "v2")]
 impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
     for diesel_models::payment_intent::PaymentLinkConfigRequestForPayments
 {
