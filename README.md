@@ -1,4 +1,5 @@
-<p align="center">
+ # <a href="https://hyperswitch.io/" target="_blank"> hyperswitch </a>
+ <p align="center">
   <img src="./docs/imgs/hyperswitch-logo-dark.svg#gh-dark-mode-only" alt="Hyperswitch-Logo" width="40%" />
   <img src="./docs/imgs/hyperswitch-logo-light.svg#gh-light-mode-only" alt="Hyperswitch-Logo" width="40%" />
 </p>
