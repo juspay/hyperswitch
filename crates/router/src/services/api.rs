@@ -1248,7 +1248,7 @@ impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest
     }
 }
 
-impl Authenticate for api_models::payments::PaymentsCreateOrderRequest {
+impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(self.client_secret.peek())
     }

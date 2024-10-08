@@ -489,7 +489,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         shipping_details: Option<Encryption>,
     },
-    CreateOrderUpdate {
+    PostSessionTokensUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
@@ -1971,7 +1971,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details,
                 is_payment_processor_token_flow: None,
             },
-            PaymentIntentUpdate::CreateOrderUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::PostSessionTokensUpdate { status, updated_by } => Self {
                 shipping_address_id: None,
                 amount: None,
                 tax_details: None,

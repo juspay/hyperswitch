@@ -32,8 +32,8 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
-        InitPayment, PSync, PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session,
+        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
         SetupMandate, Void,
     },
     refunds::{Execute, RSync},
@@ -57,12 +57,13 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
         DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsCreateOrderData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        SyncRequestType, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
@@ -80,8 +81,8 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::types::{
     AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
-    PaymentsCompleteAuthorizeType, PaymentsCreateOrderType, PaymentsInitType,
-    PaymentsPostProcessingType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
+    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
+    PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
     PaymentsSessionType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
     RefundSyncType, Response, RetrieveFileType, SetupMandateType, SubmitEvidenceType,
     TokenizationType, UploadFileType, VerifyWebhookSourceType,
@@ -135,8 +136,8 @@ pub type PaymentsTaxCalculationRouterData =
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 
-pub type PaymentsCreateOrderRouterData =
-    RouterData<CreateOrder, PaymentsCreateOrderData, PaymentsResponseData>;
+pub type PaymentsPostSessionTokensRouterData =
+    RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -380,7 +381,7 @@ impl Capturable for CompleteAuthorizeData {
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}
-impl Capturable for PaymentsCreateOrderData {}
+impl Capturable for PaymentsPostSessionTokensData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where

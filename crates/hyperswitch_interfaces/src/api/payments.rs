@@ -3,16 +3,17 @@
 use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+        CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsCreateOrderData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -39,7 +40,7 @@ pub trait Payment:
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
     + PaymentSessionUpdate
-    + PaymentCreateOrder
+    + PaymentPostSessionTokens
 {
 }
 
@@ -125,9 +126,9 @@ pub trait PaymentSessionUpdate:
 {
 }
 
-/// trait CreateOrder
-pub trait PaymentCreateOrder:
-    api::ConnectorIntegration<CreateOrder, PaymentsCreateOrderData, PaymentsResponseData>
+/// trait PostSessionTokens
+pub trait PaymentPostSessionTokens:
+    api::ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
 {
 }
 

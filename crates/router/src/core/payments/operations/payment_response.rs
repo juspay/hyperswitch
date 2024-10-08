@@ -50,7 +50,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, create_order_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data"
 )]
 pub struct PaymentResponse;
 
@@ -682,7 +682,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTokensData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -692,7 +692,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
-            types::PaymentsCreateOrderData,
+            types::PaymentsPostSessionTokensData,
             types::PaymentsResponseData,
         >,
         key_store: &domain::MerchantKeyStore,
@@ -718,7 +718,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
                     types::ResponseId::ConnectorTransactionId(id)
                     | types::ResponseId::EncodedData(id) => Some(id),
                 };
-                let payment_intent_update = storage::PaymentIntentUpdate::CreateOrderUpdate {
+                let payment_intent_update = storage::PaymentIntentUpdate::PostSessionTokensUpdate {
                     status: api_models::enums::IntentStatus::foreign_from(
                         payment_data.payment_attempt.status,
                     ),
@@ -739,12 +739,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                let payment_attempt_update = storage::PaymentAttemptUpdate::CreateOrderUpdate {
-                    connector_transaction_id: connector_transaction_id.clone(),
-                    updated_by: storage_scheme.clone().to_string(),
-                    status: payment_data.payment_attempt.status,
-                    connector_metadata,
-                };
+                let payment_attempt_update =
+                    storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
+                        connector_transaction_id: connector_transaction_id.clone(),
+                        updated_by: storage_scheme.clone().to_string(),
+                        status: payment_data.payment_attempt.status,
+                        connector_metadata,
+                    };
                 #[cfg(feature = "v1")]
                 let updated_payment_attempt = m_db
                     .update_payment_attempt_with_attempt_id(
@@ -785,7 +786,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCreateOrderDa
             }
             _ => {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unexpected response in CreateOrder flow")?;
+                    .attach_printable("Unexpected response in PostSessionTokens flow")?;
             }
         }
         Ok(payment_data)

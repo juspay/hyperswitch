@@ -75,7 +75,7 @@ pub struct PaymentsAuthorizeData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsCreateOrderData {
+pub struct PaymentsPostSessionTokensData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     // pub payment_method_data: PaymentMethodData,

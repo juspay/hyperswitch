@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PostProcessing,
+            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
@@ -37,8 +37,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsCreateOrderData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
@@ -64,10 +64,10 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
-            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken, PaymentCreateOrder,
-            PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
-            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
-            TaxCalculation,
+            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
+            PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
+            PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
+            PaymentsPreProcessing, TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -195,13 +195,13 @@ default_imp_for_session_update!(
     connectors::Volt
 );
 
-macro_rules! default_imp_for_create_order {
+macro_rules! default_imp_for_post_session_tokens {
     ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentCreateOrder for $path::$connector {}
+        $( impl PaymentPostSessionTokens for $path::$connector {}
             impl
             ConnectorIntegration<
-                CreateOrder,
-                PaymentsCreateOrderData,
+                PostSessionTokens,
+                PaymentsPostSessionTokensData,
                 PaymentsResponseData,
         > for $path::$connector
         {}
@@ -209,7 +209,7 @@ macro_rules! default_imp_for_create_order {
     };
 }
 
-default_imp_for_create_order!(
+default_imp_for_post_session_tokens!(
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,

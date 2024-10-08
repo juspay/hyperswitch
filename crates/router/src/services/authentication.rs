@@ -1803,7 +1803,7 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
-impl ClientSecretFetch for payments::PaymentsCreateOrderRequest {
+impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(self.client_secret.peek())
     }

@@ -4768,7 +4768,7 @@ pub struct PaymentsSessionRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsCreateOrderRequest {
+pub struct PaymentsPostSessionTokensRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
@@ -4785,7 +4785,7 @@ pub struct PaymentsCreateOrderRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsCreateOrderResponse {
+pub struct PaymentsPostSessionTokensResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
@@ -5324,7 +5324,7 @@ pub struct SdkNextAction {
 #[serde(rename_all = "snake_case")]
 pub enum NextActionCall {
     /// The next action call is Create Order
-    CreateOrder,
+    PostSessionTokens,
     /// The next action call is confirm
     Confirm,
     /// The next action call is sync

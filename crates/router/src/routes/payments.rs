@@ -357,18 +357,18 @@ pub async fn payments_update(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateOrder, payment_id))]
-pub async fn payments_create_order(
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsPostSessionTokens, payment_id))]
+pub async fn payments_post_session_tokens(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsCreateOrderRequest>,
+    json_payload: web::Json<payment_types::PaymentsPostSessionTokensRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsCreateOrder;
+    let flow = Flow::PaymentsPostSessionTokens;
     // let payload = json_payload.into_inner();
 
     let payment_id = path.into_inner();
-    let payload = payment_types::PaymentsCreateOrderRequest {
+    let payload = payment_types::PaymentsPostSessionTokensRequest {
         payment_id,
         ..json_payload.into_inner()
     };
@@ -395,19 +395,19 @@ pub async fn payments_create_order(
         payload,
         |state, auth, req, req_state| {
             payments::payments_core::<
-                api_types::CreateOrder,
+                api_types::PostSessionTokens,
                 payment_types::PaymentsResponse,
                 _,
                 _,
                 _,
-                payments::PaymentData<api_types::CreateOrder>,
+                payments::PaymentData<api_types::PostSessionTokens>,
             >(
                 state,
                 req_state,
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
-                payments::PaymentCreateOrder,
+                payments::PaymentPostSessionTokens,
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
@@ -1677,7 +1677,7 @@ impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
 }
 
 #[cfg(feature = "v1")]
-impl GetLockingInput for payment_types::PaymentsCreateOrderRequest {
+impl GetLockingInput for payment_types::PaymentsPostSessionTokensRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,

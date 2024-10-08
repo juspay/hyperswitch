@@ -57,4 +57,4 @@ pub struct CalculateTax;
 pub struct SdkSessionUpdate;
 
 #[derive(Debug, Clone)]
-pub struct CreateOrder;
+pub struct PostSessionTokens;

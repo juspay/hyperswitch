@@ -1121,11 +1121,11 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
     }
 }
 
-pub trait PaymentsCreateOrderRequestData {
+pub trait PaymentsPostSessionTokensRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 
-impl PaymentsCreateOrderRequestData for types::PaymentsCreateOrderData {
+impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(enums::CaptureMethod::Automatic) | None => Ok(true),

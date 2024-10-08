@@ -74,7 +74,7 @@ impl api::Refund for Paypal {}
 impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 impl api::ConnectorVerifyWebhookSource for Paypal {}
-impl api::PaymentCreateOrder for Paypal {}
+impl api::PaymentPostSessionTokens for Paypal {}
 
 impl api::Payouts for Paypal {}
 #[cfg(feature = "payouts")]
@@ -655,14 +655,14 @@ impl
 
 impl
     ConnectorIntegration<
-        api::CreateOrder,
-        types::PaymentsCreateOrderData,
+        api::PostSessionTokens,
+        types::PaymentsPostSessionTokensData,
         types::PaymentsResponseData,
     > for Paypal
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCreateOrderRouterData,
+        req: &types::PaymentsPostSessionTokensRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -672,26 +672,26 @@ impl
     }
     fn get_url(
         &self,
-        _req: &types::PaymentsCreateOrderRouterData,
+        _req: &types::PaymentsPostSessionTokensRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/checkout/orders", self.base_url(connectors)))
     }
     fn build_request(
         &self,
-        req: &types::PaymentsCreateOrderRouterData,
+        req: &types::PaymentsPostSessionTokensRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsCreateOrderType::get_url(
+                .url(&types::PaymentsPostSessionTokensType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsCreateOrderType::get_headers(
+                .headers(types::PaymentsPostSessionTokensType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCreateOrderType::get_request_body(
+                .set_body(types::PaymentsPostSessionTokensType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -700,7 +700,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCreateOrderRouterData,
+        req: &types::PaymentsPostSessionTokensRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
@@ -715,10 +715,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCreateOrderRouterData,
+        data: &types::PaymentsPostSessionTokensRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCreateOrderRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsPostSessionTokensRouterData, errors::ConnectorError> {
         let response: paypal::PaypalRedirectResponse = res
             .response
             .parse_struct("PaypalRedirectResponse")

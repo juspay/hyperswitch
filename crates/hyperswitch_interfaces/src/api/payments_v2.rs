@@ -4,16 +4,17 @@ use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+        CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsCreateOrderData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -112,9 +113,14 @@ pub trait PaymentSessionUpdateV2:
 {
 }
 
-///trait PaymentCreateOrderV2
-pub trait PaymentCreateOrderV2:
-    ConnectorIntegrationV2<CreateOrder, PaymentFlowData, PaymentsCreateOrderData, PaymentsResponseData>
+///trait PaymentPostSessionTokensV2
+pub trait PaymentPostSessionTokensV2:
+    ConnectorIntegrationV2<
+    PostSessionTokens,
+    PaymentFlowData,
+    PaymentsPostSessionTokensData,
+    PaymentsResponseData,
+>
 {
 }
 
@@ -194,6 +200,6 @@ pub trait PaymentV2:
     + PaymentIncrementalAuthorizationV2
     + TaxCalculationV2
     + PaymentSessionUpdateV2
-    + PaymentCreateOrderV2
+    + PaymentPostSessionTokensV2
 {
 }

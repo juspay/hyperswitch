@@ -714,7 +714,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
     },
-    CreateOrderUpdate {
+    PostSessionTokensUpdate {
         status: storage_enums::AttemptStatus,
         updated_by: String,
         connector_transaction_id: Option<String>,

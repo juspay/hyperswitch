@@ -14,10 +14,10 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<
-        api::CreateOrder,
-        types::PaymentsCreateOrderData,
+        api::PostSessionTokens,
+        types::PaymentsPostSessionTokensData,
         types::PaymentsResponseData,
-    > for PaymentData<api::CreateOrder>
+    > for PaymentData<api::PostSessionTokens>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -29,10 +29,10 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<api_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsCreateOrderRouterData> {
+    ) -> RouterResult<types::PaymentsPostSessionTokensRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
-            api::CreateOrder,
-            types::PaymentsCreateOrderData,
+            api::PostSessionTokens,
+            types::PaymentsPostSessionTokensData,
         >(
             state,
             self.clone(),
@@ -60,10 +60,10 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::CreateOrder, types::PaymentsCreateOrderData>
+impl Feature<api::PostSessionTokens, types::PaymentsPostSessionTokensData>
     for types::RouterData<
-        api::CreateOrder,
-        types::PaymentsCreateOrderData,
+        api::PostSessionTokens,
+        types::PaymentsPostSessionTokensData,
         types::PaymentsResponseData,
     >
 {
@@ -77,8 +77,8 @@ impl Feature<api::CreateOrder, types::PaymentsCreateOrderData>
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::CreateOrder,
-            types::PaymentsCreateOrderData,
+            api::PostSessionTokens,
+            types::PaymentsPostSessionTokensData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
@@ -114,8 +114,8 @@ impl Feature<api::CreateOrder, types::PaymentsCreateOrderData>
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::CreateOrder,
-                    types::PaymentsCreateOrderData,
+                    api::PostSessionTokens,
+                    types::PaymentsPostSessionTokensData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 

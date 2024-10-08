@@ -56,7 +56,7 @@ use time;
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentCreateOrder, PaymentIncrementalAuthorization, PaymentReject, PaymentSession,
+    PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
     PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
 };
 use self::{
@@ -3115,7 +3115,7 @@ where
         "PaymentReject" => true,
         "PaymentSession" => true,
         "PaymentSessionUpdate" => true,
-        "PaymentCreateOrder" => true,
+        "PaymentPostSessionTokens" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture

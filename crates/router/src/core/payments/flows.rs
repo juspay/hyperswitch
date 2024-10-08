@@ -3,8 +3,8 @@ pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
-pub mod create_order_flow;
 pub mod incremental_authorization_flow;
+pub mod post_session_tokens_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -3062,13 +3062,13 @@ default_imp_for_session_update!(
     connector::Zsl
 );
 
-macro_rules! default_imp_for_create_order {
+macro_rules! default_imp_for_post_session_tokens {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentCreateOrder for $path::$connector {}
+        $( impl api::PaymentPostSessionTokens for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::CreateOrder,
-                types::PaymentsCreateOrderData,
+                api::PostSessionTokens,
+                types::PaymentsPostSessionTokensData,
                 types::PaymentsResponseData
         > for $path::$connector
         {}
@@ -3076,18 +3076,18 @@ macro_rules! default_imp_for_create_order {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentCreateOrder for connector::DummyConnector<T> {}
+impl<const T: u8> api::PaymentPostSessionTokens for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::CreateOrder,
-        types::PaymentsCreateOrderData,
+        api::PostSessionTokens,
+        types::PaymentsPostSessionTokensData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
 }
 
-default_imp_for_create_order!(
+default_imp_for_post_session_tokens!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,

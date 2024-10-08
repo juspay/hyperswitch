@@ -25,28 +25,33 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(operations = "all", flow = "create_order")]
-pub struct PaymentCreateOrder;
+#[operation(operations = "all", flow = "post_session_tokens")]
+pub struct PaymentPostSessionTokens;
 
-type PaymentCreateOrderOperation<'b, F> =
-    BoxedOperation<'b, F, api::PaymentsCreateOrderRequest, PaymentData<F>>;
+type PaymentPostSessionTokensOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequest>
-    for PaymentCreateOrder
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
+    for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsCreateOrderRequest,
+        request: &api::PaymentsPostSessionTokensRequest,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, api::PaymentsCreateOrderRequest, PaymentData<F>>,
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            api::PaymentsPostSessionTokensRequest,
+            PaymentData<F>,
+        >,
     > {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -163,8 +168,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequ
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsCreateOrderRequest, PaymentData<F>>
-    for PaymentCreateOrder
+impl<F: Clone + Send> Domain<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
+    for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -175,7 +180,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsCreateOrderRequest, PaymentData<F>>
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
-        (PaymentCreateOrderOperation<'a, F>, Option<domain::Customer>),
+        (
+            PaymentPostSessionTokensOperation<'a, F>,
+            Option<domain::Customer>,
+        ),
         errors::StorageError,
     > {
         Ok((Box::new(self), None))
@@ -191,7 +199,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsCreateOrderRequest, PaymentData<F>>
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
     ) -> RouterResult<(
-        PaymentCreateOrderOperation<'a, F>,
+        PaymentPostSessionTokensOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -202,7 +210,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsCreateOrderRequest, PaymentData<F>>
         &'a self,
         _merchant_account: &domain::MerchantAccount,
         state: &SessionState,
-        _request: &api::PaymentsCreateOrderRequest,
+        _request: &api::PaymentsPostSessionTokensRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -222,8 +230,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsCreateOrderRequest, PaymentData<F>>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequest>
-    for PaymentCreateOrder
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
+    for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -237,7 +245,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequest>
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(PaymentCreateOrderOperation<'b, F>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentPostSessionTokensOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -245,16 +253,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCreateOrderRequest>
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCreateOrderRequest, PaymentData<F>>
-    for PaymentCreateOrder
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
+    for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCreateOrderRequest,
+        request: &api::PaymentsPostSessionTokensRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        PaymentCreateOrderOperation<'b, F>,
+        PaymentPostSessionTokensOperation<'b, F>,
         operations::ValidateResult,
     )> {
         //paymentid is already generated and should be sent in the request

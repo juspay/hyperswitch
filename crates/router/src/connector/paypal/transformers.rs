@@ -12,7 +12,7 @@ use url::Url;
 use crate::{
     connector::utils::{
         self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCreateOrderRequestData, RouterData,
+        PaymentsAuthorizeRequestData, PaymentsPostSessionTokensRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -91,8 +91,8 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReque
     }
 }
 
-impl From<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for OrderRequestAmount {
-    fn from(item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>) -> Self {
+impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for OrderRequestAmount {
+    fn from(item: &PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>) -> Self {
         Self {
             currency_code: item.router_data.request.currency,
             value: item.amount.clone(),
@@ -151,8 +151,8 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
     }
 }
 
-impl From<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for ItemDetails {
-    fn from(item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>) -> Self {
+impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for ItemDetails {
+    fn from(item: &PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>) -> Self {
         Self {
             name: format!(
                 "Payment for invoice {}",
@@ -196,8 +196,8 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ShippingAd
     }
 }
 
-impl From<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for ShippingAddress {
-    fn from(item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>) -> Self {
+impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for ShippingAddress {
+    fn from(item: &PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>) -> Self {
         Self {
             address: get_address_info(item.router_data.get_optional_shipping()),
             name: Some(ShippingName {
@@ -412,10 +412,12 @@ fn get_payee(auth_type: &PaypalAuthType) -> Option<Payee> {
         })
 }
 
-impl TryFrom<&PaypalRouterData<&types::PaymentsCreateOrderRouterData>> for PaypalPaymentsRequest {
+impl TryFrom<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>>
+    for PaypalPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &PaypalRouterData<&types::PaymentsCreateOrderRouterData>,
+        item: &PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>,
     ) -> Result<Self, Self::Error> {
         let intent = if item.router_data.request.is_auto_capture()? {
             PaypalPaymentIntent::Capture
@@ -1370,20 +1372,20 @@ impl<F, T>
 impl
     TryFrom<
         types::ResponseRouterData<
-            api::CreateOrder,
+            api::PostSessionTokens,
             PaypalRedirectResponse,
-            types::PaymentsCreateOrderData,
+            types::PaymentsPostSessionTokensData,
             types::PaymentsResponseData,
         >,
-    > for types::PaymentsCreateOrderRouterData
+    > for types::PaymentsPostSessionTokensRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: types::ResponseRouterData<
-            api::CreateOrder,
+            api::PostSessionTokens,
             PaypalRedirectResponse,
-            types::PaymentsCreateOrderData,
+            types::PaymentsPostSessionTokensData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
