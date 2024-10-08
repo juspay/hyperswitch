@@ -151,7 +151,7 @@ impl PaymentMetricAccumulator for FailureReasonsDistributionAccumulator {
         if metrics.first_attempt.unwrap_or(false) {
             if let Some(count) = metrics.count {
                 if let Ok(count_u64) = u64::try_from(count) {
-                    self.count += count_u64;
+                    self.count_without_retries += count_u64;
                 }
             }
         }
