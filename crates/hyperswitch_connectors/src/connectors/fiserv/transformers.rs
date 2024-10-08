@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, pii};
+use common_utils::{ext_traits::ValueExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -23,22 +23,14 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct FiservRouterData<T> {
-    pub amount: String,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for FiservRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for FiservRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -89,8 +81,7 @@ pub struct GooglePayToken {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Amount {
-    #[serde(serialize_with = "utils::str_to_f32")]
-    total: String,
+    total: MinorUnit,
     currency: String,
 }
 

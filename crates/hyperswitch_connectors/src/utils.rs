@@ -119,6 +119,7 @@ pub(crate) fn construct_not_implemented_error_report(
         .into()
 }
 
+#[allow(dead_code)]
 pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
