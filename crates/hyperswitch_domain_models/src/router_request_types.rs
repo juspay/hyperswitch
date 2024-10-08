@@ -79,7 +79,6 @@ pub struct PaymentsPostSessionTokensData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     // pub payment_method_data: PaymentMethodData,
-    pub complete_authorize_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.

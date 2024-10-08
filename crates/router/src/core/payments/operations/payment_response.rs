@@ -719,9 +719,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     | types::ResponseId::EncodedData(id) => Some(id),
                 };
                 let payment_intent_update = storage::PaymentIntentUpdate::PostSessionTokensUpdate {
-                    status: api_models::enums::IntentStatus::foreign_from(
-                        payment_data.payment_attempt.status,
-                    ),
+                    status: api_models::enums::IntentStatus::foreign_from(router_data.status),
                     updated_by: payment_data.payment_intent.updated_by.clone(),
                 };
                 let m_db = db.clone().store;
@@ -738,12 +736,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
                 let payment_attempt_update =
                     storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
                         connector_transaction_id: connector_transaction_id.clone(),
                         updated_by: storage_scheme.clone().to_string(),
-                        status: payment_data.payment_attempt.status,
+                        status: router_data.status,
                         connector_metadata,
                     };
                 #[cfg(feature = "v1")]
