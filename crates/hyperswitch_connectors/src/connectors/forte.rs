@@ -4,7 +4,11 @@ use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::BytesExt, request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector}
+    consts::BASE64_ENGINE,
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -15,24 +19,24 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData,PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
-        ConnectorValidation,
-    }, configs::Connectors, consts::NO_ERROR_CODE, errors, events::connector_api_logs::ConnectorEvent, types::{
-        self, Response,
-    }, webhooks::{IncomingWebhook, IncomingWebhookRequestDetails}
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    consts::NO_ERROR_CODE,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
 use transformers as forte;
@@ -40,7 +44,10 @@ use transformers as forte;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{ construct_not_supported_error_report, convert_amount, PaymentsSyncRequestData, RefundsRequestData},
+    utils::{
+        construct_not_supported_error_report, convert_amount, PaymentsSyncRequestData,
+        RefundsRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -69,12 +76,8 @@ impl api::RefundExecute for Forte {}
 impl api::RefundSync for Forte {}
 impl api::PaymentToken for Forte {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Forte
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Forte
 {
 }
 pub const AUTH_ORG_ID_HEADER: &str = "X-Forte-Auth-Organization-Id";
@@ -179,30 +182,14 @@ impl ConnectorValidation for Forte {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Forte
-{
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Forte {}
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Forte
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Forte {}
 
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for Forte
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Forte {
     fn build_request(
         &self,
-        _req: &RouterData<
-            SetupMandate,
-            SetupMandateRequestData,
-            PaymentsResponseData,
-        >,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
@@ -212,9 +199,7 @@ impl
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Forte
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Forte {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -309,9 +294,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Forte
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Forte {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -385,9 +368,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Forte
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Forte {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -472,9 +453,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
         self.build_error_response(res, event_builder)
     }
 }
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Forte
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Forte {
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,

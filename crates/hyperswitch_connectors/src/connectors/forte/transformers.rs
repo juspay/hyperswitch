@@ -1,20 +1,6 @@
-// use cards::CardNumber;
-// use common_utils::types::FloatMajorUnit;
-// use masking::{PeekInterface, Secret};
-// use serde::{Deserialize, Serialize};
-
-// use crate::{
-//     connector::utils::{
-//         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
-//     },
-//     core::errors,
-//     types::{self, api, domain, storage::enums, transformers::ForeignFrom},
-// };
-
 use cards::CardNumber;
 use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
-
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -30,8 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, ForeignFrom, CardData as _,
-        PaymentsAuthorizeRequestData, RouterData as _,
+        self, AddressDetailsData, CardData as _PaymentsAuthorizeRequestData, PaymentsAuthorizeRequestData, RouterData as _
     },
 };
 
@@ -159,11 +144,9 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Forte"),
-                ))?
-            }
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Forte"),
+            ))?,
         }
     }
 }
@@ -219,17 +202,15 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
-    fn foreign_from((response_code, action): (ForteResponseCode, ForteAction)) -> Self {
-        match response_code {
-            ForteResponseCode::A01 => match action {
-                ForteAction::Authorize => Self::Authorized,
-                ForteAction::Sale => Self::Pending,
-                ForteAction::Verify => Self::Charged,
-            },
-            ForteResponseCode::A05 | ForteResponseCode::A06 => Self::Authorizing,
-            _ => Self::Failure,
-        }
+fn get_status(response_code: ForteResponseCode, action: ForteAction) -> enums::AttemptStatus {
+    match response_code {
+        ForteResponseCode::A01 => match action {
+            ForteAction::Authorize => enums::AttemptStatus::Authorized,
+            ForteAction::Sale => enums::AttemptStatus::Pending,
+            ForteAction::Verify => enums::AttemptStatus::Charged,
+        },
+        ForteResponseCode::A05 | ForteResponseCode::A06 => enums::AttemptStatus::Authorizing,
+        _ => enums::AttemptStatus::Failure,
     }
 }
 
@@ -300,8 +281,7 @@ pub struct ForteMeta {
     pub auth_id: String,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -312,7 +292,7 @@ impl<F, T>
         let action = item.response.action;
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((response_code, action)),
+            status: get_status(response_code, action),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
@@ -346,18 +326,12 @@ pub struct FortePaymentsSyncResponse {
     pub response: ResponseStatus,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            FortePaymentsSyncResponse,
-            T,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
@@ -489,8 +463,7 @@ pub struct ForteCancelResponse {
     pub response: CancelResponseStatus,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
