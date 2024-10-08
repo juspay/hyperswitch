@@ -1238,6 +1238,7 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(&self.client_secret)

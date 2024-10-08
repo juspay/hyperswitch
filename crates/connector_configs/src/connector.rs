@@ -172,6 +172,7 @@ pub struct ConnectorConfig {
     pub bambora: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
     pub deutschebank: Option<ConnectorTomlConfig>,
+    pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,

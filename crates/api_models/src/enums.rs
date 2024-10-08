@@ -94,6 +94,7 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
