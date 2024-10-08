@@ -1,7 +1,7 @@
 use base64::Engine;
 use common_utils::{
     pii::{Email, IpAddress},
-    types::StringMinorUnit,
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
@@ -18,13 +18,13 @@ const WALLET_IDENTIFIER: &str = "PBL";
 
 #[derive(Debug, Serialize)]
 pub struct PayuRouterData<T> {
-    pub amount: StringMinorUnit,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMinorUnit, T)> for PayuRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for PayuRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMinorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -37,7 +37,7 @@ impl<T> TryFrom<(StringMinorUnit, T)> for PayuRouterData<T> {
 pub struct PayuPaymentsRequest {
     customer_ip: Secret<String, IpAddress>,
     merchant_pos_id: Secret<String>,
-    total_amount: StringMinorUnit,
+    total_amount: MinorUnit,
     currency_code: enums::Currency,
     description: String,
     pay_methods: PayuPaymentMethod,
@@ -524,7 +524,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 pub struct PayuRefundRequestData {
     description: String,
-    amount: Option<StringMinorUnit>,
+    amount: Option<MinorUnit>,
 }
 
 #[derive(Default, Debug, Serialize)]

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{
     request::RequestContent,
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -32,13 +32,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Payu {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Payu {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
