@@ -40,7 +40,7 @@ use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
-    router_data::RouterData,
+    router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -1709,9 +1709,13 @@ where
         &call_connector_action,
     );
 
-    router_data =
-        add_decrypted_payment_method_token(tokenization_action.clone(), payment_data, router_data)
-            .await?;
+    router_data.payment_method_token = if let Some(decrypted_token) =
+        add_decrypted_payment_method_token(tokenization_action.clone(), payment_data).await?
+    {
+        Some(decrypted_token)
+    } else {
+        router_data.payment_method_token
+    };
 
     let payment_method_token_response = router_data
         .add_payment_method_token(
@@ -1818,15 +1822,13 @@ where
     Ok((router_data, merchant_connector_account))
 }
 
-pub async fn add_decrypted_payment_method_token<F, Req, D>(
+pub async fn add_decrypted_payment_method_token<F, D>(
     tokenization_action: TokenizationAction,
     payment_data: &D,
-    mut router_data: RouterData<F, Req, router_types::PaymentsResponseData>,
-) -> RouterResult<RouterData<F, Req, router_types::PaymentsResponseData>>
+) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
-    Req: Send + Sync,
 {
     // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
     // and the connector supports Apple Pay predecrypt
@@ -1862,11 +1864,9 @@ where
                     "failed to parse decrypted apple pay response to ApplePayPredecryptData",
                 )?;
 
-            router_data.payment_method_token = Some(
-                hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                    Box::new(apple_pay_predecrypt),
-                ),
-            );
+            Ok(Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
+                apple_pay_predecrypt,
+            ))))
         }
         TokenizationAction::DecryptPazeToken(payment_processing_details) => {
             let paze_data = match payment_data.get_payment_method_data() {
@@ -1891,15 +1891,12 @@ where
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to parse PazeDecryptedData")?;
-            router_data.payment_method_token = Some(
-                hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(Box::new(
-                    paze_decrypted_data,
-                )),
-            );
+            Ok(Some(PaymentMethodToken::PazeDecrypt(Box::new(
+                paze_decrypted_data,
+            ))))
         }
-        _ => (),
-    };
-    Ok(router_data)
+        _ => Ok(None),
+    }
 }
 
 pub async fn get_merchant_bank_data_for_open_banking_connectors(
@@ -2766,11 +2763,9 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct PazePaymentProcessingDetails {
-    #[schema(value_type = String)]
     pub paze_private_key: Secret<String>,
-    #[schema(value_type = String)]
     pub paze_private_key_passphrase: Secret<String>,
 }
 
