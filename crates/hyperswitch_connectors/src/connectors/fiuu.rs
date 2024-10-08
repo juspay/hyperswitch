@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::collections::HashMap;
 
-use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethodType};
 use common_utils::{
     errors::{self as common_errors, CustomResult},
     ext_traits::BytesExt,
@@ -230,19 +230,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
+        _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.payment_method {
-            PaymentMethod::RealTimePayment => {
-                let base_url = connectors.fiuu.third_base_url.clone();
-                Ok(format!("{}RMS/API/staticqr/index.php", base_url))
-            }
-            _ => Ok(format!(
-                "{}RMS/API/Direct/1.4.0/index.php",
-                self.base_url(connectors)
-            )),
-        }
+        Ok(format!(
+            "{}RMS/API/Direct/1.4.0/index.php",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -257,7 +251,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let payment_request = fiuu::FiuuPaymentsRequest::try_from(&connector_router_data)?;
+        let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
         let connector_req = build_form_from_struct(payment_request)
             .change_context(errors::ConnectorError::ParsingFailed)?;
         Ok(RequestContent::FormData(connector_req))

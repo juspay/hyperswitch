@@ -35,5 +35,6 @@ global_search=true
 dispute_analytics=true
 configure_pmts=false
 branding=false
+user_management_revamp=true
 totp=true
 live_users_counter=false

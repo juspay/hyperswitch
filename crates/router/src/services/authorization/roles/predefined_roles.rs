@@ -83,9 +83,9 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_name: "organization_admin".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Organization,
-            is_invitable: false,
-            is_deletable: false,
-            is_updatable: false,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
             is_internal: false,
         },
     );

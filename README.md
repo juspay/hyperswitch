@@ -134,7 +134,7 @@ setup, which includes the [scheduler and monitoring services][docker-compose-sch
 [website-link]: https://hyperswitch.io/
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
-[docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
+[docker-compose-scheduler-monitoring]: /docs/try_local_system.md#running-additional-services
 <a href="#Fast-Integration-for-Stripe-Users">
   <h2 id="fast-integration-for-stripe-users">🔌 Fast Integration for Stripe Users</h2>
 </a>
