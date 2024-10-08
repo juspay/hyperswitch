@@ -303,7 +303,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
 
         match request.order_details.clone() {
             Some(order_details) => {
-                 let order_lines: Result<
+                let order_lines: Result<
                     Vec<OrderLines>,
                     error_stack::Report<errors::ConnectorError>,
                 > = order_details
