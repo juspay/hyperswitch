@@ -285,7 +285,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Err(UserErrors::InternalServerError.into());
+                return Ok(None);
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
@@ -329,7 +329,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Err(UserErrors::InternalServerError.into());
+                return Ok(None);
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
@@ -374,7 +374,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Err(UserErrors::InternalServerError.into());
+                return Ok(None);
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
