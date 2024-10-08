@@ -134,7 +134,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
     ) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
         let amount = Amount {
-            total: item.amount.clone(),
+            total: item.amount,
             currency: item.router_data.request.currency.to_string(),
         };
         let transaction_details = TransactionDetails {
@@ -471,7 +471,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
             })?;
         Ok(Self {
             amount: Amount {
-                total: item.amount.clone(),
+                total: item.amount,
                 currency: item.router_data.request.currency.to_string(),
             },
             transaction_details: TransactionDetails {
@@ -566,7 +566,7 @@ impl<F> TryFrom<&FiservRouterData<&types::RefundsRouterData<F>>> for FiservRefun
             })?;
         Ok(Self {
             amount: Amount {
-                total: item.amount.clone(),
+                total: item.amount,
                 currency: item.router_data.request.currency.to_string(),
             },
             merchant_details: MerchantDetails {
