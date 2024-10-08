@@ -691,27 +691,22 @@ where
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
-    let (operation, validate_result) = operation.to_validate_request()?.validate_request(
-        &req,
-        &merchant_account,
-        &state.conf.cell_information.id,
-    )?;
+    let (operation, validate_result) = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
 
-    tracing::Span::current().record(
-        "global_payment_id",
-        validate_result.payment_id.get_string_repr(),
-    );
+    let payment_id = id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone());
+
+    tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
     let operations::GetTrackerResponse {
         operation,
-        customer_details,
         mut payment_data,
-        mandate_type: _,
     } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
-            &validate_result.payment_id,
+            &payment_id,
             &req,
             &merchant_account,
             &profile,
@@ -726,7 +721,6 @@ where
         .get_customer_details(
             state,
             &mut payment_data,
-            customer_details,
             &key_store,
             merchant_account.storage_scheme,
         )
