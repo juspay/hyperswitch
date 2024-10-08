@@ -754,6 +754,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     .await
             })
             .await
+            .transpose()?
+            .flatten();
+
+        let encoded_pm_data = additional_pm_data
             .as_ref()
             .map(Encode::encode_to_value)
             .transpose()
@@ -789,7 +793,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     authentication_type: None,
                     payment_method,
                     payment_token: payment_data.token.clone(),
-                    payment_method_data: additional_pm_data,
+                    payment_method_data: encoded_pm_data,
                     payment_experience,
                     payment_method_type,
                     business_sub_label,
