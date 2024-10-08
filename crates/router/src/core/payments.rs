@@ -145,7 +145,7 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
-
+    // get profile from headers
     let operations::GetTrackerResponse {
         operation,
         customer_details,
@@ -171,6 +171,7 @@ where
 
     let (operation, customer) = operation
         .to_domain()?
+        // get_customer_details
         .get_or_create_customer_details(
             state,
             &mut payment_data,
@@ -440,14 +441,17 @@ where
                     )
                     .await?;
 
-                    #[cfg(feature = "retry")]
+                    #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
-                    #[cfg(feature = "retry")]
+                    #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
-                        let config_bool =
-                            retry::config_should_call_gsm(&*state.store, merchant_account.get_id())
-                                .await;
+                        let config_bool = retry::config_should_call_gsm(
+                            &*state.store,
+                            merchant_account.get_id(),
+                            &business_profile,
+                        )
+                        .await;
 
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
@@ -3871,8 +3875,12 @@ where
             }
 
             #[cfg(feature = "retry")]
-            let should_do_retry =
-                retry::config_should_call_gsm(&*state.store, merchant_account.get_id()).await;
+            let should_do_retry = retry::config_should_call_gsm(
+                &*state.store,
+                merchant_account.get_id(),
+                business_profile,
+            )
+            .await;
 
             #[cfg(feature = "retry")]
             if payment_data.get_payment_attempt().payment_method_type

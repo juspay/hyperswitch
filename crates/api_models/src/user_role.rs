@@ -55,41 +55,16 @@ pub enum ParentGroup {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub enum PermissionModule {
-    Payments,
-    Refunds,
-    MerchantAccount,
-    Connectors,
-    Routing,
-    Analytics,
-    Mandates,
-    Customer,
-    Disputes,
-    ThreeDsDecisionManager,
-    SurchargeDecisionManager,
-    AccountCreate,
-    Payouts,
-    Recon,
-}
-
-#[derive(Debug, serde::Serialize)]
 pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum AuthorizationInfo {
-    Module(ModuleInfo),
     Group(GroupInfo),
     GroupWithTag(ParentInfo),
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct ModuleInfo {
-    pub module: PermissionModule,
-    pub description: &'static str,
-    pub permissions: Vec<PermissionInfo>,
-}
-
+// TODO: To be deprecated
 #[derive(Debug, serde::Serialize)]
 pub struct GroupInfo {
     pub group: PermissionGroup,
@@ -120,16 +95,6 @@ pub struct UpdateUserRoleRequest {
 pub enum UserStatus {
     Active,
     InvitationSent,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct MerchantSelectRequest {
-    pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AcceptInvitationRequest {
-    pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
