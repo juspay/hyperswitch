@@ -28,7 +28,7 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit, Surcharge},
+    types::{ConnectorTransactionId, MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -5075,8 +5075,8 @@ pub async fn payments_manual_update(
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsManualUpdateResponse {
             connector_transaction_id: updated_payment_attempt
-                .get_optional_connector_transaction_id()
-                .cloned(),
+                .get_connector_payment_id()
+                .map(ToString::to_string),
             payment_id: updated_payment_attempt.payment_id,
             attempt_id: updated_payment_attempt.attempt_id,
             merchant_id: updated_payment_attempt.merchant_id,

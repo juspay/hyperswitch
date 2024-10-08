@@ -66,12 +66,13 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
-    pub connector_payment_id: Option<String>,
+    pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
+    pub connector_payment_data: Option<String>,
     pub id: String,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
@@ -228,6 +229,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_payment_data: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -771,6 +773,7 @@ pub struct PaymentAttemptUpdateInternal {
     client_version: Option<String>,
     customer_acceptance: Option<pii::SecretSerdeValue>,
     card_network: Option<String>,
+    connector_payment_data: Option<String>,
 }
 
 #[cfg(feature = "v1")]

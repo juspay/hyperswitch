@@ -9,10 +9,7 @@ use common_utils::{
     consts::X_HS_LATENCY,
     fp_utils,
     pii::Email,
-    types::{
-        self as common_utils_type, AmountConvertor, ConnectorTransactionIdTrait, MinorUnit,
-        StringMajorUnitForConnector,
-    },
+    types::{self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
@@ -207,8 +204,8 @@ where
 
     let resource_id = match payment_data
         .payment_attempt
-        .get_optional_connector_transaction_id()
-        .cloned()
+        .get_connector_payment_id()
+        .map(ToString::to_string)
     {
         Some(id) => types::ResponseId::ConnectorTransactionId(id),
         None => types::ResponseId::NoResponseId,
@@ -1124,8 +1121,8 @@ where
         });
 
         let connector_transaction_id = payment_attempt
-            .get_optional_connector_transaction_id()
-            .cloned();
+            .get_connector_payment_id()
+            .map(ToString::to_string);
 
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
@@ -1360,7 +1357,7 @@ pub fn wait_screen_next_steps_check(
 #[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
-        let connector_transaction_id = pa.get_optional_connector_transaction_id().cloned();
+        let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
@@ -2310,8 +2307,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             payment_method_data: payment_data.payment_method_data.map(From::from),
             connector_transaction_id: payment_data
                 .payment_attempt
-                .get_optional_connector_transaction_id()
-                .cloned(),
+                .get_connector_payment_id()
+                .map(ToString::to_string),
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             complete_authorize_url,
@@ -2416,8 +2413,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             surcharge_details: payment_data.surcharge_details,
             connector_transaction_id: payment_data
                 .payment_attempt
-                .get_optional_connector_transaction_id()
-                .cloned(),
+                .get_connector_payment_id()
+                .map(ToString::to_string),
             redirect_response: None,
             mandate_id: payment_data.mandate_id,
             related_transaction_id: None,

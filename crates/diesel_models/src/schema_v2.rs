@@ -815,12 +815,12 @@ diesel::table! {
         #[max_length = 128]
         external_reference_id -> Nullable<Varchar>,
         tax_on_surcharge -> Nullable<Int8>,
+        #[max_length = 512]
+        connector_payment_data -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
-        #[max_length = 512]
-        connector_transaction_data -> Nullable<Varchar>,
     }
 }
 

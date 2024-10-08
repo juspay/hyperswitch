@@ -105,7 +105,7 @@ impl ConnectorCommon for Worldpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response = if res.response.len() > 0 {
+        let response = if !res.response.is_empty() {
             res.response
                 .parse_struct("WorldpayErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?

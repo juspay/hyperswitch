@@ -215,13 +215,14 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
     pub payment_method_id: Option<String>,
-    pub connector_payment_id: Option<String>,
+    pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub id: String,
+    pub connector_payment_data: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -263,7 +264,8 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub fn get_connector_payment_id(&self) -> Option<&str> {
-        self.connector_payment_id.as_deref()
+        self.get_optional_connector_transaction_id()
+            .map(|x| x.as_str())
     }
 }
 
@@ -365,6 +367,7 @@ impl PaymentAttempt {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ConnectorTransactionIdTrait for PaymentAttempt {
     fn get_optional_connector_transaction_id(&self) -> Option<&String> {
         match self
@@ -378,6 +381,26 @@ impl ConnectorTransactionIdTrait for PaymentAttempt {
             // In case hashed data is missing from DB, use the hashed ID as connector transaction ID
             Err(_) => self
                 .connector_transaction_id
+                .as_ref()
+                .map(|txn_id| txn_id.get_id()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ConnectorTransactionIdTrait for PaymentAttempt {
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        match self
+            .connector_payment_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_txn_id(self.connector_payment_data.as_ref()))
+            .transpose()
+        {
+            Ok(txn_id) => txn_id,
+
+            // In case hashed data is missing from DB, use the hashed ID as connector payment ID
+            Err(_) => self
+                .connector_payment_id
                 .as_ref()
                 .map(|txn_id| txn_id.get_id()),
         }
@@ -1077,6 +1100,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost,
             order_tax_amount,
             connector,
+            connector_payment_data,
         } = self;
 
         Ok(DieselPaymentAttempt {
@@ -1134,6 +1158,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_applied,
             external_reference_id,
             connector,
+            connector_payment_data,
         })
     }
 
@@ -1202,6 +1227,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
+                connector_payment_data: storage_model.connector_payment_data,
             })
         }
         .await
@@ -1269,6 +1295,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
             amount_to_capture: self.amount_to_capture,
+            connector_payment_data: self.connector_payment_data,
         })
     }
 }

@@ -1302,12 +1302,12 @@ impl ConnectorTransactionId {
 impl From<String> for ConnectorTransactionId {
     fn from(src: String) -> Self {
         // ID already hashed
-        if src.starts_with("hash_") {
+        if src.starts_with("hs_hash_") {
             Self::HashedData(src)
         // Hash connector's transaction ID
         } else if src.len() > 128 {
             let hash = blake3::hash(src.as_bytes());
-            Self::HashedData(format!("hash_{}", hash.to_hex()))
+            Self::HashedData(format!("hs_hash_{}", hash.to_hex()))
         // Default
         } else {
             Self::TxnId(src)

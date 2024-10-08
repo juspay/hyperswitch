@@ -1293,8 +1293,8 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
 impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
     fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
         let connector_transaction_id = payment_attempt
-            .get_optional_connector_transaction_id()
-            .cloned();
+            .get_connector_payment_id()
+            .map(ToString::to_string);
         Self {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,

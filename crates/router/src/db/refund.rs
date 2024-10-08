@@ -361,11 +361,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -496,7 +496,7 @@ mod storage {
 
                     futures::future::try_join_all(rev_look).await?;
 
-                    match kv_wrapper::<storage_types::Refund, _, _>(
+                    match Box::pin(kv_wrapper::<storage_types::Refund, _, _>(
                         self,
                         KvOperation::<storage_types::Refund>::HSetNx(
                             &field,
@@ -504,7 +504,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
@@ -565,11 +565,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::Scan(&pattern),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_scan()
                         },
@@ -624,14 +624,14 @@ mod storage {
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<storage_types::Refund>(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -677,11 +677,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -735,11 +735,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -782,11 +782,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::Scan("pa_*_ref_*"),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_scan()
                         },

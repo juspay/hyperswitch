@@ -564,7 +564,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
-                match kv_wrapper::<PaymentAttempt, _, _>(
+                match Box::pin(kv_wrapper::<PaymentAttempt, _, _>(
                     self,
                     KvOperation::HSetNx(
                         &field,
@@ -572,7 +572,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -636,7 +636,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
-                let old_connector_transaction_id = &this.connector_transaction_id;
+                let old_connector_transaction_id = &this.get_connector_payment_id();
                 let old_preprocessing_id = &this.preprocessing_step_id;
                 let updated_attempt = PaymentAttempt::from_storage_model(
                     payment_attempt
@@ -661,7 +661,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 match (
                     old_connector_transaction_id,
-                    &updated_attempt.connector_transaction_id,
+                    &updated_attempt.get_connector_payment_id(),
                 ) {
                     (None, Some(connector_transaction_id)) => {
                         add_connector_txn_id_to_reverse_lookup(
@@ -669,7 +669,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             key_str.as_str(),
                             &this.merchant_id,
                             updated_attempt.attempt_id.as_str(),
-                            &connector_transaction_id.get_id(),
+                            connector_transaction_id,
                             storage_scheme,
                         )
                         .await?;
@@ -681,7 +681,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                                 key_str.as_str(),
                                 &this.merchant_id,
                                 updated_attempt.attempt_id.as_str(),
-                                &connector_transaction_id.get_id(),
+                                connector_transaction_id,
                                 storage_scheme,
                             )
                             .await?;
@@ -718,11 +718,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .change_context(errors::StorageError::KVError)?
                 .try_into_hset()
@@ -806,7 +806,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
+                        Box::pin(kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key)).await?.try_into_hget()
                     },
                         || async {self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await},
                     ))
@@ -847,11 +847,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let pattern = "pa_*";
 
                 let redis_fut = async {
-                    let kv_result = kv_wrapper::<PaymentAttempt, _, _>(
+                    let kv_result = Box::pin(kv_wrapper::<PaymentAttempt, _, _>(
                         self,
                         KvOperation::<DieselPaymentAttempt>::Scan(pattern),
                         key,
-                    )
+                    ))
                     .await?
                     .try_into_scan();
                     kv_result.and_then(|mut payment_attempts| {
@@ -906,11 +906,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let pattern = "pa_*";
 
                 let redis_fut = async {
-                    let kv_result = kv_wrapper::<PaymentAttempt, _, _>(
+                    let kv_result = Box::pin(kv_wrapper::<PaymentAttempt, _, _>(
                         self,
                         KvOperation::<DieselPaymentAttempt>::Scan(pattern),
                         key,
-                    )
+                    ))
                     .await?
                     .try_into_scan();
                     kv_result.and_then(|mut payment_attempts| {
@@ -982,11 +982,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 };
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -1039,9 +1039,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let field = format!("pa_{attempt_id}");
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&field), key)
-                            .await?
-                            .try_into_hget()
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<DieselPaymentAttempt>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()
                     },
                     || async {
                         self.router_store
@@ -1102,11 +1106,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 };
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -1191,11 +1195,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -1245,9 +1249,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 };
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
-                            .await?
-                            .try_into_scan()
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<DieselPaymentAttempt>::Scan("pa_*"),
+                            key,
+                        ))
+                        .await?
+                        .try_into_scan()
                     },
                     || async {
                         self.router_store

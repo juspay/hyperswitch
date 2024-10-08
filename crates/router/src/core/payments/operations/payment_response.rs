@@ -6,9 +6,7 @@ use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{
-        keymanager::KeyManagerState, ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
-    },
+    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -1810,8 +1808,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 errors::ApiErrorResponse::IntegrityCheckFailed {
                     connector_transaction_id: payment_data
                         .payment_attempt
-                        .get_optional_connector_transaction_id()
-                        .cloned(),
+                        .get_connector_payment_id()
+                        .map(ToString::to_string),
                     reason: payment_data
                         .payment_attempt
                         .error_message
