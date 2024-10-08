@@ -2149,6 +2149,7 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             | domain::WalletData::GooglePayRedirect(_)
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::WeChatPayQr(_)
             | domain::WalletData::CashappQr(_)
             | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
