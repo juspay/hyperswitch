@@ -475,23 +475,24 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
-        let mut amount = payment_data.get_payment_intent().amount;
-        let shipping_cost = payment_data.get_payment_intent().shipping_cost;
-        if let Some(shipping_cost) = shipping_cost {
-            amount = amount + shipping_cost;
-        }
+        let shipping_cost = payment_data
+            .get_payment_intent()
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0));
         let order_tax_amount = payment_data
             .get_payment_intent()
             .tax_details
             .clone()
             .and_then(|tax| {
                 tax.payment_method_type
-                    .map(|a| a.order_tax_amount)
-                    .or_else(|| tax.default.map(|a| a.order_tax_amount))
-            });
-        if let Some(tax_amount) = order_tax_amount {
-            amount = amount + tax_amount;
-        }
+                    .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            })
+            .unwrap_or(MinorUnit::new(0));
+
+        let amount = {
+            let base_amount = payment_data.get_payment_intent().amount;
+            base_amount + shipping_cost + order_tax_amount
+        };
 
         let currency = payment_data
             .get_payment_attempt()
@@ -502,12 +503,12 @@ where
             Self {
                 net_amount: amount,
                 payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                order_tax_amount,
-                shipping_cost,
+                order_tax_amount: Some(order_tax_amount),
+                shipping_cost: Some(shipping_cost),
                 display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
                     amount,
-                    shipping_cost,
-                    order_tax_amount,
+                    Some(shipping_cost),
+                    Some(order_tax_amount),
                     currency,
                 ))?,
             },
@@ -1683,18 +1684,31 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
-        let payment_method_data = payment_data.payment_method_data.or_else(|| {
+        let payment_method_data = payment_data.payment_method_data.clone().or_else(|| {
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)
             } else {
                 None
             }
         });
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+
+        let order_tax_amount = payment_data
+            .get_payment_attempt()
+            .order_tax_amount
+            .unwrap_or(MinorUnit::new(0));
+        let shipping_cost = payment_data
+            .get_payment_attempt()
+            .shipping_cost
+            .unwrap_or(MinorUnit::new(0));
+
+        let amount = {
+            let base_amount = payment_data
+                .surcharge_details
+                .as_ref()
+                .map(|surcharge_details| surcharge_details.final_amount)
+                .unwrap_or(payment_data.amount.into());
+            base_amount + shipping_cost + order_tax_amount
+        };
 
         let customer_name = additional_data
             .customer_data
@@ -2054,7 +2068,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .payment_intent
             .tax_details
             .clone()
-            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
+            .and_then(|tax| {
+                tax.payment_method_type
+                    .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            })
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;
