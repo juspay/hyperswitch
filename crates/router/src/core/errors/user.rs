@@ -90,9 +90,9 @@ pub enum UserErrors {
     SSOFailed,
     #[error("profile_id missing in JWT")]
     JwtProfileIdMissing,
-    #[error("MaxTotpAttemptsReached")]
+    #[error("Maximum attempts reached for TOTP")]
     MaxTotpAttemptsReached,
-    #[error("MaxRecoveryCodeAttemptsReached")]
+    #[error("Maximum attempts reached for Recovery Code")]
     MaxRecoveryCodeAttemptsReached,
 }
 
@@ -279,10 +279,8 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
-            Self::MaxTotpAttemptsReached => "Maximum totp attempts per user reached",
-            Self::MaxRecoveryCodeAttemptsReached => {
-                "Maximum recovery code attempts per user reached"
-            }
+            Self::MaxTotpAttemptsReached => "Maximum attempts reached for TOTP",
+            Self::MaxRecoveryCodeAttemptsReached => "Maximum attempts reached for Recovery Code",
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",
