@@ -5,7 +5,7 @@ use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
     id_type, pii,
-    types::{self as common_types, FloatMajorUnit, MinorUnit},
+    types::{self as common_types, MinorUnit},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;

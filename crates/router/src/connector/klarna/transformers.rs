@@ -1,7 +1,7 @@
 use api_models::payments;
 use common_utils::{
     pii,
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_data::KlarnaSdkResponse;
@@ -212,27 +212,21 @@ impl TryFrom<&KlarnaRouterData<&types::SdkSessionUpdateRouterData>> for KlarnaSe
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
 
-        println!("$$$net_amount{:?}", item.amount);
-        // let order_tax_amout= 190;
         let order_tax_amount =
             request
                 .order_tax_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "order_tax_amount",
                 })?;
-        println!("$$$order_tax_amount{:?}", order_tax_amount);
         let tax_rate =
             request
                 .order_tax_rate
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "tax_rate",
-                })?; //0.095
+                })?;
 
-        println!("$$$tax_rate{:?}", tax_rate);
         match request.order_details.clone() {
             Some(order_details) => {
-                // order_amount: request.net_amount,
-                // order_tax_amount,
                 let order_lines: Result<
                     Vec<OrderLines>,
                     error_stack::Report<errors::ConnectorError>,
@@ -241,9 +235,8 @@ impl TryFrom<&KlarnaRouterData<&types::SdkSessionUpdateRouterData>> for KlarnaSe
                     .map(|data| {
                         let amount =
                             utils::to_currency_base_unit_asf64(data.amount, request.currency)?;
-
                         let calculated_tax = FloatMajorUnit::new(tax_rate * amount);
-                        let calculated_minor = utils::convert_back_amount_to_minor_units(
+                        let calculated_tax_in_minor = utils::convert_back_amount_to_minor_units(
                             &FloatMajorUnitForConnector,
                             calculated_tax,
                             request.currency,
@@ -252,13 +245,13 @@ impl TryFrom<&KlarnaRouterData<&types::SdkSessionUpdateRouterData>> for KlarnaSe
                         Ok(OrderLines {
                             name: data.product_name.clone(),
                             quantity: data.quantity,
-                            total_tax_amount: Some(calculated_minor), // Use calculated_tax if available
-                            unit_price: calculated_minor + MinorUnit::new(data.amount), // Add tax if available
+                            total_tax_amount: Some(calculated_tax_in_minor),
+                            unit_price: calculated_tax_in_minor + MinorUnit::new(data.amount),
                             total_amount: MinorUnit::new(
                                 i64::from(data.quantity)
-                                    * (calculated_minor.get_amount_as_i64() + data.amount),
+                                    * (calculated_tax_in_minor.get_amount_as_i64() + data.amount),
                             ),
-                            tax_rate: Some(tax_rate * 10_000.0), // Set tax_rate if available
+                            tax_rate: Some(tax_rate * 10_000.0),
                         })
                     })
                     .collect();
@@ -282,11 +275,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         item: &KlarnaRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        let amount = item.amount;
-
-        // Only assign `order_tax_amount` if present
         let order_tax_amount = request.order_tax_amount;
-
         // Only assign `tax_rate` if both `order_tax_amount` and `tax_rate` are present
         let tax_rate = if request.order_tax_amount.is_some() {
             request.order_tax_rate
@@ -305,36 +294,36 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         let amount =
                             utils::to_currency_base_unit_asf64(data.amount, request.currency)?;
 
-                        // Calculate tax only when both `order_tax_amount` and `tax_rate` are present
-                        let (calculated_minor, calculated_tax_rate) =
-                            if let (Some(tax_rate), Some(order_tax_amount)) =
+                        let (calculated_tax_in_minor, calculated_tax_rate) =
+                            if let (Some(tax_rate), Some(_order_tax_amount)) =
                                 (tax_rate, order_tax_amount)
                             {
                                 let calculated_tax = FloatMajorUnit::new(tax_rate * amount);
-                                let calculated_minor = utils::convert_back_amount_to_minor_units(
-                                    &FloatMajorUnitForConnector,
-                                    calculated_tax,
-                                    request.currency,
-                                )?;
-                                (calculated_minor, Some(tax_rate * 10_000.0))
+                                let calculated_tax_in_minor =
+                                    utils::convert_back_amount_to_minor_units(
+                                        &FloatMajorUnitForConnector,
+                                        calculated_tax,
+                                        request.currency,
+                                    )?;
+                                (calculated_tax_in_minor, Some(tax_rate * 10_000.0))
                             } else {
-                                (MinorUnit::new(0), None) // No tax calculation
+                                (MinorUnit::new(0), None)
                             };
 
                         Ok(OrderLines {
                             name: data.product_name.clone(),
                             quantity: data.quantity,
                             total_tax_amount: if order_tax_amount.is_some() {
-                                Some(calculated_minor) // Use calculated tax if available
+                                Some(calculated_tax_in_minor)
                             } else {
                                 None
                             },
-                            unit_price: MinorUnit::new(data.amount), // The base price without tax
+                            unit_price: calculated_tax_in_minor + MinorUnit::new(data.amount),
                             total_amount: MinorUnit::new(
                                 i64::from(data.quantity) * data.amount
-                                    + calculated_minor.get_amount_as_i64(),
+                                    + calculated_tax_in_minor.get_amount_as_i64(),
                             ),
-                            tax_rate: calculated_tax_rate, // Set tax_rate if available
+                            tax_rate: calculated_tax_rate,
                         })
                     })
                     .collect();

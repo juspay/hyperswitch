@@ -948,6 +948,7 @@ impl Default for PaymentAuthorizeType {
             integrity_object: None,
             merchant_order_reference_id: None,
             order_tax_amount: None,
+            order_tax_rate: None,
         };
         Self(data)
     }

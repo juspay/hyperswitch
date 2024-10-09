@@ -17,10 +17,7 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
-use super::{
-    flows::Feature, types::AuthenticationData, OperationSessionGetters, OperationSessionSetters,
-    PaymentData,
-};
+use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
@@ -2106,7 +2103,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .tax_details
             .clone()
             .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_rate));
-        println!("$$tax_ratecore: {:?}", order_tax_rate);
         Ok(Self {
             net_amount, //need to change after we move to connector module
             order_tax_amount,

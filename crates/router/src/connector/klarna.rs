@@ -71,7 +71,6 @@ impl ConnectorCommon for Klarna {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        print!("$$klarna error response {:?}", res.response);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -226,10 +225,6 @@ impl
 
         let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$klarna session req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -358,11 +353,6 @@ impl
 
         let connector_req = klarna::KlarnaSessionUpdateRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
-
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$klarna session update req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -793,10 +783,6 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$klarna auth req {:?}", printrequest);
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

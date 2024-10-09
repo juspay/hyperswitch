@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use common_utils::{
     request::Method,
-    types::{self as common_types, FloatMajorUnit, MinorUnit},
+    types::{self as common_types, MinorUnit},
 };
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
