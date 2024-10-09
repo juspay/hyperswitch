@@ -1172,6 +1172,12 @@ impl NameType {
     }
 }
 
+impl Default for NameType {
+    fn default() -> Self {
+        Self(LengthString::new_unchecked("default".to_string()))
+    }
+}
+
 impl<DB> Queryable<sql_types::Text, DB> for NameType
 where
     DB: Backend,

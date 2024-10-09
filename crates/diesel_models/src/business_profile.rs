@@ -252,7 +252,7 @@ impl ProfileUpdateInternal {
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -310,7 +310,7 @@ impl Profile {
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct ProfileNew {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -354,7 +354,7 @@ pub struct ProfileNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
 pub struct ProfileUpdateInternal {
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,

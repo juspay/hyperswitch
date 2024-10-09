@@ -1996,7 +1996,7 @@ pub struct OrderFulfillmentTime(i64);
 pub struct ProfileCreate {
     /// The name of profile
     #[schema(max_length = 64)]
-    pub profile_name: String,
+    pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2235,7 +2235,7 @@ pub struct ProfileResponse {
 
     /// Name of the profile
     #[schema(max_length = 64)]
-    pub profile_name: String,
+    pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2463,7 +2463,7 @@ pub struct ProfileUpdate {
 pub struct ProfileUpdate {
     /// The name of profile
     #[schema(max_length = 64)]
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]

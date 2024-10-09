@@ -665,7 +665,7 @@ impl super::behaviour::Conversion for Profile {
 pub struct Profile {
     id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -705,7 +705,7 @@ pub struct Profile {
 pub struct ProfileSetter {
     pub id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -811,7 +811,7 @@ impl Profile {
 #[cfg(feature = "v2")]
 #[derive(Debug)]
 pub struct ProfileGeneralUpdate {
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,

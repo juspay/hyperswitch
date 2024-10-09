@@ -2356,7 +2356,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
         // If connector label is not passed in the request, generate one
-        let connector_label = self.get_connector_label(business_profile.profile_name.clone());
+        let connector_label =
+            self.get_connector_label(business_profile.profile_name.clone().to_str());
         let payment_methods_enabled = PaymentMethodsEnabled {
             payment_methods_enabled: &self.payment_methods_enabled,
         };
