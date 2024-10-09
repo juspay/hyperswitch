@@ -238,7 +238,7 @@ pub struct PaymentAttempt {
     /// Cancellation reason will be validated at the connector level when building the request
     pub cancellation_reason: Option<String>,
     /// Browser information required for 3DS authentication
-    pub browser_info: Option<pii::SecretSerdeValue>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
     /// Payment token is the token used for temporary use in case the payment method is stored in vault
     pub payment_token: Option<String>,
     /// Metadata that is returned by the connector.
@@ -334,6 +334,81 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub fn get_connector_payment_id(&self) -> Option<&str> {
         self.connector_payment_id.as_deref()
+    }
+
+    /// Construct the domain model from the ConfirmIntentRequest
+    #[cfg(feature = "v2")]
+    pub async fn create_domain_model_from_request(
+        state: &keymanager::KeyManagerState,
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        // TODO: maybe consume the request here, since it must not be used later
+        request: &api_models::payments::PaymentsConfirmIntentRequest,
+    ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
+    {
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+        let intent_amount_details = payment_intent.amount_details.clone();
+
+        // TODO: move this to a impl function on payment attempt
+        let attempt_amount_details = AttemptAmountDetails {
+            net_amount: intent_amount_details.order_amount,
+            amount_to_capture: None,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_capturable: common_utils::types::MinorUnit::new(0),
+            shipping_cost: None,
+            order_tax_amount: None,
+        };
+
+        let now = common_utils::date_time::now();
+
+        Ok(PaymentAttempt {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details: attempt_amount_details,
+            status: common_enums::AttemptStatus::Started,
+            // This will be decided by the routing algorithm and updated in update trackers
+            // right before calling the connector
+            connector: None,
+            authentication_type: payment_intent.authentication_type.clone(),
+            created_at: now,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: request.browser_info.clone(),
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            authentication_data: None,
+            encoded_data: None,
+            merchant_connector_id: None,
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            charge_id: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: request.payment_method_type.clone(),
+            payment_method_id: None,
+            connector_payment_id: None,
+            payment_method_subtype: request.payment_method_subtype,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address: None,
+            error: None,
+            id,
+        })
     }
 }
 

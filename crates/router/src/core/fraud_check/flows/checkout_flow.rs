@@ -5,7 +5,6 @@ use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
 use crate::{
-    connector::utils::PaymentsAttemptData,
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
@@ -58,6 +57,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
+        use crate::connector::utils::PaymentsAttemptData;
+
         let status = storage_enums::AttemptStatus::Pending;
 
         let auth_type: ConnectorAuthType = merchant_connector_account

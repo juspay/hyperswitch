@@ -1085,6 +1085,8 @@ pub struct RequestSurchargeDetails {
     pub tax_amount: Option<MinorUnit>,
 }
 
+// for v2 use the type from common_utils::types
+#[cfg(feature = "v1")]
 /// Browser information to be used for 3DS 2.0
 #[derive(ToSchema, Debug, serde::Deserialize, serde::Serialize)]
 pub struct BrowserInformation {
@@ -4432,7 +4434,7 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
-    pub browser_info: Option<BrowserInformation>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
@@ -4510,7 +4512,7 @@ pub struct PaymentsConfirmIntentResponse {
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// The browser information used for this payment
-    pub browser_info: Option<BrowserInformation>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,

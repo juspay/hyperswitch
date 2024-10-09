@@ -1285,3 +1285,56 @@ where
         self.0.to_sql(out)
     }
 }
+
+#[cfg(feature = "v2")]
+/// Browser information to be used for 3DS 2.0
+/// If any of the field is PII, then we can make them as secret
+#[derive(
+    ToSchema,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = sql_types::Jsonb)]
+pub struct BrowserInformation {
+    /// Color depth supported by the browser
+    pub color_depth: Option<u8>,
+
+    /// Whether java is enabled in the browser
+    pub java_enabled: Option<bool>,
+
+    /// Whether javascript is enabled in the browser
+    pub java_script_enabled: Option<bool>,
+
+    /// Language supported
+    pub language: Option<String>,
+
+    /// The screen height in pixels
+    pub screen_height: Option<u32>,
+
+    /// The screen width in pixels
+    pub screen_width: Option<u32>,
+
+    /// Time zone of the client
+    pub time_zone: Option<i32>,
+
+    /// Ip address of the client
+    #[schema(value_type = Option<String>)]
+    pub ip_address: Option<std::net::IpAddr>,
+
+    /// List of headers that are accepted
+    #[schema(
+        example = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+    )]
+    pub accept_header: Option<String>,
+
+    /// User-agent of the browser
+    pub user_agent: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+crate::impl_to_sql_from_sql_json!(BrowserInformation);

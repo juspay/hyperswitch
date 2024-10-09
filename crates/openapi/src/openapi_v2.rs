@@ -127,6 +127,7 @@ Never share your secret api keys. Keep them guarded and secure.
     components(schemas(
         common_utils::types::MinorUnit,
         common_utils::types::TimeRange,
+        common_utils::types::BrowserInformation,
         common_utils::link_utils::GenericLinkUiConfig,
         common_utils::link_utils::EnabledPaymentMethod,
         common_utils::payout_method_utils::AdditionalPayoutMethodData,
@@ -400,7 +401,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsCompletionIndicator,
         api_models::payments::MifinityData,
         api_models::enums::TransactionStatus,
-        api_models::payments::BrowserInformation,
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,

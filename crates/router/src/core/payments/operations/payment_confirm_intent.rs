@@ -37,88 +37,6 @@ use crate::{
     utils::{self, OptionExt},
 };
 
-trait PaymentsConfirmIntentBridge {
-    async fn create_domain_model_from_request(
-        &self,
-        state: &SessionState,
-        payment_intent: &PaymentIntent,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentAttempt>;
-}
-
-impl PaymentsConfirmIntentBridge for api_models::payments::PaymentsConfirmIntentRequest {
-    async fn create_domain_model_from_request(
-        &self,
-        state: &SessionState,
-        payment_intent: &PaymentIntent,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentAttempt> {
-        let now = common_utils::date_time::now();
-        let cell_id = state.conf.cell_information.id.clone();
-
-        // TODO: generate attempt id from intent id based on the merchant config for retries
-        let id = common_utils::id_type::GlobalAttemptId::generate(&cell_id);
-        let intent_amount_details = payment_intent.amount_details.clone();
-
-        // TODO: move this to a impl function
-        let attempt_amount_details =
-            hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails {
-                net_amount: intent_amount_details.order_amount,
-                amount_to_capture: None,
-                surcharge_amount: None,
-                tax_on_surcharge: None,
-                amount_capturable: common_utils::types::MinorUnit::new(0),
-                shipping_cost: None,
-                order_tax_amount: None,
-            };
-
-        Ok(PaymentAttempt {
-            payment_id: payment_intent.id.clone(),
-            merchant_id: payment_intent.merchant_id.clone(),
-            amount_details: attempt_amount_details,
-            status: common_enums::AttemptStatus::Started,
-            connector: None,
-            authentication_type: payment_intent.authentication_type.clone(),
-            created_at: now,
-            modified_at: now,
-            last_synced: None,
-            cancellation_reason: None,
-            browser_info: None,
-            payment_token: None,
-            connector_metadata: None,
-            payment_experience: None,
-            payment_method_data: None,
-            routing_result: None,
-            preprocessing_step_id: None,
-            multiple_capture_count: None,
-            connector_response_reference_id: None,
-            updated_by: storage_scheme.to_string(),
-            authentication_data: None,
-            encoded_data: None,
-            merchant_connector_id: None,
-            external_three_ds_authentication_attempted: None,
-            authentication_connector: None,
-            authentication_id: None,
-            fingerprint_id: None,
-            charge_id: None,
-            client_source: None,
-            client_version: None,
-            customer_acceptance: None,
-            profile_id: payment_intent.profile_id.clone(),
-            organization_id: payment_intent.organization_id.clone(),
-            payment_method_type: self.payment_method_type.clone(),
-            payment_method_id: None,
-            connector_payment_id: None,
-            payment_method_subtype: self.payment_method_subtype,
-            authentication_applied: None,
-            external_reference_id: None,
-            payment_method_billing_address: None,
-            error: None,
-            id,
-        })
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentsIntentConfirm;
 
@@ -220,14 +138,21 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
         let key_manager_state = &state.into();
 
         let storage_scheme = merchant_account.storage_scheme;
+        let cell_id = state.conf.cell_information.id.clone();
 
         let payment_intent = db
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_attempt_domain_model = request
-            .create_domain_model_from_request(&state, &payment_intent, storage_scheme)
+        let payment_attempt_domain_model =
+            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model_from_request(
+                &state,
+                &payment_intent,
+                cell_id,
+                storage_scheme,
+                request
+            )
             .await?;
 
         let payment_attempt = db
