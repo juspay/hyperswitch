@@ -95,7 +95,7 @@ impl VaultingInterface for VaultRetrieve {
 #[async_trait::async_trait]
 impl VaultingInterface for VaultDelete {
     fn get_vaulting_request_url() -> &'static str {
-        consts::VAULT_RETRIEVE_REQUEST_URL
+        consts::VAULT_DELETE_REQUEST_URL
     }
 }
 

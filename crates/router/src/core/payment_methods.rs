@@ -1281,7 +1281,7 @@ pub async fn vault_payment_method(
     let db = &*state.store;
 
     // get fingerprint_id from locker
-    let fingerprint_id_from_locker = vault::get_fingerprint_id_from_locker(state, pmd)
+    let fingerprint_id_from_locker = vault::get_fingerprint_id_from_vault(state, pmd)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get fingerprint_id from vault")?;
@@ -1306,7 +1306,7 @@ pub async fn vault_payment_method(
     )?;
 
     let resp_from_locker =
-        vault::vault_payment_method_in_locker(state, merchant_account, pmd, existing_vault_id)
+        vault::add_payment_method_to_vault(state, merchant_account, pmd, existing_vault_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to vault payment method in locker")?;

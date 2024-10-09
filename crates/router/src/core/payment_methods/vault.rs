@@ -1218,7 +1218,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let jwekey = state.conf.jwekey.get_inner();
 
     let request = create_vault_request::<V>(jwekey, locker, payload).await?;
-    let response = services::call_connector_api(state, request, "vault_in_locker")
+    let response = services::call_connector_api(state, request, "add_to_vault")
         .await
         .change_context(errors::VaultError::VaultAPIError);
 
@@ -1241,7 +1241,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_locker<
+pub async fn get_fingerprint_id_from_vault<
     D: pm_types::VaultingDataInterface + serde::Serialize,
 >(
     state: &routes::SessionState,
@@ -1273,7 +1273,7 @@ pub async fn get_fingerprint_id_from_locker<
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn vault_payment_method_in_locker(
+pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     pmd: &pm_types::PaymentMethodVaultingData,
@@ -1350,7 +1350,7 @@ pub async fn delete_payment_method_data_from_vault(
     }
     .encode_to_vec()
     .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultRetrieveRequest")?;
+    .attach_printable("Failed to encode VaultDeleteRequest")?;
 
     let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
         .await
