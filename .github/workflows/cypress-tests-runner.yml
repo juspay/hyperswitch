@@ -154,7 +154,7 @@ jobs:
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          psql -h 'http://localhost:5432' -U db_user -d hyperswitch_db --command "COPY cards_info FROM 'info.csv' DELIMITER ',' CSV HEADER;"
+          psql -h localhost -p 5432 -U db_user -d hyperswitch_db --command "COPY cards_info FROM 'info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
