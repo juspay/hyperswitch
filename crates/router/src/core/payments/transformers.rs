@@ -2057,10 +2057,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;
-        let amount = payment_data.payment_attempt.net_amount.get_total_amount();
-
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        // net_amount here would include amount, order_tax_amount, surcharge_amount and shipping_cost
+        let net_amount = payment_data.payment_intent.amount
+            + order_tax_amount
+            + shipping_cost
+            + surcharge_amount;
         Ok(Self {
-            net_amount: amount + order_tax_amount, //need to change after we move to connector module
+            net_amount,
             order_tax_amount,
         })
     }
@@ -2102,13 +2114,21 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-        #[cfg(feature = "v1")]
-        let amount = payment_data.payment_attempt.net_amount.get_total_amount();
-        #[cfg(feature = "v2")]
-        let amount = payment_data.payment_attempt.net_amount;
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        let amount = payment_data.payment_intent.amount;
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        // net_amount here would include amount, surcharge_amount and shipping_cost
+        let net_amount = amount + surcharge_amount + shipping_cost;
 
         Ok(Self {
-            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
