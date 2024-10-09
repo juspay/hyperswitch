@@ -327,10 +327,7 @@ impl PaymentIntent {
                         .unwrap_or(common_utils::consts::DEFAULT_SESSION_EXPIRY),
                 ),
             ));
-        let client_secret = common_utils::types::ClientSecret::new(
-            payment_id.clone(),
-            common_utils::generate_time_ordered_id_without_prefix(),
-        );
+        let client_secret = payment_id.generate_client_secret();
         // Derivation of directly supplied Billing Address data in our Payment Create Request
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let billing_address = request
