@@ -106,6 +106,13 @@ pub enum PaymentMetrics {
     AvgTicketSize,
     RetriesCount,
     ConnectorSuccessRate,
+    SessionizedPaymentSuccessRate,
+    SessionizedPaymentCount,
+    SessionizedPaymentSuccessCount,
+    SessionizedPaymentProcessedAmount,
+    SessionizedAvgTicketSize,
+    SessionizedRetriesCount,
+    SessionizedConnectorSuccessRate,
     PaymentsDistribution,
     FailureReasons,
 }

@@ -896,7 +896,11 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
             Self::Payment => Ok("payment_attempt".to_string()),
+            Self::PaymentSessionized => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("PaymentSessionized table is not implemented for Sqlx"))?,
             Self::Refund => Ok("refund".to_string()),
+            Self::RefundSessionized => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("RefundSessionized table is not implemented for Sqlx"))?,
             Self::SdkEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("SdkEventsAudit table is not implemented for Sqlx"))?,
             Self::SdkEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
@@ -905,6 +909,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::PaymentIntent => Ok("payment_intent".to_string()),
+            Self::PaymentIntentSessionized => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("PaymentIntentSessionized table is not implemented for Sqlx"))?,
             Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)

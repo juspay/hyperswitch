@@ -15,21 +15,18 @@ use crate::{
 
 mod avg_ticket_size;
 mod connector_success_rate;
-mod failure_reasons;
 mod payment_count;
 mod payment_processed_amount;
 mod payment_success_count;
-mod payments_distribution;
 mod retries_count;
+mod sessionized_metrics;
 mod success_rate;
 
 use avg_ticket_size::AvgTicketSize;
 use connector_success_rate::ConnectorSuccessRate;
-use failure_reasons::FailureReasons;
 use payment_count::PaymentCount;
 use payment_processed_amount::PaymentProcessedAmount;
 use payment_success_count::PaymentSuccessCount;
-use payments_distribution::PaymentsDistribution;
 use success_rate::PaymentSuccessRate;
 
 use self::retries_count::RetriesCount;
@@ -132,13 +129,48 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::SessionizedPaymentSuccessRate => {
+                sessionized_metrics::PaymentSuccessRate
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedPaymentCount => {
+                sessionized_metrics::PaymentCount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedPaymentSuccessCount => {
+                sessionized_metrics::PaymentSuccessCount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedPaymentProcessedAmount => {
+                sessionized_metrics::PaymentProcessedAmount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedAvgTicketSize => {
+                sessionized_metrics::AvgTicketSize
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRetriesCount => {
+                sessionized_metrics::RetriesCount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedConnectorSuccessRate => {
+                sessionized_metrics::ConnectorSuccessRate
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
             Self::PaymentsDistribution => {
-                PaymentsDistribution
+                sessionized_metrics::PaymentsDistribution
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::FailureReasons => {
-                FailureReasons
+                sessionized_metrics::FailureReasons
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

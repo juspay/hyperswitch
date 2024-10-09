@@ -5,22 +5,24 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use super::PaymentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct PaymentProcessedAmount;
+pub(crate) struct ConnectorSuccessRate;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for PaymentProcessedAmount
+impl<T> super::PaymentMetric<T> for ConnectorSuccessRate
 where
     T: AnalyticsDataSource + super::PaymentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -38,16 +40,19 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
+        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
+        let mut dimensions = dimensions.to_vec();
+
+        dimensions.push(PaymentDimensions::PaymentStatus);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
 
         query_builder
-            .add_select_column(Aggregate::Sum {
-                field: "amount",
-                alias: Some("total"),
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
             })
             .switch()?;
         query_builder
@@ -67,6 +72,9 @@ where
 
         auth.set_filter_clause(&mut query_builder).switch()?;
 
+        query_builder
+            .add_custom_filter_clause(PaymentDimensions::Connector, "NULL", FilterTypes::IsNotNull)
+            .switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
@@ -85,13 +93,6 @@ where
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
-
-        query_builder
-            .add_filter_clause(
-                PaymentDimensions::PaymentStatus,
-                storage_enums::AttemptStatus::Charged,
-            )
-            .switch()?;
 
         query_builder
             .execute_query::<PaymentMetricRow, _>(pool)

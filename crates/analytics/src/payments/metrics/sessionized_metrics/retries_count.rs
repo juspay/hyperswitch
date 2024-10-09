@@ -1,26 +1,31 @@
 use std::collections::HashSet;
 
-use api_models::analytics::{
-    payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
-    Granularity, TimeRange,
+use api_models::{
+    analytics::{
+        payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
+        Granularity, TimeRange,
+    },
+    enums::IntentStatus,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use super::PaymentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct PaymentProcessedAmount;
+pub(crate) struct RetriesCount;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for PaymentProcessedAmount
+impl<T> super::PaymentMetric<T> for RetriesCount
 where
     T: AnalyticsDataSource + super::PaymentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -31,19 +36,21 @@ where
 {
     async fn load_metrics(
         &self,
-        dimensions: &[PaymentDimensions],
+        _dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
-        filters: &PaymentFilters,
+        _filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
-
-        for dim in dimensions.iter() {
-            query_builder.add_select_column(dim).switch()?;
-        }
-
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::PaymentIntentSessionized);
+        query_builder
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
+            })
+            .switch()?;
         query_builder
             .add_select_column(Aggregate::Sum {
                 field: "amount",
@@ -62,22 +69,18 @@ where
                 alias: Some("end_bucket"),
             })
             .switch()?;
-
-        filters.set_filter_clause(&mut query_builder).switch()?;
-
         auth.set_filter_clause(&mut query_builder).switch()?;
 
+        query_builder
+            .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
+            .switch()?;
+        query_builder
+            .add_custom_filter_clause("status", IntentStatus::Succeeded, FilterTypes::Equal)
+            .switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
-
-        for dim in dimensions.iter() {
-            query_builder
-                .add_group_by_clause(dim)
-                .attach_printable("Error grouping by dimensions")
-                .switch()?;
-        }
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
@@ -85,13 +88,6 @@ where
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
-
-        query_builder
-            .add_filter_clause(
-                PaymentDimensions::PaymentStatus,
-                storage_enums::AttemptStatus::Charged,
-            )
-            .switch()?;
 
         query_builder
             .execute_query::<PaymentMetricRow, _>(pool)

@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct PaymentsDistribution;
+pub(crate) struct PaymentsDistribution;
 
 #[async_trait::async_trait]
 impl<T> super::PaymentMetric<T> for PaymentsDistribution
@@ -37,7 +37,7 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
+        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
 
         let mut dimensions = dimensions.to_vec();
 

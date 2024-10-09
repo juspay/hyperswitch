@@ -26,12 +26,15 @@ pub enum AnalyticsDomain {
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
 pub enum AnalyticsCollection {
     Payment,
+    PaymentSessionized,
     Refund,
+    RefundSessionized,
     FraudCheck,
     SdkEvents,
     SdkEventsAnalytics,
     ApiEvents,
     PaymentIntent,
+    PaymentIntentSessionized,
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,

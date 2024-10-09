@@ -17,10 +17,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct PaymentProcessedAmount;
+pub(crate) struct PaymentSuccessCount;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for PaymentProcessedAmount
+impl<T> super::PaymentMetric<T> for PaymentSuccessCount
 where
     T: AnalyticsDataSource + super::PaymentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -38,16 +38,16 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
+        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
 
         query_builder
-            .add_select_column(Aggregate::Sum {
-                field: "amount",
-                alias: Some("total"),
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
             })
             .switch()?;
         query_builder
@@ -92,7 +92,6 @@ where
                 storage_enums::AttemptStatus::Charged,
             )
             .switch()?;
-
         query_builder
             .execute_query::<PaymentMetricRow, _>(pool)
             .await
