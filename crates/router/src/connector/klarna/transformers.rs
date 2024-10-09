@@ -83,7 +83,7 @@ pub struct KlarnaPaymentsRequest {
     merchant_reference1: Option<String>,
     merchant_reference2: Option<String>,
     shipping_address: Option<KlarnaShippingAddress>,
-    order_tax_amount: Option<i64>,
+    order_tax_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -284,51 +284,49 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         let request = &item.router_data.request;
         let amount = item.amount;
 
-        let order_tax_amount = request
-            .order_tax_amount
-            .as_ref()
-            .map(|tax_amount| tax_amount.get_amount_as_i64());
+        // Only assign `order_tax_amount` if present
+        let order_tax_amount = request.order_tax_amount;
 
-        let order_amount = match order_tax_amount {
-            Some(tax) => amount - tax,
-            None => amount,
+        // Only assign `tax_rate` if both `order_tax_amount` and `tax_rate` are present
+        let tax_rate = if request.order_tax_amount.is_some() {
+            request.order_tax_rate
+        } else {
+            None
         };
-
-        let tax_rate =
-            request
-                .order_tax_rate
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "tax_rate",
-                })?;
 
         match request.order_details.clone() {
             Some(order_details) => {
-                let order_lines: Result<
-                    Vec<OrderLines>,
-                    error_stack::Report<errors::ConnectorError>,
-                > = order_details
+                let order_lines: Result<Vec<OrderLines>, error_stack::Report<errors::ConnectorError>> = order_details
                     .iter()
                     .map(|data| {
-                        let amount =
-                            utils::to_currency_base_unit_asf64(data.amount, request.currency)?;
+                        let amount = utils::to_currency_base_unit_asf64(data.amount, request.currency)?;
 
-                        let calculated_tax = FloatMajorUnit::new(tax_rate * amount);
-                        let calculated_minor = utils::convert_back_amount_to_minor_units(
-                            &FloatMajorUnitForConnector,
-                            calculated_tax,
-                            request.currency,
-                        )?;
+                        // Calculate tax only when both `order_tax_amount` and `tax_rate` are present
+                        let (calculated_minor, calculated_tax_rate) = if let (Some(tax_rate), Some(order_tax_amount)) = (tax_rate, order_tax_amount) {
+                            let calculated_tax = FloatMajorUnit::new(tax_rate * amount);
+                            let calculated_minor = utils::convert_back_amount_to_minor_units(
+                                &FloatMajorUnitForConnector,
+                                calculated_tax,
+                                request.currency,
+                            )?;
+                            (calculated_minor, Some(tax_rate * 10_000.0))
+                        } else {
+                            (MinorUnit::new(0), None) // No tax calculation
+                        };
 
                         Ok(OrderLines {
                             name: data.product_name.clone(),
                             quantity: data.quantity,
-                            total_tax_amount: Some(calculated_minor), // Use calculated_tax if available
-                            unit_price: calculated_minor + MinorUnit::new(data.amount), // Add tax if available
+                            total_tax_amount: if order_tax_amount.is_some() {
+                                Some(calculated_minor) // Use calculated tax if available
+                            } else {
+                                None
+                            },
+                            unit_price: MinorUnit::new(data.amount), // The base price without tax
                             total_amount: MinorUnit::new(
-                                i64::from(data.quantity)
-                                    * (calculated_minor.get_amount_as_i64() + data.amount),
+                                i64::from(data.quantity) * data.amount + calculated_minor.get_amount_as_i64()
                             ),
-                            tax_rate: Some(tax_rate * 10_000.0), // Set tax_rate if available
+                            tax_rate: calculated_tax_rate, // Set tax_rate if available
                         })
                     })
                     .collect();
@@ -337,22 +335,20 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     purchase_country: item.router_data.get_billing_country()?,
                     purchase_currency: request.currency,
                     order_amount: item.amount,
-                    order_tax_amount, // Use the optional value
+                    // Return `order_tax_amount` only when present
+                    order_tax_amount: if order_tax_amount.is_some() {
+                        order_tax_amount
+                    } else {
+                        None
+                    },
                     order_lines: order_lines?,
-                    merchant_reference1: Some(
-                        item.router_data.connector_request_reference_id.clone(),
-                    ),
-                    merchant_reference2: item
-                        .router_data
-                        .request
-                        .merchant_order_reference_id
-                        .clone(),
+                    merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
+                    merchant_reference2: request.merchant_order_reference_id.clone(),
                     auto_capture: request.is_auto_capture()?,
                     shipping_address: get_address_info(item.router_data.get_optional_shipping())
                         .transpose()?,
                 })
             }
-
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details"
             })),
