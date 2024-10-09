@@ -526,10 +526,6 @@ impl SurchargeDetails {
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
     }
-
-    pub fn get_final_amount(&self) -> MinorUnit {
-        self.original_amount + self.get_total_surcharge_amount()
-    }
 }
 
 #[cfg(feature = "v1")]
