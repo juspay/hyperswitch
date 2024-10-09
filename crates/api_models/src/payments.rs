@@ -8,6 +8,7 @@ use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
+    errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
@@ -1404,8 +1405,11 @@ impl GetAddressFromPaymentMethodData for Card {
 }
 
 impl Card {
-    fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
-        Self {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: AdditionalCardInfo,
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
+        Ok(Self {
             card_number: self.card_number.clone(),
             card_exp_month: self.card_exp_month.clone(),
             card_exp_year: self.card_exp_year.clone(),
@@ -1418,7 +1422,7 @@ impl Card {
             card_network: self
                 .card_network
                 .clone()
-                .or(additional_card_info.card_network),
+                .or(additional_card_info.card_network.clone()),
             card_type: self.card_type.clone().or(additional_card_info.card_type),
             card_issuing_country: self
                 .card_issuing_country
@@ -1426,7 +1430,7 @@ impl Card {
                 .or(additional_card_info.card_issuing_country),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
-        }
+        })
     }
 }
 
@@ -1866,16 +1870,16 @@ impl PaymentMethodData {
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: AdditionalPaymentData,
-    ) -> Self {
+    ) -> Result<Self, error_stack::Report<ValidationError>> {
         if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
             match self {
-                Self::Card(card) => {
-                    Self::Card(card.apply_additional_card_info(*additional_card_info))
-                }
-                _ => self.to_owned(),
+                Self::Card(card) => Ok(Self::Card(
+                    card.apply_additional_card_info(*additional_card_info)?,
+                )),
+                _ => Ok(self.to_owned()),
             }
         } else {
-            self.to_owned()
+            Ok(self.to_owned())
         }
     }
 
@@ -1934,6 +1938,7 @@ impl GetPaymentMethodType for WalletData {
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::Paze(_) => api_enums::PaymentMethodType::Paze,
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
@@ -2823,6 +2828,8 @@ pub enum WalletData {
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Paze
+    Paze(PazeWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
     /// Wallet data for Twint Redirection
@@ -2883,6 +2890,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::GooglePayRedirect(_)
             | Self::GooglePayThirdPartySdk(_)
             | Self::PaypalSdk(_)
+            | Self::Paze(_)
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
@@ -2893,6 +2901,13 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SwishQr(_) => None,
         }
     }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct PazeWalletData {
+    #[schema(value_type = String)]
+    pub complete_response: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3804,6 +3819,8 @@ pub struct SepaBankTransferInstructions {
     pub country: String,
     #[schema(value_type = String, example = "123456789")]
     pub iban: Secret<String>,
+    #[schema(value_type = String, example = "U2PVVSEV4V9Y")]
+    pub reference: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4507,6 +4524,19 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
+// #[cfg(all(feature = "v2", feature = "payment_v2"))]
+// impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+//     fn from(item: PaymentsSessionRequest) -> Self {
+//         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
+//         Self {
+//             session_token: vec![],
+//             payment_id: item.payment_id,
+//             client_secret,
+//         }
+//     }
+// }
+
+#[cfg(feature = "v1")]
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
     fn from(item: PaymentsSessionRequest) -> Self {
         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
@@ -4754,6 +4784,11 @@ pub struct RedirectResponse {
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionRequest {}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment
@@ -4914,6 +4949,19 @@ pub struct GpayMetaData {
 pub struct GpaySessionTokenData {
     #[serde(rename = "google_pay")]
     pub data: GpayMetaData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PazeSessionTokenData {
+    #[serde(rename = "paze")]
+    pub data: PazeMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PazeMetadata {
+    pub client_id: String,
+    pub client_name: String,
+    pub client_profile_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -5122,8 +5170,21 @@ pub enum SessionToken {
     ApplePay(Box<ApplepaySessionTokenResponse>),
     /// Session token for OpenBanking PIS flow
     OpenBanking(OpenBankingSessionToken),
+    /// The session response structure for Paze
+    Paze(Box<PazeSessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct PazeSessionTokenResponse {
+    /// Paze Client ID
+    pub client_id: String,
+    /// Client Name to be displayed on the Paze screen
+    pub client_name: String,
+    /// Paze Client Profile ID
+    pub client_profile_id: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
