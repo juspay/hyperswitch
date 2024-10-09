@@ -1558,7 +1558,7 @@ pub async fn list_customer_payment_method(
             state,
             merchant_account,
             key_store,
-            payments_info.and_then(|pi| pi.business_profile),
+            payments_info.and_then(|pi| pi.profile),
             &mut response,
         ))
         .await?;
@@ -1618,7 +1618,7 @@ async fn generate_saved_pm_response(
                     pi.is_connector_agnostic_mit_enabled,
                     pi.requires_cvv,
                     pi.off_session_payment_flag,
-                    pi.business_profile
+                    pi.profile
                         .as_ref()
                         .map(|profile| profile.get_id().to_owned()),
                 )
@@ -1928,7 +1928,7 @@ impl pm_types::SavedPMLPaymentsInfo {
 
         let profile_id = &payment_intent.profile_id;
 
-        let business_profile = core_utils::validate_and_get_business_profile(
+        let profile = core_utils::validate_and_get_business_profile(
             db,
             key_manager_state,
             key_store,
@@ -1937,14 +1937,14 @@ impl pm_types::SavedPMLPaymentsInfo {
         )
         .await?;
 
-        let is_connector_agnostic_mit_enabled = business_profile
+        let is_connector_agnostic_mit_enabled = profile
             .as_ref()
-            .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
+            .and_then(|profile| profile.is_connector_agnostic_mit_enabled)
             .unwrap_or(false);
 
         Ok(Self {
             payment_intent,
-            business_profile,
+            profile,
             requires_cvv,
             off_session_payment_flag,
             is_connector_agnostic_mit_enabled,
@@ -1966,7 +1966,7 @@ impl pm_types::SavedPMLPaymentsInfo {
             .get_required_value("PaymentTokenData")?;
 
         let intent_fulfillment_time = self
-            .business_profile
+            .profile
             .as_ref()
             .and_then(|b_profile| b_profile.get_order_fulfillment_time())
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
