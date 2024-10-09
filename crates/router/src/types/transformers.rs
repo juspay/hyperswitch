@@ -289,7 +289,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Nexinets => Self::Nexinets,
-            // api_enums::Connector::Nexixpay => Self::Nexixpay,
+            api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Novalnet => Self::Novalnet,
@@ -476,6 +476,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Dana
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::Paze
             | api_enums::PaymentMethodType::SamsungPay
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps

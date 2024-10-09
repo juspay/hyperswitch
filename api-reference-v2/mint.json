@@ -37,7 +37,8 @@
     {
       "group": "Payments",
       "pages": [
-        "api-reference/payments/payments--create-intent"
+        "api-reference/payments/payments--create-intent",
+        "api-reference/payments/payments--session-token"
       ]
     },
     {
@@ -46,7 +47,7 @@
         "api-reference/organization/organization--create",
         "api-reference/organization/organization--retrieve",
         "api-reference/organization/organization--update",
-        "api-reference/organization/merchant-account--list"
+        "api-reference/organization/organization--merchant-account--list"
       ]
     },
     {
