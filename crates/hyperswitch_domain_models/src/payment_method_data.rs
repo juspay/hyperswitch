@@ -755,6 +755,16 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
     }
 }
 
+impl From<api_models::payments::SamsungPayTokenData> for SamsungPayTokenData {
+    fn from(samsung_pay_token_data: api_models::payments::SamsungPayTokenData) -> Self {
+        Self {
+            three_ds_type: samsung_pay_token_data.three_ds_type,
+            version: samsung_pay_token_data.version,
+            data: samsung_pay_token_data.data,
+        }
+    }
+}
+
 impl From<Box<api_models::payments::SamsungPayWalletData>> for SamsungPayWalletData {
     fn from(value: Box<api_models::payments::SamsungPayWalletData>) -> Self {
         match value.payment_credential {
@@ -767,11 +777,7 @@ impl From<Box<api_models::payments::SamsungPayWalletData>> for SamsungPayWalletD
                     card_brand: samsung_pay_app_wallet_data.payment_card_brand.into(),
                     dpan_last_four_digits: samsung_pay_app_wallet_data.payment_last4_dpan,
                     card_last_four_digits: samsung_pay_app_wallet_data.payment_last4_fpan,
-                    token_data: SamsungPayTokenData {
-                        three_ds_type: samsung_pay_app_wallet_data.token_data.three_ds_type,
-                        version: samsung_pay_app_wallet_data.token_data.version,
-                        data: samsung_pay_app_wallet_data.token_data.data,
-                    },
+                    token_data: samsung_pay_app_wallet_data.token_data.into(),
                 },
             },
             api_models::payments::SamsungPayWalletCredentials::SamsungPayWalletDataForWeb(
@@ -783,11 +789,7 @@ impl From<Box<api_models::payments::SamsungPayWalletData>> for SamsungPayWalletD
                     card_brand: samsung_pay_web_wallet_data.card_brand.into(),
                     dpan_last_four_digits: None,
                     card_last_four_digits: samsung_pay_web_wallet_data.card_last_four_digits,
-                    token_data: SamsungPayTokenData {
-                        three_ds_type: samsung_pay_web_wallet_data.token_data.three_ds_type,
-                        version: samsung_pay_web_wallet_data.token_data.version,
-                        data: samsung_pay_web_wallet_data.token_data.data,
-                    },
+                    token_data: samsung_pay_web_wallet_data.token_data.into(),
                 },
             },
         }

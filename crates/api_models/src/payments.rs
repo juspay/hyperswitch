@@ -2898,8 +2898,7 @@ pub struct SamsungPayWalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(untagged)]
+#[serde(rename_all = "snake_case", untagged)]
 pub enum SamsungPayWalletCredentials {
     SamsungPayWalletDataForWeb(SamsungPayWebWalletData),
     SamsungPayWalletDataForApp(SamsungPayAppWalletData),
