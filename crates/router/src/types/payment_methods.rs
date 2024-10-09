@@ -10,13 +10,11 @@ use crate::{
 };
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 pub trait VaultingDataInterface {
     fn get_vaulting_data_key(&self) -> String;
 }
@@ -68,7 +66,6 @@ pub struct VaultRetrieve;
 pub struct VaultDelete;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 impl VaultingInterface for AddVault {
     fn get_vaulting_request_url() -> &'static str {
         consts::ADD_VAULT_REQUEST_URL
@@ -76,7 +73,6 @@ impl VaultingInterface for AddVault {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 impl VaultingInterface for GetVaultFingerprint {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_FINGERPRINT_REQUEST_URL
@@ -84,7 +80,6 @@ impl VaultingInterface for GetVaultFingerprint {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 impl VaultingInterface for VaultRetrieve {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_RETRIEVE_REQUEST_URL
@@ -92,7 +87,6 @@ impl VaultingInterface for VaultRetrieve {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 impl VaultingInterface for VaultDelete {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_DELETE_REQUEST_URL
@@ -106,7 +100,6 @@ pub enum PaymentMethodVaultingData {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
