@@ -2119,9 +2119,19 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .unwrap_or_default();
+        #[cfg(feature = "v1")]
         let amount = payment_data.payment_intent.amount;
+        #[cfg(feature = "v2")]
+        let amount = payment_data.payment_intent.amount_details.order_amount;
+        #[cfg(feature = "v1")]
         let shipping_cost = payment_data
             .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        #[cfg(feature = "v2")]
+        let shipping_cost = payment_data
+            .payment_intent
+            .amount_details
             .shipping_cost
             .unwrap_or_default();
         // net_amount here would include amount, surcharge_amount and shipping_cost
