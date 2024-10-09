@@ -403,6 +403,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -719,6 +720,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                         unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
                     )?,
+                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Paze", "Payme"))?
+                    }
                 };
                 Ok(Self {
                     buyer_email,

@@ -175,6 +175,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             types::PaymentMethodToken::Token(_) => Err(
                                 unimplemented_payment_method!("Apple Pay", "Manual", "Cybersource"),
                             )?,
+                            types::PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                            }
                         },
                         None => (
                             PaymentInformation::ApplePayToken(Box::new(
@@ -220,6 +223,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -1407,6 +1411,92 @@ impl
 
 impl
     TryFrom<(
+        &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+        Box<hyperswitch_domain_models::router_data::PazeDecryptedData>,
+    )> for CybersourcePaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, paze_data): (
+            &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+            Box<hyperswitch_domain_models::router_data::PazeDecryptedData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item.router_data.request.get_email()?;
+        let (first_name, last_name) = match paze_data.billing_address.name {
+            Some(name) => {
+                let (first_name, last_name) = name
+                    .peek()
+                    .split_once(' ')
+                    .map(|(first, last)| (first.to_string(), last.to_string()))
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_address.name",
+                    })?;
+                (Secret::from(first_name), Secret::from(last_name))
+            }
+            None => (
+                item.router_data.get_billing_first_name()?,
+                item.router_data.get_billing_last_name()?,
+            ),
+        };
+        let bill_to = BillTo {
+            first_name: Some(first_name),
+            last_name: Some(last_name),
+            address1: paze_data.billing_address.line1,
+            locality: paze_data.billing_address.city.map(|city| city.expose()),
+            administrative_area: Some(Secret::from(
+                //Paze wallet is currently supported in US only
+                common_enums::UsStatesAbbreviation::foreign_try_from(
+                    paze_data
+                        .billing_address
+                        .state
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing_address.state",
+                        })?
+                        .peek()
+                        .to_owned(),
+                )?
+                .to_string(),
+            )),
+            postal_code: paze_data.billing_address.zip,
+            country: paze_data.billing_address.country_code,
+            email,
+        };
+        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+
+        let payment_information =
+            PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
+                tokenized_card: NetworkTokenizedCard {
+                    number: paze_data.token.payment_token,
+                    expiration_month: paze_data.token.token_expiration_month,
+                    expiration_year: paze_data.token.token_expiration_year,
+                    cryptogram: Some(paze_data.token.payment_account_reference),
+                    transaction_type: "1".to_string(),
+                },
+            }));
+
+        let processing_information = ProcessingInformation::try_from((item, None, None))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(Vec::<MerchantDefinedInformation>::foreign_from);
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            consumer_authentication_information: None,
+            merchant_defined_information,
+        })
+    }
+}
+
+impl
+    TryFrom<(
         &CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
         domain::Card,
     )> for CybersourcePaymentsRequest
@@ -1729,6 +1819,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Cybersource"
                                         ))?
                                     }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                                    }
                                 },
                                 None => {
                                     let email = item
@@ -1802,6 +1895,19 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                         domain::WalletData::SamsungPay(samsung_pay_data) => {
                             Self::try_from((item, samsung_pay_data))
+                        }
+                        domain::WalletData::Paze(_) => {
+                            match item.router_data.payment_method_token.clone() {
+                                Some(types::PaymentMethodToken::PazeDecrypt(
+                                    paze_decrypted_data,
+                                )) => Self::try_from((item, paze_decrypted_data)),
+                                _ => Err(errors::ConnectorError::NotImplemented(
+                                    utils::get_unimplemented_payment_method_error_message(
+                                        "Cybersource",
+                                    ),
+                                )
+                                .into()),
+                            }
                         }
                         domain::WalletData::AliPayQr(_)
                         | domain::WalletData::AliPayRedirect(_)
