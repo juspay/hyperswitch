@@ -12,6 +12,8 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
+
+    fn get_vaulting_flow_name() -> &'static str;
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -70,12 +72,20 @@ impl VaultingInterface for AddVault {
     fn get_vaulting_request_url() -> &'static str {
         consts::ADD_VAULT_REQUEST_URL
     }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_ADD_FLOW_TYPE
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl VaultingInterface for GetVaultFingerprint {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_FINGERPRINT_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_GET_FINGERPRINT_FLOW_TYPE
     }
 }
 
@@ -84,12 +94,20 @@ impl VaultingInterface for VaultRetrieve {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_RETRIEVE_REQUEST_URL
     }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_RETRIEVE_FLOW_TYPE
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl VaultingInterface for VaultDelete {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_DELETE_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_DELETE_FLOW_TYPE
     }
 }
 

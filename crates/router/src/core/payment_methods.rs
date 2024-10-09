@@ -1280,8 +1280,8 @@ pub async fn vault_payment_method(
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let db = &*state.store;
 
-    // get fingerprint_id from locker
-    let fingerprint_id_from_locker = vault::get_fingerprint_id_from_vault(state, pmd)
+    // get fingerprint_id from vault
+    let fingerprint_id_from_vault = vault::get_fingerprint_id_from_vault(state, pmd)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get fingerprint_id from vault")?;
@@ -1292,7 +1292,7 @@ pub async fn vault_payment_method(
             db.find_payment_method_by_fingerprint_id(
                 &(state.into()),
                 key_store,
-                &fingerprint_id_from_locker,
+                &fingerprint_id_from_vault,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1305,13 +1305,13 @@ pub async fn vault_payment_method(
         },
     )?;
 
-    let resp_from_locker =
+    let resp_from_vault =
         vault::add_payment_method_to_vault(state, merchant_account, pmd, existing_vault_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to vault payment method in locker")?;
+            .attach_printable("Failed to add payment method in vault")?;
 
-    Ok(resp_from_locker)
+    Ok(resp_from_vault)
 }
 
 #[cfg(all(
@@ -1776,9 +1776,9 @@ pub async fn update_payment_method(
             .attach_printable("Failed to retrieve payment method from vault")?
             .data
             .expose()
-            .parse_struct("PaymentMethodCreateData")
+            .parse_struct("PaymentMethodVaultingData")
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse PaymentMethodCreateData")?;
+            .attach_printable("Failed to parse PaymentMethodVaultingData")?;
 
     let vault_request_data =
         pm_transforms::generate_pm_vaulting_req_from_update_request(pmd, req.payment_method_data);

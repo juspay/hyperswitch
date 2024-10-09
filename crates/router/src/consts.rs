@@ -156,3 +156,19 @@ pub const VAULT_DELETE_REQUEST_URL: &str = "/vault/delete";
 /// Vault Header content type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
+
+/// Vault Add flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
+
+/// Vault Retrieve flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
+
+/// Vault Delete flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
+
+/// Vault Fingerprint fetch flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint__vault";

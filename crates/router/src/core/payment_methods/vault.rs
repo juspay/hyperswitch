@@ -1218,7 +1218,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let jwekey = state.conf.jwekey.get_inner();
 
     let request = create_vault_request::<V>(jwekey, locker, payload).await?;
-    let response = services::call_connector_api(state, request, "add_to_vault")
+    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
         .await
         .change_context(errors::VaultError::VaultAPIError);
 
@@ -1248,10 +1248,9 @@ pub async fn get_fingerprint_id_from_vault<
     data: &D,
 ) -> CustomResult<String, errors::VaultError> {
     let key = data.get_vaulting_data_key();
-    let data = serde_json::to_value(data)
+    let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode Vaulting data to value")?
-        .to_string();
+        .attach_printable("Failed to encode Vaulting data to value")?;
 
     let payload = pm_types::VaultFingerprintRequest { key, data }
         .encode_to_vec()
@@ -1264,9 +1263,9 @@ pub async fn get_fingerprint_id_from_vault<
         .attach_printable("Failed to get response from locker")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
-        .parse_struct("VaultFingerprintResp")
+        .parse_struct("VaultFingerprintResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultFingerprintResp")?;
+        .attach_printable("Failed to parse data into VaultFingerprintResponse")?;
 
     Ok(fingerprint_resp.fingerprint_id)
 }
