@@ -1676,7 +1676,7 @@ pub async fn verify_totp(
     if tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?
         == consts::user::TOTP_MAX_ATTEMPTS
     {
-        return Err(UserErrors::MaxAttemptsReached("TOTP".to_string()).into());
+        return Err(UserErrors::MaxTotpAttemptsReached.into());
     }
 
     let user_totp_secret = user_from_db
@@ -1855,7 +1855,7 @@ pub async fn verify_recovery_code(
     if tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?
         == consts::user::RECOVERY_CODE_MAX_ATTEMPTS
     {
-        return Err(UserErrors::MaxAttemptsReached("Recovery Code".to_string()).into());
+        return Err(UserErrors::MaxRecoveryCodeAttemptsReached.into());
     }
 
     let mut recovery_codes = user_from_db

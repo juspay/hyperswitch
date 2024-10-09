@@ -90,8 +90,10 @@ pub enum UserErrors {
     SSOFailed,
     #[error("profile_id missing in JWT")]
     JwtProfileIdMissing,
-    #[error("MaxAttemptsReached")]
-    MaxAttemptsReached(String),
+    #[error("MaxTotpAttemptsReached")]
+    MaxTotpAttemptsReached,
+    #[error("MaxRecoveryCodeAttemptsReached")]
+    MaxRecoveryCodeAttemptsReached,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -231,8 +233,11 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::JwtProfileIdMissing => {
                 AER::Unauthorized(ApiError::new(sub_code, 47, self.get_error_message(), None))
             }
-            Self::MaxAttemptsReached(_) => {
+            Self::MaxTotpAttemptsReached => {
                 AER::BadRequest(ApiError::new(sub_code, 48, self.get_error_message(), None))
+            }
+            Self::MaxRecoveryCodeAttemptsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 49, self.get_error_message(), None))
             }
         }
     }
@@ -274,8 +279,9 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
-            Self::MaxAttemptsReached(resource) => {
-                format!("Max attempts reached for {}", resource)
+            Self::MaxTotpAttemptsReached => "Maximum totp attempts per user reached",
+            Self::MaxRecoveryCodeAttemptsReached => {
+                "Maximum recovery code attempts per user reached"
             }
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
