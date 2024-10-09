@@ -17,7 +17,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
@@ -719,6 +719,31 @@ impl<Flow, Request, Response> RouterData
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
+    }
+}
+
+pub trait ApplePayDecrypt {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        ))
     }
 }
 
@@ -1756,6 +1781,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -1873,6 +1899,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                  hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
                  hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                  hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,

@@ -208,6 +208,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Datatrans,
     Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
@@ -1592,6 +1593,7 @@ pub enum PaymentMethodType {
     OpenBankingUk,
     PayBright,
     Paypal,
+    Paze,
     Pix,
     PaySafeCard,
     Przelewy24,
