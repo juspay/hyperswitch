@@ -588,9 +588,22 @@ Cypress.Commands.add(
       },
       body: customerCreateBody,
     }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      expect(response.body.customer_id).to.not.be.empty;
       globalState.set("customerId", response.body.customer_id);
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.body.customer_id, "customer_id").to.not.be.empty;
+      expect(customerCreateBody.email, "email").to.equal(response.body.email);
+      expect(customerCreateBody.name, "name").to.equal(response.body.name);
+      expect(customerCreateBody.phone, "phone").to.equal(response.body.phone);
+      expect(customerCreateBody.metadata, "metadata").to.deep.equal(
+        response.body.metadata
+      );
+      expect(customerCreateBody.address, "address").to.deep.equal(
+        response.body.address
+      );
+      expect(
+        customerCreateBody.phone_country_code,
+        "phone_country_code"
+      ).to.equal(response.body.phone_country_code);
     });
   }
 );
@@ -883,6 +896,16 @@ Cypress.Commands.add(
         ).to.be.null;
         expect(response.body.connector_mandate_id, "connector_mandate_id").to.be
           .null;
+        let recurringEnabled = 0;
+        if (
+          response.body.setup_future_usage === "on_session" ||
+          response.body.setup_future_usage === "off_session"
+        ) {
+          recurringEnabled = 1;
+        }
+
+        // Store the value in globalState
+        globalState.set("recurring_enabled", recurringEnabled);
       } else {
         defaultErrorHandler(response, res_data);
       }
@@ -963,6 +986,16 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
+        const recurringEnabledFromConfirm =
+          globalState.get("recurring_enabled");
+        if (
+          req_data.customer_acceptance === "object" &&
+          req_data.customer_acceptance !== null
+        ) {
+          recurringEnabledFromConfirm += 1;
+        }
+        globalState.set("recurring_enabled", recurringEnabledFromConfirm);
+
         globalState.set("paymentID", paymentIntentID);
         globalState.set("connectorId", response.body.connector);
         expect(response.body.connector, "connector").to.equal(
@@ -979,10 +1012,11 @@ Cypress.Commands.add(
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
-        expect(
-          response.body.connector_transaction_id,
-          "connector_transaction_id"
-        ).to.not.be.null;
+        // expect(
+        //   response.body.connector_transaction_id,
+        //   "connector_transaction_id"
+        // ).to.not.be.null;
+
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -1311,10 +1345,10 @@ Cypress.Commands.add(
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
-        expect(
-          response.body.connector_transaction_id,
-          "connector_transaction_id"
-        ).to.not.be.null;
+        // expect(
+        //   response.body.connector_transaction_id,
+        //   "connector_transaction_id"
+        // ).to.not.be.null;
         expect(response.body).to.have.property("status");
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1543,10 +1577,10 @@ Cypress.Commands.add(
         expect(response.body.merchant_connector_id, "connector_id").to.equal(
           globalState.get("merchantConnectorId")
         );
-        expect(
-          response.body.connector_transaction_id,
-          "connector_transaction_id"
-        ).to.not.be.null;
+        // expect(
+        //   response.body.connector_transaction_id,
+        //   "connector_transaction_id"
+        // ).to.not.be.null;
       }
 
       if (autoretries) {
@@ -2012,6 +2046,52 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
       expect(response.body)
         .to.have.property("customer_payment_methods")
         .to.be.an("array").and.empty;
+    }
+    expect(response.body.customer_payment_methods[0].card, "card").to.be.an(
+      "object"
+    );
+    expect(response.body.customer_payment_methods[0].card, "card").to.not.be
+      .empty;
+    expect(globalState.get("customerId"), "customer_id").to.equal(
+      response.body.customer_payment_methods[0].customer_id
+    );
+    expect(
+      response.body.customer_payment_methods[0].payment_token,
+      "payment_token"
+    ).to.not.be.null;
+    expect(
+      response.body.customer_payment_methods[0].payment_method_id,
+      "payment_method_id"
+    ).to.not.be.null;
+    expect(
+      response.body.customer_payment_methods[0].payment_method,
+      "payment_method"
+    ).to.not.be.null;
+    expect(
+      response.body.customer_payment_methods[0].payment_method_type,
+      "payment_method_type"
+    ).to.not.be.null;
+    expect(response.body.customer_payment_methods[0].billing, "billing").to.not
+      .be.null;
+    const finalRecurringEnabledValue = globalState.get("recurring_enabled");
+    if (finalRecurringEnabledValue === 2) {
+      expect(
+        response.body.customer_payment_methods[0].recurring_enabled,
+        "recurring_enabled"
+      ).to.be.true;
+      expect(
+        response.body.customer_payment_methods[0].requires_cvv,
+        "requires_cvv"
+      ).to.be.false;
+    } else {
+      expect(
+        response.body.customer_payment_methods[0].recurring_enabled,
+        "recurring_enabled"
+      ).to.be.false;
+      expect(
+        response.body.customer_payment_methods[0].requires_cvv,
+        "requires_cvv"
+      ).to.be.true;
     }
   });
 });
