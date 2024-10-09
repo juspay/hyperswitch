@@ -1,5 +1,3 @@
-use crate::errors::{CustomResult, ValidationError};
-
 crate::id_type!(
     ProfileId,
     "A type for profile_id that can be used for business profile ids"
@@ -20,12 +18,5 @@ impl crate::events::ApiEventMetric for ProfileId {
         Some(crate::events::ApiEventsType::BusinessProfile {
             profile_id: self.clone(),
         })
-    }
-}
-
-impl ProfileId {
-    /// Get a profile id from String
-    pub fn wrap(profile_id: String) -> CustomResult<Self, ValidationError> {
-        Self::try_from(std::borrow::Cow::from(profile_id))
     }
 }

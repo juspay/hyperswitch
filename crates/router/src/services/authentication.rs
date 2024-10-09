@@ -386,12 +386,8 @@ where
                 .attach_printable("API key is empty");
         }
 
-        let profile_id = get_header_value_by_key_and_deserialize(
-            headers::X_PROFILE_ID.to_string(),
-            request_headers,
-            "ProfileId",
-        )?
-        .get_required_value(headers::X_PROFILE_ID)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
@@ -664,12 +660,10 @@ where
             .0
             .authenticate_and_fetch(request_headers, state)
             .await?;
-        let profile_id = get_header_value_by_key_and_deserialize(
-            headers::X_PROFILE_ID.to_string(),
-            request_headers,
-            "ProfileId",
-        )?
-        .get_required_value(headers::X_PROFILE_ID)?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let profile = state
             .store()
@@ -948,10 +942,10 @@ impl<'a> HeaderMapStruct<'a> {
 
     fn get_mandatory_header_value_by_key(
         &self,
-        key: String,
+        key: &str,
     ) -> Result<&str, error_stack::Report<errors::ApiErrorResponse>> {
         self.headers
-            .get(&key)
+            .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("Missing header key: `{}`", key),
             })
@@ -966,26 +960,23 @@ impl<'a> HeaderMapStruct<'a> {
             ))
     }
 
-    pub fn get_merchant_id_from_header(&self) -> RouterResult<id_type::MerchantId> {
-        self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+    /// Get the id type from the header
+    /// This can be used to extract lineage ids from the headers
+    pub fn get_id_type_from_header<
+        T: TryFrom<
+            std::borrow::Cow<'static, str>,
+            Error = error_stack::Report<errors::ValidationError>,
+        >,
+    >(
+        &self,
+        key: &str,
+    ) -> RouterResult<T> {
+        self.get_mandatory_header_value_by_key(key)
             .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                id_type::MerchantId::wrap(merchant_id).change_context(
+            .and_then(|header_value| {
+                T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
-                    },
-                )
-            })
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn get_profile_id_from_header(&self) -> RouterResult<id_type::ProfileId> {
-        self.get_mandatory_header_value_by_key(headers::X_PROFILE_ID.into())
-            .map(|val| val.to_owned())
-            .and_then(|profile_id| {
-                id_type::ProfileId::wrap(profile_id).change_context(
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", headers::X_PROFILE_ID),
+                        message: format!("`{}` header is invalid", key),
                     },
                 )
             })
@@ -1010,7 +1001,8 @@ where
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
-        let merchant_id = HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1209,7 +1201,8 @@ where
                 }
             })?;
 
-        let profile_id = HeaderMapStruct::new(request_headers).get_profile_id_from_header()?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let profile = state
             .store()
@@ -1432,8 +1425,8 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1468,8 +1461,8 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1861,12 +1854,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let profile_id = get_header_value_by_key_and_deserialize(
-            headers::X_PROFILE_ID.to_string(),
-            request_headers,
-            "ProfileId",
-        )?
-        .get_required_value(headers::X_PROFILE_ID)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -2285,18 +2274,19 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         })
         .transpose()
 }
-use common_utils::ext_traits::ByteSliceExt;
-pub fn get_header_value_by_key_and_deserialize<'a, T: masking::Deserialize<'a>>(
+
+pub fn get_id_type_by_key_from_headers<'a, T: std::str::FromStr>(
     key: String,
     headers: &'a HeaderMap,
-    type_name: &'static str,
 ) -> RouterResult<Option<T>> {
-    get_header_value_by_key(key, headers)?
-        .map(|str_value| str_value.as_bytes().parse_struct(type_name))
+    get_header_value_by_key(key.clone(), headers)?
+        .map(|str_value| T::from_str(str_value))
         .transpose()
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "X-Profile-Id header".to_string(),
-            expected_format: "Valid ProfileId".to_string(),
+        .map_err(|_err| {
+            error_stack::report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: key,
+                expected_format: "Valid Id String".to_string(),
+            })
         })
 }
 
