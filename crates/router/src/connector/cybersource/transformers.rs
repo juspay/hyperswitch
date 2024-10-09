@@ -1683,9 +1683,10 @@ impl
 fn get_samsung_pay_fluid_data_value(
     samsung_pay_token_data: &hyperswitch_domain_models::payment_method_data::SamsungPayTokenData,
 ) -> Result<SamsungPayFluidDataValue, error_stack::Report<errors::ConnectorError>> {
-    let samsung_pay_header = josekit::jwt::decode_header(samsung_pay_token_data.data.clone().peek())
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to decode samsung pay header")?;
+    let samsung_pay_header =
+        josekit::jwt::decode_header(samsung_pay_token_data.data.clone().peek())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to decode samsung pay header")?;
 
     let samsung_pay_kid_optional = samsung_pay_header.claim("kid").and_then(|kid| kid.as_str());
 
