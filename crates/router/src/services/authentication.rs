@@ -2205,9 +2205,9 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         })
         .transpose()
 }
-pub fn get_id_type_by_key_from_headers<'a, T: std::str::FromStr>(
+pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
     key: String,
-    headers: &'a HeaderMap,
+    headers: &HeaderMap,
 ) -> RouterResult<Option<T>> {
     get_header_value_by_key(key.clone(), headers)?
         .map(|str_value| T::from_str(str_value))
