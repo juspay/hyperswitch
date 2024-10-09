@@ -52,7 +52,7 @@ function command_exists() {
 function read_service_arrays() {
   # Loop through the associative array and check if each service is exported
   for var in "${!services[@]}"; do
-    if [[ -n "${!var:-}" ]]; then
+    if [[ -n "${!var+x}" ]]; then
       connector_map+=("${services[$var]}")
     else
       print_color "yellow" "Environment variable ${var} is not set. Skipping..."
