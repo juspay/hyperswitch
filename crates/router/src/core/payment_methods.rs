@@ -1616,7 +1616,7 @@ async fn generate_saved_pm_response(
             .map(|pi| {
                 (
                     pi.is_connector_agnostic_mit_enabled,
-                    pi.requires_cvv,
+                    pi.collect_cvv_during_payment,
                     pi.off_session_payment_flag,
                     pi.profile
                         .as_ref()
@@ -1906,26 +1906,6 @@ impl pm_types::SavedPMLPaymentsInfo {
         key_manager_state: &util_types::keymanager::KeyManagerState,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
-        let requires_cvv = db
-            .find_config_by_key_unwrap_or(
-                format!(
-                    "{}_requires_cvv",
-                    merchant_account.get_id().get_string_repr()
-                )
-                .as_str(),
-                Some("true".to_string()),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch requires_cvv config")?
-            .config
-            != "false";
-
-        let off_session_payment_flag = matches!(
-            payment_intent.setup_future_usage,
-            common_enums::FutureUsage::OffSession
-        );
-
         let profile_id = &payment_intent.profile_id;
 
         let profile = core_utils::validate_and_get_business_profile(
@@ -1937,6 +1917,16 @@ impl pm_types::SavedPMLPaymentsInfo {
         )
         .await?;
 
+        let collect_cvv_during_payment = profile
+            .as_ref()
+            .map(|profile| profile.should_collect_cvv_during_payment)
+            .unwrap_or(true);
+
+        let off_session_payment_flag = matches!(
+            payment_intent.setup_future_usage,
+            common_enums::FutureUsage::OffSession
+        );
+
         let is_connector_agnostic_mit_enabled = profile
             .as_ref()
             .and_then(|profile| profile.is_connector_agnostic_mit_enabled)
@@ -1945,7 +1935,7 @@ impl pm_types::SavedPMLPaymentsInfo {
         Ok(Self {
             payment_intent,
             profile,
-            requires_cvv,
+            collect_cvv_during_payment,
             off_session_payment_flag,
             is_connector_agnostic_mit_enabled,
         })

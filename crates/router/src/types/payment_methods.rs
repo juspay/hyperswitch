@@ -140,7 +140,7 @@ impl PaymentMethodClientSecret {
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
     pub profile: Option<domain::Profile>,
-    pub requires_cvv: bool,
+    pub collect_cvv_during_payment: bool,
     pub off_session_payment_flag: bool,
     pub is_connector_agnostic_mit_enabled: bool,
 }
