@@ -268,12 +268,19 @@ pub struct WorldpayErrorResponse {
     pub validation_errors: Option<serde_json::Value>,
 }
 
-impl Default for WorldpayErrorResponse {
-    fn default() -> Self {
-        Self {
-            error_name: "Not found".to_string(),
-            message: "Resource not found".to_string(),
-            validation_errors: None,
+impl WorldpayErrorResponse {
+    pub fn default(status_code: u16) -> Self {
+        match status_code {
+            code @ 404 => Self {
+                error_name: format!("{} Not found", code),
+                message: "Resource not found".to_string(),
+                validation_errors: None,
+            },
+            code => Self {
+                error_name: code.to_string(),
+                message: "Unknown error".to_string(),
+                validation_errors: None,
+            },
         }
     }
 }

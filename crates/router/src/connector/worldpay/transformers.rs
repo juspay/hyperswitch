@@ -255,8 +255,8 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     }
 }
 
-impl From<EventType> for enums::AttemptStatus {
-    fn from(value: EventType) -> Self {
+impl From<&EventType> for enums::AttemptStatus {
+    fn from(value: &EventType) -> Self {
         match value {
             EventType::Authorized => Self::Authorized,
             EventType::CaptureFailed => Self::CaptureFailed,
@@ -276,12 +276,11 @@ impl From<EventType> for enums::AttemptStatus {
 impl From<EventType> for enums::RefundStatus {
     fn from(value: EventType) -> Self {
         match value {
-            EventType::Refunded => Self::Success,
+            EventType::Refunded | EventType::SentForRefund => Self::Success,
             EventType::RefundFailed => Self::Failure,
             EventType::Authorized
             | EventType::Cancelled
             | EventType::Charged
-            | EventType::SentForRefund
             | EventType::Refused
             | EventType::Error
             | EventType::SentForSettlement

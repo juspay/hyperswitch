@@ -110,7 +110,7 @@ impl ConnectorCommon for Worldpay {
                 .parse_struct("WorldpayErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         } else {
-            WorldpayErrorResponse::default()
+            WorldpayErrorResponse::default(res.status_code)
         };
 
         event_builder.map(|i| i.set_error_response_body(&response));
@@ -349,8 +349,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let attempt_status = data.request.attempt_status;
+        let intent_status = data.request.intent_status;
+        let worldpay_status = response.last_event;
+        let status = match (attempt_status, intent_status, worldpay_status.clone()) {
+            (_, enums::IntentStatus::RequiresCapture, EventType::Authorized) => attempt_status,
+            (enums::AttemptStatus::Pending, _, EventType::Authorized) => attempt_status,
+            _ => enums::AttemptStatus::from(&worldpay_status),
+        };
+
         Ok(types::PaymentsSyncRouterData {
-            status: enums::AttemptStatus::from(response.last_event),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: data.request.connector_transaction_id.clone(),
                 redirection_data: None,
@@ -444,7 +453,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 Ok(types::PaymentsCaptureRouterData {
-                    status: enums::AttemptStatus::Charged,
+                    status: enums::AttemptStatus::Pending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::foreign_try_from(response.links)?,
                         redirection_data: None,
@@ -659,7 +668,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 Ok(types::RefundExecuteRouterData {
                     response: Ok(types::RefundsResponseData {
                         connector_refund_id: ResponseIdStr::try_from(response.links)?.id,
-                        refund_status: enums::RefundStatus::Success,
+                        refund_status: enums::RefundStatus::Pending,
                     }),
                     ..data.clone()
                 })

@@ -1817,6 +1817,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 }
                 None => types::ResponseId::NoResponseId,
             },
+            intent_status: payment_data.get_intent_status(),
+            attempt_status: payment_data.payment_attempt.status,
             encoded_data: payment_data.payment_attempt.encoded_data,
             capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
@@ -1953,6 +1955,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             })?;
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
+            capture_method: payment_data.get_capture_method(),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
             currency: payment_data.currency,

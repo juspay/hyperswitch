@@ -5120,6 +5120,7 @@ pub trait OperationSessionGetters<F> {
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+    fn get_intent_status(&self) -> enums::IntentStatus;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -5296,6 +5297,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     #[cfg(feature = "v2")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.payment_intent.capture_method
+    }
+
+    fn get_intent_status(&self) -> enums::IntentStatus {
+        self.payment_intent.status
     }
 }
 
@@ -5517,6 +5522,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         todo!()
+    }
+
+    fn get_intent_status(&self) -> enums::IntentStatus {
+        self.payment_intent.status
     }
 }
 
