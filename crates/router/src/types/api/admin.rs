@@ -256,9 +256,7 @@ pub async fn create_profile_from_merchant_account(
     let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
-    let profile_name = request
-        .profile_name
-        .unwrap_or(NameType::from_str_unchecked("default"));
+    let profile_name = request.profile_name.unwrap_or_default();
 
     let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 

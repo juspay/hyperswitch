@@ -34,7 +34,10 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
-    consts::{self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH},
+    consts::{
+        self, MAX_ALLOWED_PROFILE_NAME_LENGTH, MAX_DESCRIPTION_LENGTH,
+        MAX_STATEMENT_DESCRIPTOR_LENGTH,
+    },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
 };
@@ -1147,7 +1150,7 @@ where
 /// Domain type for NameType, used for Business Profile Name
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub struct NameType(LengthString<64, 1>);
+pub struct NameType(LengthString<MAX_ALLOWED_PROFILE_NAME_LENGTH, 1>);
 
 impl NameType {
     /// Create a new NameType from a String
@@ -1158,11 +1161,6 @@ impl NameType {
                 message: "NameType's length should be between 1 and 64 characters".to_string()
             })),
         }
-    }
-
-    /// Create a new NameType without any length check from a static String
-    pub fn from_str_unchecked(input_str: &'static str) -> Self {
-        Self(LengthString::new_unchecked(input_str.to_owned()))
     }
 
     /// Get the inner String of NameType
@@ -1193,10 +1191,10 @@ where
 impl<DB> FromSql<sql_types::Text, DB> for NameType
 where
     DB: Backend,
-    LengthString<64, 1>: FromSql<sql_types::Text, DB>,
+    LengthString<MAX_ALLOWED_PROFILE_NAME_LENGTH, 1>: FromSql<sql_types::Text, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let val = LengthString::<64, 1>::from_sql(bytes)?;
+        let val = LengthString::<MAX_ALLOWED_PROFILE_NAME_LENGTH, 1>::from_sql(bytes)?;
         Ok(Self(val))
     }
 }
@@ -1204,7 +1202,7 @@ where
 impl<DB> ToSql<sql_types::Text, DB> for NameType
 where
     DB: Backend,
-    LengthString<64, 1>: ToSql<sql_types::Text, DB>,
+    LengthString<MAX_ALLOWED_PROFILE_NAME_LENGTH, 1>: ToSql<sql_types::Text, DB>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)

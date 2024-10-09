@@ -1360,7 +1360,7 @@ pub async fn get_profile_id_from_business_details(
             Some((business_country, business_label)) => {
                 let profile_name =
                     NameType::from_string(format!("{business_country}_{business_label}"))
-                        .unwrap_or(NameType::from_str_unchecked("default"));
+                        .unwrap_or_default();
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
                         key_manager_state,

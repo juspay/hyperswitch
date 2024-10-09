@@ -580,10 +580,7 @@ impl CreateProfile {
                 format!("{}_{}", business_profile.country, business_profile.business);
 
             let profile_create_request = api_models::admin::ProfileCreate {
-                profile_name: Some(
-                    NameType::from_string(profile_name)
-                        .unwrap_or(NameType::from_str_unchecked("default")),
-                ),
+                profile_name: Some(NameType::from_string(profile_name).unwrap_or_default()),
                 ..Default::default()
             };
 
@@ -803,10 +800,7 @@ pub async fn create_profile_from_business_labels(
         let profile_name = format!("{}_{}", business_profile.country, business_profile.business);
 
         let profile_create_request = admin_types::ProfileCreate {
-            profile_name: Some(
-                NameType::from_string(profile_name)
-                    .unwrap_or(NameType::from_str_unchecked("default")),
-            ),
+            profile_name: Some(NameType::from_string(profile_name).unwrap_or_default()),
             ..Default::default()
         };
 
@@ -2683,7 +2677,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 Some((business_country, business_label)) => {
                     let profile_name =
                         NameType::from_string(format!("{business_country}_{business_label}"))
-                            .unwrap_or(NameType::from_str_unchecked("default"));
+                            .unwrap_or_default();
                     let business_profile = db
                         .find_business_profile_by_profile_name_merchant_id(
                             key_manager_state,
@@ -3455,9 +3449,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
         // Generate a unique profile id
         let profile_id = common_utils::generate_profile_id_of_default_length();
 
-        let profile_name = self
-            .profile_name
-            .unwrap_or(NameType::from_str_unchecked("default"));
+        let profile_name = self.profile_name.unwrap_or_default();
         let current_time = date_time::now();
 
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
