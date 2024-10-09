@@ -24,7 +24,7 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{errors, ForeignFrom};
+use crate::{errors, ApiModelToDieselModelConvertor};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -374,7 +374,7 @@ impl PaymentIntent {
             merchant_id: merchant_account.get_id().clone(),
             // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
             status: common_enums::IntentStatus::RequiresPaymentMethod,
-            amount_details: AmountDetails::foreign_from(request.amount_details),
+            amount_details: AmountDetails::from(request.amount_details),
             amount_captured: None,
             customer_id: request.customer_id,
             description: request.description,
@@ -416,7 +416,9 @@ impl PaymentIntent {
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
             apply_mit_exemption: request.apply_mit_exemption.unwrap_or_default(),
             customer_present: request.customer_present.unwrap_or_default(),
-            payment_link_config: request.payment_link_config.map(ForeignFrom::foreign_from),
+            payment_link_config: request
+                .payment_link_config
+                .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
         })
     }

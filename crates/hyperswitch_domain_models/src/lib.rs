@@ -97,16 +97,16 @@ where
     Ok(encrypted_data)
 }
 
-pub trait ForeignFrom<F> {
+pub trait ApiModelToDieselModelConvertor<F> {
     /// Convert from a foreign type to the current type
-    fn foreign_from(from: F) -> Self;
+    fn convert_from(from: F) -> Self;
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
+impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
     for diesel_models::payment_intent::PaymentLinkConfigRequestForPayments
 {
-    fn foreign_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
+    fn convert_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
         Self {
             theme: item.theme,
             logo: item.logo,
@@ -118,7 +118,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 transaction_details
                     .into_iter()
                     .map(|transaction_detail| {
-                        diesel_models::PaymentLinkTransactionDetails::foreign_from(
+                        diesel_models::PaymentLinkTransactionDetails::convert_from(
                             transaction_detail,
                         )
                     })
@@ -129,25 +129,25 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<api_models::admin::PaymentLinkTransactionDetails>
+impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDetails>
     for diesel_models::PaymentLinkTransactionDetails
 {
-    fn foreign_from(from: api_models::admin::PaymentLinkTransactionDetails) -> Self {
+    fn convert_from(from: api_models::admin::PaymentLinkTransactionDetails) -> Self {
         Self {
             key: from.key,
             value: from.value,
             ui_configuration: from
                 .ui_configuration
-                .map(diesel_models::TransactionDetailsUiConfiguration::foreign_from),
+                .map(diesel_models::TransactionDetailsUiConfiguration::convert_from),
         }
     }
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<api_models::admin::TransactionDetailsUiConfiguration>
+impl ApiModelToDieselModelConvertor<api_models::admin::TransactionDetailsUiConfiguration>
     for diesel_models::TransactionDetailsUiConfiguration
 {
-    fn foreign_from(from: api_models::admin::TransactionDetailsUiConfiguration) -> Self {
+    fn convert_from(from: api_models::admin::TransactionDetailsUiConfiguration) -> Self {
         Self {
             position: from.position,
             is_key_bold: from.is_key_bold,
@@ -157,8 +157,8 @@ impl ForeignFrom<api_models::admin::TransactionDetailsUiConfiguration>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<api_models::payments::AmountDetails> for payments::AmountDetails {
-    fn foreign_from(amount_details: api_models::payments::AmountDetails) -> Self {
+impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
+    fn from(amount_details: api_models::payments::AmountDetails) -> Self {
         Self {
             order_amount: amount_details.order_amount().into(),
             currency: amount_details.currency(),
@@ -169,10 +169,10 @@ impl ForeignFrom<api_models::payments::AmountDetails> for payments::AmountDetail
                     .map(|order_tax_amount| diesel_models::DefaultTax { order_tax_amount }),
                 payment_method_type: None,
             }),
-            skip_external_tax_calculation: payments::TaxCalculationOverride::foreign_from(
+            skip_external_tax_calculation: payments::TaxCalculationOverride::from(
                 amount_details.skip_external_tax_calculation(),
             ),
-            skip_surcharge_calculation: payments::SurchargeCalculationOverride::foreign_from(
+            skip_surcharge_calculation: payments::SurchargeCalculationOverride::from(
                 amount_details.skip_surcharge_calculation(),
             ),
             surcharge_amount: amount_details.surcharge_amount(),
@@ -182,12 +182,8 @@ impl ForeignFrom<api_models::payments::AmountDetails> for payments::AmountDetail
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<common_enums::SurchargeCalculationOverride>
-    for payments::SurchargeCalculationOverride
-{
-    fn foreign_from(
-        surcharge_calculation_override: common_enums::SurchargeCalculationOverride,
-    ) -> Self {
+impl From<common_enums::SurchargeCalculationOverride> for payments::SurchargeCalculationOverride {
+    fn from(surcharge_calculation_override: common_enums::SurchargeCalculationOverride) -> Self {
         match surcharge_calculation_override {
             common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
             common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
@@ -196,8 +192,8 @@ impl ForeignFrom<common_enums::SurchargeCalculationOverride>
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
-    fn foreign_from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
+impl From<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
+    fn from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
         match tax_calculation_override {
             common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
             common_enums::TaxCalculationOverride::Skip => Self::Skip,

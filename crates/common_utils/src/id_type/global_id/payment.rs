@@ -19,12 +19,6 @@ pub struct GlobalPaymentId(super::GlobalId);
 // Database related implementations so that this field can be used directly in the database tables
 crate::impl_queryable_id_type!(GlobalPaymentId);
 
-#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
-pub enum GlobalPaymentIdError {
-    #[error("Failed to construct GlobalPaymentId")]
-    ConstructionError,
-}
-
 impl GlobalPaymentId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
