@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
+use common_utils::{
+    errors::CustomResult,
+    id_type, pii,
+    types::{keymanager::KeyManagerState, NameType},
+};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -2692,7 +2696,7 @@ impl ProfileInterface for KafkaStore {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_name: &str,
+        profile_name: &NameType,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.diesel_store

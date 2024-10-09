@@ -1144,6 +1144,67 @@ where
     }
 }
 
+/// Domain type for NameType, used for Business Profile Name
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct NameType(LengthString<64, 1>);
+
+impl NameType {
+    /// Create a new NameType from a String
+    pub fn from_string(input_str: String) -> Result<Self, error_stack::Report<ValidationError>> {
+        match LengthString::from(input_str.into()) {
+            Ok(lengthstring) => Ok(Self(lengthstring)),
+            Err(_) => Err(report!(ValidationError::InvalidValue {
+                message: "NameType's length should be between 1 and 64 characters".to_string()
+            })),
+        }
+    }
+
+    /// Create a new NameType without any length check from a static String
+    pub fn from_str_unchecked(input_str: &'static str) -> Self {
+        Self(LengthString::new_unchecked(input_str.to_owned()))
+    }
+
+    /// Get the inner String of NameType
+    pub fn to_str(self) -> String {
+        let Self(LengthString(inner_str)) = self;
+        inner_str.clone()
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for NameType
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for NameType
+where
+    DB: Backend,
+    LengthString<64, 1>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<64, 1>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for NameType
+where
+    DB: Backend,
+    LengthString<64, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
 /// Domain type for unified code
 #[derive(
     Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,

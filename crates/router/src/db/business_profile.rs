@@ -1,4 +1,7 @@
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::{
+    ext_traits::AsyncExt,
+    types::{keymanager::KeyManagerState, NameType},
+};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -47,7 +50,7 @@ where
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_name: &str,
+        profile_name: &NameType,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, errors::StorageError>;
 
@@ -144,7 +147,7 @@ impl ProfileInterface for Store {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_name: &str,
+        profile_name: &NameType,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -418,7 +421,7 @@ impl ProfileInterface for MockDb {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_name: &str,
+        profile_name: &NameType,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.business_profiles
@@ -426,7 +429,7 @@ impl ProfileInterface for MockDb {
             .await
             .iter()
             .find(|business_profile| {
-                business_profile.profile_name == profile_name
+                business_profile.profile_name == *profile_name
                     && business_profile.merchant_id == *merchant_id
             })
             .cloned()
@@ -444,7 +447,7 @@ impl ProfileInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No business profile found for profile_name = {profile_name} and merchant_id = {merchant_id:?}"
+                    "No business profile found for profile_name = {profile_name:?} and merchant_id = {merchant_id:?}"
 
                 ))
                 .into(),
