@@ -1306,8 +1306,12 @@ impl From<String> for ConnectorTransactionId {
             Self::HashedData(src)
         // Hash connector's transaction ID
         } else if src.len() > 128 {
-            let hash = blake3::hash(src.as_bytes());
-            Self::HashedData(format!("hs_hash_{}", hash.to_hex()))
+            let mut hasher = blake3::Hasher::new();
+            let mut output = [0u8; consts::CONNECTOR_TRANSACTION_ID_HASH_BYTES];
+            hasher.update(src.as_bytes());
+            hasher.finalize_xof().fill(&mut output);
+            let hash = hex::encode(output);
+            Self::HashedData(format!("hs_hash_{}", hash))
         // Default
         } else {
             Self::TxnId(src)
