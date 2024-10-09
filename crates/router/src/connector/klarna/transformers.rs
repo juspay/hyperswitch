@@ -295,9 +295,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                             utils::to_currency_base_unit_asf64(data.amount, request.currency)?;
 
                         let (calculated_tax_in_minor, calculated_tax_rate) =
-                            if let (Some(tax_rate), Some(_order_tax_amount)) =
-                                (tax_rate, order_tax_amount)
-                            {
+                            if let Some(tax_rate) = tax_rate {
                                 let calculated_tax = FloatMajorUnit::new(tax_rate * amount);
                                 let calculated_tax_in_minor =
                                     utils::convert_back_amount_to_minor_units(
