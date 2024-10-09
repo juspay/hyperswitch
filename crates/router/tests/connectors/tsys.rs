@@ -16,7 +16,7 @@ impl utils::Connector for TsysTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Tsys;
         utils::construct_connector_data_old(
-            Box::new(&Tsys),
+            Box::new(Tsys::new()),
             types::Connector::Tsys,
             types::api::GetToken::Connector,
             None,
