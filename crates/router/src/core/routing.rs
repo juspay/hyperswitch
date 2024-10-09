@@ -26,11 +26,10 @@ use super::{
         OperationSessionGetters,
     },
 };
-#[cfg(feature = "v2")]
-use crate::{core::admin, utils::ValueExt};
-
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
+#[cfg(feature = "v2")]
+use crate::{core::admin, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},

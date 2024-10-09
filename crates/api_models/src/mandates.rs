@@ -149,9 +149,6 @@ pub struct NetworkTransactionIdAndCardDetails {
 
 impl RecurringDetails {
     pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
-        matches!(
-            self,
-            Self::NetworkTransactionIdAndCardDetails(_)
-        )
+        matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
     }
 }
