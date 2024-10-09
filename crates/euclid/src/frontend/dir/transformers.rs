@@ -191,6 +191,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::OpenBankingPIS => {
                 Ok(dirval!(OpenBankingType = OpenBankingPIS))
             }
+            global_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
             global_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }

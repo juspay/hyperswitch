@@ -119,6 +119,7 @@ pub enum WalletData {
     MobilePayRedirect(Box<MobilePayRedirection>),
     PaypalRedirect(PaypalRedirection),
     PaypalSdk(PayPalWalletData),
+    Paze(PazeWalletData),
     SamsungPay(Box<SamsungPayWalletData>),
     TwintRedirect {},
     VippsRedirect {},
@@ -134,6 +135,12 @@ pub enum WalletData {
 pub struct MifinityData {
     pub date_of_birth: Secret<Date>,
     pub language_preference: Option<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct PazeWalletData {
+    pub complete_response: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -705,6 +712,9 @@ impl From<api_models::payments::WalletData> for WalletData {
                     token: paypal_sdk_data.token,
                 })
             }
+            api_models::payments::WalletData::Paze(paze_data) => {
+                Self::Paze(PazeWalletData::from(paze_data))
+            }
             api_models::payments::WalletData::SamsungPay(samsung_pay_data) => {
                 Self::SamsungPay(Box::new(SamsungPayWalletData::from(samsung_pay_data)))
             }
@@ -766,6 +776,14 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
                 pm_type: value.payment_method.pm_type,
             },
             transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+
+impl From<api_models::payments::PazeWalletData> for PazeWalletData {
+    fn from(value: api_models::payments::PazeWalletData) -> Self {
+        Self {
+            complete_response: value.complete_response,
         }
     }
 }
@@ -1425,6 +1443,7 @@ impl GetPaymentMethodType for WalletData {
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::Paze(_) => api_enums::PaymentMethodType::Paze,
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,

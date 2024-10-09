@@ -738,6 +738,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::MandiriVa
             | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::PaySafeCard
+            | enums::PaymentMethodType::Paze
             | enums::PaymentMethodType::Givex
             | enums::PaymentMethodType::Benefit
             | enums::PaymentMethodType::Knet
@@ -1063,6 +1064,7 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::MbWayRedirect(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::SamsungPay(_)
             | domain::WalletData::TwintRedirect {}
             | domain::WalletData::VippsRedirect {}
@@ -1480,6 +1482,7 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::MbWayRedirect(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::SamsungPay(_)
             | domain::WalletData::TwintRedirect {}
             | domain::WalletData::VippsRedirect {}
@@ -1811,6 +1814,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         Err(errors::ConnectorError::InvalidWalletToken {
                             wallet_name: "Apple Pay".to_string(),
                         })?
+                    }
+                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(crate::unimplemented_payment_method!("Paze", "Stripe"))?
                     }
                 };
                 Some(StripePaymentMethodData::Wallet(
@@ -2211,6 +2217,12 @@ pub struct StripeBankRedirectDetails {
     attached_payment_method: Option<Secret<String>>,
 }
 
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct StripeCashappDetails {
+    buyer_id: Option<String>,
+    cashtag: Option<String>,
+}
+
 impl Deref for PaymentIntentSyncResponse {
     type Target = PaymentIntentResponse;
 
@@ -2249,6 +2261,9 @@ pub enum StripePaymentMethodDetailsResponse {
     Przelewy24,
     Card {
         card: StripeAdditionalCardDetails,
+    },
+    Cashapp {
+        cashapp: StripeCashappDetails,
     },
     Klarna,
     Affirm,
@@ -2307,7 +2322,8 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Bacs
             | Self::Wechatpay
             | Self::Alipay
-            | Self::CustomerBalance => None,
+            | Self::CustomerBalance
+            | Self::Cashapp { .. } => None,
         }
     }
 }
@@ -2622,6 +2638,7 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Wechatpay)
                             | Some(StripePaymentMethodDetailsResponse::Alipay)
                             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
+                            | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
                             | None => payment_method_id.expose(),
                         }
                     }

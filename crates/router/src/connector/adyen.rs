@@ -219,6 +219,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
+                | PaymentMethodType::Paze
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::PromptPay
                 | PaymentMethodType::RedCompra
