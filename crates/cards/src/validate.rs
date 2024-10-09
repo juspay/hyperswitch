@@ -3,8 +3,8 @@ use std::{collections::HashMap, fmt, ops::Deref, str::FromStr};
 use common_utils::errors::ValidationError;
 use error_stack::report;
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+use once_cell::sync::Lazy;
 use regex::Regex;
-use router_env::once_cell::sync::Lazy;
 #[cfg(not(target_arch = "wasm32"))]
 use router_env::{logger, which as router_env_which, Env};
 use serde::{Deserialize, Deserializer, Serialize};
