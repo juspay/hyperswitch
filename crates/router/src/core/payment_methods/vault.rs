@@ -1250,7 +1250,7 @@ pub async fn get_fingerprint_id_from_vault<
     let key = data.get_vaulting_data_key();
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode Vaulting data to value")?;
+        .attach_printable("Failed to encode Vaulting data to string")?;
 
     let payload = pm_types::VaultFingerprintRequest { key, data }
         .encode_to_vec()
@@ -1260,7 +1260,7 @@ pub async fn get_fingerprint_id_from_vault<
     let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
+        .attach_printable("Call to vault failed")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResponse")
@@ -1292,7 +1292,7 @@ pub async fn add_payment_method_to_vault(
     let resp = call_to_vault::<pm_types::AddVault>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
+        .attach_printable("Call to vault failed")?;
 
     let stored_pm_resp: pm_types::AddVaultResponse = resp
         .parse_struct("AddVaultResponse")
@@ -1326,7 +1326,7 @@ pub async fn retrieve_payment_method_from_vault(
     let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
+        .attach_printable("Call to vault failed")?;
 
     let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
         .parse_struct("VaultRetrieveResponse")
@@ -1354,7 +1354,7 @@ pub async fn delete_payment_method_data_from_vault(
     let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
         .await
         .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
+        .attach_printable("Call to vault failed")?;
 
     let stored_pm_resp: pm_types::VaultDeleteResponse = resp
         .parse_struct("VaultDeleteResponse")
