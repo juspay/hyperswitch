@@ -779,7 +779,7 @@ where
 }
 
 /// A helper struct to extract headers from the request
-struct HeaderMapStruct<'a> {
+pub(crate) struct HeaderMapStruct<'a> {
     headers: &'a HeaderMap,
 }
 
@@ -815,6 +815,18 @@ impl<'a> HeaderMapStruct<'a> {
                 id_type::MerchantId::wrap(merchant_id).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
+                    },
+                )
+            })
+    }
+    #[cfg(feature = "v2")]
+    pub fn get_organization_id_from_header(&self) -> RouterResult<id_type::OrganizationId> {
+        self.get_mandatory_header_value_by_key(headers::X_ORGANIZATION_ID.into())
+            .map(|val| val.to_owned())
+            .and_then(|merchant_id| {
+                id_type::OrganizationId::wrap(merchant_id).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_ORGANIZATION_ID),
                     },
                 )
             })

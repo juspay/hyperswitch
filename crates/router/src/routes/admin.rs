@@ -95,7 +95,7 @@ pub async fn organization_retrieve(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -108,6 +108,40 @@ pub async fn merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
+        |state, _, req, _| create_merchant_account(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
+pub async fn merchant_account_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::admin::MerchantAccountCreateWithoutOrgId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountCreate;
+    let headers = req.headers();
+
+    let org_id = match auth::HeaderMapStruct::new(headers).get_organization_id_from_header() {
+        Ok(org_id) => org_id,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    let new_request_payload_with_org_id = api_models::admin::MerchantAccountCreate {
+        merchant_name: json_payload.merchant_name.clone(),
+        merchant_details: json_payload.merchant_details.clone(),
+        metadata: json_payload.metadata.clone(),
+        organization_id: org_id,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        new_request_payload_with_org_id,
         |state, _, req, _| create_merchant_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
