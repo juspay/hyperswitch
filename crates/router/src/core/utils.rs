@@ -1510,45 +1510,6 @@ pub fn get_incremental_authorization_allowed_value(
     }
 }
 
-pub trait GetPaymentMethodDataForNetworkTransactionId {
-    fn get_nti_and_card_details_for_mit_flow(
-        &self,
-    ) -> RouterResult<(
-        api_models::payments::MandateReferenceId,
-        hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
-    )>;
-}
-
-impl GetPaymentMethodDataForNetworkTransactionId for api_models::mandates::RecurringDetails {
-    fn get_nti_and_card_details_for_mit_flow(
-        &self,
-    ) -> RouterResult<(
-        api_models::payments::MandateReferenceId,
-        hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
-    )> {
-        let network_transaction_id_and_card_details = match self {
-            Self::NetworkTransactionIdAndCardDetails(network_transaction_id_and_card_details) => {
-                Ok(network_transaction_id_and_card_details)
-            }
-            Self::MandateId(_) | Self::PaymentMethodId(_) | Self::ProcessorPaymentToken(_) => {
-                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            }
-        }?;
-
-        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_card_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
-        );
-
-        Ok((
-            mandate_reference_id,
-            network_transaction_id_and_card_details.clone().into(),
-        ))
-    }
-}
-
 pub(crate) trait GetProfileId {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId>;
 }

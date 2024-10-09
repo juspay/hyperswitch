@@ -95,6 +95,33 @@ pub struct CardDetailsForNetworkTransactionId {
     pub nick_name: Option<Secret<String>>,
 }
 
+impl CardDetailsForNetworkTransactionId {
+    pub fn get_nti_and_card_details_for_mit_flow(
+        recurring_details: mandates::RecurringDetails,
+    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
+        let network_transaction_id_and_card_details = match recurring_details {
+            mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
+                network_transaction_id_and_card_details,
+            ) => Some(network_transaction_id_and_card_details),
+            mandates::RecurringDetails::MandateId(_)
+            | mandates::RecurringDetails::PaymentMethodId(_)
+            | mandates::RecurringDetails::ProcessorPaymentToken(_) => None,
+        }?;
+
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_card_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        Some((
+            mandate_reference_id,
+            network_transaction_id_and_card_details.clone().into(),
+        ))
+    }
+}
+
 impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
     fn from(card_details_for_nti: mandates::NetworkTransactionIdAndCardDetails) -> Self {
         Self {

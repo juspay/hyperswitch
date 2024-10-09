@@ -147,6 +147,11 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub network_transaction_id: Secret<String>,
 }
 
-
-
-
+impl RecurringDetails {
+    pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
+        matches!(
+            self,
+            Self::NetworkTransactionIdAndCardDetails(_)
+        )
+    }
+}

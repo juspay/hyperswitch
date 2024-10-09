@@ -402,19 +402,15 @@ pub fn perform_straight_through_routing(
 
 pub fn perform_routing_for_single_straight_through_algorithm(
     algorithm: &routing_types::StraightThroughAlgorithm,
-    creds_identifier: Option<&str>,
-) -> RoutingResult<(Vec<routing_types::RoutableConnectorChoice>, bool)> {
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     Ok(match algorithm {
-        routing_types::StraightThroughAlgorithm::Single(connector) => {
-            (vec![(**connector).clone()], creds_identifier.is_none())
-        }
+        routing_types::StraightThroughAlgorithm::Single(connector) => vec![(**connector).clone()],
 
         routing_types::StraightThroughAlgorithm::Priority(_)
-        | routing_types::StraightThroughAlgorithm::VolumeSplit(_) => (
+        | routing_types::StraightThroughAlgorithm::VolumeSplit(_) => {
             Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
-                .attach_printable("Unsupported algorithm received as a result of static routing")?,
-            false,
-        ),
+                .attach_printable("Unsupported algorithm received as a result of static routing")?
+        }
     })
 }
 
@@ -664,7 +660,7 @@ pub async fn refresh_cgraph_cache<'a>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_cgraph_filtering(
+pub async fn perform_cgraph_filtering(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,

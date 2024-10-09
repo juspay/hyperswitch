@@ -78,8 +78,9 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
-        payouts, routing as core_routing,
-        utils::{self, GetPaymentMethodDataForNetworkTransactionId},
+        payouts,
+        routing::{self as core_routing},
+        utils::{self as core_utils},
     },
     db::StorageInterface,
     logger,
@@ -93,8 +94,8 @@ use crate::{
         transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{
-        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
-        ValueExt,
+        self, add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode,
+        OptionExt, ValueExt,
     },
     workflows::payment_sync,
 };
@@ -165,7 +166,7 @@ where
             &header_payload,
         )
         .await?;
-    utils::validate_profile_id_from_auth_layer(
+    core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
     )?;
@@ -649,7 +650,7 @@ where
         )
         .await?;
 
-    crate::utils::trigger_payments_webhook(
+    utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
         &key_store,
@@ -685,7 +686,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
-    eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
+
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
@@ -734,20 +735,34 @@ where
         )
         .await?;
 
-    utils::validate_profile_id_from_auth_layer(
+    core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    let connector = get_connector_data_for_mit(
-        &operation,
+    common_utils::fp_utils::when(!should_call_connector(&operation, &payment_data), || {
+        Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration).attach_printable(format!(
+            "Nti and card details based mit flow is not support for this {operation:?} payment operation"
+        ))
+    })?;
+
+    let connector_choice = operation
+        .to_domain()?
+        .get_connector(
+            &merchant_account,
+            &state.clone(),
+            &req,
+            payment_data.get_payment_intent(),
+            &key_store,
+        )
+        .await?;
+
+    let connector = set_eligible_connector_for_nti_in_payment_data(
         state,
-        &req,
-        &merchant_account,
         &business_profile,
         &key_store,
         &mut payment_data,
-        eligible_connectors,
+        connector_choice,
     )
     .await?;
 
@@ -835,7 +850,7 @@ where
 
     let cloned_payment_data = payment_data.clone();
 
-    crate::utils::trigger_payments_webhook(
+    utils::trigger_payments_webhook(
         merchant_account,
         business_profile,
         &key_store,
@@ -1146,6 +1161,66 @@ where
             call_connector_action,
             auth_flow,
             eligible_routable_connectors,
+            header_payload.clone(),
+        )
+        .await?;
+
+    Res::generate_response(
+        payment_data,
+        customer,
+        auth_flow,
+        &state.base_url,
+        operation,
+        &state.conf.connector_request_reference_id_config,
+        connector_http_status_code,
+        external_latency,
+        header_payload.x_hs_latency,
+    )
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    auth_flow: services::AuthFlow,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResponse<Res>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Req: Debug + Authenticate + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    Res: transformers::ToResponse<F, D, Op>,
+    // To create connector flow specific interface data
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, FData, Data = D>,
+{
+    let (payment_data, _req, customer, connector_http_status_code, external_latency) =
+        proxy_for_payments_operation_core::<_, _, _, _, _>(
+            &state,
+            req_state,
+            merchant_account,
+            profile_id,
+            key_store,
+            operation.clone(),
+            req,
+            call_connector_action,
+            auth_flow,
             header_payload.clone(),
         )
         .await?;
@@ -1583,7 +1658,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         )
         .await?;
         let is_pull_mechanism_enabled =
-            crate::utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+            utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                 authentication_merchant_connector_account
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
@@ -1669,8 +1744,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         }?;
         // When intent status is RequiresCustomerAction, Set poll_id in redis to allow the fetch status of poll through retrieve_poll_status api from client
         if payments_response.status == common_enums::IntentStatus::RequiresCustomerAction {
-            let req_poll_id = utils::get_external_authentication_request_poll_id(&payment_id);
-            let poll_id = utils::get_poll_id(&merchant_id, req_poll_id.clone());
+            let req_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_id);
+            let poll_id = core_utils::get_poll_id(&merchant_id, req_poll_id.clone());
             let redis_conn = state
                 .store
                 .get_redis_conn()
@@ -1737,7 +1812,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             connector.clone(),
         )?;
         // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
-        let html = utils::get_html_redirect_response_for_external_authentication(
+        let html = core_utils::get_html_redirect_response_for_external_authentication(
             redirect_response.return_url_with_query_params,
             payments_response,
             payment_id,
@@ -2500,7 +2575,7 @@ where
 
             #[cfg(feature = "v1")]
             let label = {
-                let connector_label = utils::get_connector_label(
+                let connector_label = core_utils::get_connector_label(
                     payment_data.get_payment_intent().business_country,
                     payment_data.get_payment_intent().business_label.as_ref(),
                     payment_data
@@ -3928,88 +4003,108 @@ where
     Ok(connector)
 }
 
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-pub async fn get_connector_data_for_mit<F, Req, D>(
-    operation: &BoxedOperation<'_, F, Req, D>,
+async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
     state: &SessionState,
-    req: &Req,
-    merchant_account: &domain::MerchantAccount,
-    business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &mut D,
-    eligible_routable_connectors: Option<Vec<enums::RoutableConnectors>>,
-) -> RouterResult<api::ConnectorData>
+    payment_data: &D,
+    connector_choice: T,
+
+    business_profile: &domain::Profile,
+) -> RouterResult<(
+    api_models::payments::MandateReferenceId,
+    hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    api::ConnectorData,
+)>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let connector_choice = operation
-        .to_domain()?
-        .get_connector(
-            merchant_account,
-            &state.clone(),
-            req,
-            payment_data.get_payment_intent(),
-            key_store,
-        )
-        .await?;
-
-    common_utils::fp_utils::when(!should_call_connector(operation, payment_data), || {
-        Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration).attach_printable(format!(
-            "Nti and card details based mit flow is not support for this {operation:?} payment operation"
-        ))
-    })?;
-
     // Since this flow will only be used in the MIT flow, recurring details are mandatory.
     let recurring_payment_details = payment_data
         .get_recurring_details()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
         .attach_printable("Failed to fetch recurring details for mit")?;
 
-    let (mandate_reference_id, card_details) =
-        recurring_payment_details.get_nti_and_card_details_for_mit_flow()?;
+    let (mandate_reference_id, card_details_for_network_transaction_id)= hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(recurring_payment_details.clone()).get_required_value("network transaction id and card details").attach_printable("Failed to fetch network transaction id and card details for mit")?;
 
-    // Currently, only the StraightThrough routing algorithm is supported for the
-    // NTI and card details-based MIT flow.
-    let straight_through_routing_algorithm = match connector_choice {
-        api::ConnectorChoice::StraightThrough(straight_through) => Ok(straight_through),
-        api::ConnectorChoice::SessionMultiple(_) | api::ConnectorChoice::Decide => {
-            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Invalid routing rule configured for nti and card details based mit flow",
-            )
-        }
-    }?
-    .parse_value::<api::routing::StraightThroughAlgorithm>("RoutingAlgorithm")
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to parse the straight through routing algorithm")?;
+    let network_transaction_id_supported_connectors = &state
+        .conf
+        .network_transaction_id_supported_connectors
+        .connector_list
+        .iter()
+        .map(|value| value.to_string())
+        .collect::<HashSet<_>>();
 
-    let (routable_connector_choice, should_perform_eligibility_check) =
-        routing::perform_routing_for_single_straight_through_algorithm(
-            &straight_through_routing_algorithm,
-            payment_data.get_creds_identifier(),
+    let eligible_connector_data_list = connector_choice
+        .get_routable_connectors(&*state.store, business_profile)
+        .await?
+        .filter_network_transaction_id_flow_supported_connectors(
+            network_transaction_id_supported_connectors.to_owned(),
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed execution of straight through routing")?;
+        .construct_dsl_and_perform_eligibility_analysis(
+            state,
+            key_store,
+            payment_data,
+            business_profile.get_id(),
+        )
+        .await
+        .attach_printable("Failed to fetch eligible connector data")?;
 
-    // Filter the network transaction id supported connectors from the routable connector choices.
-    let mit_connector = filter_eligible_connectors(
-        state,
-        payment_data,
-        key_store,
-        routable_connector_choice,
-        should_perform_eligibility_check,
-        eligible_routable_connectors.as_ref(),
-        business_profile,
-    )
-    .await?;
-
-    let mit_first_connector = mit_connector
+    let eligible_connector_data = eligible_connector_data_list
         .first()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
         .attach_printable(
             "No eligible connector found for the network transaction id based mit flow",
         )?;
+    Ok((
+        mandate_reference_id,
+        card_details_for_network_transaction_id,
+        eligible_connector_data.clone(),
+    ))
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn set_eligible_connector_for_nti_in_payment_data<F, D>(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+
+    connector_choice: api::ConnectorChoice,
+) -> RouterResult<api::ConnectorData>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let (mandate_reference_id, card_details_for_network_transaction_id, eligible_connector_data) =
+        match connector_choice {
+            api::ConnectorChoice::StraightThrough(straight_through) => {
+                get_eligible_connector_for_nti(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    business_profile,
+                )
+                .await?
+            }
+            api::ConnectorChoice::Decide => {
+                get_eligible_connector_for_nti(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    business_profile,
+                )
+                .await?
+            }
+            api::ConnectorChoice::SessionMultiple(_) => {
+                Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid routing rule configured for nti and card details based mit flow",
+                )?
+            }
+        };
 
     // Set `NetworkMandateId` as the MandateId
     payment_data.set_mandate_id(payments_api::MandateIds {
@@ -4019,100 +4114,10 @@ where
 
     // Set the card details received in the recurring details within the payment method data.
     payment_data.set_payment_method_data(Some(
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details),
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id),
     ));
 
-    // Construct routing data using the selected connector information, which will be set in the payment attempt.
-    let routing_data = storage::RoutingData {
-        routed_through: Some(mit_first_connector.connector_name.clone().to_string()),
-        merchant_connector_id: mit_first_connector.merchant_connector_id.clone(),
-        routing_info: storage::PaymentRoutingInfo {
-            algorithm: None,
-            pre_routing_results: None,
-        },
-        algorithm: Some(straight_through_routing_algorithm),
-    };
-    let encoded_info = routing_data
-        .routing_info
-        .encode_to_value()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error serializing payment routing info to serde value")?;
-
-    payment_data.set_connector_in_payment_attempt(routing_data.routed_through);
-
-    payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
-    payment_data.set_straight_through_algorithm_in_payment_attempt(encoded_info);
-    Ok(mit_first_connector.clone())
-}
-
-pub async fn filter_eligible_connectors<F, D>(
-    state: &SessionState,
-    payment_data: &D,
-    key_store: &domain::MerchantKeyStore,
-    routable_connector_choice_list: Vec<api_models::routing::RoutableConnectorChoice>,
-    should_perform_eligibility_check: bool,
-    eligible_connectors: Option<&Vec<enums::RoutableConnectors>>,
-    business_profile: &domain::Profile,
-) -> RouterResult<Vec<api::ConnectorData>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F>,
-{
-    let network_transaction_id_supported_connectors = &state
-        .conf
-        .network_transaction_id_supported_connectors
-        .connector_list
-        .iter()
-        .map(|value| value.to_string())
-        .collect::<HashSet<_>>();
-
-    let mut filtered_ntid_supported_connectors = routable_connector_choice_list
-        .into_iter()
-        .filter(|routable_connector_choice| {
-            network_transaction_id_supported_connectors
-                .contains(&routable_connector_choice.connector.to_string())
-        })
-        .collect();
-
-    // The eligible analysis is performed only if the `should_perform_eligibility_check` is true.
-    if should_perform_eligibility_check {
-        let transaction_data = core_routing::PaymentsDslInput::new(
-            payment_data.get_setup_mandate(),
-            payment_data.get_payment_attempt(),
-            payment_data.get_payment_intent(),
-            payment_data.get_payment_method_data(),
-            payment_data.get_address(),
-            payment_data.get_recurring_details(),
-            payment_data.get_currency(),
-        );
-
-        filtered_ntid_supported_connectors = routing::perform_eligibility_analysis(
-            &state.clone(),
-            key_store,
-            filtered_ntid_supported_connectors,
-            &TransactionData::Payment(transaction_data),
-            eligible_connectors,
-            business_profile.get_id(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed eligibility analysis and fallback")?;
-    }
-
-    let connector_data = filtered_ntid_supported_connectors
-        .into_iter()
-        .map(|conn| {
-            api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &conn.connector.to_string(),
-                api::GetToken::Connector,
-                conn.merchant_connector_id.clone(),
-            )
-        })
-        .collect::<CustomResult<Vec<_>, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received")?;
-    Ok(connector_data)
+    Ok(eligible_connector_data)
 }
 
 #[allow(clippy::too_many_arguments)]
