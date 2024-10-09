@@ -177,6 +177,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             recurring_details: None,
             poll_config: None,
             tax_data: Some(tax_data),
+            mandate_contract_id: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),

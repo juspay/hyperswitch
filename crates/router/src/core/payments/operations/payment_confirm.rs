@@ -695,6 +695,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 _ => None,
             });
 
+        let mandate_contract_id = Some(helpers::create_mandate_contract_id());
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -734,6 +736,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_details,
             poll_config: None,
             tax_data: None,
+            mandate_contract_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

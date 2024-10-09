@@ -1771,6 +1771,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
+            mandate_contract_id: additional_data.payment_data.mandate_contract_id,
         })
     }
 }
