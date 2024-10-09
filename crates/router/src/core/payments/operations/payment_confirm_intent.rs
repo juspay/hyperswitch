@@ -147,7 +147,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 
         let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model_from_request(
-                &state,
+                &state.into(),
                 &payment_intent,
                 cell_id,
                 storage_scheme,
