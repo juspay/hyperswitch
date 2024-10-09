@@ -1,27 +1,30 @@
-
 use common_enums::enums;
 use common_utils::{
-    id_type, pii::{Email, SecretSerdeValue}, types::MinorUnit
+    id_type,
+    pii::{Email, SecretSerdeValue},
+    types::MinorUnit,
 };
-
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData, ErrorResponse, PaymentMethodToken},
-    router_flow_types::{refunds::{Execute, RSync}, payments },
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_flow_types::{
+        payments,
+        refunds::{Execute, RSync},
+    },
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE}, errors};
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        self, CardData as _,
-        PaymentsAuthorizeRequestData, RouterData as _,
-    },
+    utils::{self, CardData as _, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub struct BillwerkRouterData<T> {
@@ -115,12 +118,10 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("billwerk"),
-                )
-                .into())
-            }
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("billwerk"),
+            )
+            .into()),
         }
     }
 }
@@ -134,7 +135,7 @@ pub struct BillwerkTokenResponse {
 impl<T>
     TryFrom<
         ResponseRouterData<
-        payments::PaymentMethodToken,
+            payments::PaymentMethodToken,
             BillwerkTokenResponse,
             T,
             PaymentsResponseData,
@@ -251,18 +252,12 @@ pub struct BillwerkPaymentsResponse {
     error_state: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BillwerkPaymentsResponse,
-            T,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
         {
@@ -381,9 +376,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>>
-    for types::RefundsRouterData<RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,

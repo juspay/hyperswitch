@@ -3,7 +3,11 @@ pub mod transformers;
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
 use common_utils::{
-    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::BytesExt, request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor, MinorUnit, MinorUnitForConnector}
+    consts::BASE64_ENGINE,
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -14,27 +18,31 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-         PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData, TokenizationRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
-        ConnectorValidation,
-    }, configs::Connectors, consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE}, errors, events::connector_api_logs::ConnectorEvent, types::{
-        self,  Response,
-    }, webhooks::{IncomingWebhook, IncomingWebhookRequestDetails}
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
-use transformers::{self as billwerk, BillwerkAuthType, BillwerkCaptureRequest, BillwerkErrorResponse, BillwerkPaymentsRequest, BillwerkPaymentsResponse, BillwerkRefundRequest, BillwerkRouterData, BillwerkTokenRequest, BillwerkTokenResponse};
+use transformers::{
+    self as billwerk, BillwerkAuthType, BillwerkCaptureRequest, BillwerkErrorResponse,
+    BillwerkPaymentsRequest, BillwerkPaymentsResponse, BillwerkRefundRequest, BillwerkRouterData,
+    BillwerkTokenRequest, BillwerkTokenResponse,
+};
 
 use crate::{
     constants::headers,
@@ -134,9 +142,7 @@ impl ConnectorCommon for Billwerk {
             code: response
                 .code
                 .map_or(NO_ERROR_CODE.to_string(), |code| code.to_string()),
-            message: response
-                .message
-                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            message: response.message.unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason: Some(response.error),
             attempt_status: None,
             connector_transaction_id: None,
@@ -161,32 +167,19 @@ impl ConnectorValidation for Billwerk {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Billwerk
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Billwerk {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Billwerk {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Billwerk
 {
 }
 
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for Billwerk
-{
-}
-
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Billwerk
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Billwerk
 {
     fn get_headers(
         &self,
@@ -280,9 +273,7 @@ impl
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Billwerk
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Billwerk {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -377,9 +368,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Billwerk
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Billwerk {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -455,9 +444,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Billwerk
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Billwerk {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -554,9 +541,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Billwerk
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Billwerk {
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
@@ -632,9 +617,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
     }
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for Billwerk
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Billwerk {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
