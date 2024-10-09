@@ -1,7 +1,7 @@
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::MerchantAccountUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -482,27 +482,21 @@ impl MerchantAccountInterface for MockDb {
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
-        let account: Option<domain::MerchantAccount> = accounts
+        accounts
             .iter()
             .find(|account| account.get_id() == merchant_id)
             .cloned()
-            .async_map(|a| async {
-                a.convert(
-                    state,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Merchant ID: {:?} not found",
+                merchant_id
+            )))?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
-            .transpose()?;
-
-        match account {
-            Some(account) => Ok(account),
-            // [#172]: Implement function for `MockDb`
-            None => Err(errors::StorageError::MockDbError)?,
-        }
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn update_merchant(
@@ -512,8 +506,13 @@ impl MerchantAccountInterface for MockDb {
         _merchant_account: storage::MerchantAccountUpdate,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        self.update_specific_fields_in_merchant(
+            _state,
+            _this.get_id(),
+            _merchant_account,
+            _merchant_key_store,
+        )
+        .await
     }
 
     async fn update_specific_fields_in_merchant(
@@ -524,7 +523,17 @@ impl MerchantAccountInterface for MockDb {
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         // [#TODO]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_accounts.lock().await;
+        let account = accounts
+            .iter_mut()
+            .find(|account| account.get_id() == _merchant_id)
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Merchant ID: {:?} not found",
+                _merchant_id
+            )))?;
+        account.from_update(_merchant_account.into());
+        self.find_merchant_account_by_merchant_id(_state, _merchant_id, _merchant_key_store)
+            .await
     }
 
     async fn find_merchant_account_by_publishable_key(
@@ -533,14 +542,51 @@ impl MerchantAccountInterface for MockDb {
         _publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let accounts = self.merchant_accounts.lock().await;
+        let account = accounts
+            .iter()
+            .find(|account| {
+                account
+                    .publishable_key
+                    .as_ref()
+                    .is_some_and(|key| key == _publishable_key)
+            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Publishable Key: {} not found",
+                _publishable_key
+            )))?;
+        let key_store = self
+            .get_merchant_key_store_by_merchant_id(
+                _state,
+                account.get_id(),
+                &self.get_master_key().to_vec().into(),
+            )
+            .await?;
+        Ok(authentication::AuthenticationData {
+            merchant_account: account
+                .clone()
+                .convert(
+                    _state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)?,
+
+            key_store,
+            profile_id: None,
+        })
     }
 
     async fn update_all_merchant_account(
         &self,
         _merchant_account_update: storage::MerchantAccountUpdate,
     ) -> CustomResult<usize, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_accounts.lock().await;
+        Ok(accounts.iter_mut().fold(0, |acc, account| {
+            account.from_update(_merchant_account_update.clone().into());
+            acc + 1
+        }))
     }
 
     async fn delete_merchant_account_by_merchant_id(
@@ -548,7 +594,9 @@ impl MerchantAccountInterface for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_accounts.lock().await;
+        accounts.retain(|x| x.get_id() != _merchant_id);
+        Ok(true)
     }
 
     #[cfg(feature = "olap")]
@@ -557,7 +605,10 @@ impl MerchantAccountInterface for MockDb {
         _state: &KeyManagerState,
         _organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        let accounts = self.merchant_accounts.lock().await;
+        accounts
+            .iter()
+            .filter(|account| account.organization_id == _organization_id)
     }
 
     #[cfg(feature = "olap")]

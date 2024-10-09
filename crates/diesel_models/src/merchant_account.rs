@@ -197,6 +197,15 @@ impl MerchantAccount {
     }
 }
 
+impl MerchantAccount {
+    #[cfg(feature = "v1")]
+    pub fn from_update(&mut self, update: MerchantAccountUpdateInternal) {
+        self.merchant_name = update.merchant_name;
+        self.merchant_details = update.merchant_details;
+        self.return_url = update.return_url;
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
