@@ -1944,9 +1944,16 @@ pub async fn terminate_two_factor_auth(
         }
     }
 
-    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::TOTP.into())?;
+    let current_flow = domain::CurrentFlow::new(user_token.clone(), domain::SPTFlow::TOTP.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
+
+    let _ = tfa_utils::delete_totp_attempts_from_redis(&state, &user_token.user_id)
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = tfa_utils::delete_recovery_code_attempts_from_redis(&state, &user_token.user_id)
+        .await
+        .map_err(|error| logger::error!(?error));
 
     auth::cookies::set_cookie_response(
         user_api::TokenResponse {
