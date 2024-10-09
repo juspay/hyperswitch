@@ -3043,7 +3043,7 @@ impl UserRoleInterface for KafkaStore {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: user_storage::UserRoleUpdate,
         version: enums::UserRoleVersion,

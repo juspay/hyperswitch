@@ -174,7 +174,7 @@ pub async fn update_user_role(
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
-                &user_from_token.merchant_id,
+                Some(&user_from_token.merchant_id),
                 user_from_token.profile_id.as_ref(),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
@@ -247,7 +247,7 @@ pub async fn update_user_role(
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
-                &user_from_token.merchant_id,
+                Some(&user_from_token.merchant_id),
                 user_from_token.profile_id.as_ref(),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
@@ -296,7 +296,7 @@ pub async fn accept_invitations_v2(
                     &state,
                     user_from_token.user_id.as_str(),
                     org_id,
-                    merchant_id,
+                    merchant_id.as_ref(),
                     profile_id.as_ref(),
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
@@ -348,7 +348,7 @@ pub async fn accept_invitations_pre_auth(
                     &state,
                     user_token.user_id.as_str(),
                     org_id,
-                    merchant_id,
+                    merchant_id.as_ref(),
                     profile_id.as_ref(),
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
