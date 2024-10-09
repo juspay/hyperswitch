@@ -48,6 +48,48 @@ const multiUseMandateData = {
   },
 };
 
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "25",
+    card_holder_name: null,
+    payment_checks: {
+      avs_response: {
+        code: "Y",
+        codeRaw: "Y",
+      },
+      card_verification: null,
+    },
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_3ds = {
+  card: {
+    last4: "1091",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "400000",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "25",
+    card_holder_name: null,
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -60,6 +102,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "on_session",
         },
       },
     },
@@ -73,6 +116,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -90,6 +134,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -107,6 +153,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -124,6 +172,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -141,6 +192,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
