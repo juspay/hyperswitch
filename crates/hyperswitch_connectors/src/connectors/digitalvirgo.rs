@@ -236,7 +236,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "/payment"))
+        Ok(format!("{}/payment", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -451,7 +451,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
     ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: digitalvirgo::DigitalvirgoPaymentsResponse = res
             .response
-            .parse_struct("Digitalvirgo PaymentsAuthorizeResponse")
+            .parse_struct("DigitalvirgoPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
