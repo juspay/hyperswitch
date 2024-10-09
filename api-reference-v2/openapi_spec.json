@@ -18920,6 +18920,7 @@
           },
           "merchant_ref": {
             "type": "string",
+            "description": "Merchant reference id that was passed in the session call request",
             "nullable": true
           },
           "method": {
