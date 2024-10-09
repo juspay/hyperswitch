@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/v2/organization/{organization_id}": {
+    "/v2/organization/{id}": {
       "get": {
         "tags": [
           "Organization"
@@ -77,7 +77,7 @@
         "operationId": "Retrieve an Organization",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
@@ -116,7 +116,7 @@
         "operationId": "Update an Organization",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
@@ -164,17 +164,17 @@
         ]
       }
     },
-    "/v2/organization/{organization_id}/merchant_accounts": {
+    "/v2/organization/{id}/merchant_accounts": {
       "get": {
         "tags": [
           "Organization"
         ],
-        "summary": "Merchant Account - List",
+        "summary": "Organization - Merchant Account - List",
         "description": "List merchant accounts for an Organization",
         "operationId": "List Merchant Accounts",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Organization",
             "required": true,
@@ -659,6 +659,46 @@
         "security": [
           {
             "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{payment_id}/create_external_sdk_tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Session token",
+        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
+        "operationId": "Create Session tokens for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment session object created or session token was retrieved from wallets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -5379,6 +5419,7 @@
           "multisafepay",
           "netcetera",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
@@ -5550,6 +5591,11 @@
           "samsung_pay": {
             "type": "object",
             "description": "This field contains the Samsung Pay certificates and credentials",
+            "nullable": true
+          },
+          "paze": {
+            "type": "object",
+            "description": "This field contains the Paze certificates and credentials",
             "nullable": true
           }
         },
@@ -12507,6 +12553,7 @@
           "open_banking_uk",
           "pay_bright",
           "paypal",
+          "paze",
           "pix",
           "pay_safe_card",
           "przelewy24",
@@ -15601,37 +15648,7 @@
         }
       },
       "PaymentsSessionRequest": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "client_secret",
-          "wallets"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
-          },
-          "wallets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "The list of the supported wallets"
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
-          }
-        }
+        "type": "object"
       },
       "PaymentsSessionResponse": {
         "type": "object",
@@ -17127,6 +17144,39 @@
           }
         }
       },
+      "PazeSessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_name",
+          "client_profile_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Paze Client ID"
+          },
+          "client_name": {
+            "type": "string",
+            "description": "Client Name to be displayed on the Paze screen"
+          },
+          "client_profile_id": {
+            "type": "string",
+            "description": "Paze Client Profile ID"
+          }
+        }
+      },
+      "PazeWalletData": {
+        "type": "object",
+        "required": [
+          "complete_response"
+        ],
+        "properties": {
+          "complete_response": {
+            "type": "string"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -18570,6 +18620,7 @@
           "mollie",
           "multisafepay",
           "nexinets",
+          "nexixpay",
           "nmi",
           "noon",
           "novalnet",
@@ -19212,7 +19263,8 @@
           "account_holder_name",
           "bic",
           "country",
-          "iban"
+          "iban",
+          "reference"
         ],
         "properties": {
           "account_holder_name": {
@@ -19229,6 +19281,10 @@
           "iban": {
             "type": "string",
             "example": "123456789"
+          },
+          "reference": {
+            "type": "string",
+            "example": "U2PVVSEV4V9Y"
           }
         }
       },
@@ -19354,6 +19410,27 @@
                     "type": "string",
                     "enum": [
                       "open_banking"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PazeSessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paze"
                     ]
                   }
                 }
@@ -20531,6 +20608,17 @@
             "properties": {
               "paypal_sdk": {
                 "$ref": "#/components/schemas/PayPalWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paze"
+            ],
+            "properties": {
+              "paze": {
+                "$ref": "#/components/schemas/PazeWalletData"
               }
             }
           },

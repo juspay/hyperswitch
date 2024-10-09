@@ -1591,6 +1591,9 @@ impl
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
                         )?,
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Braintree"))?
+                        }
                     },
                     transaction: transaction_body,
                 },
@@ -1689,6 +1692,9 @@ fn get_braintree_redirect_form(
                 "Simplified",
                 "Braintree"
             ))?,
+            types::PaymentMethodToken::PazeDecrypt(_) => {
+                Err(unimplemented_payment_method!("Paze", "Braintree"))?
+            }
         },
         bin: match card_details {
             domain::PaymentMethodData::Card(card_details) => {

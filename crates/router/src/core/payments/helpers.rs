@@ -30,7 +30,7 @@ use futures::future::Either;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payment_method_data::GetPaymentMethodType,
+    payment_method_data::{GetPaymentMethodType, PazeWalletData},
     payments::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
@@ -76,10 +76,7 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
-        domain::{
-            self,
-            types::{self, AsyncLift},
-        },
+        domain::{self, types},
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
@@ -2548,6 +2545,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::KakaoPay
                 | api_enums::PaymentMethodType::Cashapp
                 | api_enums::PaymentMethodType::Mifinity
+                | api_enums::PaymentMethodType::Paze
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -4151,7 +4149,10 @@ pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
-) -> Option<api_models::payments::AdditionalPaymentData> {
+) -> Result<
+    Option<api_models::payments::AdditionalPaymentData>,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             //todo!
@@ -4168,17 +4169,29 @@ pub async fn get_additional_payment_data(
                 }
                 _ => None,
             };
+
+            let card_network = match card_data
+                .card_number
+                .is_cobadged_card()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Card cobadge check failed due to an invalid card network regex",
+                )? {
+                true => card_data.card_network.clone(),
+                false => None,
+            };
+
             let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
-                && card_data.card_network.is_some()
+                && card_network.is_some()
                 && card_data.card_type.is_some()
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
             {
-                Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
-                    api_models::payments::AdditionalCardInfo {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Card(
+                    Box::new(api_models::payments::AdditionalCardInfo {
                         card_issuer: card_data.card_issuer.to_owned(),
-                        card_network: card_data.card_network.clone(),
+                        card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
@@ -4191,7 +4204,7 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
-                    },
+                    }),
                 )))
             } else {
                 let card_info = card_isin
@@ -4208,7 +4221,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_info.card_network.clone(),
+                                card_network,
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4224,7 +4237,7 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     });
-                Some(card_info.unwrap_or_else(|| {
+                Ok(Some(card_info.unwrap_or_else(|| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
@@ -4243,42 +4256,44 @@ pub async fn get_additional_payment_data(
                             authentication_data: None,
                         },
                     ))
-                }))
+                })))
             }
         }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
-            domain::BankRedirectData::Eps { bank_name, .. } => {
-                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+            domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
-                })
-            }
-            domain::BankRedirectData::Ideal { bank_name, .. } => {
-                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                },
+            )),
+            domain::BankRedirectData::Ideal { bank_name, .. } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
-                })
-            }
+                },
+            )),
             domain::BankRedirectData::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
                 card_holder_name,
-            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
-                bank_name: None,
-                details: Some(
-                    payment_additional_types::BankRedirectDetails::BancontactCard(Box::new(
-                        payment_additional_types::BancontactBankRedirectAdditionalData {
-                            last4: card_number.as_ref().map(|c| c.get_last4()),
-                            card_exp_month: card_exp_month.clone(),
-                            card_exp_year: card_exp_year.clone(),
-                            card_holder_name: card_holder_name.clone(),
-                        },
-                    )),
-                ),
-            }),
-            domain::BankRedirectData::Blik { blik_code } => {
-                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+            } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
+                    details: Some(
+                        payment_additional_types::BankRedirectDetails::BancontactCard(Box::new(
+                            payment_additional_types::BancontactBankRedirectAdditionalData {
+                                last4: card_number.as_ref().map(|c| c.get_last4()),
+                                card_exp_month: card_exp_month.clone(),
+                                card_exp_year: card_exp_year.clone(),
+                                card_holder_name: card_holder_name.clone(),
+                            },
+                        )),
+                    ),
+                },
+            )),
+            domain::BankRedirectData::Blik { blik_code } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: blik_code.as_ref().map(|blik_code| {
                         payment_additional_types::BankRedirectDetails::Blik(Box::new(
@@ -4287,119 +4302,123 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     }),
-                })
-            }
+                },
+            )),
             domain::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
                 country,
-            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
-                bank_name: None,
-                details: Some(payment_additional_types::BankRedirectDetails::Giropay(
-                    Box::new(
-                        payment_additional_types::GiropayBankRedirectAdditionalData {
-                            bic: bank_account_bic
-                                .as_ref()
-                                .map(|bic| MaskedSortCode::from(bic.to_owned())),
-                            iban: bank_account_iban
-                                .as_ref()
-                                .map(|iban| MaskedIban::from(iban.to_owned())),
-                            country: *country,
-                        },
-                    ),
-                )),
-            }),
-            _ => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
-                bank_name: None,
-                details: None,
-            }),
+            } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
+                    details: Some(payment_additional_types::BankRedirectDetails::Giropay(
+                        Box::new(
+                            payment_additional_types::GiropayBankRedirectAdditionalData {
+                                bic: bank_account_bic
+                                    .as_ref()
+                                    .map(|bic| MaskedSortCode::from(bic.to_owned())),
+                                iban: bank_account_iban
+                                    .as_ref()
+                                    .map(|iban| MaskedIban::from(iban.to_owned())),
+                                country: *country,
+                            },
+                        ),
+                    )),
+                },
+            )),
+            _ => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
+                    details: None,
+                },
+            )),
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
                     google_pay: None,
-                })
+                }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
                     google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
                         last4: google_pay_pm_data.info.card_details.clone(),
                         card_network: google_pay_pm_data.info.card_network.clone(),
                         card_type: google_pay_pm_data.pm_type.clone(),
                     }),
-                })
+                }))
             }
-            _ => Some(api_models::payments::AdditionalPaymentData::Wallet {
+            _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
-            }),
+            })),
         },
-        domain::PaymentMethodData::PayLater(_) => {
-            Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })
-        }
-        domain::PaymentMethodData::BankTransfer(bank_transfer) => {
-            Some(api_models::payments::AdditionalPaymentData::BankTransfer {
+        domain::PaymentMethodData::PayLater(_) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None },
+        )),
+        domain::PaymentMethodData::BankTransfer(bank_transfer) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::BankTransfer {
                 details: Some((*(bank_transfer.to_owned())).into()),
-            })
-        }
+            },
+        )),
         domain::PaymentMethodData::Crypto(crypto) => {
-            Some(api_models::payments::AdditionalPaymentData::Crypto {
+            Ok(Some(api_models::payments::AdditionalPaymentData::Crypto {
                 details: Some(crypto.to_owned().into()),
-            })
+            }))
         }
-        domain::PaymentMethodData::BankDebit(bank_debit) => {
-            Some(api_models::payments::AdditionalPaymentData::BankDebit {
+        domain::PaymentMethodData::BankDebit(bank_debit) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::BankDebit {
                 details: Some(bank_debit.to_owned().into()),
-            })
-        }
-        domain::PaymentMethodData::MandatePayment => {
-            Some(api_models::payments::AdditionalPaymentData::MandatePayment {})
-        }
+            },
+        )),
+        domain::PaymentMethodData::MandatePayment => Ok(Some(
+            api_models::payments::AdditionalPaymentData::MandatePayment {},
+        )),
         domain::PaymentMethodData::Reward => {
-            Some(api_models::payments::AdditionalPaymentData::Reward {})
+            Ok(Some(api_models::payments::AdditionalPaymentData::Reward {}))
         }
-        domain::PaymentMethodData::RealTimePayment(realtime_payment) => Some(
+        domain::PaymentMethodData::RealTimePayment(realtime_payment) => Ok(Some(
             api_models::payments::AdditionalPaymentData::RealTimePayment {
                 details: Some((*(realtime_payment.to_owned())).into()),
             },
-        ),
+        )),
         domain::PaymentMethodData::Upi(upi) => {
-            Some(api_models::payments::AdditionalPaymentData::Upi {
+            Ok(Some(api_models::payments::AdditionalPaymentData::Upi {
                 details: Some(upi.to_owned().into()),
-            })
+            }))
         }
-        domain::PaymentMethodData::CardRedirect(card_redirect) => {
-            Some(api_models::payments::AdditionalPaymentData::CardRedirect {
+        domain::PaymentMethodData::CardRedirect(card_redirect) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::CardRedirect {
                 details: Some(card_redirect.to_owned().into()),
-            })
-        }
+            },
+        )),
         domain::PaymentMethodData::Voucher(voucher) => {
-            Some(api_models::payments::AdditionalPaymentData::Voucher {
+            Ok(Some(api_models::payments::AdditionalPaymentData::Voucher {
                 details: Some(voucher.to_owned().into()),
-            })
+            }))
         }
-        domain::PaymentMethodData::GiftCard(gift_card) => {
-            Some(api_models::payments::AdditionalPaymentData::GiftCard {
+        domain::PaymentMethodData::GiftCard(gift_card) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::GiftCard {
                 details: Some((*(gift_card.to_owned())).into()),
-            })
-        }
-        domain::PaymentMethodData::CardToken(card_token) => {
-            Some(api_models::payments::AdditionalPaymentData::CardToken {
+            },
+        )),
+        domain::PaymentMethodData::CardToken(card_token) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::CardToken {
                 details: Some(card_token.to_owned().into()),
-            })
-        }
-        domain::PaymentMethodData::OpenBanking(open_banking) => {
-            Some(api_models::payments::AdditionalPaymentData::OpenBanking {
+            },
+        )),
+        domain::PaymentMethodData::OpenBanking(open_banking) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::OpenBanking {
                 details: Some(open_banking.to_owned().into()),
-            })
-        }
-        domain::PaymentMethodData::NetworkToken(_) => None,
+            },
+        )),
+        domain::PaymentMethodData::NetworkToken(_) => Ok(None),
     }
 }
 
@@ -4534,12 +4553,10 @@ pub fn is_apple_pay_simplified_flow(
 // As part of migration fallback this function checks apple pay details are present in connector_wallets_details
 // If yes, it will encrypt connector_wallets_details and store it in the database.
 // If no, it will check if apple pay details are present in metadata and merge it with connector_wallets_details, encrypt and store it.
-pub async fn get_encrypted_connector_wallets_details_with_apple_pay_certificates(
-    state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+pub async fn get_connector_wallets_details_with_apple_pay_certificates(
     connector_metadata: &Option<masking::Secret<tera::Value>>,
     connector_wallets_details_optional: &Option<api_models::admin::ConnectorWalletDetails>,
-) -> RouterResult<Option<Encryptable<masking::Secret<serde_json::Value>>>> {
+) -> RouterResult<Option<masking::Secret<serde_json::Value>>> {
     let connector_wallet_details_with_apple_pay_metadata_optional =
         get_apple_pay_metadata_if_needed(connector_metadata, connector_wallets_details_optional)
             .await?;
@@ -4553,25 +4570,7 @@ pub async fn get_encrypted_connector_wallets_details_with_apple_pay_certificates
         .transpose()?
         .map(masking::Secret::new);
 
-    let key_manager_state: KeyManagerState = state.into();
-    let encrypted_connector_wallets_details = connector_wallets_details
-        .clone()
-        .async_lift(|wallets_details| async {
-            types::crypto_operation(
-                &key_manager_state,
-                type_name!(domain::MerchantConnectorAccount),
-                types::CryptoOperation::EncryptOptional(wallets_details),
-                Identifier::Merchant(key_store.merchant_id.clone()),
-                key_store.key.get_inner().peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_optionaloperation())
-        })
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while encrypting connector wallets details")?;
-
-    Ok(encrypted_connector_wallets_details)
+    Ok(connector_wallets_details)
 }
 
 async fn get_apple_pay_metadata_if_needed(
@@ -4626,6 +4625,9 @@ async fn get_and_merge_apple_pay_metadata(
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
+                    paze: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.paze.clone()),
                 }
             }
             api_models::payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
@@ -4641,6 +4643,9 @@ async fn get_and_merge_apple_pay_metadata(
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
+                    paze: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.paze.clone()),
                 }
             }
         };
@@ -4980,6 +4985,71 @@ impl ApplePayData {
 
         Ok(decrypted)
     }
+}
+
+pub fn decrypt_paze_token(
+    paze_wallet_data: PazeWalletData,
+    paze_private_key: masking::Secret<String>,
+    paze_private_key_passphrase: masking::Secret<String>,
+) -> CustomResult<serde_json::Value, errors::PazeDecryptionError> {
+    let decoded_paze_private_key = BASE64_ENGINE
+        .decode(paze_private_key.expose().as_bytes())
+        .change_context(errors::PazeDecryptionError::Base64DecodingFailed)?;
+    let decrypted_private_key = openssl::rsa::Rsa::private_key_from_pem_passphrase(
+        decoded_paze_private_key.as_slice(),
+        paze_private_key_passphrase.expose().as_bytes(),
+    )
+    .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
+    let decrypted_private_key_pem = String::from_utf8(
+        decrypted_private_key
+            .private_key_to_pem()
+            .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?,
+    )
+    .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
+    let decrypter = jwe::RSA_OAEP_256
+        .decrypter_from_pem(decrypted_private_key_pem)
+        .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
+
+    let paze_complete_response: Vec<&str> = paze_wallet_data
+        .complete_response
+        .peek()
+        .split('.')
+        .collect();
+    let encrypted_jwe_key = paze_complete_response
+        .get(1)
+        .ok_or(errors::PazeDecryptionError::DecryptionFailed)?
+        .to_string();
+    let decoded_jwe_key = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(encrypted_jwe_key)
+        .change_context(errors::PazeDecryptionError::Base64DecodingFailed)?;
+    let jws_body: JwsBody = serde_json::from_slice(&decoded_jwe_key)
+        .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
+
+    let (deserialized_payload, _deserialized_header) =
+        jwe::deserialize_compact(jws_body.secured_payload.peek(), &decrypter)
+            .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
+    let encoded_secured_payload_element = String::from_utf8(deserialized_payload)
+        .change_context(errors::PazeDecryptionError::DecryptionFailed)?
+        .split('.')
+        .collect::<Vec<&str>>()
+        .get(1)
+        .ok_or(errors::PazeDecryptionError::DecryptionFailed)?
+        .to_string();
+    let decoded_secured_payload_element = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(encoded_secured_payload_element)
+        .change_context(errors::PazeDecryptionError::Base64DecodingFailed)?;
+    let parsed_decrypted: serde_json::Value =
+        serde_json::from_slice(&decoded_secured_payload_element)
+            .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
+    Ok(parsed_decrypted)
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JwsBody {
+    pub payload_id: String,
+    pub session_id: String,
+    pub secured_payload: masking::Secret<String>,
 }
 
 pub fn get_key_params_for_surcharge_details(
