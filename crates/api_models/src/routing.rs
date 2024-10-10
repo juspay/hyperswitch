@@ -523,21 +523,42 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicRoutingAlgorithmRef {
     pub success_based_algorithm:
-        Option<DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>>,
+        Option<SuccessBasedAlgorithm>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SuccessBasedAlgorithm {
+    pub algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> ,
+    pub enabled_feature: SuccessBasedRoutingFeatures,
 }
 
 impl DynamicRoutingAlgorithmRef {
-    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
-        self.success_based_algorithm = Some(DynamicAlgorithmWithTimestamp {
-            algorithm_id: Some(new_id),
-            timestamp: common_utils::date_time::now_unix_timestamp(),
-        })
+    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId, enabled_feature: SuccessBasedRoutingFeatures) {
+        self.success_based_algorithm = Some(
+            SuccessBasedAlgorithm { 
+                algorithm_id_with_timestamp:
+                 DynamicAlgorithmWithTimestamp {
+                        algorithm_id: Some(new_id),
+                        timestamp: common_utils::date_time::now_unix_timestamp(),
+                    },
+                enabled_feature
+            }
+       )
     }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleSuccessBasedRoutingQuery {
-    pub status: bool,
+    pub enable: SuccessBasedRoutingFeatures,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SuccessBasedRoutingFeatures {
+    #[default]
+    Metrics,
+    DynamicConnectorSelection,
+    None,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -551,7 +572,7 @@ pub struct SuccessBasedRoutingUpdateConfigQuery {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ToggleSuccessBasedRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
-    pub status: bool,
+    pub enable: SuccessBasedRoutingFeatures,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
