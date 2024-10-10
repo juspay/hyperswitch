@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.04.0-hotfix1
+
+### Features
+
+- Feat(connector): add dynamic duitnow qr code, google pay and applpepay for fiuu ([#6284](https://github.com/juspay/hyperswitch/pull/6284)) ([`55ffca4`](https://github.com/juspay/hyperswitch/commit/55ffca48ad1220a2cf5b6f28e0b73aa0a409083c))
+
+- - -
+
 ## 2024.10.04.0
 
 ### Features
