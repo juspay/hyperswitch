@@ -4389,6 +4389,8 @@ pub struct PaymentListFilterConstraints {
     /// The order in which payments list should be sorted
     #[serde(default)]
     pub order: Order,
+    /// The List of all the card networks to filter payments list
+    pub card_network: Option<Vec<enums::CardNetwork>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -4418,6 +4420,8 @@ pub struct PaymentListFiltersV2 {
     pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
     /// The list of available authentication types
     pub authentication_type: Vec<enums::AuthenticationType>,
+    /// The list of available card networks
+    pub card_network: Vec<enums::CardNetwork>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
