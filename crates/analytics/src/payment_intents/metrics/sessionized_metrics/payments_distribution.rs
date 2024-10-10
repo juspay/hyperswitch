@@ -1,53 +1,55 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
-    payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
-    Distribution, Granularity, TimeRange,
+    payment_intents::{
+        PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
+    },
+    Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
-use super::{PaymentDistribution, PaymentDistributionRow};
+use super::PaymentIntentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{
-        Aggregate, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window,
-    },
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(super) struct PaymentErrorMessage;
+pub(crate) struct PaymentsDistribution;
 
 #[async_trait::async_trait]
-impl<T> PaymentDistribution<T> for PaymentErrorMessage
+impl<T> super::PaymentIntentMetric<T> for PaymentsDistribution
 where
-    T: AnalyticsDataSource + super::PaymentDistributionAnalytics,
+    T: AnalyticsDataSource + super::PaymentIntentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    async fn load_distribution(
+    async fn load_metrics(
         &self,
-        distribution: &Distribution,
-        dimensions: &[PaymentDimensions],
+        dimensions: &[PaymentIntentDimensions],
         auth: &AuthInfo,
-        filters: &PaymentFilters,
+        filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    {
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::PaymentIntentSessionized);
+
+        let mut dimensions = dimensions.to_vec();
+
+        dimensions.push(PaymentIntentDimensions::PaymentIntentStatus);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
-
-        query_builder
-            .add_select_column(&distribution.distribution_for)
-            .switch()?;
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -55,6 +57,11 @@ where
                 alias: Some("count"),
             })
             .switch()?;
+
+        query_builder
+            .add_select_column("attempt_count == 1 as first_attempt")
+            .switch()?;
+
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -83,12 +90,10 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
-
         query_builder
-            .add_group_by_clause(&distribution.distribution_for)
-            .attach_printable("Error grouping by distribution_for")
+            .add_group_by_clause("first_attempt")
+            .attach_printable("Error grouping by first_attempt")
             .switch()?;
-
         if let Some(granularity) = granularity.as_ref() {
             granularity
                 .set_group_by_clause(&mut query_builder)
@@ -97,64 +102,21 @@ where
         }
 
         query_builder
-            .add_filter_clause(
-                PaymentDimensions::PaymentStatus,
-                storage_enums::AttemptStatus::Failure,
-            )
-            .switch()?;
-
-        for dim in dimensions.iter() {
-            query_builder.add_outer_select_column(dim).switch()?;
-        }
-
-        query_builder
-            .add_outer_select_column(&distribution.distribution_for)
-            .switch()?;
-        query_builder.add_outer_select_column("count").switch()?;
-        query_builder
-            .add_outer_select_column("start_bucket")
-            .switch()?;
-        query_builder
-            .add_outer_select_column("end_bucket")
-            .switch()?;
-        let sql_dimensions = query_builder.transform_to_sql_values(dimensions).switch()?;
-
-        query_builder
-            .add_outer_select_column(Window::Sum {
-                field: "count",
-                partition_by: Some(sql_dimensions),
-                order_by: None,
-                alias: Some("total"),
-            })
-            .switch()?;
-
-        query_builder
-            .add_top_n_clause(
-                dimensions,
-                distribution.distribution_cardinality.into(),
-                "count",
-                Order::Descending,
-            )
-            .switch()?;
-
-        query_builder
-            .execute_query::<PaymentDistributionRow, _>(pool)
+            .execute_query::<PaymentIntentMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
             .change_context(MetricsError::QueryExecutionFailure)?
             .into_iter()
             .map(|i| {
                 Ok((
-                    PaymentMetricsBucketIdentifier::new(
+                    PaymentIntentMetricsBucketIdentifier::new(
+                        None,
                         i.currency.as_ref().map(|i| i.0),
-                        i.status.as_ref().map(|i| i.0),
+                        i.profile_id.clone(),
                         i.connector.clone(),
                         i.authentication_type.as_ref().map(|i| i.0),
                         i.payment_method.clone(),
                         i.payment_method_type.clone(),
-                        i.client_source.clone(),
-                        i.client_version.clone(),
-                        i.profile_id.clone(),
                         i.card_network.clone(),
                         i.merchant_id.clone(),
                         i.card_last_4.clone(),
@@ -175,7 +137,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>,
+                HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

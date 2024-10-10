@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use api_models::{
     analytics::{
@@ -301,8 +301,8 @@ pub enum Order {
     Descending,
 }
 
-impl std::fmt::Display for Order {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Order {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Ascending => write!(f, "asc"),
             Self::Descending => write!(f, "desc"),
@@ -335,6 +335,68 @@ pub struct TopN {
     pub order: Order,
 }
 
+#[derive(Debug, Clone)]
+pub struct LimitByClause {
+    limit: u64,
+    columns: Vec<String>,
+}
+
+impl fmt::Display for LimitByClause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LIMIT {} BY {}", self.limit, self.columns.join(", "))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum FilterCombinator {
+    #[default]
+    And,
+    Or,
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(match self {
+            Self::And => " AND ",
+            Self::Or => " OR ",
+        }
+        .to_owned())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Filter {
+    Plain(String, FilterTypes, String),
+    NestedFilter(FilterCombinator, Vec<Filter>),
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Self::NestedFilter(FilterCombinator::default(), Vec::new())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for Filter {
+    fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(match self {
+            Self::Plain(l, op, r) => filter_type_to_sql(l, op, r),
+            Self::NestedFilter(operator, filters) => {
+                format!(
+                    "( {} )",
+                    filters
+                        .iter()
+                        .map(|f| <Self as ToSql<T>>::to_sql(f, table_engine))
+                        .collect::<Result<Vec<String>, _>>()?
+                        .join(
+                            <FilterCombinator as ToSql<T>>::to_sql(operator, table_engine)?
+                                .as_ref()
+                        )
+                )
+            }
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct QueryBuilder<T>
 where
@@ -342,9 +404,11 @@ where
     AnalyticsCollection: ToSql<T>,
 {
     columns: Vec<String>,
-    filters: Vec<(String, FilterTypes, String)>,
+    filters: Filter,
     group_by: Vec<String>,
+    order_by: Vec<String>,
     having: Option<Vec<(String, FilterTypes, String)>>,
+    limit_by: Option<LimitByClause>,
     outer_select: Vec<String>,
     top_n: Option<TopN>,
     table: AnalyticsCollection,
@@ -444,7 +508,7 @@ impl_to_sql_for_to_string!(
     DisputeStage
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum FilterTypes {
     Equal,
     NotEqual,
@@ -483,7 +547,9 @@ where
             columns: Default::default(),
             filters: Default::default(),
             group_by: Default::default(),
+            order_by: Default::default(),
             having: Default::default(),
+            limit_by: Default::default(),
             outer_select: Default::default(),
             top_n: Default::default(),
             table,
@@ -580,7 +646,7 @@ where
         rhs: impl ToSql<T>,
         comparison: FilterTypes,
     ) -> QueryResult<()> {
-        self.filters.push((
+        let filter = Filter::Plain(
             lhs.to_sql(&self.table_engine)
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter key")?,
@@ -588,8 +654,17 @@ where
             rhs.to_sql(&self.table_engine)
                 .change_context(QueryBuildingError::SqlSerializeError)
                 .attach_printable("Error serializing filter value")?,
-        ));
+        );
+        self.add_nested_filter_clause(filter);
         Ok(())
+    }
+    pub fn add_nested_filter_clause(&mut self, filter: Filter) {
+        match &mut self.filters {
+            Filter::NestedFilter(_, ref mut filters) => filters.push(filter),
+            f @ Filter::Plain(_, _, _) => {
+                self.filters = Filter::NestedFilter(FilterCombinator::And, vec![f.clone(), filter]);
+            }
+        }
     }
 
     pub fn add_filter_in_range_clause(
@@ -623,6 +698,37 @@ where
         Ok(())
     }
 
+    pub fn add_order_by_clause(
+        &mut self,
+        column: impl ToSql<T>,
+        order: impl ToSql<T>,
+    ) -> QueryResult<()> {
+        let column_sql = column
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing order by column")?;
+
+        let order_sql = order
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing order direction")?;
+
+        self.order_by.push(format!("{} {}", column_sql, order_sql));
+        Ok(())
+    }
+
+    pub fn set_limit_by(&mut self, limit: u64, columns: &[impl ToSql<T>]) -> QueryResult<()> {
+        let columns = columns
+            .iter()
+            .map(|col| col.to_sql(&self.table_engine))
+            .collect::<Result<Vec<String>, _>>()
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing LIMIT BY columns")?;
+
+        self.limit_by = Some(LimitByClause { limit, columns });
+        Ok(())
+    }
+
     pub fn add_granularity_in_mins(&mut self, granularity: &Granularity) -> QueryResult<()> {
         let interval = match granularity {
             Granularity::OneMin => "1",
@@ -638,12 +744,9 @@ where
         Ok(())
     }
 
-    fn get_filter_clause(&self) -> String {
-        self.filters
-            .iter()
-            .map(|(l, op, r)| filter_type_to_sql(l, op, r))
-            .collect::<Vec<String>>()
-            .join(" AND ")
+    fn get_filter_clause(&self) -> QueryResult<String> {
+        <Filter as ToSql<T>>::to_sql(&self.filters, &self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
     }
 
     fn get_select_clause(&self) -> String {
@@ -731,9 +834,10 @@ where
                 .attach_printable("Error serializing table value")?,
         );
 
-        if !self.filters.is_empty() {
+        let filter_clause = self.get_filter_clause()?;
+        if !filter_clause.is_empty() {
             query.push_str(" WHERE ");
-            query.push_str(&self.get_filter_clause());
+            query.push_str(filter_clause.as_str());
         }
 
         if !self.group_by.is_empty() {
@@ -756,6 +860,15 @@ where
                 query.push_str(" HAVING ");
                 query.push_str(condition.as_str());
             }
+        }
+
+        if !self.order_by.is_empty() {
+            query.push_str(" ORDER BY ");
+            query.push_str(&self.order_by.join(", "));
+        }
+
+        if let Some(limit_by) = &self.limit_by {
+            query.push_str(&format!(" {}", limit_by));
         }
 
         if !self.outer_select.is_empty() {
