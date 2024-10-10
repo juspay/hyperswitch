@@ -4144,14 +4144,11 @@ where
     ))
 }
 
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
 pub async fn set_eligible_connector_for_nti_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut D,
-
     connector_choice: api::ConnectorChoice,
 ) -> RouterResult<api::ConnectorData>
 where
@@ -4201,6 +4198,7 @@ where
     Ok(eligible_connector_data)
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn connector_selection<F, D>(
     state: &SessionState,
