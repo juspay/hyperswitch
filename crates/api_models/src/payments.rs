@@ -1129,7 +1129,7 @@ impl MandateIds {
     pub fn is_network_transaction_id_flow(&self) -> bool {
         matches!(
             self.mandate_reference_id,
-            Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            Some(MandateReferenceId::NetworkMandateId(_))
         )
     }
 }
