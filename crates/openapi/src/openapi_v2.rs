@@ -123,6 +123,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payments
         routes::payments::payments_create_intent,
+        routes::payments::payments_confirm_intent,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -407,6 +408,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PollConfigResponse,
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payments::ExtendedCardInfo,
+        api_models::payments::PaymentsConfirmIntentRequest,
+        api_models::payments::PaymentsConfirmIntentResponse,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,

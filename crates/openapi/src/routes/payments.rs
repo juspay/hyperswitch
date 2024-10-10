@@ -611,3 +611,43 @@ pub fn payments_dynamic_tax_calculation() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payments_create_intent() {}
+
+/// Payments - Confirm Intent
+///
+/// **Confirms a payment intent object with the payment method data**
+///
+/// .
+#[utoipa::path(
+  post,
+  path = "/v2/payments/{id}/confirm-intent",
+  request_body(
+      content = PaymentsConfirmIntentRequest,
+      examples(
+          (
+              "Confirm the payment intent with card details" = (
+                  value = json!({
+                    "payment_method_type": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment created", body = PaymentsConfirmIntentResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Confirm Payment Intent",
+  security(("publisable_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_confirm_intent() {}
