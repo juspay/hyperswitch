@@ -107,7 +107,7 @@ SET NOT NULL,
 SET NOT NULL;
 ALTER TABLE payment_intent ALTER COLUMN session_expiry SET NOT NULL;
 
--- This migration is to make fields optinal in payment_intent table
+-- This migration is to make fields optional in payment_intent table
 ALTER TABLE payment_intent ALTER COLUMN active_attempt_id DROP NOT NULL;
 
 
