@@ -83,17 +83,17 @@ In order to run cypress tests against multiple connectors at a time:
    export CYPRESS_BASEURL='base_url'
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
 
-   export PAYMENTS=("payment_connector_1" "payment_connector_2" "payment_connector_3" "payment_connector_4")
-   export PAYOUTS=("payout_connector_1" "payout_connector_2" "payout_connector_3")
-   export PAYMENT_METHOD_LIST=()
-   export ROUTING=()
+   export PAYMENTS="payment_connector_1 payment_connector_2 payment_connector_3 payment_connector_4"
+   export PAYOUTS="payout_connector_1 payout_connector_2 payout_connector_3"
+   export PAYMENT_METHOD_LIST=""
+   export ROUTING=""
    ```
 
 2. In terminal, execute:
 
    ```shell
    source .env
-   . scripts/execute_cypress.sh
+   scripts/execute_cypress.sh
    ```
 
    Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
