@@ -10,7 +10,7 @@ pub struct PaymentMetricsAccumulator {
     pub payment_success_rate: SuccessRateAccumulator,
     pub payment_count: CountAccumulator,
     pub payment_success: CountAccumulator,
-    pub processed_amount: SumAccumulator,
+    pub processed_amount: ProcessedAmountAccumulator,
     pub avg_ticket_size: AverageAccumulator,
     pub payment_error_message: ErrorDistributionAccumulator,
     pub retries_count: CountAccumulator,
@@ -51,7 +51,7 @@ pub struct CountAccumulator {
 }
 
 #[derive(Debug, Default)]
-pub struct SumAccumulator {
+pub struct ProcessedAmountAccumulator {
     pub count_with_retries: Option<i64>,
     pub total_with_retries: Option<i64>,
     pub count_without_retries: Option<i64>,
@@ -271,7 +271,7 @@ impl PaymentMetricAccumulator for CountAccumulator {
     }
 }
 
-impl PaymentMetricAccumulator for SumAccumulator {
+impl PaymentMetricAccumulator for ProcessedAmountAccumulator {
     type MetricOutput = (Option<u64>, Option<u64>, Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {

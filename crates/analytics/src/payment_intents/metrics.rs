@@ -141,6 +141,11 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::SessionizedPaymentProcessedAmount => {
+                sessionized_metrics::PaymentProcessedAmount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
         }
     }
 }

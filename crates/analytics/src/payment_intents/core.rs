@@ -205,6 +205,9 @@ pub async fn get_metrics(
                         | PaymentIntentMetrics::SessionizedPaymentsSuccessRate => metrics_builder
                             .payments_success_rate
                             .add_metrics_bucket(&value),
+                        PaymentIntentMetrics::SessionizedPaymentProcessedAmount => metrics_builder
+                            .payment_processed_amount
+                            .add_metrics_bucket(&value),
                     }
                 }
 
@@ -222,6 +225,10 @@ pub async fn get_metrics(
     let mut total_smart_retried_amount = 0;
     let mut total_smart_retried_amount_without_smart_retries = 0;
     let mut total = 0;
+    let mut total_payment_processed_amount = 0;
+    let mut total_payment_processed_count = 0;
+    let mut total_payment_processed_amount_without_smart_retries = 0;
+    let mut total_payment_processed_count_without_smart_retries = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
@@ -243,6 +250,18 @@ pub async fn get_metrics(
                 collected_values.smart_retried_amount_without_smart_retries
             {
                 total_smart_retried_amount_without_smart_retries += retried_amount;
+            }
+            if let Some(amount) = collected_values.payment_processed_amount {
+                total_payment_processed_amount += amount;
+            }
+            if let Some(count) = collected_values.payment_processed_count {
+                total_payment_processed_count += count;
+            }
+            if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
+                total_payment_processed_amount_without_smart_retries += amount;
+            }
+            if let Some(count) = collected_values.payment_processed_count_without_smart_retries {
+                total_payment_processed_count_without_smart_retries += count;
             }
             MetricsBucketResponse {
                 values: collected_values,
@@ -266,6 +285,14 @@ pub async fn get_metrics(
             total_smart_retried_amount: Some(total_smart_retried_amount),
             total_smart_retried_amount_without_smart_retries: Some(
                 total_smart_retried_amount_without_smart_retries,
+            ),
+            total_payment_processed_amount: Some(total_payment_processed_amount),
+            total_payment_processed_amount_without_smart_retries: Some(
+                total_payment_processed_amount_without_smart_retries,
+            ),
+            total_payment_processed_count: Some(total_payment_processed_count),
+            total_payment_processed_count_without_smart_retries: Some(
+                total_payment_processed_count_without_smart_retries,
             ),
         }],
     })

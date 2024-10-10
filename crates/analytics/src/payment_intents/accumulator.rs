@@ -11,6 +11,7 @@ pub struct PaymentIntentMetricsAccumulator {
     pub smart_retried_amount: SmartRetriedAmountAccumulator,
     pub payment_intent_count: CountAccumulator,
     pub payments_success_rate: PaymentsSuccessRateAccumulator,
+    pub payment_processed_amount: ProcessedAmountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -50,6 +51,14 @@ pub struct PaymentsSuccessRateAccumulator {
     pub success: u32,
     pub success_without_retries: u32,
     pub total: u32,
+}
+
+#[derive(Debug, Default)]
+pub struct ProcessedAmountAccumulator {
+    pub count_with_retries: Option<i64>,
+    pub total_with_retries: Option<i64>,
+    pub count_without_retries: Option<i64>,
+    pub total_without_retries: Option<i64>,
 }
 
 impl PaymentIntentMetricAccumulator for CountAccumulator {
@@ -167,6 +176,61 @@ impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
     }
 }
 
+impl PaymentIntentMetricAccumulator for ProcessedAmountAccumulator {
+    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>, Option<u64>);
+    #[inline]
+    fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
+        self.total_with_retries = match (
+            self.total_with_retries,
+            metrics.total.as_ref().and_then(ToPrimitive::to_i64),
+        ) {
+            (None, None) => None,
+            (None, i @ Some(_)) | (i @ Some(_), None) => i,
+            (Some(a), Some(b)) => Some(a + b),
+        };
+
+        self.count_with_retries = match (self.count_with_retries, metrics.count) {
+            (None, None) => None,
+            (None, i @ Some(_)) | (i @ Some(_), None) => i,
+            (Some(a), Some(b)) => Some(a + b),
+        };
+
+        if metrics.first_attempt.unwrap_or(0) == 1 {
+            self.total_without_retries = match (
+                self.total_without_retries,
+                metrics.total.as_ref().and_then(ToPrimitive::to_i64),
+            ) {
+                (None, None) => None,
+                (None, i @ Some(_)) | (i @ Some(_), None) => i,
+                (Some(a), Some(b)) => Some(a + b),
+            };
+
+            self.count_without_retries = match (self.count_without_retries, metrics.count) {
+                (None, None) => None,
+                (None, i @ Some(_)) | (i @ Some(_), None) => i,
+                (Some(a), Some(b)) => Some(a + b),
+            };
+        }
+    }
+    #[inline]
+    fn collect(self) -> Self::MetricOutput {
+        let total_with_retries = u64::try_from(self.total_with_retries.unwrap_or(0)).ok();
+        let count_with_retries = self.count_with_retries.and_then(|i| u64::try_from(i).ok());
+
+        let total_without_retries = u64::try_from(self.total_without_retries.unwrap_or(0)).ok();
+        let count_without_retries = self
+            .count_without_retries
+            .and_then(|i| u64::try_from(i).ok());
+
+        (
+            total_with_retries,
+            count_with_retries,
+            total_without_retries,
+            count_without_retries,
+        )
+    }
+}
+
 impl PaymentIntentMetricsAccumulator {
     pub fn collect(self) -> PaymentIntentMetricsBucketValue {
         let (
@@ -178,6 +242,12 @@ impl PaymentIntentMetricsAccumulator {
         ) = self.payments_success_rate.collect();
         let (smart_retried_amount, smart_retried_amount_without_smart_retries) =
             self.smart_retried_amount.collect();
+        let (
+            payment_processed_amount,
+            payment_processed_count,
+            payment_processed_amount_without_smart_retries,
+            payment_processed_count_without_smart_retries,
+        ) = self.payment_processed_amount.collect();
         PaymentIntentMetricsBucketValue {
             successful_smart_retries: self.successful_smart_retries.collect(),
             total_smart_retries: self.total_smart_retries.collect(),
@@ -189,6 +259,10 @@ impl PaymentIntentMetricsAccumulator {
             total_payments,
             payments_success_rate,
             payments_success_rate_without_smart_retries,
+            payment_processed_amount,
+            payment_processed_count,
+            payment_processed_amount_without_smart_retries,
+            payment_processed_count_without_smart_retries,
         }
     }
 }

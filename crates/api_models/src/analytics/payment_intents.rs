@@ -96,6 +96,7 @@ pub enum PaymentIntentMetrics {
     SessionizedSmartRetriedAmount,
     SessionizedPaymentIntentCount,
     SessionizedPaymentsSuccessRate,
+    SessionizedPaymentProcessedAmount,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -228,6 +229,10 @@ pub struct PaymentIntentMetricsBucketValue {
     pub total_payments: Option<u32>,
     pub payments_success_rate: Option<f64>,
     pub payments_success_rate_without_smart_retries: Option<f64>,
+    pub payment_processed_amount: Option<u64>,
+    pub payment_processed_count: Option<u64>,
+    pub payment_processed_amount_without_smart_retries: Option<u64>,
+    pub payment_processed_count_without_smart_retries: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

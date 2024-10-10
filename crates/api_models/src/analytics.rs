@@ -216,6 +216,10 @@ pub struct PaymentIntentsAnalyticsMetadata {
     pub total_success_rate_without_smart_retries: Option<f64>,
     pub total_smart_retried_amount: Option<u64>,
     pub total_smart_retried_amount_without_smart_retries: Option<u64>,
+    pub total_payment_processed_amount: Option<u64>,
+    pub total_payment_processed_amount_without_smart_retries: Option<u64>,
+    pub total_payment_processed_count: Option<u64>,
+    pub total_payment_processed_count_without_smart_retries: Option<u64>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
