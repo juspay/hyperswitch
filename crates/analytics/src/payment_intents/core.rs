@@ -208,6 +208,9 @@ pub async fn get_metrics(
                         PaymentIntentMetrics::SessionizedPaymentProcessedAmount => metrics_builder
                             .payment_processed_amount
                             .add_metrics_bucket(&value),
+                        PaymentIntentMetrics::SessionizedPaymentsDistribution => metrics_builder
+                            .payments_distribution
+                            .add_metrics_bucket(&value),
                     }
                 }
 
