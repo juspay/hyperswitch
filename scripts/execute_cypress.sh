@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /usr/bin/env bash
 
 # Exit immediately if a command exits with a non-zero status,
 set -euo pipefail
@@ -8,8 +8,8 @@ tmp_file=""
 
 # Define arrays for services, etc.
 # Read service arrays from environment variables
-read -r -a payments <<< "${PAYMENTS[@]:-}"
-read -r -a payouts <<< "${PAYOUTS[@]:-}"
+read -r -a payments <<< "${PAYMENTS_CONNECTORS[@]:-}"
+read -r -a payouts <<< "${PAYOUTS_CONNECTORS[@]:-}"
 read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]:-}"
 read -r -a routing <<< "${ROUTING[@]:-}"
 
@@ -19,8 +19,8 @@ failed_connectors=()
 
 # Define an associative array to map environment variables to service names
 declare -A services=(
-  ["PAYMENTS"]="payments"
-  ["PAYOUTS"]="payouts"
+  ["PAYMENTS_CONNECTORS"]="payments"
+  ["PAYOUTS_CONNECTORS"]="payouts"
   ["PAYMENT_METHOD_LIST"]="payment_method_list"
   ["ROUTING"]="routing"
 )
