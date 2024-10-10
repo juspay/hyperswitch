@@ -2,7 +2,10 @@ pub mod disputes;
 pub mod fraud_check;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types as common_types, types::MinorUnit};
+use common_utils::{
+    request::Method,
+    types::{self as common_types, MinorUnit},
+};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
 use crate::router_request_types::{authentication::AuthNFlowType, ResponseId};
@@ -68,14 +71,15 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
-    // SessionUpdateResponse {
-    //     status: common_enums::SessionUpdateStatus,
-    // },
+    SessionUpdateResponse {
+        status: common_enums::SessionUpdateStatus,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
+    pub order_tax_rate: f64,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

@@ -177,7 +177,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             recurring_details: None,
             poll_config: None,
             tax_data: Some(tax_data),
+            session_id: request.session_id.clone(),
         };
+
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: None,
@@ -313,6 +315,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                 payment_method_type: Some(diesel_models::PaymentMethodTypeTax {
                     order_tax_amount: tax_response.order_tax_amount,
                     pmt: payment_method_type,
+                    order_tax_rate: tax_response.order_tax_rate,
                 }),
                 default: None,
             });
@@ -382,54 +385,74 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        let shipping_address = payment_data
-            .tax_data
+        let apple_or_google_pay = payment_data
+            .payment_intent
+            .tax_details
             .clone()
-            .map(|tax_data| tax_data.shipping_details);
+            .and_then(|tax_details| {
+                tax_details
+                    .payment_method_type
+                    .map(|payment_method_type| payment_method_type.pmt)
+            })
+            .map_or(false, |pmt| {
+                pmt == storage_enums::PaymentMethodType::ApplePay
+                    || pmt == storage_enums::PaymentMethodType::GooglePay
+            });
 
-        let shipping_details = shipping_address
-            .clone()
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
+        if apple_or_google_pay {
+            let shipping_address = payment_data
+                .tax_data
+                .clone()
+                .map(|tax_data| tax_data.shipping_details);
 
-        let shipping_address = helpers::create_or_update_address_for_payment_by_request(
-            state,
-            shipping_address.as_ref(),
-            payment_data.payment_intent.shipping_address_id.as_deref(),
-            &payment_data.payment_intent.merchant_id,
-            payment_data.payment_intent.customer_id.as_ref(),
-            key_store,
-            &payment_data.payment_intent.payment_id,
-            storage_scheme,
-        )
-        .await?;
+            let shipping_details = shipping_address
+                .clone()
+                .async_map(|shipping_details| {
+                    create_encrypted_data(state, key_store, shipping_details)
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt shipping details")?;
 
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
+            let shipping_address = helpers::create_or_update_address_for_payment_by_request(
+                state,
+                shipping_address.as_ref(),
+                payment_data.payment_intent.shipping_address_id.as_deref(),
+                &payment_data.payment_intent.merchant_id,
+                payment_data.payment_intent.customer_id.as_ref(),
+                key_store,
+                &payment_data.payment_intent.payment_id,
+                storage_scheme,
+            )
+            .await?;
+
+            let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
             updated_by: payment_data.payment_intent.updated_by.clone(),
             shipping_details,
         };
 
-        let db = &*state.store;
-        let payment_intent = payment_data.payment_intent.clone();
+            let db = &*state.store;
+            let payment_intent = payment_data.payment_intent.clone();
 
-        let updated_payment_intent = db
-            .update_payment_intent(
-                &state.into(),
-                payment_intent,
-                payment_intent_update,
-                key_store,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let updated_payment_intent = db
+                .update_payment_intent(
+                    &state.into(),
+                    payment_intent,
+                    payment_intent_update,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.payment_intent = updated_payment_intent;
-        Ok((Box::new(self), payment_data))
+            payment_data.payment_intent = updated_payment_intent;
+            Ok((Box::new(self), payment_data))
+        } else {
+            Ok((Box::new(self), payment_data))
+        }
     }
 }
 

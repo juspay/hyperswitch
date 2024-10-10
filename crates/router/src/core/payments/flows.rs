@@ -3026,7 +3026,7 @@ default_imp_for_session_update!(
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
-    connector::Klarna,
+    // connector::Klarna,
     connector::Mifinity,
     connector::Multisafepay,
     connector::Netcetera,

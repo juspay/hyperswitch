@@ -27,7 +27,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         Box::pin(
@@ -42,6 +42,7 @@ impl
                 key_store,
                 customer,
                 merchant_connector_account,
+                merchant_recipient_data,
             ),
         )
         .await

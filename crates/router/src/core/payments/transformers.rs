@@ -40,6 +40,7 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
@@ -48,6 +49,7 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    merchant_recipient_data: Option<types::MerchantRecipientData>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -97,7 +99,14 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-        connector_meta_data: None,
+        connector_meta_data: if let Some(data) = merchant_recipient_data {
+            let val = serde_json::to_value(data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encoding MerchantRecipientData")?;
+            Some(Secret::new(val))
+        } else {
+            merchant_connector_account.get_metadata()
+        },
         connector_wallets_details: None,
         request: T::try_from(additional_data)?,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
@@ -1728,6 +1737,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_intent
             .merchant_order_reference_id
             .clone();
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount));
+
+        let order_tax_rate = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_rate));
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -1774,6 +1794,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
+            order_tax_amount,
+            order_tax_rate,
         })
     }
 }
@@ -2048,15 +2070,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data;
+        let payment_data = additional_data.payment_data.clone();
         let order_tax_amount = payment_data
             .payment_intent
             .tax_details
             .clone()
-            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "order_tax_amount",
-            })?;
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount));
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -2068,12 +2087,43 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .unwrap_or_default();
         // net_amount here would include amount, order_tax_amount, surcharge_amount and shipping_cost
         let net_amount = payment_data.payment_intent.amount
-            + order_tax_amount
+            + order_tax_amount.unwrap_or(MinorUnit::new(0))
             + shipping_cost
             + surcharge_amount;
+        let amount = payment_data.payment_intent.amount;
+
+        let order_details = additional_data
+            .payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        let order_tax_rate = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_rate));
         Ok(Self {
-            net_amount,
+            net_amount, //need to change after we move to connector module
             order_tax_amount,
+            currency: payment_data.currency,
+            session_id: payment_data.session_id,
+            order_details,
+            amount,
+            order_tax_rate,
         })
     }
 }
