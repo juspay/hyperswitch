@@ -104,6 +104,7 @@ impl IntoDirValue for api_enums::PaymentMethod {
             Self::GiftCard => Ok(dirval!(PaymentMethod = GiftCard)),
             Self::CardRedirect => Ok(dirval!(PaymentMethod = CardRedirect)),
             Self::OpenBanking => Ok(dirval!(PaymentMethod = OpenBanking)),
+            Self::MobilePayment => Ok(dirval!(PaymentMethod = MobilePayment)),
         }
     }
 }
@@ -158,6 +159,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Reward
                 | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
+                | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -176,6 +178,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Reward
                 | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
+                | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -195,6 +198,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Reward
                 | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
+                | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -308,6 +312,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 Ok(dirval!(OpenBankingType = OpenBankingPIS))
             }
             api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
+            api_enums::PaymentMethodType::DirectCarrierBilling => {
+                Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
+            }
         }
     }
 }

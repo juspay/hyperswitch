@@ -1769,6 +1769,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::BankRedirect(_)
                     | PaymentMethodData::BankTransfer(_)
                     | PaymentMethodData::RealTimePayment(_)
+                    | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::Crypto(_)
                     | PaymentMethodData::GiftCard(_)
@@ -1837,6 +1838,8 @@ pub enum PaymentMethodData {
     CardToken(CardToken),
     #[schema(title = "OpenBanking")]
     OpenBanking(OpenBankingData),
+    #[schema(title = "MobilePayment")]
+    MobilePayment(MobilePaymentData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -1861,7 +1864,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::GiftCard(_)
             | Self::CardToken(_)
             | Self::OpenBanking(_)
-            | Self::MandatePayment => None,
+            | Self::MandatePayment
+            | Self::MobilePayment(_) => None,
         }
     }
 }
@@ -1899,6 +1903,7 @@ impl PaymentMethodData {
             Self::Voucher(_) => Some(api_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
+            Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -1915,6 +1920,14 @@ impl GetPaymentMethodType for CardRedirectData {
             Self::Benefit {} => api_enums::PaymentMethodType::Benefit,
             Self::MomoAtm {} => api_enums::PaymentMethodType::MomoAtm,
             Self::CardRedirect {} => api_enums::PaymentMethodType::CardRedirect,
+        }
+    }
+}
+
+impl GetPaymentMethodType for MobilePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::DirectCarrierBilling { .. } => api_enums::PaymentMethodType::DirectCarrierBilling,
         }
     }
 }
@@ -2207,6 +2220,10 @@ pub enum AdditionalPaymentData {
     OpenBanking {
         #[serde(flatten)]
         details: Option<OpenBankingData>,
+    },
+    MobilePayment {
+        #[serde(flatten)]
+        details: Option<MobilePaymentData>,
     },
 }
 
@@ -2952,6 +2969,20 @@ pub enum OpenBankingData {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS {},
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MobilePaymentData {
+    DirectCarrierBilling {
+        /// The phone number of the user
+        #[schema(value_type = String, example = "1234567890")]
+        msisdn: String,
+        /// Unique user id
+        #[schema(value_type = Option<String>, example = "02iacdYXGI9CnyJdoN8c7")]
+        client_uid: Option<String>,
+    },
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
@@ -3222,6 +3253,7 @@ where
                 | PaymentMethodDataResponse::GiftCard(_)
                 | PaymentMethodDataResponse::PayLater(_)
                 | PaymentMethodDataResponse::RealTimePayment(_)
+                | PaymentMethodDataResponse::MobilePayment(_)
                 | PaymentMethodDataResponse::Upi(_)
                 | PaymentMethodDataResponse::Wallet(_)
                 | PaymentMethodDataResponse::BankTransfer(_)
@@ -3258,6 +3290,7 @@ pub enum PaymentMethodDataResponse {
     CardRedirect(Box<CardRedirectResponse>),
     CardToken(Box<CardTokenResponse>),
     OpenBanking(Box<OpenBankingResponse>),
+    MobilePayment(Box<MobilePaymentResponse>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3315,6 +3348,12 @@ pub struct GiftCardResponse {
 pub struct OpenBankingResponse {
     #[serde(flatten)]
     details: Option<OpenBankingData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct MobilePaymentResponse {
+    #[serde(flatten)]
+    details: Option<MobilePaymentData>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3688,6 +3727,10 @@ pub enum NextActionData {
     InvokeSdkClient {
         next_action_data: SdkNextActionData,
     },
+    /// Contains url to collect otp for mobile payment
+    CollectOtp {
+        collect_otp_url: String,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -3780,6 +3823,12 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct MobilePaymentNextStepData {
+    /// Url to collect OTP
+    pub collect_otp_url: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -4654,6 +4703,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             }
             AdditionalPaymentData::OpenBanking { details } => {
                 Self::OpenBanking(Box::new(OpenBankingResponse { details }))
+            }
+            AdditionalPaymentData::MobilePayment { details } => {
+                Self::MobilePayment(Box::new(MobilePaymentResponse { details }))
             }
         }
     }
