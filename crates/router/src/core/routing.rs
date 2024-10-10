@@ -434,16 +434,15 @@ pub async fn link_routing_config(
 
             utils::when(
                 matches!(
-                    Some(dynamic_routing_ref.success_based_algorithm,
-                    api_routing::SuccessBasedAlgorithm {
+                    dynamic_routing_ref.success_based_algorithm,
+                    Some(api_routing::SuccessBasedAlgorithm {
                         algorithm_id_with_timestamp:
                         routing_types::DynamicAlgorithmWithTimestamp {
                             algorithm_id: Some(ref id),
                             timestamp: _
                         },
                         enabled_feature: _
-                    })
-                if id == &algorithm_id
+                    }) if id == &algorithm_id
                 ),
                 || {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
