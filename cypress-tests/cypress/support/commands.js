@@ -1010,8 +1010,7 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
         payment_method_id
       );
       expect(response.body).to.have.property("customer_id", customer_id);
-    }
-    else{
+    } else {
       defaultErrorHandler(response);
     }
   });
@@ -1471,6 +1470,9 @@ Cypress.Commands.add(
     }
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
+    for (const key in req_data) {
+      saveCardConfirmBody[key] = req_data[key];
+    }
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -1510,7 +1512,9 @@ Cypress.Commands.add(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
-        expect(response.body.billing, "billing_address").to.not.be.empty;
+        if (req_data.billing !== null) {
+          expect(response.body.billing, "billing_address").to.not.be.empty;
+        }
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body.payment_token, "payment_token").to.not.be.null;
         // expect(

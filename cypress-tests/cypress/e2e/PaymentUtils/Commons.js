@@ -801,7 +801,7 @@ export const connectorDetails = {
         amount: 0,
         setup_future_usage: "off_session",
         currency: "USD",
-        payment_type: "setup_mandate"
+        payment_type: "setup_mandate",
       },
     }),
     ZeroAuthConfirmPayment: getCustomExchange({
@@ -875,6 +875,19 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
     }),
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing: null,
+        },
+      },
+    },
     SaveCardUseNo3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
