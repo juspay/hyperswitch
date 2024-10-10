@@ -1871,7 +1871,7 @@ pub struct MerchantConnectorDetails {
 #[serde(deny_unknown_fields)]
 pub struct ProfileCreate {
     /// The name of profile
-    #[schema(max_length = 64)]
+    #[schema(value_type = Option<String>, max_length = 64)]
     pub profile_name: Option<NameType>,
 
     /// The URL to redirect after the completion of the operation
@@ -1995,7 +1995,7 @@ pub struct OrderFulfillmentTime(i64);
 #[serde(deny_unknown_fields)]
 pub struct ProfileCreate {
     /// The name of profile
-    #[schema(max_length = 64)]
+    #[schema(value_type = String, max_length = 64)]
     pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
@@ -2105,7 +2105,7 @@ pub struct ProfileResponse {
     pub profile_id: id_type::ProfileId,
 
     /// Name of the profile
-    #[schema(max_length = 64)]
+    #[schema(value_type = String, max_length = 64)]
     pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
@@ -2234,7 +2234,7 @@ pub struct ProfileResponse {
     pub id: id_type::ProfileId,
 
     /// Name of the profile
-    #[schema(max_length = 64)]
+    #[schema(max_length = 64, value_type = String)]
     pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation

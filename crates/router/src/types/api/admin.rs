@@ -247,7 +247,7 @@ pub async fn create_profile_from_merchant_account(
     request: ProfileCreate,
     key_store: &MerchantKeyStore,
 ) -> Result<domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
-    use common_utils::{ext_traits::AsyncExt, types::NameType};
+    use common_utils::ext_traits::AsyncExt;
 
     use crate::core;
 
