@@ -802,7 +802,13 @@ where
                 }
             };
 
-        payment_data.surcharge_details = calculated_surcharge_details;
+        payment_data.surcharge_details = calculated_surcharge_details.clone();
+
+        //Update payment_attempt net_amount with surcharge details
+        payment_data
+            .payment_attempt
+            .net_amount
+            .set_surcharge_details(calculated_surcharge_details);
     } else {
         let surcharge_details =
             payment_data
@@ -855,17 +861,17 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     billing_address: Option<api_models::payments::Address>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
-    if let Some(surcharge_amount) = payment_attempt.surcharge_amount {
-        let tax_on_surcharge_amount = payment_attempt.tax_amount.unwrap_or_default();
-        let final_amount = payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount;
+    if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
             types::SurchargeDetails {
-                original_amount: payment_attempt.amount,
+                original_amount: payment_attempt.net_amount.get_order_amount(),
                 surcharge: Surcharge::Fixed(surcharge_amount),
                 tax_on_surcharge: None,
                 surcharge_amount,
-                tax_on_surcharge_amount,
-                final_amount,
+                tax_on_surcharge_amount: payment_attempt
+                    .net_amount
+                    .get_tax_on_surcharge()
+                    .unwrap_or_default(),
             },
         )))
     } else {
