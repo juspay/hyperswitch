@@ -1,6 +1,7 @@
 use common_utils::pii;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
+use router_env::logger;
 use totp_rs::{Algorithm, TOTP};
 
 use crate::{
@@ -137,5 +138,92 @@ pub async fn delete_recovery_code_from_redis(
         .delete_key(&key)
         .await
         .change_context(UserErrors::InternalServerError)
+        .map(|_| ())
+}
+
+fn get_totp_attempts_key(user_id: &str) -> String {
+    format!("{}{}", consts::user::REDIS_TOTP_ATTEMPTS_PREFIX, user_id)
+}
+fn get_recovery_code_attempts_key(user_id: &str) -> String {
+    format!(
+        "{}{}",
+        consts::user::REDIS_RECOVERY_CODE_ATTEMPTS_PREFIX,
+        user_id
+    )
+}
+
+pub async fn insert_totp_attempts_in_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection(state)?;
+    let user_attempts_value = get_totp_attempts_from_redis(state, user_id).await?;
+    redis_conn
+        .set_key_with_expiry(
+            &get_totp_attempts_key(user_id),
+            user_attempts_value + 1,
+            consts::user::REDIS_TOTP_ATTEMPTS_TTL_IN_SEC,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+pub async fn get_totp_attempts_from_redis(state: &SessionState, user_id: &str) -> UserResult<u8> {
+    let redis_conn = super::get_redis_connection(state)?;
+    redis_conn
+        .get_key::<Option<u8>>(&get_totp_attempts_key(user_id))
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|v| v.unwrap_or(0))
+}
+
+pub async fn insert_recovery_code_attempts_in_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection(state)?;
+
+    let user_attempts_value = get_recovery_code_attempts_from_redis(state, user_id).await?;
+    redis_conn
+        .set_key_with_expiry(
+            &get_recovery_code_attempts_key(user_id),
+            user_attempts_value + 1,
+            consts::user::REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SEC,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+
+pub async fn get_recovery_code_attempts_from_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<u8> {
+    let redis_conn = super::get_redis_connection(state)?;
+    redis_conn
+        .get_key::<Option<u8>>(&get_recovery_code_attempts_key(user_id))
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|v| v.unwrap_or(0))
+}
+
+pub async fn delete_totp_attempts_from_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection(state)?;
+    redis_conn
+        .delete_key(&get_totp_attempts_key(user_id))
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .inspect_err(|error| logger::error!(?error))
+        .map(|_| ())
+}
+
+pub async fn delete_recovery_code_attempts_from_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection(state)?;
+    redis_conn
+        .delete_key(&get_recovery_code_attempts_key(user_id))
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .inspect_err(|error| logger::error!(?error))
         .map(|_| ())
 }
