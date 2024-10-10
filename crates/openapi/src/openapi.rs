@@ -642,6 +642,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::WalletResponseData,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
+        api_models::payments::PaymentsPostSessionTokensRequest,
+        api_models::payments::PaymentsPostSessionTokensResponse,
     )),
     modifiers(&SecurityAddon)
 )]

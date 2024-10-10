@@ -714,6 +714,11 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
     },
+    PostSessionTokensUpdate {
+        updated_by: String,
+        connector_transaction_id: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
+    },
 }
 
 // TODO: Add fields as necessary

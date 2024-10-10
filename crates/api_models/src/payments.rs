@@ -4796,6 +4796,32 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsPostSessionTokensRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+    /// Payment method type
+    #[schema(value_type = PaymentMethodType)]
+    pub payment_method_type: api_enums::PaymentMethodType,
+    /// The payment method that is to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsPostSessionTokensResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// A unique identifier for a order provided by the connector
+    pub order_id: String,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsDynamicTaxCalculationRequest {
     /// The unique identifier for the payment
@@ -5352,6 +5378,8 @@ pub struct SdkNextAction {
 #[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionCall {
+    /// The next action call is Post Session Tokens
+    PostSessionTokens,
     /// The next action call is confirm
     Confirm,
     /// The next action call is sync

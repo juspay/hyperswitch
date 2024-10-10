@@ -955,7 +955,7 @@ fn create_paypal_sdk_session_token(
                     connector: connector.connector_name.to_string(),
                     session_token: paypal_sdk_data.data.client_id,
                     sdk_next_action: payment_types::SdkNextAction {
-                        next_action: payment_types::NextActionCall::Confirm,
+                        next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
                 },
             )),

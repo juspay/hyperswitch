@@ -2030,6 +2030,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
             },
+            Self::PostSessionTokensUpdate {
+                updated_by,
+                connector_transaction_id,
+                connector_metadata,
+            } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
+                updated_by,
+                connector_transaction_id,
+                connector_metadata,
+            },
         }
     }
 
@@ -2385,6 +2394,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+            },
+            DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
+                updated_by,
+                connector_transaction_id,
+                connector_metadata,
+            } => Self::PostSessionTokensUpdate {
+                updated_by,
+                connector_transaction_id,
+                connector_metadata,
             },
         }
     }
