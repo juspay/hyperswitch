@@ -1687,7 +1687,7 @@ pub async fn verify_totp(
     }
 
     if tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?
-        == consts::user::TOTP_MAX_ATTEMPTS
+        >= consts::user::TOTP_MAX_ATTEMPTS
     {
         return Err(UserErrors::MaxTotpAttemptsReached.into());
     }
@@ -1866,7 +1866,7 @@ pub async fn verify_recovery_code(
     }
 
     if tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?
-        == consts::user::RECOVERY_CODE_MAX_ATTEMPTS
+        >= consts::user::RECOVERY_CODE_MAX_ATTEMPTS
     {
         return Err(UserErrors::MaxRecoveryCodeAttemptsReached.into());
     }

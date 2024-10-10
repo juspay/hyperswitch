@@ -1,6 +1,7 @@
 use common_utils::pii;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
+use router_env::logger;
 use totp_rs::{Algorithm, TOTP};
 
 use crate::{
@@ -210,6 +211,7 @@ pub async fn delete_totp_attempts_from_redis(
         .delete_key(&get_totp_attempts_key(user_id))
         .await
         .change_context(UserErrors::InternalServerError)
+        .inspect_err(|error| logger::error!(?error))
         .map(|_| ())
 }
 
@@ -222,5 +224,6 @@ pub async fn delete_recovery_code_attempts_from_redis(
         .delete_key(&get_recovery_code_attempts_key(user_id))
         .await
         .change_context(UserErrors::InternalServerError)
+        .inspect_err(|error| logger::error!(?error))
         .map(|_| ())
 }
