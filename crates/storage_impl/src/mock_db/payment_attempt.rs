@@ -123,21 +123,17 @@ impl PaymentAttemptInterface for MockDb {
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
         let time = common_utils::date_time::now();
-        let payment_attempt = payment_attempt.populate_derived_fields();
         let payment_attempt = PaymentAttempt {
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
-            amount: payment_attempt.amount,
             net_amount: payment_attempt.net_amount,
             currency: payment_attempt.currency,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_message,
             offer_amount: payment_attempt.offer_amount,
-            surcharge_amount: payment_attempt.surcharge_amount,
-            tax_amount: payment_attempt.tax_amount,
             payment_method_id: payment_attempt.payment_method_id,
             payment_method: payment_attempt.payment_method,
             connector_transaction_id: None,
@@ -185,8 +181,6 @@ impl PaymentAttemptInterface for MockDb {
             customer_acceptance: payment_attempt.customer_acceptance,
             organization_id: payment_attempt.organization_id,
             profile_id: payment_attempt.profile_id,
-            shipping_cost: payment_attempt.shipping_cost,
-            order_tax_amount: payment_attempt.order_tax_amount,
             connector_transaction_data: None,
         };
         payment_attempts.push(payment_attempt.clone());

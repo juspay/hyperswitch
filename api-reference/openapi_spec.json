@@ -8884,6 +8884,11 @@
             "type": "object",
             "description": "This field contains the Samsung Pay certificates and credentials",
             "nullable": true
+          },
+          "paze": {
+            "type": "object",
+            "description": "This field contains the Paze certificates and credentials",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16197,6 +16202,7 @@
           "open_banking_uk",
           "pay_bright",
           "paypal",
+          "paze",
           "pix",
           "pay_safe_card",
           "przelewy24",
@@ -20895,6 +20901,39 @@
           }
         }
       },
+      "PazeSessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_name",
+          "client_profile_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Paze Client ID"
+          },
+          "client_name": {
+            "type": "string",
+            "description": "Client Name to be displayed on the Paze screen"
+          },
+          "client_profile_id": {
+            "type": "string",
+            "description": "Paze Client Profile ID"
+          }
+        }
+      },
+      "PazeWalletData": {
+        "type": "object",
+        "required": [
+          "complete_response"
+        ],
+        "properties": {
+          "complete_response": {
+            "type": "string"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -23152,6 +23191,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PazeSessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paze"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -23378,8 +23438,7 @@
           "surcharge",
           "display_surcharge_amount",
           "display_tax_on_surcharge_amount",
-          "display_total_surcharge_amount",
-          "display_final_amount"
+          "display_total_surcharge_amount"
         ],
         "properties": {
           "surcharge": {
@@ -23407,11 +23466,6 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
-          },
-          "display_final_amount": {
-            "type": "number",
-            "format": "double",
-            "description": "sum of original amount,"
           }
         }
       },
@@ -24404,6 +24458,17 @@
             "properties": {
               "paypal_sdk": {
                 "$ref": "#/components/schemas/PayPalWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paze"
+            ],
+            "properties": {
+              "paze": {
+                "$ref": "#/components/schemas/PazeWalletData"
               }
             }
           },

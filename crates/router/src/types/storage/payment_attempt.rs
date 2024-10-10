@@ -80,12 +80,14 @@ impl PaymentAttemptExt for PaymentAttempt {
 
     #[cfg(feature = "v1")]
     fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
-        self.surcharge_amount.map(|surcharge_amount| {
-            api_models::payments::RequestSurchargeDetails {
-                surcharge_amount,
-                tax_amount: self.tax_amount,
-            }
-        })
+        self.net_amount
+            .get_surcharge_amount()
+            .map(
+                |surcharge_amount| api_models::payments::RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: self.net_amount.get_tax_on_surcharge(),
+                },
+            )
     }
 
     #[cfg(feature = "v2")]
@@ -95,9 +97,7 @@ impl PaymentAttemptExt for PaymentAttempt {
 
     #[cfg(feature = "v1")]
     fn get_total_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or_default()
-            + self.tax_amount.unwrap_or_default()
+        self.net_amount.get_total_amount()
     }
 
     #[cfg(feature = "v2")]
@@ -168,14 +168,11 @@ mod tests {
             merchant_id: Default::default(),
             attempt_id: Default::default(),
             status: Default::default(),
-            amount: Default::default(),
             net_amount: Default::default(),
             currency: Default::default(),
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
-            surcharge_amount: Default::default(),
-            tax_amount: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -219,8 +216,6 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
-            shipping_cost: Default::default(),
-            order_tax_amount: Default::default(),
         };
 
         let store = state
@@ -256,14 +251,11 @@ mod tests {
             modified_at: current_time.into(),
             attempt_id: attempt_id.clone(),
             status: Default::default(),
-            amount: Default::default(),
             net_amount: Default::default(),
             currency: Default::default(),
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
-            surcharge_amount: Default::default(),
-            tax_amount: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -307,8 +299,6 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
-            shipping_cost: Default::default(),
-            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -358,14 +348,11 @@ mod tests {
             mandate_id: Some("man_121212".to_string()),
             attempt_id: uuid.clone(),
             status: Default::default(),
-            amount: Default::default(),
             net_amount: Default::default(),
             currency: Default::default(),
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
-            surcharge_amount: Default::default(),
-            tax_amount: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -408,8 +395,6 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
-            shipping_cost: Default::default(),
-            order_tax_amount: Default::default(),
         };
         let store = state
             .stores

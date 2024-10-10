@@ -30,7 +30,7 @@ use futures::future::Either;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payment_method_data::GetPaymentMethodType,
+    payment_method_data::{GetPaymentMethodType, PazeWalletData},
     payments::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
@@ -476,13 +476,13 @@ pub async fn get_token_pm_type_mandate_details(
                             }
                         }
                         RecurringDetails::MandateId(mandate_id) => {
-                            let mandate_generic_data = get_token_for_recurring_mandate(
+                            let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
                                 state,
                                 request,
                                 merchant_account,
                                 merchant_key_store,
                                 mandate_id.to_owned(),
-                            )
+                            ))
                             .await?;
 
                             (
@@ -535,13 +535,13 @@ pub async fn get_token_pm_type_mandate_details(
                 }
                 None => {
                     if let Some(mandate_id) = request.mandate_id.clone() {
-                        let mandate_generic_data = get_token_for_recurring_mandate(
+                        let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
                             state,
                             request,
                             merchant_account,
                             merchant_key_store,
                             mandate_id,
-                        )
+                        ))
                         .await?;
                         (
                             mandate_generic_data.token,
@@ -723,9 +723,26 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .flatten();
 
-    let original_payment_authorized_amount = original_payment_intent
+    let original_payment_attempt = original_payment_intent
+        .as_ref()
+        .async_map(|payment_intent| async {
+            db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                &payment_intent.payment_id,
+                &mandate.merchant_id,
+                payment_intent.active_attempt.get_id().as_str(),
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .map_err(|err| logger::error!(mandate_original_payment_attempt_not_found=?err))
+            .ok()
+        })
+        .await
+        .flatten();
+
+    let original_payment_authorized_amount = original_payment_attempt
         .clone()
-        .map(|pi| pi.amount.get_amount_as_i64());
+        .map(|pa| pa.net_amount.get_total_amount().get_amount_as_i64());
     let original_payment_authorized_currency =
         original_payment_intent.clone().and_then(|pi| pi.currency);
     let customer = req.get_customer_id().get_required_value("customer_id")?;
@@ -891,28 +908,18 @@ pub fn validate_amount_to_capture_and_capture_method(
     payment_attempt: Option<&PaymentAttempt>,
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    let option_net_amount = hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request_and_payment_attempt(
+        request,
+        payment_attempt,
+    );
     let capture_method = request
         .capture_method
         .or(payment_attempt
             .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
         .unwrap_or_default();
     if capture_method == api_enums::CaptureMethod::Automatic {
-        let original_amount = request
-            .amount
-            .map(MinorUnit::from)
-            .or(payment_attempt.map(|payment_attempt| payment_attempt.amount));
-        let surcharge_amount = request
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .or_else(|| {
-                payment_attempt.map(|payment_attempt| {
-                    payment_attempt.surcharge_amount.unwrap_or_default()
-                        + payment_attempt.tax_amount.unwrap_or_default()
-                })
-            })
-            .unwrap_or_default();
         let total_capturable_amount =
-            original_amount.map(|original_amount| original_amount + surcharge_amount);
+            option_net_amount.map(|net_amount| net_amount.get_total_amount());
 
         let amount_to_capture = request
             .amount_to_capture
@@ -2545,6 +2552,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::KakaoPay
                 | api_enums::PaymentMethodType::Cashapp
                 | api_enums::PaymentMethodType::Mifinity
+                | api_enums::PaymentMethodType::Paze
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -3891,7 +3899,6 @@ impl AttemptType {
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
 
-            amount: old_payment_attempt.amount,
             currency: old_payment_attempt.currency,
             save_to_locker: old_payment_attempt.save_to_locker,
 
@@ -3899,8 +3906,6 @@ impl AttemptType {
 
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
-            surcharge_amount: None,
-            tax_amount: None,
             payment_method_id: None,
             payment_method: None,
             capture_method: old_payment_attempt.capture_method,
@@ -3936,14 +3941,14 @@ impl AttemptType {
             error_reason: None,
             multiple_capture_count: None,
             connector_response_reference_id: None,
-            amount_capturable: old_payment_attempt.amount,
+            amount_capturable: old_payment_attempt.net_amount.get_total_amount(),
             updated_by: storage_scheme.to_string(),
             authentication_data: None,
             encoded_data: None,
             merchant_connector_id: None,
             unified_code: None,
             unified_message: None,
-            net_amount: old_payment_attempt.amount,
+            net_amount: old_payment_attempt.net_amount,
             external_three_ds_authentication_attempted: old_payment_attempt
                 .external_three_ds_authentication_attempted,
             authentication_connector: None,
@@ -3958,8 +3963,6 @@ impl AttemptType {
             customer_acceptance: old_payment_attempt.customer_acceptance,
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
-            shipping_cost: old_payment_attempt.shipping_cost,
-            order_tax_amount: None,
         }
     }
 
@@ -4624,6 +4627,9 @@ async fn get_and_merge_apple_pay_metadata(
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
+                    paze: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.paze.clone()),
                 }
             }
             api_models::payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
@@ -4639,6 +4645,9 @@ async fn get_and_merge_apple_pay_metadata(
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
+                    paze: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.paze.clone()),
                 }
             }
         };
@@ -4978,6 +4987,71 @@ impl ApplePayData {
 
         Ok(decrypted)
     }
+}
+
+pub fn decrypt_paze_token(
+    paze_wallet_data: PazeWalletData,
+    paze_private_key: masking::Secret<String>,
+    paze_private_key_passphrase: masking::Secret<String>,
+) -> CustomResult<serde_json::Value, errors::PazeDecryptionError> {
+    let decoded_paze_private_key = BASE64_ENGINE
+        .decode(paze_private_key.expose().as_bytes())
+        .change_context(errors::PazeDecryptionError::Base64DecodingFailed)?;
+    let decrypted_private_key = openssl::rsa::Rsa::private_key_from_pem_passphrase(
+        decoded_paze_private_key.as_slice(),
+        paze_private_key_passphrase.expose().as_bytes(),
+    )
+    .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
+    let decrypted_private_key_pem = String::from_utf8(
+        decrypted_private_key
+            .private_key_to_pem()
+            .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?,
+    )
+    .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
+    let decrypter = jwe::RSA_OAEP_256
+        .decrypter_from_pem(decrypted_private_key_pem)
+        .change_context(errors::PazeDecryptionError::CertificateParsingFailed)?;
+
+    let paze_complete_response: Vec<&str> = paze_wallet_data
+        .complete_response
+        .peek()
+        .split('.')
+        .collect();
+    let encrypted_jwe_key = paze_complete_response
+        .get(1)
+        .ok_or(errors::PazeDecryptionError::DecryptionFailed)?
+        .to_string();
+    let decoded_jwe_key = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(encrypted_jwe_key)
+        .change_context(errors::PazeDecryptionError::Base64DecodingFailed)?;
+    let jws_body: JwsBody = serde_json::from_slice(&decoded_jwe_key)
+        .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
+
+    let (deserialized_payload, _deserialized_header) =
+        jwe::deserialize_compact(jws_body.secured_payload.peek(), &decrypter)
+            .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
+    let encoded_secured_payload_element = String::from_utf8(deserialized_payload)
+        .change_context(errors::PazeDecryptionError::DecryptionFailed)?
+        .split('.')
+        .collect::<Vec<&str>>()
+        .get(1)
+        .ok_or(errors::PazeDecryptionError::DecryptionFailed)?
+        .to_string();
+    let decoded_secured_payload_element = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(encoded_secured_payload_element)
+        .change_context(errors::PazeDecryptionError::Base64DecodingFailed)?;
+    let parsed_decrypted: serde_json::Value =
+        serde_json::from_slice(&decoded_secured_payload_element)
+            .change_context(errors::PazeDecryptionError::DecryptionFailed)?;
+    Ok(parsed_decrypted)
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JwsBody {
+    pub payload_id: String,
+    pub session_id: String,
+    pub secured_payload: masking::Secret<String>,
 }
 
 pub fn get_key_params_for_surcharge_details(
