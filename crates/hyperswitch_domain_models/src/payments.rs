@@ -5,10 +5,6 @@ use std::marker::PhantomData;
 use api_models::payments::Address;
 #[cfg(feature = "v2")]
 use api_models::payments::OrderDetailsWithAmount;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::{AsyncExt, ValueExt};
-#[cfg(feature = "v2")]
-use common_utils::types::keymanager;
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -24,7 +20,7 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{business_profile, create_encrypted_data, merchant_account, merchant_key_store};
+use crate::{business_profile, merchant_account};
 #[cfg(feature = "v2")]
 use crate::{errors, ApiModelToDieselModelConvertor};
 
@@ -299,12 +295,12 @@ impl PaymentIntent {
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
     pub async fn create_domain_model_from_request(
-        state: keymanager::KeyManagerState,
-        key_store: &merchant_key_store::MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         merchant_account: &merchant_account::MerchantAccount,
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
+        billing_address: Option<Encryptable<Secret<Address>>>,
+        shipping_address: Option<Encryptable<Secret<Address>>>,
     ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
     {
         let allowed_payment_method_types = request
@@ -330,39 +326,6 @@ impl PaymentIntent {
                 ),
             ));
         let client_secret = payment_id.generate_client_secret();
-        // Derivation of directly supplied Billing Address data in our Payment Create Request
-        // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_address = request
-            .billing
-            .async_map(|billing_details| create_encrypted_data(&state, key_store, billing_details))
-            .await
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?
-            .map(|encrypted_value| {
-                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
-            })
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize decrypted value to Address")?;
-
-        // Derivation of directly supplied Shipping Address data in our Payment Create Request
-        // Encrypting our Shipping Address Details to be stored in Payment Intent
-        let shipping_address = request
-            .shipping
-            .async_map(|shipping_details| {
-                create_encrypted_data(&state, key_store, shipping_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?
-            .map(|encrypted_value| {
-                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
-            })
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize decrypted value to Address")?;
         let order_details = request
             .order_details
             .map(|order_details| order_details.into_iter().map(Secret::new).collect());

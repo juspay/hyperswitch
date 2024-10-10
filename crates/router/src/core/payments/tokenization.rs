@@ -272,10 +272,12 @@ where
                 let pm_card_details = resp.card.as_ref().map(|card| {
                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
                 });
-
+                let key_manager_state = state.into();
                 let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                     pm_card_details
-                        .async_map(|pm_card| create_encrypted_data(state, key_store, pm_card))
+                        .async_map(|pm_card| {
+                            create_encrypted_data(&key_manager_state, key_store, pm_card)
+                        })
                         .await
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -290,7 +292,9 @@ where
                         });
 
                         pm_token_details
-                            .async_map(|pm_card| create_encrypted_data(state, key_store, pm_card))
+                            .async_map(|pm_card| {
+                                create_encrypted_data(&key_manager_state, key_store, pm_card)
+                            })
                             .await
                             .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -302,7 +306,9 @@ where
                 let encrypted_payment_method_billing_address: Option<
                     Encryptable<Secret<serde_json::Value>>,
                 > = payment_method_billing_address
-                    .async_map(|address| create_encrypted_data(state, key_store, address.clone()))
+                    .async_map(|address| {
+                        create_encrypted_data(&key_manager_state, key_store, address.clone())
+                    })
                     .await
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -622,7 +628,9 @@ where
                                 let pm_data_encrypted: Option<
                                     Encryptable<Secret<serde_json::Value>>,
                                 > = updated_pmd
-                                    .async_map(|pmd| create_encrypted_data(state, key_store, pmd))
+                                    .async_map(|pmd| {
+                                        create_encrypted_data(&key_manager_state, key_store, pmd)
+                                    })
                                     .await
                                     .transpose()
                                     .change_context(errors::ApiErrorResponse::InternalServerError)

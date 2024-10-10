@@ -1556,10 +1556,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 .or(parsed_customer_data.phone_country_code.clone()),
         })
         .or(temp_customer_data);
-
+    let key_manager_state = state.into();
     payment_data.payment_intent.customer_details = raw_customer_details
         .clone()
-        .async_map(|customer_details| create_encrypted_data(state, key_store, customer_details))
+        .async_map(|customer_details| {
+            create_encrypted_data(&key_manager_state, key_store, customer_details)
+        })
         .await
         .transpose()
         .change_context(errors::StorageError::EncryptionError)

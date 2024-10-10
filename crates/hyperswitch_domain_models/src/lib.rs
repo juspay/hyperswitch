@@ -57,46 +57,6 @@ impl<T: ForeignIDRef> RemoteStorageObject<T> {
 
 use std::fmt::Debug;
 
-use common_utils::{ext_traits::Encode, type_name, types::keymanager};
-use diesel_models::payment_method;
-use error_stack::ResultExt;
-use masking::PeekInterface;
-
-pub async fn create_encrypted_data<T>(
-    key_manager_state: &keymanager::KeyManagerState,
-    key_store: &merchant_key_store::MerchantKeyStore,
-    data: T,
-) -> Result<
-    common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
-    error_stack::Report<errors::StorageError>,
->
-where
-    T: Debug + serde::Serialize,
-{
-    let key = key_store.key.get_inner().peek();
-    let identifier = keymanager::Identifier::Merchant(key_store.merchant_id.clone());
-
-    let encoded_data = Encode::encode_to_value(&data)
-        .change_context(errors::StorageError::SerializationFailed)
-        .attach_printable("Unable to encode data")?;
-
-    let secret_data = masking::Secret::<_, masking::WithType>::new(encoded_data);
-
-    let encrypted_data = type_encryption::crypto_operation(
-        key_manager_state,
-        type_name!(payment_method::PaymentMethod),
-        type_encryption::CryptoOperation::Encrypt(secret_data),
-        identifier.clone(),
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_operation())
-    .change_context(errors::StorageError::EncryptionError)
-    .attach_printable("Unable to encrypt data")?;
-
-    Ok(encrypted_data)
-}
-
 pub trait ApiModelToDieselModelConvertor<F> {
     /// Convert from a foreign type to the current type
     fn convert_from(from: F) -> Self;

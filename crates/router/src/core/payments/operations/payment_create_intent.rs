@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use api_models::{enums::FrmSuggestion, payments::PaymentsCreateIntentRequest};
 use async_trait::async_trait;
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{AsyncExt, ValueExt},
+};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -10,7 +13,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations},
+        payments::{self, cards::create_encrypted_data, helpers, operations},
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -105,15 +108,51 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
         let key_manager_state = &state.into();
 
         let storage_scheme = merchant_account.storage_scheme;
+        // Derivation of directly supplied Billing Address data in our Payment Create Request
+        // Encrypting our Billing Address Details to be stored in Payment Intent
+        let billing_address = request
+            .billing
+            .clone()
+            .async_map(|billing_details| {
+                create_encrypted_data(key_manager_state, key_store, billing_details)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?
+            .map(|encrypted_value| {
+                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to deserialize decrypted value to Address")?;
 
+        // Derivation of directly supplied Shipping Address data in our Payment Create Request
+        // Encrypting our Shipping Address Details to be stored in Payment Intent
+        let shipping_address = request
+            .shipping
+            .clone()
+            .async_map(|shipping_details| {
+                create_encrypted_data(key_manager_state, key_store, shipping_details)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?
+            .map(|encrypted_value| {
+                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to deserialize decrypted value to Address")?;
         let payment_intent_domain =
             hyperswitch_domain_models::payments::PaymentIntent::create_domain_model_from_request(
-                state.into(),
-                key_store,
                 payment_id,
                 merchant_account,
                 profile,
                 request.clone(),
+                billing_address,
+                shipping_address,
             )
             .await?;
 
