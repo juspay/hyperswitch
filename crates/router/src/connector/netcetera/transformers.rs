@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -12,33 +13,13 @@ use crate::{
 
 //TODO: Fill the struct with respective fields
 pub struct NetceteraRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for NetceteraRouterData<T>
-{
+impl<T> TryFrom<(MinorUnit, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Ok(Self {
-            amount,
-            router_data: item,
-        })
-    }
-}
-
-impl<T> TryFrom<(i64, T)> for NetceteraRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, router_data): (i64, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -489,7 +470,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let purchase = netcetera_types::Purchase {
             purchase_instal_data: None,
             merchant_risk_indicator: None,
-            purchase_amount: request.amount,
+            purchase_amount: request.minor_amount,
             purchase_currency: currency.iso_4217().to_string(),
             purchase_exponent: currency.number_of_digits_after_decimal_point(),
             purchase_date: Some(
