@@ -52,7 +52,7 @@ pub async fn merchant_account_create() {}
     post,
     path = "/v2/merchant_accounts",
     request_body(
-        content = MerchantAccountCreateWithoutOrgId,
+        content = MerchantAccountCreate,
         examples(
             (
                 "Create a merchant account with minimal fields" = (
@@ -65,7 +65,6 @@ pub async fn merchant_account_create() {}
                 "Create a merchant account with merchant details" = (
                     value = json!({
                         "merchant_name": "Cloth Store",
-                        "organization_id": "org_abcdefghijklmnop",
                         "merchant_details": {
                                 "primary_contact_person": "John Doe",
                                 "primary_email": "example@company.com"
@@ -77,7 +76,6 @@ pub async fn merchant_account_create() {}
                 "Create a merchant account with metadata" = (
                     value = json!({
                         "merchant_name": "Cloth Store",
-                        "organization_id": "org_abcdefghijklmnop",
                         "metadata": {
                                 "key_1": "John Doe",
                                 "key_2": "Trends"

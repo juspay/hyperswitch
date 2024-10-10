@@ -178,6 +178,7 @@ impl MerchantAccountCreate {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
+#[schema(as = MerchantAccountCreate)]
 pub struct MerchantAccountCreateWithoutOrgId {
     /// Name of the Merchant Account, This will be used as a prefix to generate the id
     #[schema(value_type= String, max_length = 64, example = "NewAge Retailer")]

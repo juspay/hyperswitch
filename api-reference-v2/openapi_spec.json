@@ -457,7 +457,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MerchantAccountCreateWithoutOrgId"
+                "$ref": "#/components/schemas/MerchantAccountCreate"
               },
               "examples": {
                 "Create a merchant account with merchant details": {
@@ -9028,7 +9028,7 @@
           }
         }
       },
-      "MerchantAccountCreateWithoutOrgId": {
+      "MerchantAccountCreate": {
         "type": "object",
         "required": [
           "merchant_name"
