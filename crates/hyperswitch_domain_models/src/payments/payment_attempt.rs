@@ -222,7 +222,7 @@ pub struct PaymentAttempt {
     /// Name of the connector that was used for the payment attempt. The connector is either decided by
     /// either running the routing algorithm or by straight through processing request.
     /// This will be updated before calling the connector
-    // TODO: use connector enum
+    // TODO: use connector enum, this should be done in v1 as well as a part of moving to domain types wherever possible
     pub connector: Option<String>,
     /// Error details in case the payment attempt failed
     pub error: Option<ErrorDetails>,
@@ -245,6 +245,7 @@ pub struct PaymentAttempt {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     /// The insensitive data of the payment method stored
+    // TODO: evaluate what details should be stored here. Use a domain type instead of serde_json::Value
     pub payment_method_data: Option<pii::SecretSerdeValue>,
     /// The result of the routing algorithm.
     /// This will store the list of connectors and other related information that was used to route the payment.
@@ -290,6 +291,7 @@ pub struct PaymentAttempt {
     pub external_reference_id: Option<String>,
     /// The billing address for the payment method
     pub payment_method_billing_address: common_utils::crypto::OptionalEncryptableValue,
+    /// The global identifier for the payment attempt
     pub id: id_type::GlobalAttemptId,
 }
 
@@ -339,11 +341,10 @@ impl PaymentAttempt {
     /// Construct the domain model from the ConfirmIntentRequest
     #[cfg(feature = "v2")]
     pub async fn create_domain_model_from_request(
-        state: &keymanager::KeyManagerState,
+        state: &KeyManagerState,
         payment_intent: &super::PaymentIntent,
         cell_id: id_type::CellId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        // TODO: maybe consume the request here, since it must not be used later
         request: &api_models::payments::PaymentsConfirmIntentRequest,
     ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
     {
