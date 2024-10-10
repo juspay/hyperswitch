@@ -55,10 +55,12 @@ crate::impl_queryable_id_type!(GlobalAttemptId);
 crate::impl_to_sql_from_sql_global_id_type!(GlobalAttemptId);
 
 impl GlobalAttemptId {
+    /// Generate a new GlobalAttemptId from a cell id
     pub fn generate(cell_id: &super::CellId) -> Self {
         let global_id = super::GlobalId::generate(cell_id.clone(), super::GlobalEntity::Attempt);
         Self(global_id)
     }
+
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
