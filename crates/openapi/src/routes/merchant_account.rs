@@ -52,13 +52,12 @@ pub async fn merchant_account_create() {}
     post,
     path = "/v2/merchant_accounts",
     request_body(
-        content = MerchantAccountCreate,
+        content = MerchantAccountCreateWithoutOrgId,
         examples(
             (
                 "Create a merchant account with minimal fields" = (
                     value = json!({
                         "merchant_name": "Cloth Store",
-                        "organization_id": "org_abcdefghijklmnop"
                     })
                 )
             ),

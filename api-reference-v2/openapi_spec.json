@@ -457,7 +457,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MerchantAccountCreate"
+                "$ref": "#/components/schemas/MerchantAccountCreateWithoutOrgId"
               },
               "examples": {
                 "Create a merchant account with merchant details": {
@@ -482,8 +482,7 @@
                 },
                 "Create a merchant account with minimal fields": {
                   "value": {
-                    "merchant_name": "Cloth Store",
-                    "organization_id": "org_abcdefghijklmnop"
+                    "merchant_name": "Cloth Store"
                   }
                 }
               }
@@ -9029,11 +9028,10 @@
           }
         }
       },
-      "MerchantAccountCreate": {
+      "MerchantAccountCreateWithoutOrgId": {
         "type": "object",
         "required": [
-          "merchant_name",
-          "organization_id"
+          "merchant_name"
         ],
         "properties": {
           "merchant_name": {
@@ -9054,13 +9052,6 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
-          },
-          "organization_id": {
-            "type": "string",
-            "description": "The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization",
-            "example": "org_q98uSGAYbjEwqs0mJwnz",
-            "maxLength": 64,
-            "minLength": 1
           }
         },
         "additionalProperties": false
