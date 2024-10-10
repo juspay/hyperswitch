@@ -2,10 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::{enums::FrmSuggestion, payments::PaymentsCreateIntentRequest};
 use async_trait::async_trait;
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::{AsyncExt, ValueExt},
-};
+use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -13,15 +10,13 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::cards::create_encrypted_data,
-        payments::{self, helpers, operations, CustomerDetails},
+        payments::{self, helpers, operations},
     },
     routes::{app::ReqState, SessionState},
     services,
     types::{
         api, domain,
         storage::{self, enums},
-        transformers::ForeignFrom,
     },
 };
 
@@ -111,8 +106,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
 
         let storage_scheme = merchant_account.storage_scheme;
 
-        let profile_id = profile.get_id().clone();
-
         let payment_intent_domain =
             hyperswitch_domain_models::payments::PaymentIntent::create_domain_model_from_request(
                 state.into(),
@@ -161,13 +154,13 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIn
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        state: &'b SessionState,
+        _state: &'b SessionState,
         _req_state: ReqState,
         payment_data: payments::PaymentIntentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
+        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(

@@ -24,6 +24,8 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
+use crate::{business_profile, create_encrypted_data, merchant_account, merchant_key_store};
+#[cfg(feature = "v2")]
 use crate::{errors, ApiModelToDieselModelConvertor};
 
 #[cfg(feature = "v1")]
@@ -298,10 +300,10 @@ impl PaymentIntent {
     }
     pub async fn create_domain_model_from_request(
         state: keymanager::KeyManagerState,
-        key_store: &crate::merchant_key_store::MerchantKeyStore,
+        key_store: &merchant_key_store::MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
-        merchant_account: &crate::merchant_account::MerchantAccount,
-        profile: &crate::business_profile::Profile,
+        merchant_account: &merchant_account::MerchantAccount,
+        profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
     ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
     {
@@ -332,9 +334,7 @@ impl PaymentIntent {
         // Encrypting our Billing Address Details to be stored in Payment Intent
         let billing_address = request
             .billing
-            .async_map(|billing_details| {
-                crate::create_encrypted_data(&state, key_store, billing_details)
-            })
+            .async_map(|billing_details| create_encrypted_data(&state, key_store, billing_details))
             .await
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
@@ -351,7 +351,7 @@ impl PaymentIntent {
         let shipping_address = request
             .shipping
             .async_map(|shipping_details| {
-                crate::create_encrypted_data(&state, key_store, shipping_details)
+                create_encrypted_data(&state, key_store, shipping_details)
             })
             .await
             .transpose()
