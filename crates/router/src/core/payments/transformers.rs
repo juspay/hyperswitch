@@ -2557,11 +2557,11 @@ impl ForeignFrom<api_models::payments::AmountDetails>
             order_amount: amount_details.order_amount().into(),
             currency: amount_details.currency(),
             shipping_cost: amount_details.shipping_cost(),
-            tax_details: Some(diesel_models::TaxDetails {
-                default: amount_details
-                    .order_tax_amount()
-                    .map(|order_tax_amount| diesel_models::DefaultTax { order_tax_amount }),
-                payment_method_type: None,
+            tax_details: amount_details.order_tax_amount().map(|order_tax_amount| {
+                diesel_models::TaxDetails {
+                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                    payment_method_type: None,
+                }
             }),
             skip_external_tax_calculation:
                 hyperswitch_domain_models::payments::TaxCalculationOverride::foreign_from(

@@ -5666,46 +5666,6 @@ where
     Ok(())
 }
 
-#[cfg(feature = "v2")]
-pub async fn override_setup_future_usage_to_on_session<F, D>(
-    db: &dyn StorageInterface,
-    payment_data: &D,
-) -> CustomResult<Option<enums::FutureUsage>, errors::ApiErrorResponse>
-where
-    F: Clone,
-    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
-{
-    let optional_future_usage = if payment_data.get_payment_intent().setup_future_usage
-        == enums::FutureUsage::OffSession
-    {
-        let optional_skip_saving_wallet_at_connector_optional =
-            config_skip_saving_wallet_at_connector(
-                db,
-                &payment_data.get_payment_intent().merchant_id,
-            )
-            .await?;
-        let optional_payment_method_type =
-            payment_data.get_payment_attempt().get_payment_method_type();
-        match (
-            optional_skip_saving_wallet_at_connector_optional,
-            optional_payment_method_type,
-        ) {
-            (Some(skip_saving_wallet_at_connector), Some(payment_method_type)) => {
-                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    Some(enums::FutureUsage::OnSession)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    } else {
-        None
-    };
-    Ok(optional_future_usage)
-}
-
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
