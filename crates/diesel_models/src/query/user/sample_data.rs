@@ -61,6 +61,8 @@ pub async fn insert_refunds(
         .attach_printable("Error while inserting refunds")
 }
 
+// TODO: 1. insert disputes
+
 #[cfg(feature = "v1")]
 pub async fn delete_payment_intents(
     conn: &PgPooledConn,
@@ -165,3 +167,6 @@ pub async fn delete_refunds(
             _ => Ok(result),
         })
 }
+
+// TODO: 1. delete disputes
+

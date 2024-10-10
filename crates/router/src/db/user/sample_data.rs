@@ -39,6 +39,8 @@ pub trait BatchSampleDataInterface {
         batch: Vec<RefundNew>,
     ) -> CustomResult<Vec<Refund>, StorageError>;
 
+    // TODO: 2. insert_disputes_batch_for_sample_data
+
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
@@ -58,6 +60,8 @@ pub trait BatchSampleDataInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError>;
+
+    // TODO: 2. delete_disputes_batch_for_sample_data
 }
 
 #[async_trait::async_trait]
@@ -127,6 +131,9 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
     }
 
+    // TODO: 2. insert_disputes_batch_for_sample_data implementation
+
+
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
@@ -184,6 +191,8 @@ impl BatchSampleDataInterface for Store {
             .await
             .map_err(diesel_error_to_data_error)
     }
+
+    // TODO: 2. delete_disputes_batch_for_sample_data implementation
 }
 
 #[async_trait::async_trait]
@@ -214,6 +223,8 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    // TODO: 2. insert_disputes_batch_for_sample_data implementation
+
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
@@ -239,6 +250,8 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
     ) -> CustomResult<Vec<Refund>, StorageError> {
         Err(StorageError::MockDbError)?
     }
+
+    // TODO: 2. delete_disputes_batch_for_sample_data implementation
 }
 
 // TODO: This error conversion is re-used from storage_impl and is not DRY when it should be
