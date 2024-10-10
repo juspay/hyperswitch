@@ -234,9 +234,7 @@ pub struct PaymentIntentMetricsBucketValue {
     pub payment_processed_count: Option<u64>,
     pub payment_processed_amount_without_smart_retries: Option<u64>,
     pub payment_processed_count_without_smart_retries: Option<u64>,
-    pub payments_success_rate_distribution: Option<f64>,
     pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
-    pub payments_failure_rate_distribution: Option<f64>,
     pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
 }
 
