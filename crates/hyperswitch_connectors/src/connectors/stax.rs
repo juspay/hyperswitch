@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -49,8 +50,19 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, RefundsRequestData},
 };
-#[derive(Debug, Clone)]
-pub struct Stax;
+
+#[derive(Clone)]
+pub struct Stax {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Stax {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Stax {}
 impl api::PaymentSession for Stax {}
@@ -182,8 +194,13 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stax::StaxCustomerRequest::try_from(req)?;
-
+        let amount_to_capture = utils::convert_amount(
+            self.amount_converter,
+           req.request.minor_amount,
+           req.request.currency,
+       )?;
+       let connector_router_data = stax::StaxRouterData::try_from((amount_to_capture, req));
+       let connector_req = stax::StaxPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
