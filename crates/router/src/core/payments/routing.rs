@@ -232,7 +232,7 @@ pub fn make_dsl_input(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payments_dsl_input.payment_intent.amount,
+        amount: payments_dsl_input.payment_attempt.get_total_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => {
@@ -864,7 +864,7 @@ pub async fn perform_session_flow_routing(
 
     #[cfg(feature = "v1")]
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
+        amount: session_input.payment_attempt.get_total_amount(),
         currency: session_input
             .payment_intent
             .currency
@@ -1159,7 +1159,7 @@ pub fn make_dsl_input_for_surcharge(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount,
+        amount: payment_attempt.get_total_amount(),
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency
