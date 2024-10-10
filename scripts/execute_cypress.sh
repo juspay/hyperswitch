@@ -150,7 +150,6 @@ function cleanup() {
   if [[ -d "cypress-tests" ]]; then
     cd - || return
   fi
-  unset PAYMENTS PAYOUTS PAYMENT_METHOD_LIST ROUTING
 
   if [[ -n "${tmp_file}" && -f "${tmp_file}" ]]; then
     rm -f "${tmp_file}"
