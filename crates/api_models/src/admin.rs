@@ -191,23 +191,16 @@ pub struct MerchantAccountCreateWithoutOrgId {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-// In v2 the actual parameter in API is of type MerchantAccountCreateWithoutOrgId
-// The following type is used internally so we don't have to duplicate create_merchant_account
+// In v2 the struct used in the API is MerchantAccountCreateWithoutOrgId
+// The following struct is only used internally, so we can reuse the common
+// part of `create_merchant_account` without duplicating its code for v2
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Serialize)]
 pub struct MerchantAccountCreate {
-    /// Name of the Merchant Account, This will be used as a prefix to generate the id
-    // #[schema(value_type= String, max_length = 64, example = "NewAge Retailer")]
     pub merchant_name: Secret<common_utils::new_type::MerchantName>,
-
-    /// Details about the merchant, contains phone and emails of primary and secondary contact person.
     pub merchant_details: Option<MerchantDetails>,
-
-    /// Metadata is useful for storing additional, unstructured information about the merchant account.
-    // #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
     // #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
     pub organization_id: id_type::OrganizationId,
 }

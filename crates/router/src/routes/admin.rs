@@ -130,6 +130,8 @@ pub async fn merchant_account_create(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
+    // Converting from MerchantAccountCreateWithoutOrgId to MerchantAccountCreate so we can use the existing
+    // `create_merchant_account` function for v2 as well
     let new_request_payload_with_org_id = api_models::admin::MerchantAccountCreate {
         merchant_name: json_payload.merchant_name.clone(),
         merchant_details: json_payload.merchant_details.clone(),
