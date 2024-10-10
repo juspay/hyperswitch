@@ -199,10 +199,52 @@ impl MerchantAccount {
 
 impl MerchantAccount {
     #[cfg(feature = "v1")]
-    pub fn from_update(&mut self, update: MerchantAccountUpdateInternal) {
-        self.merchant_name = update.merchant_name;
-        self.merchant_details = update.merchant_details;
-        self.return_url = update.return_url;
+    pub fn from_update(
+        &mut self,
+        update: MerchantAccountUpdateInternal,
+    ) -> Result<(), &'static str> {
+        macro_rules! update {
+            ([$(($attr:ident,)),*]) => {
+
+                $(self.$attr = update.$attr;)*
+            };
+            ([$(($attr:ident,$error:literal)),*])=>{
+                $(self.$attr = update.$attr.ok_or(concat!($error,stringify!($attr)))?;)*
+            };
+
+        }
+
+        update!([
+            (merchant_name,),
+            (merchant_details,),
+            (return_url,),
+            (webhook_details,),
+            (sub_merchants_enabled,),
+            (parent_merchant_id,),
+            (publishable_key,),
+            (payment_response_hash_key,),
+            (locker_id,),
+            (metadata,),
+            (routing_algorithm,),
+            (modified_at,),
+            (intent_fulfillment_time,),
+            (frm_routing_algorithm,),
+            (payout_routing_algorithm,),
+            (payment_link_config,),
+            (pm_collect_link_config,)
+        ]);
+
+        update!([
+            (redirect_to_merchant_with_http_post, "Cannot decide to "),
+            (enable_payment_response_hash, "Cannot decide to "),
+            (storage_scheme, "Cannot decide on"),
+            (primary_business_details, "Didn't receive "),
+            (organization_id, "Cannot update "),
+            (is_recon_enabled, "Don't know "),
+            (recon_status, "Don't know about "),
+            (default_profile, "Didn't receive ")
+        ]);
+        Ok(())
     }
 }
 

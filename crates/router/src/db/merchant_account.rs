@@ -530,7 +530,9 @@ impl MerchantAccountInterface for MockDb {
                 "Merchant ID: {:?} not found",
                 _merchant_id
             )))?;
-        account.from_update(_merchant_account.into());
+        account
+            .from_update(_merchant_account.into())
+            .map_err(|_| errors::StorageError::MockDbError)?;
         self.find_merchant_account_by_merchant_id(_state, _merchant_id, _merchant_key_store)
             .await
     }
@@ -583,8 +585,9 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<usize, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         Ok(accounts.iter_mut().fold(0, |acc, account| {
-            account.from_update(_merchant_account_update.clone().into());
-            acc + 1
+            account
+                .from_update(_merchant_account_update.clone().into())
+                .map_or(acc, |_| acc + 1)
         }))
     }
 
