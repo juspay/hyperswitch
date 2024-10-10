@@ -907,11 +907,8 @@ where
 
         let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_mobile_payment = mobile_payment_next_steps_check(
-            base_url,
-            payment_attempt.clone(),
-            payment_intent.clone(),
-        )?;
+        let next_action_mobile_payment =
+            mobile_payment_next_steps_check(base_url, &payment_attempt, &payment_intent)?;
 
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
@@ -1557,8 +1554,8 @@ pub fn voucher_next_steps_check(
 #[cfg(feature = "v1")]
 pub fn mobile_payment_next_steps_check(
     base_url: &str,
-    payment_attempt: storage::PaymentAttempt,
-    payment_intent: storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
     let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
         payment_attempt.payment_method
@@ -1566,8 +1563,8 @@ pub fn mobile_payment_next_steps_check(
         Some(api_models::payments::MobilePaymentNextStepData {
             collect_otp_url: helpers::create_startpay_url(
                 base_url,
-                &payment_attempt,
-                &payment_intent,
+                payment_attempt,
+                payment_intent,
             ),
         })
     } else {

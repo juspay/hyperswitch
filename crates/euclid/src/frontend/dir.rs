@@ -281,7 +281,7 @@ pub enum DirKeyKind {
     #[serde(rename = "mobile_payment")]
     #[strum(
         serialize = "mobile_payment",
-        detailed_message = "Supported types of mobile payment payment method",
+        detailed_message = "Supported types of mobile payment method",
         props(Category = "Payment Method Types")
     )]
     MobilePaymentType,
