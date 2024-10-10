@@ -166,25 +166,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
 
-        let profile_id = &payment_intent.profile_id;
-
-        let profile = db
-            .find_business_profile_by_profile_id(&(state).into(), key_store, profile_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-
-        let payment_method_data =
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::from(
-                request.payment_method_data.payment_method_data.clone(),
-            );
+        let payment_method_data = request
+            .payment_method_data
+            .payment_method_data
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
-            payment_method_data: Some(payment_method_data),
+            payment_method_data,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

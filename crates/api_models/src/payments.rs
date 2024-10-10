@@ -1979,25 +1979,15 @@ mod payment_method_data_serde {
     }
 }
 
-#[cfg(feature = "v1")]
 /// The payment method information provided for making a payment
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct PaymentMethodDataRequest {
+    /// This field is optional because, in case of saved cards we pass the payment_token
+    /// There might be cases where we don't need to pass the payment_method_data and pass only payment method billing details
+    /// We have flattened it because to maintain backwards compatibility with the old API contract
     #[serde(flatten)]
     pub payment_method_data: Option<PaymentMethodData>,
     /// billing details for the payment method.
-    /// This billing details will be passed to the processor as billing address.
-    /// If not passed, then payment.billing will be considered
-    pub billing: Option<Address>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
-pub struct PaymentMethodDataRequest {
-    /// Details of the payment instrument
-    pub payment_method_data: PaymentMethodData,
-
-    /// Billing details for the payment method.
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
     pub billing: Option<Address>,
