@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Exit immediately if a command exits with a non-zero status,
-# Treat unset variables as an error, and prevent errors in a pipeline from being masked
 set -euo pipefail
 
 # Initialize tmp_file globally
@@ -91,7 +90,6 @@ function run_tests() {
   trap 'cleanup' EXIT
 
   for service in "${connector_map[@]}"; do
-    # Use indirect reference to get the array by service name
     declare -n connectors="$service"
 
     if [[ ${#connectors[@]} -eq 0 ]]; then
@@ -179,7 +177,8 @@ function main() {
   case "$command" in
     --parallel | -p)
       print_color "yellow" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
-      # At present, parallel execution is limited to batch of 4 to not run out of memory
+      # At present, parallel execution is limited to batch of 4 by default to not run out of memory
+      # But can be scaled up by passing the value as an argument
       run_tests "$jobs"
       ;;
     *)
