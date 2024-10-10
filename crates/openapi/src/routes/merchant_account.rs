@@ -208,7 +208,7 @@ pub async fn update_merchant_account() {}
                 )
             ),
             )),
-    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
+    params (("id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")

@@ -562,7 +562,7 @@
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
-            "name": "account_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
