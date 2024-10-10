@@ -937,32 +937,85 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "createPaymentMethodTest",
-  (globalState, req_data, res_data) => {
-    req_data.customer_id = globalState.get("customerId");
-
+  (createPaymentMethodBody, globalState) => {
+    createPaymentMethodBody.customer_id = globalState.get("customerId");
+    createPaymentMethodBody.client_secret = globalState.get("clientSecret");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payment_methods`,
-      body: req_data,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
         "api-key": globalState.get("apiKey"),
       },
+      body: createPaymentMethodBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        expect(response.body).to.have.property("payment_method_id");
-        expect(response.body).to.have.property("client_secret");
+        expect(response.body.client_secret, "client_secret").to.equal(
+          response.body.client_secret
+        );
+        expect(response.body.payment_method_id, "payment_method_id").to.equal(
+          response.body.payment_method_id
+        );
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response);
       }
     });
   }
 );
+
+Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
+  const payment_method_id = globalState.get("paymentMethodId");
+  cy.request({
+    method: "DELETE",
+    url: `${globalState.get("baseUrl")}/payment_methods/${payment_method_id}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if (response.status === 200) {
+      expect(response.body.payment_method_id).to.equal(payment_method_id);
+      expect(response.body.deleted).to.be.true;
+    } else {
+      defaultErrorHandler(response);
+    }
+  });
+});
+
+Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
+  const payment_method_id = globalState.get("paymentMethodId");
+  const customer_id = globalState.get("customerId");
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/customers/${customer_id}/payment_methods/${payment_method_id}/default`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.headers["content-type"]).to.include("application/json");
+    if (response.status === 200) {
+      expect(response.body).to.have.property(
+        "default_payment_method_id",
+        payment_method_id
+      );
+      expect(response.body).to.have.property("customer_id", customer_id);
+    }
+    else{
+      defaultErrorHandler(response);
+    }
+  });
+});
 
 Cypress.Commands.add(
   "confirmCallTest",
@@ -2100,7 +2153,10 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
     if (response.body.customer_payment_methods[0]?.payment_token) {
       const paymentToken =
         response.body.customer_payment_methods[0].payment_token;
+      const paymentMethodId =
+        response.body.customer_payment_methods[0].payment_method_id;
       globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
+      globalState.set("paymentMethodId", paymentMethodId); // Set paymentMethodId in globalState
     } else {
       // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
       expect(response.body)
