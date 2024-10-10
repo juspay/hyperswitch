@@ -1148,7 +1148,7 @@ where
 }
 
 /// Domain type for NameType, used for Business Profile Name
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression, ToSchema)]
 #[diesel(sql_type = sql_types::Text)]
 pub struct NameType(LengthString<MAX_ALLOWED_PROFILE_NAME_LENGTH, 1>);
 
