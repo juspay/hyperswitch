@@ -1,4 +1,3 @@
-#![allow(unused)]
 pub mod payment;
 pub mod payment_methods;
 
@@ -23,6 +22,7 @@ pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>)
 pub(crate) enum GlobalEntity {
     Customer,
     Payment,
+    Attempt,
     PaymentMethod,
 }
 
@@ -32,6 +32,7 @@ impl GlobalEntity {
             Self::Customer => "cus",
             Self::Payment => "pay",
             Self::PaymentMethod => "pm",
+            Self::Attempt => "att",
         }
     }
 }

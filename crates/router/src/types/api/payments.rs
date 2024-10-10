@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
@@ -10,10 +12,10 @@ pub use api_models::payments::{
     PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
     PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 #[cfg(feature = "v2")]
 pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
@@ -39,8 +41,6 @@ pub use super::payments_v2::{
     TaxCalculationV2,
 };
 use crate::core::errors;
-
-impl super::Router for PaymentsRequest {}
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(
@@ -87,6 +87,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
     #![allow(clippy::expect_used, clippy::unwrap_used)]

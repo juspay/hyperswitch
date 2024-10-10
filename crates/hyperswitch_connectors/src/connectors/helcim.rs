@@ -65,9 +65,9 @@ impl api::PaymentToken for Helcim {}
 impl Helcim {
     pub fn connector_transaction_id(
         &self,
-        connector_meta: &Option<serde_json::Value>,
+        connector_meta: Option<&serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let meta: helcim::HelcimMetaData = to_connector_meta(connector_meta.clone())?;
+        let meta: helcim::HelcimMetaData = to_connector_meta(connector_meta.cloned())?;
         Ok(Some(meta.preauth_transaction_id.to_string()))
     }
 }

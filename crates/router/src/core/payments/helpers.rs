@@ -385,19 +385,6 @@ pub async fn get_address_by_id(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn get_token_pm_type_mandate_details(
-    _state: &SessionState,
-    _request: &api::PaymentsRequest,
-    _mandate_type: Option<api::MandateTransactionType>,
-    _merchant_account: &domain::MerchantAccount,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _payment_method_id: Option<String>,
-    _payment_intent_customer_id: Option<&id_type::CustomerId>,
-) -> RouterResult<MandateGenericData> {
-    todo!()
-}
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -1158,7 +1145,7 @@ pub fn create_startpay_url(
 pub fn create_redirect_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
@@ -1184,7 +1171,7 @@ pub fn create_authentication_url(
 pub fn create_authorize_url(
     router_base_url: &str,
     payment_attempt: &PaymentAttempt,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/payments/{}/{}/authorize/{}",
@@ -1198,7 +1185,7 @@ pub fn create_authorize_url(
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &id_type::MerchantId,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
@@ -1210,7 +1197,7 @@ pub fn create_webhook_url(
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/payments/{}/{}/redirect/complete/{}",
@@ -1338,6 +1325,8 @@ pub fn payment_intent_status_fsm(
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
     }
 }
+
+#[cfg(feature = "v1")]
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &SessionState,
@@ -1408,6 +1397,7 @@ pub fn validate_max_amount(
     }
 }
 
+#[cfg(feature = "v1")]
 /// Check whether the customer information that is sent in the root of payments request
 /// and in the customer object are same, if the values mismatch return an error
 pub fn validate_customer_information(
@@ -1425,6 +1415,7 @@ pub fn validate_customer_information(
     }
 }
 
+#[cfg(feature = "v1")]
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]
@@ -2413,9 +2404,10 @@ pub(crate) fn validate_amount_to_capture(
     )
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) fn validate_payment_method_fields_present(
-    req: &api::PaymentsRequest,
+    req: &api_models::payments::PaymentsRequest,
 ) -> RouterResult<()> {
     let payment_method_data =
         req.payment_method_data
@@ -3647,14 +3639,18 @@ pub async fn get_merchant_connector_account(
                         )
                     }
                     #[cfg(feature = "v2")]
-                    // get mca using id
                     {
-                        let _id = merchant_connector_id;
-                        let _ = key_store;
-                        let _ = profile_id;
-                        let _ = connector_name;
-                        let _ = key_manager_state;
-                        todo!()
+                        db.find_merchant_connector_account_by_id(
+                            &state.into(),
+                            merchant_connector_id,
+                            key_store,
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_connector_id.get_string_repr().to_string(),
+                            },
+                        )
                     }
                 } else {
                     #[cfg(feature = "v1")]
@@ -3746,11 +3742,12 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    request: &api::PaymentsRequest,
+    request: &api_models::payments::PaymentsRequest,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
@@ -3961,24 +3958,25 @@ impl AttemptType {
         }
     }
 
-    #[cfg(feature = "v2")]
-    // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
-    // Logic to override the fields with data provided in the request should be done after this if required.
-    // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
-    #[inline(always)]
-    fn make_new_payment_attempt(
-        _payment_method_data: Option<&api_models::payments::PaymentMethodData>,
-        _old_payment_attempt: PaymentAttempt,
-        _new_attempt_count: i16,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> PaymentAttempt {
-        todo!()
-    }
+    // #[cfg(feature = "v2")]
+    // // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
+    // // Logic to override the fields with data provided in the request should be done after this if required.
+    // // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
+    // #[inline(always)]
+    // fn make_new_payment_attempt(
+    //     _payment_method_data: Option<&api_models::payments::PaymentMethodData>,
+    //     _old_payment_attempt: PaymentAttempt,
+    //     _new_attempt_count: i16,
+    //     _storage_scheme: enums::MerchantStorageScheme,
+    // ) -> PaymentAttempt {
+    //     todo!()
+    // }
 
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
-        request: &api::PaymentsRequest,
+        request: &api_models::payments::PaymentsRequest,
         fetched_payment_intent: PaymentIntent,
         fetched_payment_attempt: PaymentAttempt,
         state: &SessionState,
@@ -4047,7 +4045,7 @@ impl AttemptType {
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
                 logger::info!(
-                    "manual_retry payment for {:?} with attempt_id {}",
+                    "manual_retry payment for {:?} with attempt_id {:?}",
                     updated_payment_intent.get_id(),
                     new_payment_attempt.get_id()
                 );
@@ -4488,6 +4486,7 @@ pub async fn populate_bin_details_for_payment_method_create(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 pub fn validate_customer_access(
     payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,

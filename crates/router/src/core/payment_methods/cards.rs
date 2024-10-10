@@ -3937,6 +3937,7 @@ async fn validate_payment_method_and_client_secret(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn call_surcharge_decision_management(
     state: routes::SessionState,
@@ -3997,6 +3998,7 @@ pub async fn call_surcharge_decision_management(
     Ok(merchant_sucharge_configs)
 }
 
+#[cfg(feature = "v1")]
 pub async fn call_surcharge_decision_management_for_saved_card(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
