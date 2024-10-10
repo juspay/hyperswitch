@@ -104,7 +104,10 @@ SET NOT NULL,
     ALTER COLUMN currency
 SET NOT NULL,
     ALTER COLUMN client_secret
-SET NOT NULL;
+SET NOT NULL,
+    ALTER COLUMN session_expiry
+SET NOT NULL,
+    ALTER COLUMN active_attempt_id DROP NOT NULL;
 
 ------------------------ Payment Attempt -----------------------
 ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;

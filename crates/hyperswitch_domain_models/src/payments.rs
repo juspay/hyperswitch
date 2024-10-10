@@ -5,10 +5,6 @@ use std::marker::PhantomData;
 use api_models::payments::Address;
 #[cfg(feature = "v2")]
 use api_models::payments::OrderDetailsWithAmount;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::{AsyncExt, ValueExt};
-#[cfg(feature = "v2")]
-use common_utils::types::keymanager;
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -24,7 +20,9 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{errors, ForeignFrom};
+use crate::{business_profile, merchant_account};
+#[cfg(feature = "v2")]
+use crate::{errors, ApiModelToDieselModelConvertor};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -305,12 +303,12 @@ impl PaymentIntent {
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
     pub async fn create_domain_model_from_request(
-        state: keymanager::KeyManagerState,
-        key_store: &crate::merchant_key_store::MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
-        merchant_account: &crate::merchant_account::MerchantAccount,
-        profile: &crate::business_profile::Profile,
+        merchant_account: &merchant_account::MerchantAccount,
+        profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
+        billing_address: Option<Encryptable<Secret<Address>>>,
+        shipping_address: Option<Encryptable<Secret<Address>>>,
     ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
     {
         let allowed_payment_method_types = request
@@ -335,45 +333,7 @@ impl PaymentIntent {
                         .unwrap_or(common_utils::consts::DEFAULT_SESSION_EXPIRY),
                 ),
             ));
-        let client_secret = common_utils::types::ClientSecret::new(
-            payment_id.clone(),
-            common_utils::generate_time_ordered_id_without_prefix(),
-        );
-        // Derivation of directly supplied Billing Address data in our Payment Create Request
-        // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_address = request
-            .billing
-            .async_map(|billing_details| {
-                crate::create_encrypted_data(&state, key_store, billing_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?
-            .map(|encrypted_value| {
-                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
-            })
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize decrypted value to Address")?;
-
-        // Derivation of directly supplied Shipping Address data in our Payment Create Request
-        // Encrypting our Shipping Address Details to be stored in Payment Intent
-        let shipping_address = request
-            .shipping
-            .async_map(|shipping_details| {
-                crate::create_encrypted_data(&state, key_store, shipping_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?
-            .map(|encrypted_value| {
-                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
-            })
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize decrypted value to Address")?;
+        let client_secret = payment_id.generate_client_secret();
         let order_details = request
             .order_details
             .map(|order_details| order_details.into_iter().map(Secret::new).collect());
@@ -382,7 +342,7 @@ impl PaymentIntent {
             merchant_id: merchant_account.get_id().clone(),
             // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
             status: common_enums::IntentStatus::RequiresPaymentMethod,
-            amount_details: AmountDetails::foreign_from(request.amount_details),
+            amount_details: AmountDetails::from(request.amount_details),
             amount_captured: None,
             customer_id: request.customer_id,
             description: request.description,
@@ -424,7 +384,9 @@ impl PaymentIntent {
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
             apply_mit_exemption: request.apply_mit_exemption.unwrap_or_default(),
             customer_present: request.customer_present.unwrap_or_default(),
-            payment_link_config: request.payment_link_config.map(ForeignFrom::foreign_from),
+            payment_link_config: request
+                .payment_link_config
+                .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
         })
     }

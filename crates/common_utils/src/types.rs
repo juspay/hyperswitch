@@ -666,7 +666,7 @@ mod client_secret_type {
         }
 
         /// Create a new client secret
-        pub fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
+        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
             Self {
                 payment_id,
                 secret: masking::Secret::new(secret),

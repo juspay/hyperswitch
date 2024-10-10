@@ -229,9 +229,6 @@ pub struct PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentsCreateIntentRequest {}
-
-#[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
         &self,
