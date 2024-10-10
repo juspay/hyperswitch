@@ -219,11 +219,11 @@ mod storage {
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                             .map(Some)
@@ -293,11 +293,11 @@ mod storage {
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                             .map(Some)
@@ -453,14 +453,14 @@ mod storage {
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<diesel_models::Customer>(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_hset()
@@ -584,11 +584,11 @@ mod storage {
                     let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -773,7 +773,7 @@ mod storage {
                     };
                     let storage_customer = new_customer.into();
 
-                    match kv_wrapper::<diesel_models::Customer, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::Customer, _, _>(
                         self,
                         KvOperation::HSetNx::<diesel_models::Customer>(
                             &field,
@@ -781,7 +781,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_hsetnx()

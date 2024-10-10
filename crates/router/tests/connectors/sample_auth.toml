@@ -30,6 +30,7 @@ api_key = "Bearer MyApiKey"
 [worldpay]
 api_key = "api_key"
 key1 = "key1"
+api_secret = "Merchant Identifier"
 
 [payu]
 api_key = "Bearer MyApiKey"

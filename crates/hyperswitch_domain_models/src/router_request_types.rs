@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::{Address, RequestSurchargeDetails};
+use common_enums::{AttemptStatus, IntentStatus};
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
@@ -107,6 +108,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
@@ -428,6 +430,8 @@ pub struct PaymentsSyncData {
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub attempt_status: AttemptStatus,
+    pub intent_status: IntentStatus,
 }
 
 #[derive(Debug, Default, Clone)]

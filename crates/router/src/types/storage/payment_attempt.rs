@@ -63,6 +63,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             capture_sequence,
             connector_capture_id: None,
             connector_response_reference_id: None,
+            connector_capture_data: None,
         })
     }
 

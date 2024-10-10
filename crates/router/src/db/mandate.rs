@@ -114,11 +114,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Mandate>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -172,11 +172,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Mandate>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -281,14 +281,14 @@ mod storage {
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::Hset(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -369,7 +369,7 @@ mod storage {
                             .await?;
                     }
 
-                    match kv_wrapper::<diesel_models::Mandate, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::Mandate, _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::HSetNx(
                             &field,
@@ -377,7 +377,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()

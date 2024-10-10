@@ -198,6 +198,7 @@ impl CaptureInterface for MockDb {
             capture_sequence: capture.capture_sequence,
             connector_capture_id: capture.connector_capture_id,
             connector_response_reference_id: capture.connector_response_reference_id,
+            connector_capture_data: capture.connector_capture_data,
         };
         captures.push(capture.clone());
         Ok(capture)

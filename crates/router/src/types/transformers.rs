@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
     pii,
+    types::ConnectorTransactionIdTrait,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -1292,6 +1293,9 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
 #[cfg(feature = "v1")]
 impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
     fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
+        let connector_transaction_id = payment_attempt
+            .get_connector_payment_id()
+            .map(ToString::to_string);
         Self {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
@@ -1300,7 +1304,7 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_reason,
             payment_method: payment_attempt.payment_method,
-            connector_transaction_id: payment_attempt.connector_transaction_id,
+            connector_transaction_id,
             capture_method: payment_attempt.capture_method,
             authentication_type: payment_attempt.authentication_type,
             created_at: payment_attempt.created_at,
@@ -1323,6 +1327,7 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
 
 impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
     fn foreign_from(capture: storage::Capture) -> Self {
+        let connector_capture_id = capture.get_optional_connector_transaction_id().cloned();
         Self {
             capture_id: capture.capture_id,
             status: capture.status,
@@ -1330,7 +1335,7 @@ impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
             currency: capture.currency,
             connector: capture.connector,
             authorized_attempt_id: capture.authorized_attempt_id,
-            connector_capture_id: capture.connector_capture_id,
+            connector_capture_id,
             capture_sequence: capture.capture_sequence,
             error_message: capture.error_message,
             error_code: capture.error_code,

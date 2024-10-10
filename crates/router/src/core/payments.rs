@@ -28,7 +28,7 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
-    types::{MinorUnit, Surcharge},
+    types::{ConnectorTransactionId, MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -5663,6 +5663,9 @@ pub async fn payments_manual_update(
     } else {
         None
     };
+    let (connector_transaction_id, connector_transaction_data) = connector_transaction_id
+        .map(ConnectorTransactionId::form_id_and_data)
+        .map_or((None, None), |(id, data)| (Some(id), data));
     // Update the payment_attempt
     let attempt_update = storage::PaymentAttemptUpdate::ManualUpdate {
         status: attempt_status,
@@ -5673,6 +5676,7 @@ pub async fn payments_manual_update(
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
         connector_transaction_id,
+        connector_transaction_data,
     };
     let updated_payment_attempt = state
         .store
@@ -5706,6 +5710,9 @@ pub async fn payments_manual_update(
     }
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsManualUpdateResponse {
+            connector_transaction_id: updated_payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string),
             payment_id: updated_payment_attempt.payment_id,
             attempt_id: updated_payment_attempt.attempt_id,
             merchant_id: updated_payment_attempt.merchant_id,
@@ -5713,7 +5720,6 @@ pub async fn payments_manual_update(
             error_code: updated_payment_attempt.error_code,
             error_message: updated_payment_attempt.error_message,
             error_reason: updated_payment_attempt.error_reason,
-            connector_transaction_id: updated_payment_attempt.connector_transaction_id,
         },
     ))
 }
@@ -5750,6 +5756,7 @@ pub trait OperationSessionGetters<F> {
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+    fn get_intent_status(&self) -> enums::IntentStatus;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -5926,6 +5933,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     #[cfg(feature = "v2")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.payment_intent.capture_method
+    }
+
+    fn get_intent_status(&self) -> enums::IntentStatus {
+        self.payment_intent.status
     }
 }
 
@@ -6147,6 +6158,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         todo!()
+    }
+
+    fn get_intent_status(&self) -> enums::IntentStatus {
+        self.payment_intent.status
     }
 }
 

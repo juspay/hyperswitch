@@ -391,11 +391,11 @@ mod storage {
                     let field = format!("add_{}", address_id);
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Address>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -502,14 +502,14 @@ mod storage {
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<storage_types::Address>(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_hset()
@@ -601,7 +601,7 @@ mod storage {
                         },
                     };
 
-                    match kv_wrapper::<diesel_models::Address, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::Address, _, _>(
                         self,
                         KvOperation::HSetNx::<diesel_models::Address>(
                             &field,
@@ -609,7 +609,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_hsetnx()
