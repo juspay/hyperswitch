@@ -761,6 +761,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        println!(
+            "$$$req.request.connector_transaction_id {:?}",
+            req.request.connector_transaction_id
+        );
         match &req.request.payment_method_data {
             domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) => {
                 let complete_authorize_url = if req.request.is_auto_capture()? {
@@ -810,8 +814,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
+        let payment_method_data = req.request.payment_method_data.clone();
+        let req = match payment_method_data {
+            domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) => {
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::PaymentsAuthorizeType::get_url(
+                        self, req, connectors,
+                    )?)
+                    .headers(types::PaymentsAuthorizeType::get_headers(
+                        self, req, connectors,
+                    )?)
+                    .build()
+            }
+            _ => services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
@@ -823,7 +839,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     self, req, connectors,
                 )?)
                 .build(),
-        ))
+        };
+
+        Ok(Some(req))
     }
 
     fn handle_response(
