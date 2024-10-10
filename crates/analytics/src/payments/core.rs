@@ -137,19 +137,23 @@ pub async fn get_metrics(
                     logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
                     let metrics_builder = metrics_accumulator.entry(id).or_default();
                     match metric {
-                        PaymentMetrics::PaymentSuccessRate | PaymentMetrics::SessionizedPaymentSuccessRate => metrics_builder
+                        PaymentMetrics::PaymentSuccessRate
+                        | PaymentMetrics::SessionizedPaymentSuccessRate => metrics_builder
                             .payment_success_rate
                             .add_metrics_bucket(&value),
                         PaymentMetrics::PaymentCount | PaymentMetrics::SessionizedPaymentCount => {
                             metrics_builder.payment_count.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::PaymentSuccessCount | PaymentMetrics::SessionizedPaymentSuccessCount => {
+                        PaymentMetrics::PaymentSuccessCount
+                        | PaymentMetrics::SessionizedPaymentSuccessCount => {
                             metrics_builder.payment_success.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::PaymentProcessedAmount | PaymentMetrics::SessionizedPaymentProcessedAmount => {
+                        PaymentMetrics::PaymentProcessedAmount
+                        | PaymentMetrics::SessionizedPaymentProcessedAmount => {
                             metrics_builder.processed_amount.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::AvgTicketSize | PaymentMetrics::SessionizedAvgTicketSize => {
+                        PaymentMetrics::AvgTicketSize
+                        | PaymentMetrics::SessionizedAvgTicketSize => {
                             metrics_builder.avg_ticket_size.add_metrics_bucket(&value)
                         }
                         PaymentMetrics::RetriesCount | PaymentMetrics::SessionizedRetriesCount => {
@@ -158,7 +162,8 @@ pub async fn get_metrics(
                                 .retries_amount_processed
                                 .add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::ConnectorSuccessRate | PaymentMetrics::SessionizedConnectorSuccessRate => {
+                        PaymentMetrics::ConnectorSuccessRate
+                        | PaymentMetrics::SessionizedConnectorSuccessRate => {
                             metrics_builder
                                 .connector_success_rate
                                 .add_metrics_bucket(&value);

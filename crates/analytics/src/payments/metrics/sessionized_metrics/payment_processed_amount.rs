@@ -38,7 +38,8 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
 
         let mut dimensions = dimensions.to_vec();
 

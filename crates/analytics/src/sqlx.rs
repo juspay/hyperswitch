@@ -909,8 +909,10 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::PaymentIntent => Ok("payment_intent".to_string()),
-            Self::PaymentIntentSessionized => Err(error_stack::report!(ParsingError::UnknownError)
-                .attach_printable("PaymentIntentSessionized table is not implemented for Sqlx"))?,
+            Self::PaymentIntentSessionized => Err(error_stack::report!(
+                ParsingError::UnknownError
+            )
+            .attach_printable("PaymentIntentSessionized table is not implemented for Sqlx"))?,
             Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)

@@ -37,7 +37,8 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
