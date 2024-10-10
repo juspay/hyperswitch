@@ -75,6 +75,10 @@ crate::impl_id_type_methods!(PaymentReferenceId, "payment_reference_id");
 crate::impl_debug_id_type!(PaymentReferenceId);
 crate::impl_try_from_cow_str_id_type!(PaymentReferenceId, "payment_reference_id");
 
+// Database related implementations so that this field can be used directly in the database tables
+crate::impl_queryable_id_type!(PaymentReferenceId);
+crate::impl_to_sql_from_sql_id_type!(PaymentReferenceId);
+
 #[cfg(feature = "metrics")]
 /// This is implemented so that we can use payment id directly as attribute in metrics
 impl From<PaymentId> for router_env::opentelemetry::Value {

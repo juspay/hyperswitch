@@ -15,8 +15,13 @@ pub enum ApiEventsType {
     Payout {
         payout_id: String,
     },
+    #[cfg(feature = "v1")]
     Payment {
         payment_id: id_type::PaymentId,
+    },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: id_type::GlobalPaymentId,
     },
     Refund {
         payment_id: Option<id_type::PaymentId>,
@@ -82,6 +87,7 @@ pub enum ApiEventsType {
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for id_type::PaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {

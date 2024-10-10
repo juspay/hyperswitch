@@ -265,10 +265,15 @@ pub async fn create_profile_from_merchant_account(
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
     let payment_link_config = request.payment_link_config.map(ForeignInto::foreign_into);
+    let key_manager_state = state.into();
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
-            core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
+            core::payment_methods::cards::create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                headers,
+            )
         })
         .await
         .transpose()

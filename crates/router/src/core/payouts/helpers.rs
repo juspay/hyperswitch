@@ -208,6 +208,7 @@ pub async fn save_payout_data_to_locker(
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     let payouts = &payout_data.payouts;
+    let key_manager_state = state.into();
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
         match payout_method_data {
             payouts::PayoutMethodData::Card(card) => {
@@ -485,7 +486,7 @@ pub async fn save_payout_data_to_locker(
                 });
             (
                 Some(
-                    cards::create_encrypted_data(state, key_store, pm_data)
+                    cards::create_encrypted_data(&key_manager_state, key_store, pm_data)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encrypt customer details")?,
