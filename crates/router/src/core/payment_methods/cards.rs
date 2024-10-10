@@ -1669,6 +1669,18 @@ pub async fn update_customer_payment_method(
             validate_payment_method_update(card_update.clone(), existing_card_data.clone());
 
         let response = if is_card_updation_required {
+            // If connector mandate details present then add the task to process tracker
+            let connector_mandate_id = pm
+                .connector_mandate_details
+                .map(|val| {
+                    val.parse_value::<PaymentsMandateReference>("PaymentsMandateReference")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize the mandate reference")
+                })
+                .transpose()?;
+            if let Some(connector_mandate_details) = connector_mandate_id {
+                update_connecto_mandate_metadata(db, connector_mandate_details)
+            }
             // Fetch the existing card data from locker for getting card number
             let card_data_from_locker = get_card_from_locker(
                 &state,
@@ -1874,14 +1886,6 @@ pub fn validate_payment_method_update(
                     .map(|nick_name| nick_name.expose())
                     .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
             })
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub fn validate_payment_method_update(
-    _card_updation_obj: CardDetailUpdate,
-    _existing_card_data: api::CardDetailFromLocker,
-) -> bool {
-    todo!()
 }
 
 // Wrapper function to switch lockers
