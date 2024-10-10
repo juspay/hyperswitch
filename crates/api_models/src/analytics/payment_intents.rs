@@ -91,6 +91,11 @@ pub enum PaymentIntentMetrics {
     SmartRetriedAmount,
     PaymentIntentCount,
     PaymentsSuccessRate,
+    SessionizedSuccessfulSmartRetries,
+    SessionizedTotalSmartRetries,
+    SessionizedSmartRetriedAmount,
+    SessionizedPaymentIntentCount,
+    SessionizedPaymentsSuccessRate,
 }
 
 #[derive(Debug, Default, serde::Serialize)]

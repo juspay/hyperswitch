@@ -18,6 +18,7 @@ use crate::{
 
 mod payment_intent_count;
 mod payments_success_rate;
+mod sessionized_metrics;
 mod smart_retried_amount;
 mod successful_smart_retries;
 mod total_smart_retries;
@@ -112,6 +113,31 @@ where
             }
             Self::PaymentsSuccessRate => {
                 PaymentsSuccessRate
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedSuccessfulSmartRetries => {
+                sessionized_metrics::SuccessfulSmartRetries
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedTotalSmartRetries => {
+                sessionized_metrics::TotalSmartRetries
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedSmartRetriedAmount => {
+                sessionized_metrics::SmartRetriedAmount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedPaymentIntentCount => {
+                sessionized_metrics::PaymentIntentCount
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedPaymentsSuccessRate => {
+                sessionized_metrics::PaymentsSuccessRate
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

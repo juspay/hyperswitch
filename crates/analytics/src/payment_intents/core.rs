@@ -183,19 +183,26 @@ pub async fn get_metrics(
                     logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
                     let metrics_builder = metrics_accumulator.entry(id).or_default();
                     match metric {
-                        PaymentIntentMetrics::SuccessfulSmartRetries => metrics_builder
-                            .successful_smart_retries
-                            .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::TotalSmartRetries => metrics_builder
+                        PaymentIntentMetrics::SuccessfulSmartRetries
+                        | PaymentIntentMetrics::SessionizedSuccessfulSmartRetries => {
+                            metrics_builder
+                                .successful_smart_retries
+                                .add_metrics_bucket(&value)
+                        }
+                        PaymentIntentMetrics::TotalSmartRetries
+                        | PaymentIntentMetrics::SessionizedTotalSmartRetries => metrics_builder
                             .total_smart_retries
                             .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::SmartRetriedAmount => metrics_builder
+                        PaymentIntentMetrics::SmartRetriedAmount
+                        | PaymentIntentMetrics::SessionizedSmartRetriedAmount => metrics_builder
                             .smart_retried_amount
                             .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::PaymentIntentCount => metrics_builder
+                        PaymentIntentMetrics::PaymentIntentCount
+                        | PaymentIntentMetrics::SessionizedPaymentIntentCount => metrics_builder
                             .payment_intent_count
                             .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::PaymentsSuccessRate => metrics_builder
+                        PaymentIntentMetrics::PaymentsSuccessRate
+                        | PaymentIntentMetrics::SessionizedPaymentsSuccessRate => metrics_builder
                             .payments_success_rate
                             .add_metrics_bucket(&value),
                     }

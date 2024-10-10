@@ -71,7 +71,7 @@ pub async fn get_sankey_data(
     time_range: &TimeRange,
 ) -> MetricsResult<Vec<SankeyRow>> {
     let mut query_builder =
-        QueryBuilder::<ClickhouseClient>::new(AnalyticsCollection::PaymentIntent);
+        QueryBuilder::<ClickhouseClient>::new(AnalyticsCollection::PaymentIntentSessionized);
     query_builder
         .add_select_column(Aggregate::<String>::Count {
             field: None,
