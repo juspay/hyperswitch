@@ -5,6 +5,20 @@ const TIMEOUT = 20000; // 20 seconds
 const WAIT_TIME = 10000; // 10 seconds
 const WAIT_TIME_IATAPAY = 20000; // 20 seconds
 
+class ClientError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ClientError"; // 4xx errors
+  }
+}
+
+class ServerError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ServerError"; // 5xx errors
+  }
+}
+
 export function handleRedirection(
   redirection_type,
   urls,
@@ -395,6 +409,26 @@ function upiRedirection(
 }
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
+  const urlParams = new URLSearchParams(redirection_url.search);
+  const paymentStatus = urlParams.get('status');
+
+  // Check for valid statuses
+  if (statusCode >= 400 && statusCode < 500) {
+    console.error(`Client Error: ${statusCode} - ${paymentStatus || "Payment status not available"}`);
+    throw new ClientError(`Client error occurred. Status code: ${statusCode}`);
+  } else if (statusCode >= 500) {
+    console.error(`Server Error: ${statusCode} - ${paymentStatus || "Payment status not available"}`);
+    throw new ServerError(`Server error occurred. Status code: ${statusCode}`);
+  } else if (!paymentStatus) {
+    console.error(`Error: Payment status is undefined. Unexpected error.`);
+    throw new Error(`Payment status is undefined. Unexpected error.`);
+  }
+  
+  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'partially_captured') {
+    throw new Error(`Payment failed after redirection with status: ${paymentStatus}`);
+  }
+
+  // Proceed with normal redirection validation
   if (forward_flow) {
     // Handling redirection
     if (redirection_url.host.endsWith(expected_url.host)) {
@@ -412,6 +446,7 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
     }
   }
 }
+
 
 async function fetchAndParseQRCode(url) {
   const response = await fetch(url, { encoding: "binary" });
