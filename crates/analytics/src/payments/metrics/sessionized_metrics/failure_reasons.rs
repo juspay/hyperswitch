@@ -66,7 +66,7 @@ where
             .change_context(MetricsError::QueryBuildingError)?;
 
         let mut outer_query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::Payment);
+            QueryBuilder::new(AnalyticsCollection::PaymentSessionized);
 
         for dim in dimensions.iter() {
             outer_query_builder.add_select_column(dim).switch()?;

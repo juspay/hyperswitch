@@ -428,7 +428,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::Payment => Ok("payment_attempts".to_string()),
             Self::PaymentSessionized => Ok("sessionizer_payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
-            Self::RefundSessionized => Ok("sessionized_refunds".to_string()),
+            Self::RefundSessionized => Ok("sessionizer_refunds".to_string()),
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
             Self::SdkEventsAnalytics => Ok("sdk_events".to_string()),

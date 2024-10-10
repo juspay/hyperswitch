@@ -28,12 +28,6 @@ pub struct ErrorDistributionRow {
 }
 
 #[derive(Debug, Default)]
-pub struct FailureReasonsMetricRow {
-    pub count: i64,
-    pub error_reason: String,
-}
-
-#[derive(Debug, Default)]
 pub struct ErrorDistributionAccumulator {
     pub error_vec: Vec<ErrorDistributionRow>,
 }
