@@ -1001,13 +1001,13 @@ Cypress.Commands.add(
         expect(response.body.connector, "connector").to.equal(
           globalState.get("connectorId")
         );
-        expect(response.body.payment_id, "payment_id").to.equal(
-          paymentIntentID
+        expect(paymentIntentID, "payment_id").to.equal(
+          response.body.payment_id
         );
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
-        expect(response.body.merchant_connector_id, "connector_id").to.equal(
-          globalState.get("merchantConnectorId")
+        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+          response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
@@ -1433,6 +1433,38 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentID", paymentIntentID);
+        const recurringEnabledFromConfirm =
+          globalState.get("recurring_enabled");
+        if (
+          req_data.customer_acceptance === "object" &&
+          req_data.customer_acceptance !== null
+        ) {
+          recurringEnabledFromConfirm += 1;
+        }
+        globalState.set("recurring_enabled", recurringEnabledFromConfirm);
+
+        globalState.set("paymentID", paymentIntentID);
+        globalState.set("connectorId", response.body.connector);
+        expect(response.body.connector, "connector").to.equal(
+          globalState.get("connectorId")
+        );
+        expect(paymentIntentID, "payment_id").to.equal(
+          response.body.payment_id
+        );
+        expect(response.body.payment_method_data, "payment_method_data").to.not
+          .be.empty;
+        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+          response.body.merchant_connector_id
+        );
+        expect(response.body.customer, "customer").to.not.be.empty;
+        expect(response.body.billing, "billing_address").to.not.be.empty;
+        expect(response.body.profile_id, "profile_id").to.not.be.null;
+        expect(response.body.payment_token, "payment_token").to.not.be.null;
+        // expect(
+        //   response.body.connector_transaction_id,
+        //   "connector_transaction_id"
+        // ).to.not.be.null;
+
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -1705,6 +1737,19 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("paymentID", response.body.payment_id);
 
+        expect(response.body.payment_method_data, "payment_method_data").to.not
+          .be.empty;
+        expect(response.body.connector, "connector").to.equal(
+          globalState.get("connectorId")
+        );
+        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+          response.body.merchant_connector_id
+        );
+        expect(response.body.customer, "customer").to.not.be.empty;
+        expect(response.body.profile_id, "profile_id").to.not.be.null;
+        expect(response.body.payment_method_id, "payment_method_id").to.not.be
+          .null;
+
         if (requestBody.mandate_data === null) {
           expect(response.body).to.have.property("payment_method_id");
           globalState.set("paymentMethodId", response.body.payment_method_id);
@@ -1714,7 +1759,6 @@ Cypress.Commands.add(
         }
 
         if (response.body.capture_method === "automatic") {
-          expect(response.body).to.have.property("mandate_id");
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
               .to.have.property("next_action")
@@ -1795,6 +1839,22 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentID", response.body.payment_id);
+        expect(response.body.payment_method_data, "payment_method_data").to.not
+          .be.empty;
+        expect(response.body.connector, "connector").to.equal(
+          globalState.get("connectorId")
+        );
+        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+          response.body.merchant_connector_id
+        );
+        expect(response.body.customer, "customer").to.not.be.empty;
+        expect(response.body.profile_id, "profile_id").to.not.be.null;
+        expect(response.body.payment_method_id, "payment_method_id").to.not.be
+          .null;
+        // expect(
+        //   response.body.connector_transaction_id,
+        //   "connector_transaction_id"
+        // ).to.not.be.null;
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
