@@ -2,13 +2,7 @@ use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
-use diesel_models::{
-    enums,
-    enums::ProcessTrackerStatus,
-    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-    reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    user_role as user_storage,
-};
+use diesel_models::{enums, enums::ProcessTrackerStatus, ephemeral_key::{EphemeralKey, EphemeralKeyNew}, reverse_lookup::{ReverseLookup, ReverseLookupNew}, user_role as user_storage, Dispute, DisputeNew};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
@@ -30,7 +24,8 @@ use scheduler::{
 use serde::Serialize;
 use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
 use time::PrimitiveDateTime;
-
+use common_utils::id_type::MerchantId;
+use hyperswitch_domain_models::errors::StorageError;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
@@ -3239,7 +3234,24 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
-    // TODO: 3. insert_disputes_batch_for_sample_data implementation
+    // TODO(done): 3. insert_disputes_batch_for_sample_data implementation
+    async fn insert_disputes_batch_for_sample_data(
+        &self, batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
+    {
+        let disputes_list = self
+            .diesel_store
+            .insert_disputes_batch_for_sample_data(batch)
+            .await?;
+
+        for dispute in disputes_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_dispute(dispute, None, self.tenant_id.clone())
+                .await;
+        }
+        Ok(disputes_list)
+    }
 
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
@@ -3309,7 +3321,26 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
-    // TODO: 3. delete_disputes_batch_for_sample_data implementation
+    // TODO(done): 3. delete_disputes_batch_for_sample_data implementation
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &MerchantId,
+    ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
+    {
+        let disputes_list = self
+            .diesel_store
+            .delete_disputes_for_sample_data(merchant_id)
+            .await?;
+
+        for dispute in disputes_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_dispute_delete(dispute, self.tenant_id.clone())
+                .await;
+        }
+
+        Ok(disputes_list)
+    }
 }
 
 #[async_trait::async_trait]

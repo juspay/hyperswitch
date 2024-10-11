@@ -582,6 +582,22 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add consolidated dispute event {dispute:?}"))
     }
 
+    // TODO(done): add log_dispute_delete
+    pub async fn log_dispute_delete(
+        &self,
+        delete_old_dispute: &Dispute,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
+        self.log_event(&KafkaEvent::old(
+            &KafkaDispute::from_storage(delete_old_dispute),
+            tenant_id.clone(),
+            self.ckh_database_name.clone(),
+        ))
+        .attach_printable_lazy(|| {
+            format!("Failed to add negative dispute event {delete_old_dispute:?}")
+        })
+    }
+
     #[cfg(feature = "payouts")]
     pub async fn log_payout(
         &self,

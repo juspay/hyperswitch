@@ -1,6 +1,6 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
+use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew, DisputeNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 
@@ -14,12 +14,14 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
+// TODO: last.modify generate sample data for user
 pub async fn generate_sample_data_for_user(
     state: SessionState,
     user_from_token: UserFromToken,
     req: SampleDataRequest,
     _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
+    // TODO: 5. add disputes to generated data
     let sample_data = utils::user::sample_data::generate_sample_data(
         &state,
         req,
@@ -39,19 +41,21 @@ pub async fn generate_sample_data_for_user(
         .change_context(SampleDataError::InternalServerError)
         .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error
 
-    let (payment_intents, payment_attempts, refunds): (
+    let (payment_intents, payment_attempts, refunds, disputes): (
         Vec<PaymentIntent>,
         Vec<PaymentAttemptBatchNew>,
         Vec<RefundNew>,
+        Vec<DisputeNew>,
     ) = sample_data.into_iter().fold(
-        (Vec::new(), Vec::new(), Vec::new()),
-        |(mut pi, mut pa, mut rf), (payment_intent, payment_attempt, refund)| {
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+        |(mut pi, mut pa, mut rf, mut dp), (payment_intent, payment_attempt, refund, dispute)| {
             pi.push(payment_intent);
             pa.push(payment_attempt);
             if let Some(refund) = refund {
                 rf.push(refund);
             }
-            (pi, pa, rf)
+            dp.push(dispute);
+            (pi, pa, rf, dp)
         },
     );
 
@@ -71,7 +75,12 @@ pub async fn generate_sample_data_for_user(
         .await
         .switch()?;
 
-    // TODO: 4. add disputes
+    // TODO: 6. store disputes
+    state
+        .store
+        .insert_disputes_batch_for_sample_data(disputes)
+        .await
+        .switch()?;
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -109,6 +118,13 @@ pub async fn delete_sample_data_for_user(
     state
         .store
         .delete_refunds_for_sample_data(&merchant_id_del)
+        .await
+        .switch()?;
+
+    // TODO(done): 7. add delete disputes
+    state
+        .store
+        .delete_disputes_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
 

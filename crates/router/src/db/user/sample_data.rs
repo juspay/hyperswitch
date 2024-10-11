@@ -1,10 +1,5 @@
 use common_utils::types::keymanager::KeyManagerState;
-use diesel_models::{
-    errors::DatabaseError,
-    query::user::sample_data as sample_data_queries,
-    refund::{Refund, RefundNew},
-    user::sample_data::PaymentAttemptBatchNew,
-};
+use diesel_models::{errors::DatabaseError, query::user::sample_data as sample_data_queries, refund::{Refund, RefundNew}, user::sample_data::PaymentAttemptBatchNew, dispute::{Dispute, DisputeNew}};
 use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};
 use hyperswitch_domain_models::{
@@ -40,6 +35,10 @@ pub trait BatchSampleDataInterface {
     ) -> CustomResult<Vec<Refund>, StorageError>;
 
     // TODO: 2. insert_disputes_batch_for_sample_data
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<Dispute>, StorageError>;
 
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
@@ -61,7 +60,11 @@ pub trait BatchSampleDataInterface {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError>;
 
-    // TODO: 2. delete_disputes_batch_for_sample_data
+    // TODO: 2. delete_disputes_for_sample_data
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Dispute>, StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -131,7 +134,19 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
     }
 
-    // TODO: 2. insert_disputes_batch_for_sample_data implementation
+    // TODO(done): 2. insert_disputes_batch_for_sample_data implementation
+    // not sure if err needs to be mapped as payment attempts
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        let conn = pg_connection_write(self)
+            .await
+            .change_context(StorageError::DatabaseConnectionError)?;
+        sample_data_queries::insert_disputes(&conn, batch)
+            .await
+            .map_err(diesel_error_to_data_error)
+    }
 
 
     #[cfg(feature = "v1")]
@@ -192,7 +207,18 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
     }
 
-    // TODO: 2. delete_disputes_batch_for_sample_data implementation
+    // TODO(done): 2. delete_disputes_batch_for_sample_data implementation
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        let conn = pg_connection_write(self)
+            .await
+            .change_context(StorageError::DatabaseConnectionError)?;
+        sample_data_queries::delete_disputes(&conn, merchant_id)
+            .await
+            .map_err(diesel_error_to_data_error)
+    }
 }
 
 #[async_trait::async_trait]
@@ -223,7 +249,13 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    // TODO: 2. insert_disputes_batch_for_sample_data implementation
+    // TODO(done): 2. insert_disputes_batch_for_sample_data implementation
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        _batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
 
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
@@ -251,7 +283,13 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    // TODO: 2. delete_disputes_batch_for_sample_data implementation
+    // TODO(done): 2. delete_disputes_for_sample_data implementation
+    async fn delete_disputes_for_sample_data(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
 }
 
 // TODO: This error conversion is re-used from storage_impl and is not DRY when it should be

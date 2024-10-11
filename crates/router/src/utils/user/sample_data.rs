@@ -3,7 +3,7 @@ use api_models::{
     user::sample_data::SampleDataRequest,
 };
 use common_utils::{id_type, types::MinorUnit};
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
+use diesel_models::{user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
@@ -15,14 +15,17 @@ use crate::{
     SessionState,
 };
 
+use diesel_models::enums as storage_enums;
+
 #[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
+// TODO: 4. modify generate sample data for user
 pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
-) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
+) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>, DisputeNew)>> {
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
@@ -121,7 +124,7 @@ pub async fn generate_sample_data(
     let mut rng = thread_rng();
     random_array.shuffle(&mut rng);
 
-    let mut res: Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)> = Vec::new();
+    let mut res: Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>, DisputeNew)> = Vec::new();
     let start_time = req
         .start_time
         .unwrap_or(common_utils::date_time::now() - time::Duration::days(7))
@@ -374,7 +377,32 @@ pub async fn generate_sample_data(
             None
         };
 
-        res.push((payment_intent, payment_attempt, refund));
+        // TODO: add dummy dispute data
+        let dispute = DisputeNew {
+            dispute_id: common_utils::generate_id_with_default_len("test"),
+            amount: 100.to_string(),
+            currency: "USD".to_string(),
+            dispute_stage: storage_enums::DisputeStage::PreArbitration,
+            dispute_status: storage_enums::DisputeStatus::DisputeOpened,
+            payment_id: payment_id.clone(),
+            attempt_id: attempt_id.clone(),
+            merchant_id: merchant_id.clone(),
+            connector_status: "open".to_string(),
+            connector_dispute_id: common_utils::generate_id_with_default_len("test"),
+            connector_reason: None,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            connector_created_at: None,
+            connector_updated_at: None,
+            connector: payment_attempt.connector.clone().unwrap_or(DummyConnector4.to_string()),
+            evidence: None,
+            profile_id: payment_intent.profile_id.clone(),
+            merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+            dispute_amount: amount * 100,
+            organization_id: org_id.clone(),
+        };
+
+        res.push((payment_intent, payment_attempt, refund, dispute));
     }
     Ok(res)
 }

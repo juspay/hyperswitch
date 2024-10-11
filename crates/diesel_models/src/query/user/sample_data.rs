@@ -13,8 +13,9 @@ use crate::schema_v2::{
 };
 use crate::{
     errors, schema::refund::dsl as refund_dsl, user::sample_data::PaymentAttemptBatchNew,
+    schema::dispute::dsl as dispute_dsl,
     PaymentAttempt, PaymentIntent, PaymentIntentNew, PgPooledConn, Refund, RefundNew,
-    StorageResult,
+    StorageResult, Dispute, DisputeNew,
 };
 
 pub async fn insert_payment_intents(
@@ -61,7 +62,21 @@ pub async fn insert_refunds(
         .attach_printable("Error while inserting refunds")
 }
 
-// TODO: 1. insert disputes
+// TODO(done): 1. insert disputes
+pub async fn insert_disputes(
+    conn: &PgPooledConn,
+    batch: Vec<DisputeNew>,
+) -> StorageResult<Vec<Dispute>> {
+    let query = diesel::insert_into(<Dispute>::table()).values(batch);
+
+    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+    query
+        .get_results_async(conn)
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error while inserting disputes")
+}
 
 #[cfg(feature = "v1")]
 pub async fn delete_payment_intents(
@@ -168,5 +183,31 @@ pub async fn delete_refunds(
         })
 }
 
-// TODO: 1. delete disputes
+// TODO(done): 1. delete disputes
+pub async fn delete_disputes(
+    conn: &PgPooledConn,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> StorageResult<Vec<Dispute>> {
+    // delete disputes where merchant_id = merchant_id and payment_id like "test_%"
+    let query = diesel::delete(<Dispute>::table())
+        .filter(dispute_dsl::merchant_id.eq(merchant_id.to_owned()))
+        .filter(dispute_dsl::payment_id.like("test_%"));
+
+    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+    query
+        .get_results_async(conn)
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error while deleting disputes")
+        .and_then(|result| match result.len() {
+            n if n > 0 => {
+                logger::debug!("{n} records deleted");
+                Ok(result)
+            }
+            0 => Err(error_stack::report!(errors::DatabaseError::NotFound)
+                .attach_printable("No records deleted")),
+            _ => Ok(result),
+        })
+}
 
