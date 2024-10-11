@@ -147,7 +147,7 @@ function check_dependencies() {
 function cleanup() {
   print_color "yellow" "Cleaning up..."
   if [[ -d "cypress-tests" ]]; then
-    cd - || return
+    cd -
   fi
 
   if [[ -n "${tmp_file}" && -f "${tmp_file}" ]]; then
