@@ -2104,9 +2104,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             .shipping_cost
             .unwrap_or_default();
         // amount here would include amount, surcharge_amount and shipping_cost
-        let amount = payment_data.payment_intent.amount
-            + shipping_cost
-            + surcharge_amount;
+        let amount = payment_data.payment_intent.amount + shipping_cost + surcharge_amount;
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id

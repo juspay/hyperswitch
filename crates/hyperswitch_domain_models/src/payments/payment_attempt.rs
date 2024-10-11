@@ -1171,13 +1171,15 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
             },
-            Self::PostSessionTokensUpdate { updated_by, connector_transaction_id, connector_metadata } => {
-                DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
-                    updated_by,
-                    connector_transaction_id,
-                    connector_metadata,
-                }
-            }
+            Self::PostSessionTokensUpdate {
+                updated_by,
+                connector_transaction_id,
+                connector_metadata,
+            } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
+                updated_by,
+                connector_transaction_id,
+                connector_metadata,
+            },
         }
     }
 }
