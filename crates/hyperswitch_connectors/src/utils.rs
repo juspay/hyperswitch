@@ -1861,6 +1861,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
 }
 
@@ -1869,6 +1870,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
             PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                    hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,

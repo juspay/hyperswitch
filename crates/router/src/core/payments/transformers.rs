@@ -703,7 +703,12 @@ where
         .as_ref()
         .get_required_value("currency")?;
     let amount = currency
-        .to_currency_base_unit(payment_attempt.amount.get_amount_as_i64())
+        .to_currency_base_unit(
+            payment_attempt
+                .net_amount
+                .get_total_amount()
+                .get_amount_as_i64(),
+        )
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
@@ -777,10 +782,11 @@ where
 
     let surcharge_details =
         payment_attempt
-            .surcharge_amount
+            .net_amount
+            .get_surcharge_amount()
             .map(|surcharge_amount| RequestSurchargeDetails {
                 surcharge_amount,
-                tax_amount: payment_attempt.tax_amount,
+                tax_amount: payment_attempt.net_amount.get_tax_on_surcharge(),
             });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
@@ -1049,7 +1055,7 @@ where
                     ))?;
 
                 Some(PaymentChargeResponse {
-                    charge_id: payment_attempt.charge_id,
+                    charge_id: payment_attempt.charge_id.clone(),
                     charge_type: payment_charges.charge_type,
                     application_fees: payment_charges.fees,
                     transfer_account_id: payment_charges.transfer_account_id,
@@ -1104,7 +1110,8 @@ where
 
         let order_tax_amount = payment_data
             .get_payment_attempt()
-            .order_tax_amount
+            .net_amount
+            .get_order_tax_amount()
             .or_else(|| {
                 payment_data
                     .get_payment_intent()
@@ -1132,8 +1139,8 @@ where
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
-            amount: payment_attempt.amount,
-            net_amount: payment_attempt.net_amount,
+            amount: payment_attempt.net_amount.get_order_amount(),
+            net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
             connector: routed_through,
@@ -1432,7 +1439,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 }
             ),
             // TODO: fill in details based on requirement
-            net_amount: pa.net_amount,
+            net_amount: pa.net_amount.get_total_amount(),
             amount_received: None,
             refunds: None,
             disputes: None,
@@ -1720,11 +1727,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+        let amount = payment_data.payment_attempt.get_total_amount();
 
         let customer_name = additional_data
             .customer_data
@@ -1821,11 +1824,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let capture_method = payment_data.get_capture_method();
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+        let amount = payment_data.payment_attempt.get_total_amount();
 
         let payment_method_type = payment_data
             .payment_attempt
@@ -1966,7 +1965,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
         let amount_to_capture = payment_data
             .payment_attempt
             .amount_to_capture
-            .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
+            .unwrap_or(payment_data.payment_attempt.get_total_amount());
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
@@ -1976,7 +1975,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-        let amount = MinorUnit::from(payment_data.amount);
+        let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
@@ -2035,7 +2034,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-        let amount = MinorUnit::from(payment_data.amount);
+        let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
             minor_amount: Some(amount),
@@ -2057,7 +2056,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let amount = MinorUnit::from(payment_data.amount);
+        let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
@@ -2088,10 +2087,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;
-        let amount = payment_data.payment_intent.amount;
-
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        // net_amount here would include amount, order_tax_amount, surcharge_amount and shipping_cost
+        let net_amount = payment_data.payment_intent.amount
+            + order_tax_amount
+            + shipping_cost
+            + surcharge_amount;
         Ok(Self {
-            net_amount: amount + order_tax_amount, //need to change after we move to connector module
+            net_amount,
             order_tax_amount,
         })
     }
@@ -2102,7 +2113,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let amount = MinorUnit::from(payment_data.amount);
+        let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
@@ -2133,14 +2144,31 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-        let amount = payment_data
+        let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        #[cfg(feature = "v1")]
+        let amount = payment_data.payment_intent.amount;
+        #[cfg(feature = "v2")]
+        let amount = payment_data.payment_intent.amount_details.order_amount;
+        #[cfg(feature = "v1")]
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        #[cfg(feature = "v2")]
+        let shipping_cost = payment_data
+            .payment_intent
+            .amount_details
+            .shipping_cost
+            .unwrap_or_default();
+        // net_amount here would include amount, surcharge_amount and shipping_cost
+        let net_amount = amount + surcharge_amount + shipping_cost;
 
         Ok(Self {
-            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
+            amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
             currency: payment_data.currency,
             country: payment_data.address.get_payment_method_billing().and_then(
@@ -2190,7 +2218,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .as_ref()
                     .map(|customer| customer.clone().into_inner())
             });
-        let amount = MinorUnit::from(payment_data.amount);
+        let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -2299,11 +2327,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 payload: redirect.json_payload,
             }
         });
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+        let amount = payment_data.payment_attempt.get_total_amount();
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
             router_base_url,
             attempt,
@@ -2405,11 +2429,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+        let amount = payment_data.payment_attempt.get_total_amount();
 
         Ok(Self {
             payment_method_data: payment_method_data.map(From::from),

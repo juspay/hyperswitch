@@ -386,6 +386,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
+        api_models::mandates::NetworkTransactionIdAndCardDetails,
         api_models::payments::GooglePaySessionResponse,
         api_models::payments::GpayShippingAddressParameters,
         api_models::payments::GpayBillingAddressParameters,
