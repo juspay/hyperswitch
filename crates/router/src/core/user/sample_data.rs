@@ -1,6 +1,6 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew};
+use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 
@@ -39,21 +39,19 @@ pub async fn generate_sample_data_for_user(
         .change_context(SampleDataError::InternalServerError)
         .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error
 
-    let (payment_intents, payment_attempts, refunds, disputes): (
+    let (payment_intents, payment_attempts, refunds): (
         Vec<PaymentIntent>,
         Vec<PaymentAttemptBatchNew>,
         Vec<RefundNew>,
-        Vec<DisputeNew>,
     ) = sample_data.into_iter().fold(
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-        |(mut pi, mut pa, mut rf, mut dp), (payment_intent, payment_attempt, refund, dispute)| {
+        (Vec::new(), Vec::new(), Vec::new()),
+        |(mut pi, mut pa, mut rf), (payment_intent, payment_attempt, refund)| {
             pi.push(payment_intent);
             pa.push(payment_attempt);
             if let Some(refund) = refund {
                 rf.push(refund);
             }
-            dp.push(dispute);
-            (pi, pa, rf, dp)
+            (pi, pa, rf)
         },
     );
 
@@ -70,11 +68,6 @@ pub async fn generate_sample_data_for_user(
     state
         .store
         .insert_refunds_batch_for_sample_data(refunds)
-        .await
-        .switch()?;
-    state
-        .store
-        .insert_disputes_batch_for_sample_data(disputes)
         .await
         .switch()?;
 
@@ -114,11 +107,6 @@ pub async fn delete_sample_data_for_user(
     state
         .store
         .delete_refunds_for_sample_data(&merchant_id_del)
-        .await
-        .switch()?;
-    state
-        .store
-        .delete_disputes_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
 

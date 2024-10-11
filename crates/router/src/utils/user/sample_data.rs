@@ -29,7 +29,6 @@ pub async fn generate_sample_data(
         PaymentIntent,
         PaymentAttemptBatchNew,
         Option<RefundNew>,
-        DisputeNew,
     )>,
 > {
     let sample_data_size: usize = req.record.unwrap_or(100);
@@ -388,35 +387,7 @@ pub async fn generate_sample_data(
             None
         };
 
-        // TODO: change dummy dispute data to random dispute data
-        let dispute = DisputeNew {
-            dispute_id: common_utils::generate_id_with_default_len("test"),
-            amount: 100.to_string(),
-            currency: "USD".to_string(),
-            dispute_stage: storage_enums::DisputeStage::PreArbitration,
-            dispute_status: storage_enums::DisputeStatus::DisputeOpened,
-            payment_id: payment_id.clone(),
-            attempt_id: attempt_id.clone(),
-            merchant_id: merchant_id.clone(),
-            connector_status: "open".to_string(),
-            connector_dispute_id: common_utils::generate_id_with_default_len("test"),
-            connector_reason: None,
-            connector_reason_code: None,
-            challenge_required_by: None,
-            connector_created_at: None,
-            connector_updated_at: None,
-            connector: payment_attempt
-                .connector
-                .clone()
-                .unwrap_or(DummyConnector4.to_string()),
-            evidence: None,
-            profile_id: payment_intent.profile_id.clone(),
-            merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-            dispute_amount: amount * 100,
-            organization_id: org_id.clone(),
-        };
-
-        res.push((payment_intent, payment_attempt, refund, dispute));
+        res.push((payment_intent, payment_attempt, refund));
     }
     Ok(res)
 }
