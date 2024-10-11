@@ -51,6 +51,13 @@ pub async fn merchant_account_create() {}
 #[utoipa::path(
     post,
     path = "/v2/merchant_accounts",
+    params(
+      (
+        "X-Organization-Id" = String, Header,
+        description = "Organization ID for which the merchant account has to be created.",
+        example = json!({"X-Organization-Id": "org_abcdefghijklmnop"})
+      ),
+    ),
     request_body(
         content = MerchantAccountCreate,
         examples(
