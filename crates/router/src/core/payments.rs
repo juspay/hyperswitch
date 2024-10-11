@@ -4579,6 +4579,23 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // success_based_routing_for_connectors
+    business_profile.dynamic_routing_algorithm.map(|dynamic_routing_algorithm|
+        {
+            let mut success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
+            business_profile
+                .dynamic_routing_algorithm
+                .clone()
+                .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to deserialize dynamic routing algorithm ref from business profile",
+                )?
+                .unwrap_or_default();
+        }
+    );
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
