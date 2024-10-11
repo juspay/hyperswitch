@@ -4644,7 +4644,7 @@
       },
       "BrowserInformation": {
         "type": "object",
-        "description": "Browser information to be used for 3DS 2.0\nIf any of the field is PII, then we can make them as secret",
+        "description": "Browser information to be used for 3DS 2.0",
         "properties": {
           "color_depth": {
             "type": "integer",
