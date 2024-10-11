@@ -1,14 +1,23 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
-use diesel_models::{enums, enums::ProcessTrackerStatus, ephemeral_key::{EphemeralKey, EphemeralKeyNew}, reverse_lookup::{ReverseLookup, ReverseLookupNew}, user_role as user_storage, Dispute, DisputeNew};
+use common_utils::{
+    errors::CustomResult, id_type, id_type::MerchantId, pii, types::keymanager::KeyManagerState,
+};
+use diesel_models::{
+    enums,
+    enums::ProcessTrackerStatus,
+    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+    reverse_lookup::{ReverseLookup, ReverseLookupNew},
+    user_role as user_storage, Dispute, DisputeNew,
+};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
     disputes,
+    errors::StorageError,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
 };
@@ -24,8 +33,7 @@ use scheduler::{
 use serde::Serialize;
 use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
 use time::PrimitiveDateTime;
-use common_utils::id_type::MerchantId;
-use hyperswitch_domain_models::errors::StorageError;
+
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
@@ -3235,7 +3243,8 @@ impl BatchSampleDataInterface for KafkaStore {
     }
 
     async fn insert_disputes_batch_for_sample_data(
-        &self, batch: Vec<DisputeNew>,
+        &self,
+        batch: Vec<DisputeNew>,
     ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
     {
         let disputes_list = self

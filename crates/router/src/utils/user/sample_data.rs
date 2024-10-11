@@ -3,7 +3,9 @@ use api_models::{
     user::sample_data::SampleDataRequest,
 };
 use common_utils::{id_type, types::MinorUnit};
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew};
+use diesel_models::{
+    enums as storage_enums, user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
@@ -15,8 +17,6 @@ use crate::{
     SessionState,
 };
 
-use diesel_models::enums as storage_enums;
-
 #[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub async fn generate_sample_data(
@@ -24,7 +24,14 @@ pub async fn generate_sample_data(
     req: SampleDataRequest,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
-) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>, DisputeNew)>> {
+) -> SampleDataResult<
+    Vec<(
+        PaymentIntent,
+        PaymentAttemptBatchNew,
+        Option<RefundNew>,
+        DisputeNew,
+    )>,
+> {
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
@@ -123,7 +130,12 @@ pub async fn generate_sample_data(
     let mut rng = thread_rng();
     random_array.shuffle(&mut rng);
 
-    let mut res: Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>, DisputeNew)> = Vec::new();
+    let mut res: Vec<(
+        PaymentIntent,
+        PaymentAttemptBatchNew,
+        Option<RefundNew>,
+        DisputeNew,
+    )> = Vec::new();
     let start_time = req
         .start_time
         .unwrap_or(common_utils::date_time::now() - time::Duration::days(7))
@@ -393,7 +405,10 @@ pub async fn generate_sample_data(
             challenge_required_by: None,
             connector_created_at: None,
             connector_updated_at: None,
-            connector: payment_attempt.connector.clone().unwrap_or(DummyConnector4.to_string()),
+            connector: payment_attempt
+                .connector
+                .clone()
+                .unwrap_or(DummyConnector4.to_string()),
             evidence: None,
             profile_id: payment_intent.profile_id.clone(),
             merchant_connector_id: payment_attempt.merchant_connector_id.clone(),

@@ -12,10 +12,11 @@ use crate::schema_v2::{
     payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
 };
 use crate::{
-    errors, schema::refund::dsl as refund_dsl, user::sample_data::PaymentAttemptBatchNew,
-    schema::dispute::dsl as dispute_dsl,
-    PaymentAttempt, PaymentIntent, PaymentIntentNew, PgPooledConn, Refund, RefundNew,
-    StorageResult, Dispute, DisputeNew,
+    errors,
+    schema::{dispute::dsl as dispute_dsl, refund::dsl as refund_dsl},
+    user::sample_data::PaymentAttemptBatchNew,
+    Dispute, DisputeNew, PaymentAttempt, PaymentIntent, PaymentIntentNew, PgPooledConn, Refund,
+    RefundNew, StorageResult,
 };
 
 pub async fn insert_payment_intents(
@@ -208,4 +209,3 @@ pub async fn delete_disputes(
             _ => Ok(result),
         })
 }
-

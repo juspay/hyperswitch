@@ -1,6 +1,6 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew, DisputeNew};
+use diesel_models::{user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 

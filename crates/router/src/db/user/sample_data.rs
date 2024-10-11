@@ -1,5 +1,11 @@
 use common_utils::types::keymanager::KeyManagerState;
-use diesel_models::{errors::DatabaseError, query::user::sample_data as sample_data_queries, refund::{Refund, RefundNew}, user::sample_data::PaymentAttemptBatchNew, dispute::{Dispute, DisputeNew}};
+use diesel_models::{
+    dispute::{Dispute, DisputeNew},
+    errors::DatabaseError,
+    query::user::sample_data as sample_data_queries,
+    refund::{Refund, RefundNew},
+    user::sample_data::PaymentAttemptBatchNew,
+};
 use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};
 use hyperswitch_domain_models::{
@@ -143,7 +149,6 @@ impl BatchSampleDataInterface for Store {
             .await
             .map_err(diesel_error_to_data_error)
     }
-
 
     #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
