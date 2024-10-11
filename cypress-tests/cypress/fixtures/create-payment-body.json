@@ -5,6 +5,7 @@
   "description": "Joseph First Crypto",
   "email": "hyperswitch_sdk_demo_id@gmail.com",
   "setup_future_usage": null,
+  "profile_id": "{{profile_id}}",
   "connector_metadata": {
     "noon": {
       "order_category": "applepay"

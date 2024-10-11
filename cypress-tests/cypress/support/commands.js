@@ -57,6 +57,7 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       // Handle the response as needed
+      globalState.set("profileId", response.body.default_profile);
       globalState.set("publishableKey", response.body.publishable_key);
       globalState.set("merchantDetails", response.body.merchant_details);
     });
@@ -159,6 +160,59 @@ Cypress.Commands.add(
       expect(response.body.publishable_key).to.equal(publishable_key);
       expect(response.body.organization_id).to.equal(organization_id);
       expect(response.body.merchant_details).to.not.equal(merchant_details);
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createBusinessProfileTest",
+  (createBusinessProfile, globalState) => {
+    const merchant_id = globalState.get("merchantId");
+    const randomProfileName = `profile_${Math.random().toString(36).substring(7)}`;
+    createBusinessProfile.profile_name = randomProfileName;
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchant_id}/business_profile`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: createBusinessProfile,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      globalState.set("profileId", response.body.profile_id);
+      if (response.status === 200) {
+        expect(response.body.profile_id).to.not.to.be.null;
+      } else {
+        throw new Error(
+          `Business Profile call failed ${response.body.error.message}`
+        );
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "UpdateBusinessProfileTest",
+  (updateBusinessProfile, is_connector_agnostic_mit_enabled, globalState) => {
+    updateBusinessProfile.is_connector_agnostic_mit_enabled =
+      is_connector_agnostic_mit_enabled;
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get("profileId");
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchant_id}/business_profile/${profile_id}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: updateBusinessProfile,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
     });
   }
 );
@@ -353,6 +407,7 @@ Cypress.Commands.add(
   ) => {
     const merchantId = globalState.get("merchantId");
     createConnectorBody.connector_type = connectorType;
+    createConnectorBody.profile_id = globalState.get("profileId");
     createConnectorBody.connector_name = globalState.get("connectorId");
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
@@ -390,6 +445,7 @@ Cypress.Commands.add(
             expect(globalState.get("connectorId")).to.equal(
               response.body.connector_name
             );
+            globalState.set("profileId", response.body.profile_id);
             globalState.set(
               "merchantConnectorId",
               response.body.merchant_connector_id
@@ -825,9 +881,9 @@ Cypress.Commands.add(
       createPaymentBody[key] = req_data[key];
     }
     createPaymentBody.authentication_type = authentication_type;
-
     createPaymentBody.capture_method = capture_method;
     createPaymentBody.customer_id = globalState.get("customerId");
+    createPaymentBody.profile_id = globalState.get("profileId");
     globalState.set("paymentAmount", createPaymentBody.amount);
     cy.request({
       method: "POST",
@@ -1381,6 +1437,7 @@ Cypress.Commands.add(
     createConfirmPaymentBody.authentication_type = authentication_type;
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.customer_id = globalState.get("customerId");
+    createConfirmPaymentBody.profile_id = globalState.get("profileId");
     for (const key in req_data) {
       createConfirmPaymentBody[key] = req_data[key];
     }
@@ -1395,6 +1452,7 @@ Cypress.Commands.add(
       body: createConfirmPaymentBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      globalState.set("clientSecret", response.body.client_secret);
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -2228,6 +2286,35 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
         response.body.customer_payment_methods[0].requires_cvv,
         "requires_cvv"
       ).to.be.true;
+    }
+  });
+});
+
+Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
+  const clientSecret = globalState.get("clientSecret");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/customers/payment_methods?client_secret=${clientSecret}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("publishableKey"),
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if (response.body.customer_payment_methods[0]?.payment_token) {
+      const paymentToken =
+        response.body.customer_payment_methods[0].payment_token;
+      const paymentMethodId =
+        response.body.customer_payment_methods[0].payment_method_id;
+      globalState.set("paymentToken", paymentToken);
+      globalState.set("paymentMethodId", paymentMethodId);
+    } else {
+      // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
+      expect(response.body)
+        .to.have.property("customer_payment_methods")
+        .to.be.an("array").and.empty;
     }
   });
 });

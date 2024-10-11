@@ -18,6 +18,8 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Create payment method for customer", () => {
+    let should_continue = true;
+
     beforeEach(function () {
       if (!should_continue) {
         this.skip();
@@ -99,6 +101,8 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Delete payment method for customer", () => {
+    let should_continue = true;
+
     beforeEach(function () {
       if (!should_continue) {
         this.skip();
