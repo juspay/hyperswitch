@@ -187,10 +187,9 @@ pub async fn delete_disputes(
     conn: &PgPooledConn,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<Dispute>> {
-    // delete disputes where merchant_id = merchant_id and payment_id like "test_%"
     let query = diesel::delete(<Dispute>::table())
         .filter(dispute_dsl::merchant_id.eq(merchant_id.to_owned()))
-        .filter(dispute_dsl::payment_id.like("test_%"));
+        .filter(dispute_dsl::dispute_id.like("test_%"));
 
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 

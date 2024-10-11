@@ -9,7 +9,7 @@ use diesel_models::{
     enums::ProcessTrackerStatus,
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    user_role as user_storage, Dispute, DisputeNew,
+    user_role as user_storage,
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
@@ -3244,7 +3244,7 @@ impl BatchSampleDataInterface for KafkaStore {
 
     async fn insert_disputes_batch_for_sample_data(
         &self,
-        batch: Vec<DisputeNew>,
+        batch: Vec<diesel_models::DisputeNew>,
     ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
     {
         let disputes_list = self

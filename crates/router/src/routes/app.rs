@@ -2017,7 +2017,6 @@ impl User {
                     ),
             );
 
-        // TODO: sample data route
         #[cfg(feature = "dummy_connector")]
         {
             route = route.service(
