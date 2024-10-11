@@ -2412,6 +2412,65 @@
           }
         }
       },
+      "AmountDetailsResponse": {
+        "type": "object",
+        "required": [
+          "order_amount",
+          "currency",
+          "skip_external_tax_calculation",
+          "skip_surcharge_calculation"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "skip_surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AmountFilter": {
         "type": "object",
         "properties": {
@@ -5425,6 +5484,80 @@
           "greater_than_equal"
         ]
       },
+      "ConfirmIntentAmountDetailsResponse": {
+        "type": "object",
+        "required": [
+          "currency",
+          "skip_external_tax_calculation",
+          "skip_surcharge_calculation",
+          "net_amount",
+          "amount_capturable"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "skip_surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_to_capture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_capturable": {
+            "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
       "Connector": {
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
@@ -7021,6 +7154,34 @@
           "secret": {
             "type": "string",
             "description": "ephemeral key"
+          }
+        }
+      },
+      "ErrorDetails": {
+        "type": "object",
+        "description": "Error details for the payment",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "The error message"
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
+            "nullable": true
           }
         }
       },
@@ -12886,7 +13047,7 @@
             "nullable": true
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodSubType"
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "shipping": {
             "allOf": [
@@ -12913,7 +13074,9 @@
             "nullable": true
           },
           "client_secret": {
-            "$ref": "#/components/schemas/common_utils.types.ClientSecret"
+            "type": "string",
+            "description": "It's a token used for client side verification.",
+            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8_secret_01926c58bc7177c291921c0ebf9b3ef3"
           }
         }
       },
@@ -12933,7 +13096,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p",
+            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -12993,7 +13156,7 @@
           "browser_info": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_utils.types.BrowserInformation"
+                "$ref": "#/components/schemas/BrowserInformation"
               }
             ],
             "nullable": true
