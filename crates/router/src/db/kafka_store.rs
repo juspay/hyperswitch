@@ -17,7 +17,6 @@ use hyperswitch_domain_models::payouts::{
 };
 use hyperswitch_domain_models::{
     disputes,
-    errors::StorageError,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
 };

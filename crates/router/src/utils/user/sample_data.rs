@@ -3,9 +3,7 @@ use api_models::{
     user::sample_data::SampleDataRequest,
 };
 use common_utils::{id_type, types::MinorUnit};
-use diesel_models::{
-    user::sample_data::PaymentAttemptBatchNew, RefundNew,
-};
+use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
@@ -24,13 +22,7 @@ pub async fn generate_sample_data(
     req: SampleDataRequest,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
-) -> SampleDataResult<
-    Vec<(
-        PaymentIntent,
-        PaymentAttemptBatchNew,
-        Option<RefundNew>,
-    )>,
-> {
+) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
@@ -129,11 +121,7 @@ pub async fn generate_sample_data(
     let mut rng = thread_rng();
     random_array.shuffle(&mut rng);
 
-    let mut res: Vec<(
-        PaymentIntent,
-        PaymentAttemptBatchNew,
-        Option<RefundNew>,
-    )> = Vec::new();
+    let mut res: Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)> = Vec::new();
     let start_time = req
         .start_time
         .unwrap_or(common_utils::date_time::now() - time::Duration::days(7))
