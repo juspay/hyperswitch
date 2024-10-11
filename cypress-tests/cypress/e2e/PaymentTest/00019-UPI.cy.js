@@ -91,7 +91,6 @@ describe("UPI Payments - Hyperswitch", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
 

@@ -78,7 +78,6 @@ describe("Card - Sync Refund flow test", () => {
       fixtures.refundBody,
       req_data,
       res_data,
-      6500,
       globalState
     );
     if (should_continue)

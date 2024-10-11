@@ -602,7 +602,6 @@ describe("Corner cases", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        65000,
         globalState
       );
       if (should_continue)
@@ -665,7 +664,6 @@ describe("Corner cases", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        65000,
         globalState
       );
       if (should_continue)
