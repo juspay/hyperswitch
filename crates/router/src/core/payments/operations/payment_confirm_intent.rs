@@ -285,7 +285,7 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             merchant_connector_id: merchant_connector_id,
         };
 
-        // let conector_request_reference_id = payment_data.payment_attempt.id.get_string_repr();
+        // let connector_request_reference_id = payment_data.payment_attempt.id.get_string_repr();
 
         let current_payment_intent = payment_data.payment_intent.clone();
         let updated_payment_intent = db

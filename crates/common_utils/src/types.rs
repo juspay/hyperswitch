@@ -1299,7 +1299,7 @@ where
     PartialEq,
     diesel::AsExpression,
 )]
-#[diesel(sql_type = sql_types::Jsonb)]
+#[diesel(sql_type = Jsonb)]
 pub struct BrowserInformation {
     /// Color depth supported by the browser
     pub color_depth: Option<u8>,

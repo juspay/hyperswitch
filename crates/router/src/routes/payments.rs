@@ -1911,7 +1911,7 @@ pub async fn get_payments_aggregates_profile(
 mod internal_payload_types {
     use super::*;
 
-    // Serialize is impleneted because of
+    // Serialize is implemented because of api events
     #[derive(Debug, serde::Serialize)]
     pub struct PaymentsGenericRequestWithResourceId<T: serde::Serialize> {
         pub global_payment_id: common_utils::id_type::GlobalPaymentId,
