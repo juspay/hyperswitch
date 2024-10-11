@@ -13,6 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -606,10 +607,16 @@ pub(crate) fn get_outgoing_webhook_request(
         outgoing_webhook: api::OutgoingWebhook,
         business_profile: &domain::Profile,
     ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
-        let mut headers = vec![(
-            reqwest::header::CONTENT_TYPE.to_string(),
-            mime::APPLICATION_JSON.essence_str().into(),
-        )];
+        let mut headers = vec![
+            (
+                reqwest::header::CONTENT_TYPE.to_string(),
+                mime::APPLICATION_JSON.essence_str().into(),
+            ),
+            (
+                reqwest::header::USER_AGENT.to_string(),
+                consts::USER_AGENT.to_string().into(),
+            ),
+        ];
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
