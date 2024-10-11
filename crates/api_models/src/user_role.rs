@@ -128,5 +128,4 @@ pub struct Entity {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListUsersInEntityRequest {
     pub entity_type: Option<common_enums::EntityType>,
-    pub limit: Option<u32>,
 }
