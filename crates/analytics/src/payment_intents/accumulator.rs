@@ -243,24 +243,27 @@ impl PaymentIntentMetricAccumulator for PaymentsDistributionAccumulator {
     type MetricOutput = (Option<f64>, Option<f64>);
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
+        let first_attempt = metrics.first_attempt.unwrap_or(0);
         if let Some(ref status) = metrics.status {
             if status.as_ref() == &storage_enums::IntentStatus::Succeeded {
                 if let Some(success) = metrics
                     .count
                     .and_then(|success| u32::try_from(success).ok())
                 {
-                    if metrics.first_attempt.unwrap_or(0) == 1 {
+                    if first_attempt == 1 {
                         self.success_without_retries += success;
                     }
                 }
             }
-            if status.as_ref() == &storage_enums::IntentStatus::Failed {
-                if let Some(failed) = metrics.count.and_then(|failed| u32::try_from(failed).ok()) {
-                    if metrics.first_attempt.unwrap_or(0) == 1 {
-                        self.failed_without_retries += failed;
-                    }
+            if let Some(failed) = metrics.count.and_then(|failed| u32::try_from(failed).ok()) {
+                if first_attempt == 0
+                    || (first_attempt == 1
+                        && status.as_ref() == &storage_enums::IntentStatus::Failed)
+                {
+                    self.failed_without_retries += failed;
                 }
             }
+
             if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
                 self.total += total;
             }
