@@ -50,6 +50,7 @@ export {
   refundBody,
   routingConfigBody,
   saveCardConfirmBody,
+  sessionTokenBody,
   updateBusinessProfile,
   updateConnectorBody,
   voidBody,
