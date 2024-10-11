@@ -3666,15 +3666,15 @@ pub async fn create_profile(
         .create_domain_model_from_request(&state, &key_store, merchant_account.get_id())
         .await?;
 
-    let profile_id = business_profile.get_id().to_owned();
+    let profile_name = business_profile.profile_name.to_owned();
 
     let business_profile = db
         .insert_business_profile(key_manager_state, &key_store, business_profile)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
-                "Business Profile with the profile_id {} already exists",
-                profile_id.get_string_repr()
+                "Business Profile with the profile_name `{}` already exists",
+                profile_name
             ),
         })
         .attach_printable("Failed to insert Business profile because of duplication error")?;
