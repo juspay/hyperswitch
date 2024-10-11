@@ -23464,8 +23464,7 @@
           "surcharge",
           "display_surcharge_amount",
           "display_tax_on_surcharge_amount",
-          "display_total_surcharge_amount",
-          "display_final_amount"
+          "display_total_surcharge_amount"
         ],
         "properties": {
           "surcharge": {
@@ -23493,11 +23492,6 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
-          },
-          "display_final_amount": {
-            "type": "number",
-            "format": "double",
-            "description": "sum of original amount,"
           }
         }
       },

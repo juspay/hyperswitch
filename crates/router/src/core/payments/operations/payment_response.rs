@@ -371,18 +371,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .attach_printable("missing incremental_authorization_details in payment_data")
             })?;
         // Update payment_intent and payment_attempt 'amount' if incremental_authorization is successful
-        let (option_payment_attempt_update, option_payment_intent_update) =
-            match router_data.response.clone() {
-                Err(_) => (None, None),
-                Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
-                    status,
-                    ..
-                }) => {
-                    if status == AuthorizationStatus::Success {
-                        (
+        let (option_payment_attempt_update, option_payment_intent_update) = match router_data
+            .response
+            .clone()
+        {
+            Err(_) => (None, None),
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                status, ..
+            }) => {
+                if status == AuthorizationStatus::Success {
+                    (
                         Some(
                             storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                                amount: incremental_authorization_details.total_amount,
+                                net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                                    incremental_authorization_details.total_amount,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                ),
                                 amount_capturable: incremental_authorization_details.total_amount,
                             },
                         ),
@@ -392,13 +399,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                             },
                         ),
                     )
-                    } else {
-                        (None, None)
-                    }
+                } else {
+                    (None, None)
                 }
-                _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unexpected response in incremental_authorization flow")?,
-            };
+            }
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unexpected response in incremental_authorization flow")?,
+        };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
             #[cfg(feature = "v1")]
@@ -1747,7 +1754,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 tokenization::update_connector_mandate_details_in_payment_method(
                     payment_method.clone(),
                     payment_method.payment_method_type,
-                    Some(payment_data.payment_attempt.amount.get_amount_as_i64()),
+                    Some(
+                        payment_data
+                            .payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
