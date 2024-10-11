@@ -1,6 +1,5 @@
 #! /usr/bin/env bash
 
-# Exit immediately if a command exits with a non-zero status,
 set -euo pipefail
 
 # Initialize tmp_file globally
@@ -176,7 +175,7 @@ function main() {
   case "$command" in
     --parallel | -p)
       print_color "yellow" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
-      # At present, parallel execution is limited to batch of 4 by default to not run out of memory
+      # At present, parallel execution is restricted to not run out of memory
       # But can be scaled up by passing the value as an argument
       run_tests "$jobs"
       ;;
