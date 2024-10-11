@@ -1,4 +1,7 @@
-use api_models::payments::{additional_info as payment_additional_types, ExtendedCardInfo};
+use api_models::{
+    mandates,
+    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
+};
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
@@ -16,6 +19,7 @@ use time::Date;
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -43,7 +47,9 @@ pub enum ApplePayFlow {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
-            Self::Card(_) | Self::NetworkToken(_) => Some(common_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::NetworkToken(_) | Self::CardDetailsForNetworkTransactionId(_) => {
+                Some(common_enums::PaymentMethod::Card)
+            }
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(common_enums::PaymentMethod::PayLater),
@@ -74,6 +80,62 @@ pub struct Card {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardDetailsForNetworkTransactionId {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+}
+
+impl CardDetailsForNetworkTransactionId {
+    pub fn get_nti_and_card_details_for_mit_flow(
+        recurring_details: mandates::RecurringDetails,
+    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
+        let network_transaction_id_and_card_details = match recurring_details {
+            mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
+                network_transaction_id_and_card_details,
+            ) => Some(network_transaction_id_and_card_details),
+            mandates::RecurringDetails::MandateId(_)
+            | mandates::RecurringDetails::PaymentMethodId(_)
+            | mandates::RecurringDetails::ProcessorPaymentToken(_) => None,
+        }?;
+
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_card_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        Some((
+            mandate_reference_id,
+            network_transaction_id_and_card_details.clone().into(),
+        ))
+    }
+}
+
+impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
+    fn from(card_details_for_nti: mandates::NetworkTransactionIdAndCardDetails) -> Self {
+        Self {
+            card_number: card_details_for_nti.card_number,
+            card_exp_month: card_details_for_nti.card_exp_month,
+            card_exp_year: card_details_for_nti.card_exp_year,
+            card_issuer: card_details_for_nti.card_issuer,
+            card_network: card_details_for_nti.card_network,
+            card_type: card_details_for_nti.card_type,
+            card_issuing_country: card_details_for_nti.card_issuing_country,
+            bank_code: card_details_for_nti.bank_code,
+            nick_name: card_details_for_nti.nick_name,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
