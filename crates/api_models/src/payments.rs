@@ -1133,6 +1133,15 @@ pub struct MandateIds {
     pub mandate_reference_id: Option<MandateReferenceId>,
 }
 
+impl MandateIds {
+    pub fn is_network_transaction_id_flow(&self) -> bool {
+        matches!(
+            self.mandate_reference_id,
+            Some(MandateReferenceId::NetworkMandateId(_))
+        )
+    }
+}
+
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
@@ -4995,7 +5004,7 @@ pub struct PazeMetadata {
 pub enum SamsungPayCombinedMetadata {
     // This is to support the Samsung Pay decryption flow with application credentials,
     // where the private key, certificates, or any other information required for decryption
-    // will be obtained from the environment variables.
+    // will be obtained from the application configuration.
     ApplicationCredentials(SamsungPayApplicationCredentials),
     MerchantCredentials(SamsungPayMerchantCredentials),
 }
