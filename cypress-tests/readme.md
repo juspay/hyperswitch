@@ -27,10 +27,16 @@ To run test cases, follow these steps:
 2. Install Cypress and its dependencies to `cypress-tests` directory by running the following command:
 
    ```shell
-   npm install
+   npm ci
    ```
 
-3. Set environment variables for cypress
+3. Insert data to `cards_info` table in `hyperswitch_db`
+
+   ```shell
+   psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+   ```
+
+4. Set environment variables for cypress
 
    ```shell
    export CYPRESS_CONNECTOR="connector_id"
@@ -40,7 +46,7 @@ To run test cases, follow these steps:
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
    ```
 
-4. Run Cypress test cases
+5. Run Cypress test cases
 
    To run the tests in interactive mode run the following command
 
