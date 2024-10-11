@@ -135,6 +135,9 @@ impl TryFrom<&types::SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                             types::PaymentMethodToken::Token(_) => Err(
                                 unimplemented_payment_method!("Apple Pay", "Manual", "Wellsfargo"),
                             )?,
+                            types::PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
+                            }
                         },
                         None => (
                             PaymentInformation::ApplePayToken(Box::new(
@@ -180,6 +183,7 @@ impl TryFrom<&types::SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -206,7 +210,8 @@ impl TryFrom<&types::SetupMandateRouterData> for WellsfargoZeroMandateRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
                 ))?
@@ -690,7 +695,9 @@ impl
                         }),
                     )
                 }
-                None => (None, None, None),
+                Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
+                    (None, None, None)
+                }
             }
         } else {
             (None, None, None)
@@ -1156,6 +1163,9 @@ impl TryFrom<&WellsfargoRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Wellsfargo"
                                         ))?
                                     }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
+                                    }
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
@@ -1240,6 +1250,7 @@ impl TryFrom<&WellsfargoRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::MobilePayRedirect(_)
                         | domain::WalletData::PaypalRedirect(_)
                         | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::Paze(_)
                         | domain::WalletData::SamsungPay(_)
                         | domain::WalletData::TwintRedirect {}
                         | domain::WalletData::VippsRedirect {}
@@ -1281,7 +1292,8 @@ impl TryFrom<&WellsfargoRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
                         )
@@ -1776,6 +1788,7 @@ fn get_payment_response(
                             .payment_instrument
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
+                        mandate_metadata: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1961,6 +1974,7 @@ impl
                         .payment_instrument
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
+                    mandate_metadata: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((
             item.response

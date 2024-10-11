@@ -5,7 +5,10 @@ use api_models::{
     webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::{
+    consts::DEFAULT_LOCALE,
+    ext_traits::{StringExt, ValueExt},
+};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -19,7 +22,10 @@ use scheduler::{
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
 use crate::{
-    core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
+    core::{
+        payments,
+        webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
+    },
     db::StorageInterface,
     errors, logger,
     routes::{app::ReqState, SessionState},
@@ -347,7 +353,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             disputes::retrieve_dispute,
             mandate::get_mandate,
             payments::{payments_core, CallConnectorAction, PaymentStatus},
-            refunds::refund_retrieve_core,
+            refunds::refund_retrieve_core_with_refund_id,
         },
         services::{ApplicationResponse, AuthFlow},
         types::{
@@ -375,38 +381,44 @@ async fn get_outgoing_webhook_content_and_event_type(
                 ..Default::default()
             };
 
-            let payments_response =
-                match Box::pin(payments_core::<PSync, PaymentsResponse, _, _, _>(
-                    state,
-                    req_state,
-                    merchant_account,
-                    None,
-                    key_store,
-                    PaymentStatus,
-                    request,
-                    AuthFlow::Client,
-                    CallConnectorAction::Avoid,
-                    None,
-                    HeaderPayload::default(),
-                ))
-                .await?
-                {
-                    ApplicationResponse::Json(payments_response)
-                    | ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                        Ok(payments_response)
-                    }
-                    ApplicationResponse::StatusOk
-                    | ApplicationResponse::TextPlain(_)
-                    | ApplicationResponse::JsonForRedirection(_)
-                    | ApplicationResponse::Form(_)
-                    | ApplicationResponse::GenericLinkForm(_)
-                    | ApplicationResponse::PaymentLinkForm(_)
-                    | ApplicationResponse::FileData(_) => {
-                        Err(errors::ProcessTrackerError::ResourceFetchingFailed {
-                            resource_name: tracking_data.primary_object_id.clone(),
-                        })
-                    }
-                }?;
+            let payments_response = match Box::pin(payments_core::<
+                PSync,
+                PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<PSync>,
+            >(
+                state,
+                req_state,
+                merchant_account,
+                None,
+                key_store,
+                PaymentStatus,
+                request,
+                AuthFlow::Client,
+                CallConnectorAction::Avoid,
+                None,
+                HeaderPayload::default(),
+            ))
+            .await?
+            {
+                ApplicationResponse::Json(payments_response)
+                | ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                    Ok(payments_response)
+                }
+                ApplicationResponse::StatusOk
+                | ApplicationResponse::TextPlain(_)
+                | ApplicationResponse::JsonForRedirection(_)
+                | ApplicationResponse::Form(_)
+                | ApplicationResponse::GenericLinkForm(_)
+                | ApplicationResponse::PaymentLinkForm(_)
+                | ApplicationResponse::FileData(_) => {
+                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                        resource_name: tracking_data.primary_object_id.clone(),
+                    })
+                }
+            }?;
             let event_type = Option::<EventType>::foreign_from(payments_response.status);
             logger::debug!(current_resource_status=%payments_response.status);
 
@@ -424,7 +436,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 merchant_connector_details: None,
             };
 
-            let refund = Box::pin(refund_retrieve_core(
+            let refund = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
                 merchant_account,
                 None,
@@ -512,12 +524,18 @@ async fn get_outgoing_webhook_content_and_event_type(
                 payout_models::PayoutActionRequest { payout_id },
             );
 
-            let payout_data =
-                payouts::make_payout_data(&state, &merchant_account, None, &key_store, &request)
-                    .await?;
+            let payout_data = payouts::make_payout_data(
+                &state,
+                &merchant_account,
+                None,
+                &key_store,
+                &request,
+                DEFAULT_LOCALE,
+            )
+            .await?;
 
             let router_response =
-                payouts::response_handler(&merchant_account, &payout_data).await?;
+                payouts::response_handler(&state, &merchant_account, &payout_data).await?;
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {

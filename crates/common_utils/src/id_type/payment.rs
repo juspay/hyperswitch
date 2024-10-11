@@ -15,6 +15,7 @@ crate::impl_debug_id_type!(PaymentId);
 crate::impl_default_id_type!(PaymentId, "pay");
 crate::impl_try_from_cow_str_id_type!(PaymentId, "payment_id");
 
+// Database related implementations so that this field can be used directly in the database tables
 crate::impl_queryable_id_type!(PaymentId);
 crate::impl_to_sql_from_sql_id_type!(PaymentId);
 
@@ -67,6 +68,13 @@ impl PaymentId {
     }
 }
 
+crate::id_type!(PaymentReferenceId, "A type for payment_reference_id");
+crate::impl_id_type_methods!(PaymentReferenceId, "payment_reference_id");
+
+// This is to display the `PaymentReferenceId` as PaymentReferenceId(abcd)
+crate::impl_debug_id_type!(PaymentReferenceId);
+crate::impl_try_from_cow_str_id_type!(PaymentReferenceId, "payment_reference_id");
+
 #[cfg(feature = "metrics")]
 /// This is implemented so that we can use payment id directly as attribute in metrics
 impl From<PaymentId> for router_env::opentelemetry::Value {
@@ -75,12 +83,3 @@ impl From<PaymentId> for router_env::opentelemetry::Value {
         Self::String(router_env::opentelemetry::StringValue::from(string_value))
     }
 }
-
-// #[cfg(feature = "metrics")]
-// /// This is implemented so that we can use payment id directly as attribute in metrics
-// impl router_env::tracing::Value for PaymentId {
-//     fn record(&self, key: &router_env::types::Field, visitor: &mut dyn router_env::types::Visit) {
-//         let string_value = self.get_string_repr();
-//         visitor.record_str(key, &string_value);
-//     }
-// }

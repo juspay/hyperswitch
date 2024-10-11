@@ -39,6 +39,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
+        _header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         todo!()
@@ -54,6 +55,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
+        header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
@@ -91,7 +93,11 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckCheckoutData {
-                amount: self.payment_attempt.amount.get_amount_as_i64(),
+                amount: self
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
@@ -151,6 +157,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             dispute_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload,
         };
 
         Ok(router_data)

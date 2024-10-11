@@ -209,6 +209,10 @@ diesel::table! {
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
         version -> ApiVersion,
+        dynamic_routing_algorithm -> Nullable<Json>,
+        is_network_tokenization_enabled -> Bool,
+        is_auto_retries_enabled -> Nullable<Bool>,
+        max_auto_retries_enabled -> Nullable<Int2>,
     }
 }
 
@@ -840,6 +844,8 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 32]
         card_network -> Nullable<Varchar>,
+        shipping_cost -> Nullable<Int8>,
+        order_tax_amount -> Nullable<Int8>,
     }
 }
 
@@ -1006,6 +1012,11 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
+        #[max_length = 128]
+        network_token_requestor_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        network_token_locker_id -> Nullable<Varchar>,
+        network_token_payment_method_data -> Nullable<Bytea>,
     }
 }
 
@@ -1045,6 +1056,11 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         routing_info -> Nullable<Jsonb>,
+        #[max_length = 255]
+        unified_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        unified_message -> Nullable<Varchar>,
+        additional_payout_method_data -> Nullable<Jsonb>,
     }
 }
 

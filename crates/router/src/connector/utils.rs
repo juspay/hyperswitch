@@ -629,6 +629,7 @@ impl AddressData for api::Address {
 }
 
 pub trait PaymentsPreProcessingData {
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
@@ -696,6 +697,17 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
     }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
@@ -703,7 +715,9 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 }
@@ -758,6 +772,7 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<domain::Card, Error>;
@@ -805,6 +820,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
@@ -841,7 +859,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 
@@ -852,7 +872,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     Some(network_transaction_id.clone())
                 }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
             })
     }
 
@@ -1417,6 +1439,81 @@ impl CardData for payouts::CardPayout {
     }
 }
 
+impl CardData
+    for hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId
+{
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.card_exp_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.card_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.card_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+}
+
 impl CardData for domain::Card {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.card_exp_year.clone();
@@ -1662,6 +1759,7 @@ pub trait AddressDetailsData {
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1760,6 +1858,9 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
+    }
+    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
+        self.country
     }
 }
 
@@ -2612,6 +2713,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -2698,6 +2800,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,
@@ -2729,6 +2832,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                 domain::payments::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                 domain::payments::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                domain::payments::WalletData::Paze(_) => Self::Paze,
                 domain::payments::WalletData::SamsungPay(_) => Self::SamsungPay,
                 domain::payments::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 domain::payments::WalletData::VippsRedirect {} => Self::VippsRedirect,
@@ -2986,4 +3090,22 @@ pub fn get_refund_integrity_object<T>(
         currency: currency_enum,
         refund_amount: refund_amount_in_minor_unit,
     })
+}
+pub trait NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
+}
+
+impl NetworkTokenData for domain::NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.token_number.peek())
+    }
+
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
 }

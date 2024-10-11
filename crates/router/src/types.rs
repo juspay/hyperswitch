@@ -11,6 +11,7 @@ pub mod authentication;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+pub mod payment_methods;
 pub mod pm_auth;
 use masking::Secret;
 pub mod storage;
@@ -100,7 +101,7 @@ use crate::{
     consts,
     core::{
         errors::{self},
-        payments::PaymentData,
+        payments::{OperationSessionGetters, PaymentData},
     },
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
@@ -208,6 +209,14 @@ pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 #[cfg(feature = "payouts")]
+pub type PayoutActionData = Vec<(
+    storage::Payouts,
+    storage::PayoutAttempt,
+    Option<domain::Customer>,
+    Option<api_models::payments::Address>,
+)>;
+
+#[cfg(feature = "payouts")]
 pub trait PayoutIndividualDetailsExt {
     type Error;
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
@@ -243,15 +252,16 @@ pub trait Capturable {
 }
 
 impl Capturable for PaymentsAuthorizeData {
-    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
-        let final_amount = self
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount.get_amount_as_i64());
-        final_amount.or(Some(self.amount))
+        Some(
+            payment_data
+                .payment_attempt
+                .get_total_amount()
+                .get_amount_as_i64(),
+        )
     }
 
     fn get_amount_capturable<F>(
@@ -262,10 +272,7 @@ impl Capturable for PaymentsAuthorizeData {
     where
         F: Clone,
     {
-        match payment_data
-            .payment_attempt
-            .capture_method
-            .unwrap_or_default()
+        match payment_data.get_capture_method().unwrap_or_default()
         {
             common_enums::CaptureMethod::Automatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
@@ -325,11 +332,16 @@ impl Capturable for PaymentsCaptureData {
 }
 
 impl Capturable for CompleteAuthorizeData {
-    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
-        Some(self.amount)
+        Some(
+            payment_data
+                .payment_attempt
+                .get_total_amount()
+                .get_amount_as_i64(),
+        )
     }
     fn get_amount_capturable<F>(
         &self,
@@ -340,8 +352,7 @@ impl Capturable for CompleteAuthorizeData {
         F: Clone,
     {
         match payment_data
-            .payment_attempt
-            .capture_method
+            .get_capture_method()
             .unwrap_or_default()
         {
             common_enums::CaptureMethod::Automatic => {
@@ -488,14 +499,14 @@ impl Default for PollConfig {
 #[derive(Clone, Debug)]
 pub struct RedirectPaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
-    pub business_profile: domain::BusinessProfile,
+    pub business_profile: domain::Profile,
 }
 
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub poll_config: PollConfig,
-    pub business_profile: domain::BusinessProfile,
+    pub business_profile: domain::Profile,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
@@ -898,6 +909,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             refund_id: data.refund_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            additional_merchant_data: data.additional_merchant_data.clone(),
+            header_payload: data.header_payload.clone(),
         }
     }
 }
@@ -960,6 +973,8 @@ impl<F1, F2>
             dispute_id: None,
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            additional_merchant_data: data.additional_merchant_data.clone(),
+            header_payload: data.header_payload.clone(),
         }
     }
 }

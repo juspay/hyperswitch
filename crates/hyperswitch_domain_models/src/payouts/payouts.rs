@@ -54,7 +54,12 @@ pub trait PayoutsInterface {
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
-        Vec<(Payouts, PayoutAttempt, Option<diesel_models::Customer>)>,
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<diesel_models::Customer>,
+            Option<diesel_models::Address>,
+        )>,
         errors::StorageError,
     >;
 
@@ -62,7 +67,7 @@ pub trait PayoutsInterface {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         _merchant_id: &id_type::MerchantId,
-        _time_range: &api_models::payments::TimeRange,
+        _time_range: &common_utils::types::TimeRange,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
 

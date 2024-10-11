@@ -32,7 +32,7 @@ pub trait MandateInterface {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_mandate_by_global_id(
         &self,
-        id: &String,
+        id: &str,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -97,9 +97,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Mandate>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -143,9 +146,12 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let storage_scheme =
-                decide_storage_scheme::<_, diesel_models::Mandate>(self, storage_scheme, Op::Find)
-                    .await;
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
@@ -197,7 +203,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_global_id(
             &self,
-            id: &String,
+            id: &str,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_global_id(&conn, id)
@@ -220,11 +226,11 @@ mod storage {
                 mandate_id,
             };
             let field = format!("mandate_{}", mandate_id);
-            let storage_scheme = decide_storage_scheme::<_, diesel_models::Mandate>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
                 Op::Update(key.clone(), &field, mandate.updated_by.as_deref()),
-            )
+            ))
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
@@ -312,11 +318,11 @@ mod storage {
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            let storage_scheme = decide_storage_scheme::<_, diesel_models::Mandate>(
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
                 Op::Insert,
-            )
+            ))
             .await;
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
@@ -453,7 +459,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_mandate_by_global_id(
             &self,
-            customer_id: &String,
+            customer_id: &str,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_global_id(&conn, customer_id)
@@ -566,7 +572,7 @@ impl MandateInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     async fn find_mandate_by_global_id(
         &self,
-        id: &String,
+        id: &str,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         todo!()
     }

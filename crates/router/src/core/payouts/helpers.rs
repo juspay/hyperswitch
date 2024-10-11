@@ -5,10 +5,10 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, id_type, type_name,
+    fp_utils, id_type, payout_method_utils as payout_additional, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
-        MinorUnit,
+        MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -19,6 +19,8 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
@@ -30,7 +32,7 @@ use crate::{
         },
         payments::{
             customers::get_connector_customer_details_if_present, helpers as payment_helpers,
-            route_connector_v1, routing, CustomerDetails,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
         utils as core_utils,
@@ -305,7 +307,7 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(
+    let stored_resp = cards::add_card_to_hs_locker(
         state,
         &locker_req,
         customer_id,
@@ -535,6 +537,9 @@ pub async fn save_payout_data_to_locker(
             merchant_account.storage_scheme,
             None,
             None,
+            None,
+            None,
+            None,
         )
         .await?;
     }
@@ -557,6 +562,7 @@ pub async fn save_payout_data_to_locker(
             card_reference,
         )
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to delete PMD from locker as a part of metadata update operation",
         )?;
@@ -564,7 +570,7 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::call_to_locker_hs(
+        let stored_resp = cards::add_card_to_hs_locker(
             state,
             &locker_req,
             customer_id,
@@ -786,7 +792,7 @@ pub async fn decide_payout_connector(
         merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")?;
+    .get_required_value("Profile")?;
 
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
@@ -800,7 +806,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -848,7 +854,7 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
             )
@@ -886,15 +892,14 @@ pub async fn decide_payout_connector(
     }
 
     // 4. Route connector
-    route_connector_v1(
+    route_connector_v1_for_payouts(
         state,
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        TransactionData::<()>::Payout(payout_data),
+        payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }
@@ -943,12 +948,13 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,
-    flow: String,
+    flow: &str,
 ) -> Option<storage::gsm::GatewayStatusMap> {
+    let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
-                connector_name.clone().unwrap_or_default(),
-                flow.clone(),
+                connector_name.clone(),
+                flow.to_string(),
                 "sub_flow".to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
@@ -958,7 +964,7 @@ pub async fn get_gsm_record(
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
                         "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
-                        connector_name.unwrap_or_default(),
+                        connector_name,
                         flow,
                         error_code,
                         error_message
@@ -1262,5 +1268,111 @@ pub(super) fn get_customer_details_from_request(
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+    }
+}
+
+pub async fn get_translated_unified_code_and_message(
+    state: &SessionState,
+    unified_code: Option<&UnifiedCode>,
+    unified_message: Option<&UnifiedMessage>,
+    locale: &str,
+) -> CustomResult<Option<UnifiedMessage>, errors::ApiErrorResponse> {
+    Ok(unified_code
+        .zip(unified_message)
+        .async_and_then(|(code, message)| async {
+            payment_helpers::get_unified_translation(
+                state,
+                code.0.clone(),
+                message.0.clone(),
+                locale.to_string(),
+            )
+            .await
+            .map(UnifiedMessage::try_from)
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "unified_message",
+        })?
+        .or_else(|| unified_message.cloned()))
+}
+
+pub async fn get_additional_payout_data(
+    pm_data: &api::PayoutMethodData,
+    db: &dyn StorageInterface,
+    profile_id: &id_type::ProfileId,
+) -> Option<payout_additional::AdditionalPayoutMethodData> {
+    match pm_data {
+        api::PayoutMethodData::Card(card_data) => {
+            let card_isin = Some(card_data.card_number.get_card_isin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => {
+                    Some(card_data.card_number.get_extended_card_bin())
+                }
+                _ => None,
+            };
+            let last4 = Some(card_data.card_number.get_last4());
+
+            let card_info = card_isin
+                .clone()
+                .async_and_then(|card_isin| async move {
+                    db.get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
+                })
+                .await
+                .flatten()
+                .map(|card_info| {
+                    payout_additional::AdditionalPayoutMethodData::Card(Box::new(
+                        payout_additional::CardAdditionalData {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info.card_network.clone(),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_issuing_country: card_info.card_issuing_country,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: Some(card_data.expiry_month.clone()),
+                            card_exp_year: Some(card_data.expiry_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                        },
+                    ))
+                });
+            Some(card_info.unwrap_or_else(|| {
+                payout_additional::AdditionalPayoutMethodData::Card(Box::new(
+                    payout_additional::CardAdditionalData {
+                        card_issuer: None,
+                        card_network: None,
+                        bank_code: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        last4,
+                        card_isin,
+                        card_extended_bin,
+                        card_exp_month: Some(card_data.expiry_month.clone()),
+                        card_exp_year: Some(card_data.expiry_year.clone()),
+                        card_holder_name: card_data.card_holder_name.clone(),
+                    },
+                ))
+            }))
+        }
+        api::PayoutMethodData::Bank(bank_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Bank(
+                Box::new(bank_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Wallet(wallet_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Wallet(
+                Box::new(wallet_data.to_owned().into()),
+            ))
+        }
     }
 }
