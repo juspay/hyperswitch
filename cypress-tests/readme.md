@@ -83,8 +83,8 @@ In order to run cypress tests against multiple connectors at a time:
    export CYPRESS_BASEURL='base_url'
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
 
-   export PAYMENTS="payment_connector_1 payment_connector_2 payment_connector_3 payment_connector_4"
-   export PAYOUTS="payout_connector_1 payout_connector_2 payout_connector_3"
+   export PAYMENTS_CONNECTORS="payment_connector_1 payment_connector_2 payment_connector_3 payment_connector_4"
+   export PAYOUTS_CONNECTORS="payout_connector_1 payout_connector_2 payout_connector_3"
    export PAYMENT_METHOD_LIST=""
    export ROUTING=""
    ```
