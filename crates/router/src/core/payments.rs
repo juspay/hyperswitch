@@ -23,6 +23,7 @@ use api_models::{
     self, enums,
     mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
+    routing as api_routing,
 };
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
@@ -4580,22 +4581,40 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // success_based_routing_for_connectors
-    business_profile.dynamic_routing_algorithm.map(|dynamic_routing_algorithm|
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    {
+        if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
         {
-            let mut success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
-            business_profile
-                .dynamic_routing_algorithm
-                .clone()
-                .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "unable to deserialize dynamic routing algorithm ref from business profile",
-                )?
-                .unwrap_or_default();
+            let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
+                business_profile
+                    .dynamic_routing_algorithm
+                    .clone()
+                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "unable to deserialize dynamic routing algorithm ref from business profile",
+                    )?
+                    .unwrap_or_default();
+            let success_based_algo_ref = success_based_dynamic_routing_algo_ref
+                .success_based_algorithm
+                .unwrap();
+            if success_based_algo_ref.enabled_feature
+                == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+            {
+                // perform success based routing
+                fetch_success_based_routing_configs(
+                    &state,
+                    routable_connectors,
+                    &business_profile,
+                    dynamic_routing_algorithm,
+                )
+                .await
+                .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                .ok();
+            }
         }
-    );
-
+    }
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,

@@ -588,6 +588,48 @@ pub async fn refresh_success_based_routing_cache(
     config
 }
 
+/// success based dynamic routing
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn perform_success_based_routing(
+    state: &SessionState,
+    routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
+    business_profile: &domain::Profile,
+    dynamic_routing_algorithm: serde_json::Value,
+) -> RouterResult<()> {
+    let client = state
+        .grpc_client
+        .dynamic_routing
+        .success_rate_client
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "success_rate gRPC client not found".to_string(),
+        })?;
+
+    let success_based_routing_configs =
+        fetch_success_based_routing_configs(state, business_profile, dynamic_routing_algorithm)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+
+    let tenant_business_profile_id = format!(
+        "{}:{}",
+        state.tenant.redis_key_prefix,
+        business_profile.get_id().get_string_repr()
+    );
+
+    let success_based_connectors = client
+        .calculate_success_rate(
+            tenant_business_profile_id.clone(),
+            success_based_routing_configs.clone(),
+            routable_connectors.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to calculate/fetch success rate from dynamic routing service")?;
+    Ok(())
+}
+
 /// Checked fetch of success based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
