@@ -588,6 +588,7 @@ pub async fn refresh_success_based_routing_cache(
     config
 }
 
+use external_services::grpc_client::dynamic_routing::success_rate::CalSuccessRateResponse;
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
@@ -596,7 +597,7 @@ pub async fn perform_success_based_routing(
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
     dynamic_routing_algorithm: serde_json::Value,
-) -> RouterResult<()> {
+) -> RouterResult<CalSuccessRateResponse> {
     let client = state
         .grpc_client
         .dynamic_routing
@@ -627,7 +628,7 @@ pub async fn perform_success_based_routing(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to calculate/fetch success rate from dynamic routing service")?;
-    Ok(())
+    Ok(success_based_connectors)
 }
 
 /// Checked fetch of success based routing configs
@@ -649,6 +650,7 @@ pub async fn fetch_success_based_routing_configs(
             message: "success_based_algorithm not found in dynamic_routing_algorithm_ref"
                 .to_string(),
         })?
+        .algorithm_id_with_timestamp
         .algorithm_id
         // error can be possible when the feature is toggled off.
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {

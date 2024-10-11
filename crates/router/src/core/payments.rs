@@ -4558,6 +4558,9 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    println!(">>>>>>>>>>code comes here 0");
+    use super::routing::helpers::perform_success_based_routing;
+
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
@@ -4585,6 +4588,7 @@ where
     {
         if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
         {
+            println!(">>>>>>>>>>code comes here 1");
             let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
                 business_profile
                     .dynamic_routing_algorithm
@@ -4599,19 +4603,25 @@ where
             let success_based_algo_ref = success_based_dynamic_routing_algo_ref
                 .success_based_algorithm
                 .unwrap();
+            println!(
+                ">>>>>>>>>>code comes here 1.5 {:?}",
+                success_based_algo_ref.enabled_feature
+            );
             if success_based_algo_ref.enabled_feature
                 == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
             {
+                println!(">>>>>>>>>>code comes here 2");
                 // perform success based routing
-                fetch_success_based_routing_configs(
+                let connectors = perform_success_based_routing(
                     &state,
-                    routable_connectors,
+                    connectors.clone(),
                     &business_profile,
                     dynamic_routing_algorithm,
                 )
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
                 .ok();
+                println!(">>>>>>>>>>code comes here 3   {connectors:?}");
             }
         }
     }
