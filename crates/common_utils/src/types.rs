@@ -1288,7 +1288,7 @@ where
 
 #[cfg(feature = "v2")]
 /// Browser information to be used for 3DS 2.0
-/// If any of the field is PII, then we can make them as secret
+// If any of the field is PII, then we can make them as secret
 #[derive(
     ToSchema,
     Debug,

@@ -4409,7 +4409,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodSubType, example = "apple_pay")]
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
@@ -4424,7 +4424,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// It's a token used for client side verification.
-    #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    #[schema(value_type = String, example = "12345_pay_01926c58bc6e77c09e809964e72af8c8_secret_01926c58bc7177c291921c0ebf9b3ef3")]
     pub client_secret: common_utils::types::ClientSecret,
 }
 
@@ -4453,7 +4453,7 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p",
+        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -4499,6 +4499,7 @@ pub struct PaymentsConfirmIntentResponse {
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// The browser information used for this payment
+    #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// Error details for the payment if any

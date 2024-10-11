@@ -410,6 +410,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ExtendedCardInfo,
         api_models::payments::PaymentsConfirmIntentRequest,
         api_models::payments::PaymentsConfirmIntentResponse,
+        api_models::payments::AmountDetailsResponse,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -572,6 +573,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
+        api_models::payments::ErrorDetails,
+        common_utils::types::BrowserInformation,
+        api_models::payments::ConfirmIntentAmountDetailsResponse,
     )),
     modifiers(&SecurityAddon)
 )]
