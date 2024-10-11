@@ -805,6 +805,7 @@ where
     ))
 }
 
+#[cfg(feature = "v1")]
 // This function is intended for use when the feature being implemented is not aligned with the
 // core payment operations.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -953,7 +954,6 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
-            &validate_result.payment_id,
             payment_data,
             router_data,
             &key_store,
