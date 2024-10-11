@@ -785,6 +785,22 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("sessionTokenCall", (apiKeyCreateBody, globalState) => {
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("publishableKey"),
+    },
+    body: sessionTokenBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+  });
+});
+
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
