@@ -466,8 +466,7 @@
                       "primary_contact_person": "John Doe",
                       "primary_email": "example@company.com"
                     },
-                    "merchant_name": "Cloth Store",
-                    "organization_id": "org_abcdefghijklmnop"
+                    "merchant_name": "Cloth Store"
                   }
                 },
                 "Create a merchant account with metadata": {
@@ -476,8 +475,7 @@
                     "metadata": {
                       "key_1": "John Doe",
                       "key_2": "Trends"
-                    },
-                    "organization_id": "org_abcdefghijklmnop"
+                    }
                   }
                 },
                 "Create a merchant account with minimal fields": {
