@@ -174,6 +174,7 @@ pub enum GetToken {
     SamsungPayMetadata,
     ApplePayMetadata,
     PaypalSdkMetadata,
+    PazeMetadata,
     Connector,
 }
 

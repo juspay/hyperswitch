@@ -5781,6 +5781,11 @@
             "type": "object",
             "description": "This field contains the Samsung Pay certificates and credentials",
             "nullable": true
+          },
+          "paze": {
+            "type": "object",
+            "description": "This field contains the Paze certificates and credentials",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -10305,6 +10310,77 @@
           }
         }
       },
+      "NetworkTransactionIdAndCardDetails": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
       "NextActionCall": {
         "type": "string",
         "enum": [
@@ -12765,6 +12841,7 @@
           "open_banking_uk",
           "pay_bright",
           "paypal",
+          "paze",
           "pix",
           "pay_safe_card",
           "przelewy24",
@@ -15971,6 +16048,39 @@
           }
         }
       },
+      "PazeSessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_name",
+          "client_profile_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Paze Client ID"
+          },
+          "client_name": {
+            "type": "string",
+            "description": "Client Name to be displayed on the Paze screen"
+          },
+          "client_profile_id": {
+            "type": "string",
+            "description": "Paze Client Profile ID"
+          }
+        }
+      },
+      "PazeWalletData": {
+        "type": "object",
+        "required": [
+          "complete_response"
+        ],
+        "properties": {
+          "complete_response": {
+            "type": "string"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -16690,6 +16800,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/ProcessorPaymentToken"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_transaction_id_and_card_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
               }
             }
           }
@@ -18211,6 +18339,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PazeSessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paze"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -18370,8 +18519,7 @@
           "surcharge",
           "display_surcharge_amount",
           "display_tax_on_surcharge_amount",
-          "display_total_surcharge_amount",
-          "display_final_amount"
+          "display_total_surcharge_amount"
         ],
         "properties": {
           "surcharge": {
@@ -18399,11 +18547,6 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
-          },
-          "display_final_amount": {
-            "type": "number",
-            "format": "double",
-            "description": "sum of original amount,"
           }
         }
       },
@@ -19381,6 +19524,17 @@
             "properties": {
               "paypal_sdk": {
                 "$ref": "#/components/schemas/PayPalWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paze"
+            ],
+            "properties": {
+              "paze": {
+                "$ref": "#/components/schemas/PazeWalletData"
               }
             }
           },
