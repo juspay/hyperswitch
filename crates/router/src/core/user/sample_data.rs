@@ -14,14 +14,12 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
-// TODO: last.modify generate sample data for user
 pub async fn generate_sample_data_for_user(
     state: SessionState,
     user_from_token: UserFromToken,
     req: SampleDataRequest,
     _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
-    // TODO: 5. add disputes to generated data
     let sample_data = utils::user::sample_data::generate_sample_data(
         &state,
         req,
@@ -74,8 +72,6 @@ pub async fn generate_sample_data_for_user(
         .insert_refunds_batch_for_sample_data(refunds)
         .await
         .switch()?;
-
-    // TODO: 6. store disputes
     state
         .store
         .insert_disputes_batch_for_sample_data(disputes)
@@ -120,8 +116,6 @@ pub async fn delete_sample_data_for_user(
         .delete_refunds_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
-
-    // TODO(done): 7. add delete disputes
     state
         .store
         .delete_disputes_for_sample_data(&merchant_id_del)

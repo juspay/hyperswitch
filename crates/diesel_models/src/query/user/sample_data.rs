@@ -62,7 +62,6 @@ pub async fn insert_refunds(
         .attach_printable("Error while inserting refunds")
 }
 
-// TODO(done): 1. insert disputes
 pub async fn insert_disputes(
     conn: &PgPooledConn,
     batch: Vec<DisputeNew>,
@@ -183,7 +182,6 @@ pub async fn delete_refunds(
         })
 }
 
-// TODO(done): 1. delete disputes
 pub async fn delete_disputes(
     conn: &PgPooledConn,
     merchant_id: &common_utils::id_type::MerchantId,

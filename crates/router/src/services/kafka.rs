@@ -582,7 +582,6 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add consolidated dispute event {dispute:?}"))
     }
 
-    // TODO(done): add log_dispute_delete
     pub async fn log_dispute_delete(
         &self,
         delete_old_dispute: &Dispute,

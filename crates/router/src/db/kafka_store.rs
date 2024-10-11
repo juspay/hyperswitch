@@ -3234,7 +3234,6 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
-    // TODO(done): 3. insert_disputes_batch_for_sample_data implementation
     async fn insert_disputes_batch_for_sample_data(
         &self, batch: Vec<DisputeNew>,
     ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
@@ -3321,7 +3320,6 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
-    // TODO(done): 3. delete_disputes_batch_for_sample_data implementation
     async fn delete_disputes_for_sample_data(
         &self,
         merchant_id: &MerchantId,

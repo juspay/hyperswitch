@@ -19,7 +19,6 @@ use diesel_models::enums as storage_enums;
 
 #[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
-// TODO: 4. modify generate sample data for user
 pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
@@ -377,7 +376,7 @@ pub async fn generate_sample_data(
             None
         };
 
-        // TODO: add dummy dispute data
+        // TODO: change dummy dispute data to random dispute data
         let dispute = DisputeNew {
             dispute_id: common_utils::generate_id_with_default_len("test"),
             amount: 100.to_string(),
