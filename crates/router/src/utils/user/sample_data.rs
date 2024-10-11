@@ -4,7 +4,7 @@ use api_models::{
 };
 use common_utils::{id_type, types::MinorUnit};
 use diesel_models::{
-    enums as storage_enums, user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew,
+    user::sample_data::PaymentAttemptBatchNew, RefundNew,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
@@ -133,7 +133,6 @@ pub async fn generate_sample_data(
         PaymentIntent,
         PaymentAttemptBatchNew,
         Option<RefundNew>,
-        DisputeNew,
     )> = Vec::new();
     let start_time = req
         .start_time
