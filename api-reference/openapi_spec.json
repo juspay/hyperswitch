@@ -912,6 +912,46 @@
         ]
       }
     },
+    "/payments/{payment_id}/post_session_tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Post Session Tokens",
+        "description": "\n",
+        "operationId": "Create Post Session Tokens for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsPostSessionTokensRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Post Session Token is done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsPostSessionTokensResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
