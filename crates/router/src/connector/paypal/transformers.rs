@@ -1374,6 +1374,60 @@ impl<F, T>
 impl
     TryFrom<
         types::ResponseRouterData<
+            api::Authorize,
+            PaypalRedirectResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsAuthorizeRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::Authorize,
+            PaypalRedirectResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = storage_enums::AttemptStatus::foreign_from((
+            item.response.clone().status,
+            item.response.intent.clone(),
+        ));
+        let link = get_redirect_url(item.response.links.clone())?;
+
+        let connector_meta = serde_json::json!(PaypalMeta {
+            authorize_id: None,
+            capture_id: None,
+            psync_flow: item.response.intent,
+            next_action: None,
+        });
+        let purchase_units = item.response.purchase_units.first();
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Some(services::RedirectForm::from((
+                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    services::Method::Get,
+                ))),
+                mandate_reference: None,
+                connector_metadata: Some(connector_meta),
+                network_txn_id: None,
+                connector_response_reference_id: Some(
+                    purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
+                ),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        types::ResponseRouterData<
             api::PostSessionTokens,
             PaypalRedirectResponse,
             types::PaymentsPostSessionTokensData,
@@ -1421,60 +1475,6 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id.clone(), |item| item.invoice_id.clone()),
-                ),
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl
-    TryFrom<
-        types::ResponseRouterData<
-            api::Authorize,
-            PaypalRedirectResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::PaymentsAuthorizeRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            api::Authorize,
-            PaypalRedirectResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let status = storage_enums::AttemptStatus::foreign_from((
-            item.response.clone().status,
-            item.response.intent.clone(),
-        ));
-        let link = get_redirect_url(item.response.links.clone())?;
-
-        let connector_meta = serde_json::json!(PaypalMeta {
-            authorize_id: None,
-            capture_id: None,
-            psync_flow: item.response.intent,
-            next_action: None,
-        });
-        let purchase_units = item.response.purchase_units.first();
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: Some(services::RedirectForm::from((
-                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    services::Method::Get,
-                ))),
-                mandate_reference: None,
-                connector_metadata: Some(connector_meta),
-                network_txn_id: None,
-                connector_response_reference_id: Some(
-                    purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,

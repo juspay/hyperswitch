@@ -2079,15 +2079,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
     }
 }
 
-#[cfg(feature = "v2")]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
 #[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;

@@ -12,7 +12,6 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
-use serde_json::json;
 use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
@@ -792,17 +791,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
         let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
-        let payment_method_data = req.request.payment_method_data.clone();
-        Ok(match payment_method_data {
-            domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) => {
-                RequestContent::Json(Box::new(json!(r#"{}"#)))
-            }
-            _ => {
-                let connector_req =
-                    paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
-                RequestContent::Json(Box::new(connector_req))
-            }
-        })
+        let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

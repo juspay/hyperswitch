@@ -732,20 +732,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                         updated_by: storage_scheme.clone().to_string(),
                         connector_metadata,
                     };
-                #[cfg(feature = "v1")]
                 let updated_payment_attempt = m_db
                     .update_payment_attempt_with_attempt_id(
-                        payment_data.payment_attempt.clone(),
-                        payment_attempt_update,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                #[cfg(feature = "v2")]
-                let updated_payment_attempt = m_db
-                    .update_payment_attempt_with_attempt_id(
-                        &db.into(),
-                        key_store,
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
                         storage_scheme,
@@ -763,7 +751,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                         .connector
                         .clone()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("connector_not found")?,
+                        .attach_printable("connector not found")?,
                     status_code: err.status_code,
                     reason: err.reason,
                 })?;
