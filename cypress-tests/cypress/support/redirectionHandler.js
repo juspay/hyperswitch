@@ -5,35 +5,10 @@ const TIMEOUT = 20000; // 20 seconds
 const WAIT_TIME = 10000; // 10 seconds
 const WAIT_TIME_IATAPAY = 20000; // 20 seconds
 
-class ClientError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ClientError"; // 4xx errors
-  }
-}
-
-class ServerError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ServerError"; // 5xx errors
-  }
-}
-
-export function handleRedirection(
-  redirection_type,
-  urls,
-  connectorId,
-  payment_method_type,
-  handler_metadata
-) {
+export function handleRedirection(redirection_type, urls, connectorId, payment_method_type, handler_metadata) {
   switch (redirection_type) {
     case "bank_redirect":
-      bankRedirectRedirection(
-        urls.redirection_url,
-        urls.expected_url,
-        connectorId,
-        payment_method_type
-      );
+      bankRedirectRedirection(urls.redirection_url, urls.expected_url, connectorId, payment_method_type);
       break;
     case "bank_transfer":
       bankTransferRedirection(
@@ -48,25 +23,14 @@ export function handleRedirection(
       threeDsRedirection(urls.redirection_url, urls.expected_url, connectorId);
       break;
     case "upi":
-      upiRedirection(
-        urls.redirection_url,
-        urls.expected_url,
-        connectorId,
-        payment_method_type
-      );
+      upiRedirection(urls.redirection_url, urls.expected_url, connectorId, payment_method_type);
       break;
     default:
       throw new Error(`Redirection known: ${redirection_type}`);
   }
 }
 
-function bankTransferRedirection(
-  redirection_url,
-  expected_url,
-  connectorId,
-  payment_method_type,
-  next_action_type
-) {
+function bankTransferRedirection(redirection_url, expected_url, connectorId, payment_method_type, next_action_type) {
   switch (next_action_type) {
     case "qr_code_url":
       cy.request(redirection_url.href).then((response) => {
@@ -111,12 +75,7 @@ function bankTransferRedirection(
   }
 }
 
-function bankRedirectRedirection(
-  redirection_url,
-  expected_url,
-  connectorId,
-  payment_method_type
-) {
+function bankRedirectRedirection(redirection_url, expected_url, connectorId, payment_method_type) {
   let verifyUrl = false;
   cy.visit(redirection_url.href);
 
@@ -139,14 +98,9 @@ function bankRedirectRedirection(
           cy.wait(5000);
           break;
         case "giropay":
-          cy.get(
-            ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
-          ).click();
+          cy.get(".rds-cookies-overlay__allow-all-cookies-btn > .rds-button").click();
           cy.wait(5000);
-          cy.get(".normal-3").should(
-            "contain.text",
-            "Bank suchen ‑ mit giropay zahlen."
-          );
+          cy.get(".normal-3").should("contain.text", "Bank suchen ‑ mit giropay zahlen.");
           cy.get("#bankSearch").type("giropay TestBank{enter}");
           cy.get(".normal-2 > div").click();
           cy.get('[data-testid="customerIban"]').type("DE48499999601234567890");
@@ -163,34 +117,25 @@ function bankRedirectRedirection(
           cy.wait(5000);
           break;
         case "sofort":
-          cy.get(".modal-overlay.modal-shown.in", { timeout: TIMEOUT }).then(
-            ($modal) => {
-              // If modal is found, handle it
-              if ($modal.length > 0) {
-                cy.get("button.cookie-modal-deny-all.button-tertiary")
-                  .should("be.visible")
-                  .should("contain", "Reject All")
-                  .click({ force: true, multiple: true });
-                cy.get("div#TopBanks.top-banks-multistep")
-                  .should("contain", "Demo Bank")
-                  .as("btn")
-                  .click();
-                cy.get("@btn").click();
-              } else {
-                cy.get("input.phone").type("9123456789");
-                cy.get("#button.onContinue")
-                  .should("contain", "Continue")
-                  .click();
-              }
+          cy.get(".modal-overlay.modal-shown.in", { timeout: TIMEOUT }).then(($modal) => {
+            // If modal is found, handle it
+            if ($modal.length > 0) {
+              cy.get("button.cookie-modal-deny-all.button-tertiary")
+                .should("be.visible")
+                .should("contain", "Reject All")
+                .click({ force: true, multiple: true });
+              cy.get("div#TopBanks.top-banks-multistep").should("contain", "Demo Bank").as("btn").click();
+              cy.get("@btn").click();
+            } else {
+              cy.get("input.phone").type("9123456789");
+              cy.get("#button.onContinue").should("contain", "Continue").click();
             }
-          );
+          });
           break;
         case "trustly":
           break;
         default:
-          throw new Error(
-            `Unsupported payment method type: ${payment_method_type}`
-          );
+          throw new Error(`Unsupported payment method type: ${payment_method_type}`);
       }
       verifyUrl = true;
       break;
@@ -206,9 +151,7 @@ function bankRedirectRedirection(
           cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
           break;
         default:
-          throw new Error(
-            `Unsupported payment method type: ${payment_method_type}`
-          );
+          throw new Error(`Unsupported payment method type: ${payment_method_type}`);
       }
       verifyUrl = true;
       break;
@@ -230,49 +173,28 @@ function bankRedirectRedirection(
           cy.get('a[name="success"]').click();
           break;
         default:
-          throw new Error(
-            `Unsupported payment method type: ${payment_method_type}`
-          );
+          throw new Error(`Unsupported payment method type: ${payment_method_type}`);
       }
       verifyUrl = true;
       break;
     case "trustpay":
       switch (payment_method_type) {
         case "eps":
-          cy.get("._transactionId__header__iXVd_").should(
-            "contain.text",
-            "Bank suchen ‑ mit eps zahlen."
-          );
-          cy.get(".BankSearch_searchInput__uX_9l").type(
-            "Allgemeine Sparkasse Oberösterreich Bank AG{enter}"
-          );
+          cy.get("._transactionId__header__iXVd_").should("contain.text", "Bank suchen ‑ mit eps zahlen.");
+          cy.get(".BankSearch_searchInput__uX_9l").type("Allgemeine Sparkasse Oberösterreich Bank AG{enter}");
           cy.get(".BankSearch_searchResultItem__lbcKm").click();
           cy.get("._transactionId__primaryButton__nCa0r").click();
-          cy.get("#loginTitle").should(
-            "contain.text",
-            "eps Online-Überweisung Login"
-          );
-          cy.get("#user")
-            .should("be.visible")
-            .should("be.enabled")
-            .focus()
-            .type("Verfügernummer");
+          cy.get("#loginTitle").should("contain.text", "eps Online-Überweisung Login");
+          cy.get("#user").should("be.visible").should("be.enabled").focus().type("Verfügernummer");
           cy.get("input#submitButton.btn.btn-primary").click();
           break;
         case "ideal":
           cy.contains("button", "Select your bank").click();
-          cy.get(
-            'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
-          ).click();
+          cy.get('button[data-testid="bank-item"][id="bank-item-INGBNL2A"]').click();
           break;
         case "giropay":
-          cy.get("._transactionId__header__iXVd_").should(
-            "contain.text",
-            "Bank suchen ‑ mit giropay zahlen."
-          );
-          cy.get(".BankSearch_searchInput__uX_9l").type(
-            "Volksbank Hildesheim{enter}"
-          );
+          cy.get("._transactionId__header__iXVd_").should("contain.text", "Bank suchen ‑ mit giropay zahlen.");
+          cy.get(".BankSearch_searchInput__uX_9l").type("Volksbank Hildesheim{enter}");
           cy.get(".BankSearch_searchIcon__EcVO7").click();
           cy.get(".BankSearch_bankWrapper__R5fUK").click();
           cy.get("._transactionId__primaryButton__nCa0r").click();
@@ -283,9 +205,7 @@ function bankRedirectRedirection(
         case "trustly":
           break;
         default:
-          throw new Error(
-            `Unsupported payment method type: ${payment_method_type}`
-          );
+          throw new Error(`Unsupported payment method type: ${payment_method_type}`);
       }
       verifyUrl = false;
       break;
@@ -308,11 +228,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get('input[type="password"]').type("password");
         cy.get("#buttonSubmit").click();
       });
-  } else if (
-    connectorId === "bankofamerica" ||
-    connectorId === "cybersource" ||
-    connectorId === "wellsfargo"
-  ) {
+  } else if (connectorId === "bankofamerica" || connectorId === "cybersource" || connectorId === "wellsfargo") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
       .within((body) => {
@@ -367,12 +283,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   });
 }
 
-function upiRedirection(
-  redirection_url,
-  expected_url,
-  connectorId,
-  payment_method_type
-) {
+function upiRedirection(redirection_url, expected_url, connectorId, payment_method_type) {
   let verifyUrl = false;
   if (connectorId === "iatapay") {
     switch (payment_method_type) {
@@ -394,9 +305,7 @@ function upiRedirection(
         verifyUrl = false;
         break;
       default:
-        throw new Error(
-          `Unsupported payment method type: ${payment_method_type}`
-        );
+        throw new Error(`Unsupported payment method type: ${payment_method_type}`);
     }
   } else {
     // If connectorId is not iatapay, wait for 10 seconds
@@ -410,17 +319,19 @@ function upiRedirection(
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   const urlParams = new URLSearchParams(redirection_url.search);
-  const paymentStatus = urlParams.get('status');
+  const paymentStatus = urlParams.get("status");
 
   if (!paymentStatus) {
     console.error(`Error: Payment status is undefined. This might indicate a 4xx or 5xx error.`);
-    cy.screenshot('redirection-error');
-    throw new Error(`Payment status is undefined. There may have been a client or server error (4xx/5xx). Check network logs or UI.`);
+    cy.screenshot("redirection-error");
+    throw new Error(
+      `Payment status is undefined. There may have been a client or server error (4xx/5xx). Check network logs or UI.`
+    );
   }
-  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'partially_captured') {
+  if (paymentStatus !== "succeeded" && paymentStatus !== "processing" && paymentStatus !== "partially_captured") {
     throw new Error(`Payment failed after redirection with status: ${paymentStatus}`);
   }
-  
+
   // Proceed with normal redirection validation
   if (forward_flow) {
     // Handling redirection
@@ -429,19 +340,12 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
       cy.window().its("location.origin").should("eq", expected_url.origin);
     } else {
       // Workaround for CORS to allow cross-origin iframe
-      cy.origin(
-        expected_url.origin,
-        { args: { expected_url: expected_url.origin } },
-        ({ expected_url }) => {
-          cy.window().its("location.origin").should("eq", expected_url);
-        }
-      );
+      cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin } }, ({ expected_url }) => {
+        cy.window().its("location.origin").should("eq", expected_url);
+      });
     }
   }
 }
-
-
-
 
 async function fetchAndParseQRCode(url) {
   const response = await fetch(url, { encoding: "binary" });
@@ -464,11 +368,7 @@ async function fetchAndParseQRCode(url) {
         ctx.drawImage(image, 0, 0);
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const qrCodeData = jsQR(
-          imageData.data,
-          imageData.width,
-          imageData.height
-        );
+        const qrCodeData = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (qrCodeData) {
           resolve(qrCodeData.data);
@@ -495,11 +395,7 @@ async function fetchAndParseImageData(url) {
       ctx.drawImage(image, 0, 0);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const qrCodeData = jsQR(
-        imageData.data,
-        imageData.width,
-        imageData.height
-      );
+      const qrCodeData = jsQR(imageData.data, imageData.width, imageData.height);
 
       if (qrCodeData) {
         resolve(qrCodeData.data);
