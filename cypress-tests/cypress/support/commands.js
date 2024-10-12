@@ -2311,22 +2311,29 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("updateConfig", (configType, configData, globalState, value) => {
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const api_key = globalState.get("adminApiKey");
+
+  let key;
   let url;
   let body;
-  const api_key = globalState.get("adminApiKey");
   
   switch (configType) {
     case 'autoRetry':
-      url = `${globalState.get("baseUrl")}/configs/autoRetry`;
-      body = { ...configData, enable: value }; // enable or disable autoRetry
+      key = `should_call_gsm_${merchant_id}`; 
+      url = `${base_url}/configs/${key}`;
+      body = { key: key, value: value };
       break;
     case 'maxRetries':
-      url = `${globalState.get("baseUrl")}/configs/maxRetries`;
-      body = { ...configData, retries: value }; // set max retries
+      key = `max_auto_retries_enabled_${merchant_id}`; 
+      url = `${base_url}/configs/${key}`;
+      body = { key: key, value: value };
       break;
     case 'stepUp':
-      url = `${globalState.get("baseUrl")}/configs/stepUp`;
-      body = { ...configData, connectors: value }; // step-up configurations
+      key = `step_up_enabled_${merchant_id}`; 
+      url = `${base_url}/configs/${key}`;
+      body = { key: key, value: value };
       break;
     default:
       throw new Error(`Invalid config type passed into the configs: "${api_key}: ${value}"`);
@@ -2343,7 +2350,11 @@ Cypress.Commands.add("updateConfig", (configType, configData, globalState, value
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-    expect(response.status).to.equal(200);
+    
+    if (response.status === 200) {
+      expect(response.body).to.have.property("key").to.equal(key);
+      expect(response.body).to.have.property("value").to.equal(value);
+    }
   });
 });
 
