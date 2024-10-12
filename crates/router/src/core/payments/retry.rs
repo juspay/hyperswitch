@@ -642,8 +642,6 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
-        order_tax_amount: Default::default(),
-        shipping_cost: Default::default(),
     }
 }
 

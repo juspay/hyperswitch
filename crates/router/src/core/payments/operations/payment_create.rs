@@ -1209,8 +1209,6 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
-                order_tax_amount: None,
-                shipping_cost: None,
             },
             additional_pm_data,
         ))

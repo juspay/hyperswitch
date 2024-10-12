@@ -2079,6 +2079,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -2101,7 +2110,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             .merchant_order_reference_id
             .clone();
         Ok(Self {
-            amount: amount.get_amount_as_i64(), //need to change after we move to connector module
+            amount, //need to change after we move to connector module
             currency: payment_data.currency,
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,

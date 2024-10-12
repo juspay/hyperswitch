@@ -215,8 +215,6 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
-            shipping_cost: Default::default(),
-            order_tax_amount: Default::default(),
         };
 
         let store = state
@@ -300,8 +298,6 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
-            shipping_cost: Default::default(),
-            order_tax_amount: Default::default(),
         };
         let store = state
             .stores
@@ -398,8 +394,6 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
-            shipping_cost: Default::default(),
-            order_tax_amount: Default::default(),
         };
         let store = state
             .stores

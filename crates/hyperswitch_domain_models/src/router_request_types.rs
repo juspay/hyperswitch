@@ -76,7 +76,7 @@ pub struct PaymentsAuthorizeData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector

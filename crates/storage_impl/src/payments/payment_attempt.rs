@@ -529,8 +529,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
-                    order_tax_amount: payment_attempt.order_tax_amount,
-                    shipping_cost: payment_attempt.shipping_cost,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1513,8 +1511,6 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
-            order_tax_amount: storage_model.order_tax_amount,
-            shipping_cost: storage_model.shipping_cost,
         }
     }
 }
@@ -1668,8 +1664,6 @@ impl DataModelExt for PaymentAttemptNew {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
-            shipping_cost: storage_model.shipping_cost,
-            order_tax_amount: storage_model.order_tax_amount,
         }
     }
 }

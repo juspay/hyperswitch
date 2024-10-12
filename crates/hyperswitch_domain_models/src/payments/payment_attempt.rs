@@ -332,8 +332,6 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -627,8 +625,6 @@ pub struct PaymentAttemptNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -1360,8 +1356,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 customer_acceptance: storage_model.customer_acceptance,
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
-                order_tax_amount: storage_model.order_tax_amount,
-                shipping_cost: storage_model.shipping_cost,
             })
         }
         .await

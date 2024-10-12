@@ -5,7 +5,7 @@ use base64::Engine;
 use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -704,7 +704,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.amount),
+            req.request.amount,
             req.request.currency,
         )?;
         let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
