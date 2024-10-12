@@ -365,7 +365,6 @@ pub async fn payments_post_session_tokens(
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsPostSessionTokens;
-    // let payload = json_payload.into_inner();
 
     let payment_id = path.into_inner();
     let payload = payment_types::PaymentsPostSessionTokensRequest {
@@ -379,12 +378,6 @@ pub async fn payments_post_session_tokens(
             return api::log_and_return_error_response(err);
         }
     };
-
-    // let (auth_type, auth_flow) =
-    //     match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-    //         Ok(auth) => auth,
-    //         Err(e) => return api::log_and_return_error_response(e),
-    //     };
 
     let locking_action = payload.get_locking_input(flow.clone());
 

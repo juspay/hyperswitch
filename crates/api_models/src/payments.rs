@@ -4819,7 +4819,7 @@ pub struct PaymentsPostSessionTokensRequest {
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
-    /// Client Secret
+    /// It's a token used for client side verification.
     #[schema(value_type = String)]
     pub client_secret: Secret<String>,
     /// Payment method type

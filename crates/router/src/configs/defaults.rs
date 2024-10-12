@@ -9237,7 +9237,7 @@ impl Default for super::settings::RequiredFields {
                                 ),
                                 (
                                     enums::Connector::Paypal,
-                                   RequiredFieldFinal {
+                                    RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(
                                         ),

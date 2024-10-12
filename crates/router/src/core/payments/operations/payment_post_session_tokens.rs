@@ -265,7 +265,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsPostSessionTokensRequest, 
         PaymentPostSessionTokensOperation<'b, F>,
         operations::ValidateResult,
     )> {
-        //paymentid is already generated and should be sent in the request
+        //payment id is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
 
         Ok((
