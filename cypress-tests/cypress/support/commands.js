@@ -43,14 +43,14 @@ Cypress.Commands.add(
     const randomMerchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, randomMerchantId);
     globalState.set("merchantId", randomMerchantId);
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/accounts`,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("adminApiKey"),
       },
       body: merchantCreateBody,
     }).then((response) => {
@@ -65,14 +65,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -94,13 +93,12 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
 
 Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "DELETE",
     url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
     headers: {
       Accept: "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -113,13 +111,13 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
 
 Cypress.Commands.add("merchantListCall", (globalState) => {
   const organization_id = globalState.get("organizationId");
-  const api_key = globalState.get("adminApiKey");
+
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/accounts/list?organization_id=${organization_id}`,
     headers: {
       Accept: "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -142,7 +140,6 @@ Cypress.Commands.add(
     const organization_id = globalState.get("organizationId");
     const publishable_key = globalState.get("publishableKey");
     const merchant_details = globalState.get("merchantDetails");
-    const api_key = globalState.get("adminApiKey");
 
     merchantUpdateBody.merchant_id = merchant_id;
     cy.request({
@@ -151,7 +148,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("adminApiKey"),
       },
       body: merchantUpdateBody,
       failOnStatusCode: false,
@@ -167,14 +164,13 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/api_keys/${globalState.get("merchantId")}`,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     body: apiKeyCreateBody,
     failOnStatusCode: false,
@@ -190,14 +186,14 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
 Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
   const merchant_id = globalState.get("merchantId");
   const api_key_id = globalState.get("apiKeyId");
-  const api_key = globalState.get("adminApiKey");
+
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/api_keys/${merchant_id}/${api_key_id}`,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     body: apiKeyUpdateBody,
     failOnStatusCode: false,
@@ -214,7 +210,6 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
 Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   const api_key_id = globalState.get("apiKeyId");
-  const api_key = globalState.get("adminApiKey");
 
   cy.request({
     method: "GET",
@@ -222,7 +217,7 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -238,15 +233,13 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
 Cypress.Commands.add("apiKeyListCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   const base_url = globalState.get("baseUrl");
-  const api_key = globalState.get("adminApiKey");
-
   cy.request({
     method: "GET",
     url: `${base_url}/api_keys/${merchant_id}/list`,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -270,7 +263,6 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
 Cypress.Commands.add("apiKeyDeleteCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   const api_key_id = globalState.get("apiKeyId");
-  const api_key = globalState.get("adminApiKey");
 
   cy.request({
     method: "DELETE",
@@ -278,7 +270,7 @@ Cypress.Commands.add("apiKeyDeleteCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -302,7 +294,6 @@ Cypress.Commands.add(
     connectorLabel
   ) => {
     const merchantId = globalState.get("merchantId");
-    const api_key = globalState.get("adminApiKey");
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_label = connectorLabel;
@@ -323,7 +314,7 @@ Cypress.Commands.add(
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            "api-key": api_key,
+            "api-key": globalState.get("adminApiKey"),
           },
           body: createConnectorBody,
           failOnStatusCode: false,
@@ -361,7 +352,6 @@ Cypress.Commands.add(
     globalState
   ) => {
     const merchantId = globalState.get("merchantId");
-    const api_key = globalState.get("adminApiKey");
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = globalState.get("connectorId");
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
@@ -389,7 +379,7 @@ Cypress.Commands.add(
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            "api-key": api_key,
+            "api-key": globalState.get("adminApiKey"),
           },
           body: createConnectorBody,
           failOnStatusCode: false,
@@ -424,7 +414,6 @@ Cypress.Commands.add(
   "createPayoutConnectorCallTest",
   (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
-    const api_key = globalState.get("adminApiKey");
     let connectorName = globalState.get("connectorId");
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
@@ -462,7 +451,7 @@ Cypress.Commands.add(
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "api-key": api_key,
+            "api-key": globalState.get("adminApiKey"),
           },
           body: createConnectorBody,
           failOnStatusCode: false,
@@ -497,7 +486,6 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   const connector_id = globalState.get("connectorId");
   const merchant_connector_id = globalState.get("merchantConnectorId");
-  const api_key = globalState.get("adminApiKey");
 
   cy.request({
     method: "GET",
@@ -505,7 +493,7 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
       "x-merchant-id": merchant_id,
     },
     failOnStatusCode: false,
@@ -520,14 +508,13 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
 Cypress.Commands.add("connectorDeleteCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   const merchant_connector_id = globalState.get("merchantConnectorId");
-  const api_key = globalState.get("adminApiKey");
 
   cy.request({
     method: "DELETE",
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors/${merchant_connector_id}`,
     headers: {
       Accept: "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -545,7 +532,6 @@ Cypress.Commands.add(
     const merchant_id = globalState.get("merchantId");
     const connector_id = globalState.get("connectorId");
     const merchant_connector_id = globalState.get("merchantConnectorId");
-    const api_key = globalState.get("adminApiKey");
     updateConnectorBody.connector_type = connectorType;
 
     cy.request({
@@ -554,7 +540,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("adminApiKey"),
         "x-merchant-id": merchant_id,
       },
       body: updateConnectorBody,
@@ -574,13 +560,12 @@ Cypress.Commands.add(
 // Generic function to list all connectors
 Cypress.Commands.add("connectorListByMid", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("adminApiKey"),
       "X-Merchant-Id": merchant_id,
     },
     failOnStatusCode: false,
@@ -594,13 +579,12 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
 Cypress.Commands.add(
   "createCustomerCallTest",
   (customerCreateBody, globalState) => {
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/customers`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       body: customerCreateBody,
     }).then((response) => {
@@ -612,13 +596,12 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("customerListCall", (globalState) => {
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/customers/list`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -631,13 +614,13 @@ Cypress.Commands.add("customerListCall", (globalState) => {
 
 Cypress.Commands.add("customerRetrieveCall", (globalState) => {
   const customer_id = globalState.get("customerId");
-  const api_key = globalState.get("adminApiKey");
+
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -650,13 +633,13 @@ Cypress.Commands.add(
   "customerUpdateCall",
   (customerUpdateBody, globalState) => {
     const customer_id = globalState.get("customerId");
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       body: customerUpdateBody,
       failOnStatusCode: false,
@@ -670,14 +653,13 @@ Cypress.Commands.add(
 Cypress.Commands.add("ephemeralGenerateCall", (globalState) => {
   const customer_id = globalState.get("customerId");
   const merchant_id = globalState.get("merchantId");
-  const api_key = globalState.get("adminApiKey");
 
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/ephemeral_keys`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     body: { customer_id: customer_id },
     failOnStatusCode: false,
@@ -692,13 +674,13 @@ Cypress.Commands.add("ephemeralGenerateCall", (globalState) => {
 
 Cypress.Commands.add("customerDeleteCall", (globalState) => {
   const customer_id = globalState.get("customerId");
-  const api_key = globalState.get("adminApiKey");
+
   cy.request({
     method: "DELETE",
     url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -713,7 +695,6 @@ Cypress.Commands.add("customerDeleteCall", (globalState) => {
 Cypress.Commands.add(
   "paymentMethodListTestLessThanEqualToOnePaymentMethod",
   (res_data, globalState) => {
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
@@ -750,7 +731,6 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit",
   (res_data, globalState) => {
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
@@ -820,14 +800,13 @@ Cypress.Commands.add(
     createPaymentBody.capture_method = capture_method;
     createPaymentBody.customer_id = globalState.get("customerId");
     globalState.set("paymentAmount", createPaymentBody.amount);
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: createPaymentBody,
@@ -860,7 +839,7 @@ Cypress.Commands.add(
 Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
   const clientSecret = globalState.get("clientSecret");
   const paymentIntentID = clientSecret.split("_secret_")[0];
-  const api_key = globalState.get("adminApiKey");
+
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
@@ -883,7 +862,7 @@ Cypress.Commands.add(
   "createPaymentMethodTest",
   (globalState, req_data, res_data) => {
     req_data.customer_id = globalState.get("customerId");
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payment_methods`,
@@ -891,7 +870,7 @@ Cypress.Commands.add(
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
@@ -914,7 +893,6 @@ Cypress.Commands.add(
     const paymentIntentID = globalState.get("paymentID");
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
-    const api_key = globalState.get("adminApiKey");
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
@@ -994,7 +972,7 @@ Cypress.Commands.add(
     }
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentId}/confirm`,
@@ -1088,7 +1066,7 @@ Cypress.Commands.add(
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
     globalState.set("paymentMethodType", confirmBody.payment_method_type);
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -1158,7 +1136,7 @@ Cypress.Commands.add(
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
     globalState.set("paymentMethodType", confirmBody.payment_method_type);
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentId}/confirm`,
@@ -1221,13 +1199,12 @@ Cypress.Commands.add(
     for (const key in req_data) {
       createConfirmPaymentBody[key] = req_data[key];
     }
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: createConfirmPaymentBody,
@@ -1290,7 +1267,6 @@ Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    const api_key = globalState.get("adminApiKey");
     if (req_data.setup_future_usage === "on_session") {
       saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
     }
@@ -1365,14 +1341,13 @@ Cypress.Commands.add(
   "captureCallTest",
   (requestBody, req_data, res_data, amount_to_capture, globalState) => {
     const payment_id = globalState.get("paymentID");
-    const api_key = globalState.get("adminApiKey");
     requestBody.amount_to_capture = amount_to_capture;
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}/capture`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: requestBody,
@@ -1396,13 +1371,12 @@ Cypress.Commands.add(
   "voidCallTest",
   (requestBody, req_data, res_data, globalState) => {
     const payment_id = globalState.get("paymentID");
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}/cancel`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: requestBody,
@@ -1425,13 +1399,12 @@ Cypress.Commands.add(
   "retrievePaymentCallTest",
   (globalState, autoretries = false, attempt = 1) => {
     const payment_id = globalState.get("paymentID");
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
     }).then((response) => {
@@ -1477,7 +1450,6 @@ Cypress.Commands.add(
   "refundCallTest",
   (requestBody, req_data, res_data, refund_amount, globalState) => {
     const payment_id = globalState.get("paymentID");
-    const api_key = globalState.get("adminApiKey");
     requestBody.payment_id = payment_id;
     requestBody.amount = refund_amount;
     cy.request({
@@ -1485,7 +1457,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/refunds`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: requestBody,
@@ -1510,13 +1482,12 @@ Cypress.Commands.add(
   "syncRefundCallTest",
   (req_data, res_data, globalState) => {
     const refundId = globalState.get("refundId");
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
     }).then((response) => {
@@ -1551,13 +1522,12 @@ Cypress.Commands.add(
     requestBody.capture_method = capture_method;
     requestBody.customer_id = globalState.get("customerId");
     globalState.set("paymentAmount", requestBody.amount);
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: requestBody,
@@ -1643,13 +1613,12 @@ Cypress.Commands.add(
     requestBody.mandate_id = globalState.get("mandateId");
     requestBody.customer_id = globalState.get("customerId");
     globalState.set("paymentAmount", requestBody.amount);
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: requestBody,
@@ -1718,13 +1687,12 @@ Cypress.Commands.add(
     requestBody.capture_method = capture_method;
     requestBody.recurring_details.data = globalState.get("paymentMethodId");
     requestBody.customer_id = globalState.get("customerId");
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: requestBody,
@@ -1777,13 +1745,12 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
   const customerId = globalState.get("customerId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/customers/${customerId}/mandates`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -1801,13 +1768,12 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
 
 Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
   const mandateId = globalState.get("mandateId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/mandates/revoke/${mandateId}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1891,13 +1857,12 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
   const customerId = globalState.get("customerId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/customers/${customerId}/payment_methods`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -1916,13 +1881,12 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
 });
 
 Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/refunds/list`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     body: requestBody,
   }).then((response) => {
@@ -1948,13 +1912,13 @@ Cypress.Commands.add(
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.customer_id = globalState.get("customerId");
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: createConfirmPayoutBody,
@@ -1992,13 +1956,13 @@ Cypress.Commands.add(
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: createConfirmPayoutBody,
@@ -2023,13 +1987,13 @@ Cypress.Commands.add(
   "fulfillPayoutCallTest",
   (payoutFulfillBody, req_data, res_data, globalState) => {
     payoutFulfillBody.payout_id = globalState.get("payoutID");
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}/fulfill`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: payoutFulfillBody,
@@ -2053,13 +2017,13 @@ Cypress.Commands.add(
   (payoutConfirmBody, req_data, res_data, auto_fulfill, globalState) => {
     payoutConfirmBody.confirm = true;
     payoutConfirmBody.auto_fulfill = auto_fulfill;
-    const api_key = globalState.get("adminApiKey");
+
     cy.request({
       method: "PUT",
       url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
       body: payoutConfirmBody,
@@ -2080,13 +2044,12 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   const payout_id = globalState.get("payoutID");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -2203,7 +2166,6 @@ Cypress.Commands.add("userInfo", (globalState) => {
 // Specific to routing tests
 Cypress.Commands.add("ListMcaByMid", (globalState) => {
   const merchantId = globalState.get("merchantId");
-  const api_key = globalState.get("adminApiKey");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
@@ -2324,7 +2286,6 @@ Cypress.Commands.add(
   "updateGsmConfig",
   (gsmBody, globalState, step_up_possible) => {
     gsmBody.step_up_possible = step_up_possible;
-    const api_key = globalState.get("adminApiKey");
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/gsm/update`,
@@ -2350,32 +2311,25 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("updateConfig", (configType, configData, globalState, value) => {
-  const base_url = globalState.get("baseUrl");
-  const merchant_id = globalState.get("merchantId");
-  const api_key = globalState.get("adminApiKey");
-
-  let key;
   let url;
   let body;
+  const api_key = globalState.get("adminApiKey");
   
   switch (configType) {
     case 'autoRetry':
-      key = `should_call_gsm_${merchant_id}`;
-      url = `${base_url}/configs/${key}`;
-      body = { key: key, value: value }; 
+      url = `${globalState.get("baseUrl")}/configs/autoRetry`;
+      body = { ...configData, enable: value }; // enable or disable autoRetry
       break;
     case 'maxRetries':
-      key = `max_auto_retries_enabled_${merchant_id}`;
-      url = `${base_url}/configs/${key}`;
-      body = { key: key, value: value }; 
+      url = `${globalState.get("baseUrl")}/configs/maxRetries`;
+      body = { ...configData, retries: value }; // set max retries
       break;
     case 'stepUp':
-      key = `step_up_enabled_${merchant_id}`;
-      url = `${base_url}/configs/${key}`;
-      body = { key: key, value: value }; 
+      url = `${globalState.get("baseUrl")}/configs/stepUp`;
+      body = { ...configData, connectors: value }; // step-up configurations
       break;
     default:
-      throw new Error('Invalid config type');
+      throw new Error(`Invalid config type passed into the configs: "${api_key}: ${value}"`);
   }
 
   cy.request({
@@ -2383,11 +2337,12 @@ Cypress.Commands.add("updateConfig", (configType, configData, globalState, value
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": api_key,
     },
     body: body,
     failOnStatusCode: false,
   }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
     expect(response.status).to.equal(200);
   });
 });
