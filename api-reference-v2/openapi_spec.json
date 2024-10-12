@@ -14664,7 +14664,7 @@
         "properties": {
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "It's a token used for client side verification."
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
