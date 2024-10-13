@@ -827,10 +827,6 @@ impl
 
         let connector_req = paypal::PaypalUpdateOrderRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(
             connector_req.get_inner_value(),
         )))
