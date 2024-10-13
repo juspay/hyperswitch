@@ -122,11 +122,10 @@ impl AttemptStatusExt for enums::AttemptStatus {
 ))]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
-    use hyperspace_domain_models::payments::payment_attempt::PaymentAttemptNew;
+    use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
-    use super::*;
     use crate::{
         configs::settings::Settings,
         db::StorageImpl,
