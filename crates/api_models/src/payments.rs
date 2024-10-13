@@ -5,8 +5,6 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
-#[cfg(feature = "v2")]
-use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -295,7 +293,7 @@ impl PaymentsCreateIntentRequest {
 pub struct PaymentsCreateIntentResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
-    pub id: GlobalPaymentId,
+    pub id: id_type::GlobalPaymentId,
 
     /// The amount details for the payment
     pub amount_details: AmountDetailsResponse,
