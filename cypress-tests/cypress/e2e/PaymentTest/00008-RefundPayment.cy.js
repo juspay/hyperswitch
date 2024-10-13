@@ -295,7 +295,7 @@ describe("Card - Refund flow - No 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
@@ -311,7 +311,7 @@ describe("Card - Refund flow - No 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
@@ -519,7 +519,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "PartialRefundNo3DS"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -534,7 +534,7 @@ describe("Card - Refund flow - No 3DS", () => {
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "PartialRefundNo3DS"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -745,7 +745,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefundForPartialCapture"
+        "RefundforPartialCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -826,7 +826,7 @@ describe("Card - Refund flow - No 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Refund"];
+        ]["Refund_7000"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
@@ -1156,7 +1156,7 @@ describe("Card - Refund flow - 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
@@ -1172,7 +1172,7 @@ describe("Card - Refund flow - 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
