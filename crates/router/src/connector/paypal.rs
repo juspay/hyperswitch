@@ -10,6 +10,7 @@ use common_utils::{
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as paypal;
@@ -74,6 +75,7 @@ impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 impl api::ConnectorVerifyWebhookSource for Paypal {}
 impl api::PaymentPostSessionTokens for Paypal {}
+impl api::PaymentSessionUpdate for Paypal {}
 
 impl api::Payouts for Paypal {}
 #[cfg(feature = "payouts")]
@@ -482,7 +484,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
             req.request.minor_amount,
             req.request.destination_currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
         let connector_req = paypal::PaypalFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -707,7 +709,7 @@ impl
             req.request.amount,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -737,6 +739,129 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.get_order_error_response(res, event_builder)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
+        types::PaymentsResponseData,
+    > for Paypal
+{
+    fn get_headers(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}v2/checkout/orders/{}",
+            self.base_url(connectors),
+            req.request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Patch)
+                .url(&types::SdkSessionUpdateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::SdkSessionUpdateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::SdkSessionUpdateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let order_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request.currency,
+        )?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.net_amount,
+            req.request.currency,
+        )?;
+        let order_tax_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.order_tax_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((
+            amount,
+            Some(order_tax_amount),
+            Some(order_amount),
+            req,
+        ))?;
+
+        let connector_req = paypal::PaypalUpdateOrderRequest::try_from(&connector_router_data)?;
+        // encode only for for urlencoded things.
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(
+            connector_req.get_inner_value(),
+        )))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SdkSessionUpdateRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::SdkSessionUpdateRouterData, errors::ConnectorError> {
+        logger::debug!("Expected zero bytes response, skipped parsing of the response");
+        // https://developer.paypal.com/docs/api/orders/v2/#orders_patch
+        // If 204 status code, then the session was updated successfully.
+        let status = if res.status_code == 204 {
+            enums::SessionUpdateStatus::Success
+        } else {
+            enums::SessionUpdateStatus::Failure
+        };
+        Ok(types::SdkSessionUpdateRouterData {
+            response: Ok(types::PaymentsResponseData::SessionUpdateResponse { status }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -790,7 +915,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1305,7 +1430,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount_to_capture, req))?;
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount_to_capture, None, None, req))?;
         let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1472,7 +1598,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, req))?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
         let connector_req = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

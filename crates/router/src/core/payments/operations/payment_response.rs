@@ -1565,7 +1565,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
-                        // types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
+                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {

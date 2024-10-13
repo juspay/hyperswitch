@@ -84,8 +84,8 @@ pub use hyperswitch_interfaces::types::{
     PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
     PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
     PaymentsSessionType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
-    RefundSyncType, Response, RetrieveFileType, SetupMandateType, SubmitEvidenceType,
-    TokenizationType, UploadFileType, VerifyWebhookSourceType,
+    RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
+    SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_interfaces::types::{
@@ -168,6 +168,8 @@ pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsInitResponseRouterData<R> =
     ResponseRouterData<InitPayment, R, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type SdkSessionUpdateResponseRouterData<R> =
+    ResponseRouterData<SdkSessionUpdate, R, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<Capture, R, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsPreprocessingResponseRouterData<R> =
