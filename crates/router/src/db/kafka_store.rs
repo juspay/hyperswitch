@@ -3241,6 +3241,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn insert_disputes_batch_for_sample_data(
         &self,
         batch: Vec<diesel_models::DisputeNew>,
@@ -3328,6 +3329,7 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(refunds_list)
     }
 
+    #[cfg(feature = "v1")]
     async fn delete_disputes_for_sample_data(
         &self,
         merchant_id: &MerchantId,

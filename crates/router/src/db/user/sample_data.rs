@@ -40,6 +40,7 @@ pub trait BatchSampleDataInterface {
         batch: Vec<RefundNew>,
     ) -> CustomResult<Vec<Refund>, StorageError>;
 
+    #[cfg(feature = "v1")]
     async fn insert_disputes_batch_for_sample_data(
         &self,
         batch: Vec<DisputeNew>,
@@ -65,6 +66,7 @@ pub trait BatchSampleDataInterface {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError>;
 
+    #[cfg(feature = "v1")]
     async fn delete_disputes_for_sample_data(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -138,6 +140,7 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
     }
 
+    #[cfg(feature = "v1")]
     async fn insert_disputes_batch_for_sample_data(
         &self,
         batch: Vec<DisputeNew>,
@@ -208,6 +211,7 @@ impl BatchSampleDataInterface for Store {
             .map_err(diesel_error_to_data_error)
     }
 
+    #[cfg(feature = "v1")]
     async fn delete_disputes_for_sample_data(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -249,6 +253,7 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "v1")]
     async fn insert_disputes_batch_for_sample_data(
         &self,
         _batch: Vec<DisputeNew>,
@@ -282,6 +287,7 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "v1")]
     async fn delete_disputes_for_sample_data(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
