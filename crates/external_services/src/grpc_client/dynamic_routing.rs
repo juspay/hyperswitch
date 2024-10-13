@@ -100,8 +100,8 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
-
-    async fn invalidate_configs_window(
+    /// To invalidate the configs
+    async fn invalidate_config_window(
         &self,
         id: String,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
@@ -231,6 +231,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                 "Failed to invalidate the configs".to_string(),
             ))?
             .into_inner();
+        Ok(response)
     }
 }
 
