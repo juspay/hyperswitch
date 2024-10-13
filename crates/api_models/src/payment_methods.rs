@@ -243,6 +243,14 @@ pub struct PaymentMethodMigrate {
     /// Card Details
     pub card: Option<MigrateCardDetail>,
 
+    //to skip card expiry validation
+    //if it is set to true, card expiry validation will be skipped
+    #[serde(default)]
+    pub skip_card_expiry_validation: Option<bool>,
+
+    /// Network token details
+    pub network_token: Option<MigrateNetworkTokenDetail>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -272,6 +280,15 @@ pub struct PaymentMethodMigrate {
 
     // The CIT (customer initiated transaction) transaction id associated with the payment method
     pub network_transaction_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodMigrateResponse {
+    pub payment_method_response: PaymentMethodResponse,
+
+    pub card_migrated: Option<bool>,
+
+    pub network_token_migrated: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -535,6 +552,53 @@ pub struct MigrateCardDetail {
 
     /// Card Type
     pub card_type: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MigrateNetworkTokenData {
+    /// Token Number
+    #[schema(value_type = String,example = "4111111145551142")]
+    pub network_token_number: masking::Secret<String>,
+
+    /// Token Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub network_token_exp_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub network_token_exp_year: masking::Secret<String>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Issuing Country
+    pub card_issuing_country: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card Type
+    pub card_type: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MigrateNetworkTokenDetail {
+    /// Network token details
+    pub network_token_data: MigrateNetworkTokenData,
+
+    /// Network token requestor reference id
+    pub network_token_requestor_ref_id: String,
 }
 
 #[cfg(all(
@@ -2088,6 +2152,11 @@ pub struct PaymentMethodRecord {
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
+    pub network_token_number: Option<masking::Secret<String>>,
+    pub network_token_expiry_month: Option<masking::Secret<String>>,
+    pub network_token_expiry_year: Option<masking::Secret<String>>,
+    pub network_token_requestor_ref_id: Option<String>,
+    pub skip_card_expiry_validation: Option<bool>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2113,8 +2182,10 @@ pub enum MigrationStatus {
     Failed,
 }
 
-type PaymentMethodMigrationResponseType =
-    (Result<PaymentMethodResponse, String>, PaymentMethodRecord);
+type PaymentMethodMigrationResponseType = (
+    Result<PaymentMethodMigrateResponse, String>,
+    PaymentMethodRecord,
+);
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -2123,10 +2194,10 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
             Ok(res) => Self {
-                payment_method_id: Some(res.payment_method_id),
-                payment_method: res.payment_method,
-                payment_method_type: res.payment_method_type,
-                customer_id: res.customer_id,
+                payment_method_id: Some(res.payment_method_response.payment_method_id),
+                payment_method: res.payment_method_response.payment_method,
+                payment_method_type: res.payment_method_response.payment_method_type,
+                customer_id: res.payment_method_response.customer_id,
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
                 card_number_masked: Some(record.card_number_masked),
@@ -2190,11 +2261,27 @@ impl From<PaymentMethodRecord> for PaymentMethodMigrate {
                 card_exp_month: record.card_expiry_month,
                 card_exp_year: record.card_expiry_year,
                 card_holder_name: record.name,
-                card_network: None,
+                card_network: None, //?
                 card_type: None,
                 card_issuer: None,
                 card_issuing_country: None,
                 nick_name: Some(record.nick_name),
+            }),
+            network_token: Some(MigrateNetworkTokenDetail {
+                network_token_data: MigrateNetworkTokenData {
+                    network_token_number: record.network_token_number.unwrap_or_default(),
+                    network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
+                    network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
+                    card_holder_name: None, //?
+                    nick_name: None,
+                    card_issuing_country: None,
+                    card_network: None, //?
+                    card_issuer: None,
+                    card_type: None,
+                },
+                network_token_requestor_ref_id: record
+                    .network_token_requestor_ref_id
+                    .unwrap_or_default(),
             }),
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
@@ -2227,6 +2314,7 @@ impl From<PaymentMethodRecord> for PaymentMethodMigrate {
             wallet: None,
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.into(),
+            skip_card_expiry_validation: record.skip_card_expiry_validation,
         }
     }
 }

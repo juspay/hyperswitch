@@ -1021,7 +1021,7 @@ pub async fn save_network_token_in_locker(
         {
             Ok((token_response, network_token_requestor_ref_id)) => {
                 // Only proceed if the tokenization was successful
-                let card_data = api::CardDetail {
+                let network_token_data = api::CardDetail {
                     card_number: token_response.token.clone(),
                     card_exp_month: token_response.token_expiry_month.clone(),
                     card_exp_year: token_response.token_expiry_year.clone(),
@@ -1036,7 +1036,7 @@ pub async fn save_network_token_in_locker(
                 let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
                     state,
                     payment_method_request,
-                    &card_data,
+                    &network_token_data,
                     &customer_id,
                     merchant_account,
                     None,
