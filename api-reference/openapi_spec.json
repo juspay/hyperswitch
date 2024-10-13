@@ -917,7 +917,7 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Post Session Tokens",
+        "summary": "Payments - Post Session Tokens",
         "description": "\n",
         "operationId": "Create Post Session Tokens for a Payment",
         "requestBody": {

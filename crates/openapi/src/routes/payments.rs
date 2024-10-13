@@ -583,7 +583,7 @@ pub fn payments_complete_authorize() {}
 
 pub fn payments_dynamic_tax_calculation() {}
 
-/// Post Session Tokens
+/// Payments - Post Session Tokens
 ///
 ///
 #[utoipa::path(

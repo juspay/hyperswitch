@@ -1449,7 +1449,6 @@ impl
             item.response.clone().status,
             item.response.intent.clone(),
         ));
-        let link = get_redirect_url(item.response.links.clone())?;
 
         // For Paypal SDK flow, we need to trigger SDK client and then Confirm
         let next_action = Some(api_models::payments::NextActionCall::Confirm);
@@ -1466,10 +1465,7 @@ impl
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: Some(services::RedirectForm::from((
-                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    services::Method::Get,
-                ))),
+                redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
