@@ -212,6 +212,7 @@ pub async fn create_link_token(
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _payload: api_models::pm_auth::LinkTokenCreateRequest,
+    _headers: api_models::payments::HeaderPayload,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     todo!()
 }
