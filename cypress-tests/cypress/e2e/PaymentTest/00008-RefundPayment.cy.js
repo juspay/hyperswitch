@@ -79,7 +79,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -162,7 +161,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        1200,
         globalState
       );
       if (should_continue)
@@ -179,7 +177,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        1200,
         globalState
       );
       if (should_continue)
@@ -242,7 +239,6 @@ describe("Card - Refund flow - No 3DS", () => {
           fixtures.refundBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -299,14 +295,13 @@ describe("Card - Refund flow - No 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
           fixtures.refundBody,
           req_data,
           res_data,
-          3000,
           globalState
         );
         if (should_continue)
@@ -316,14 +311,13 @@ describe("Card - Refund flow - No 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
           fixtures.refundBody,
           req_data,
           res_data,
-          3000,
           globalState
         );
         if (should_continue)
@@ -429,7 +423,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -526,7 +519,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "PartialRefundNo3DS"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -534,7 +527,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        3000,
         globalState
       );
       if (should_continue)
@@ -542,7 +534,7 @@ describe("Card - Refund flow - No 3DS", () => {
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "PartialRefundNo3DS"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -550,7 +542,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        3000,
         globalState
       );
       if (should_continue)
@@ -650,7 +641,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "RefundforPartialCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -658,7 +649,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
@@ -755,7 +745,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "RefundforPartialCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -763,7 +753,6 @@ describe("Card - Refund flow - No 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
@@ -837,14 +826,13 @@ describe("Card - Refund flow - No 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Refund"];
+        ]["Refund_7000"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
           fixtures.refundBody,
           req_data,
           res_data,
-          7000,
           globalState
         );
         if (should_continue)
@@ -943,7 +931,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -1030,7 +1017,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        1200,
         globalState
       );
       if (should_continue)
@@ -1047,7 +1033,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        1200,
         globalState
       );
       if (should_continue)
@@ -1112,7 +1097,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -1172,14 +1156,13 @@ describe("Card - Refund flow - 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
           fixtures.refundBody,
           req_data,
           res_data,
-          3000,
           globalState
         );
         if (should_continue)
@@ -1189,14 +1172,13 @@ describe("Card - Refund flow - 3DS", () => {
       it("refund-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PartialRefund"];
+        ]["PartialRefundNo3DS"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.refundCallTest(
           fixtures.refundBody,
           req_data,
           res_data,
-          3000,
           globalState
         );
         if (should_continue)
@@ -1305,7 +1287,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
@@ -1405,7 +1386,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "PartialRefundForFullCapture3DS1"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1413,7 +1394,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        5000,
         globalState
       );
       if (should_continue)
@@ -1421,7 +1401,7 @@ describe("Card - Refund flow - 3DS", () => {
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "PartialRefundForFullCapture3DS2"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1429,7 +1409,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        1500,
         globalState
       );
       if (should_continue)
@@ -1529,7 +1508,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "RefundforPartialCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1537,7 +1516,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        100,
         globalState
       );
       if (should_continue)
@@ -1637,7 +1615,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "PartialRefundForPartialCapture3DS"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1645,7 +1623,6 @@ describe("Card - Refund flow - 3DS", () => {
         fixtures.refundBody,
         req_data,
         res_data,
-        50,
         globalState
       );
       if (should_continue)

@@ -673,6 +673,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 65000,
         customer_acceptance: null,
       },
       ResponseCustom: {

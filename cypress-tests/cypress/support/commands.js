@@ -1582,10 +1582,10 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "refundCallTest",
-  (requestBody, req_data, res_data, refund_amount, globalState) => {
+  (requestBody, req_data, res_data, globalState) => {
     const payment_id = globalState.get("paymentID");
     requestBody.payment_id = payment_id;
-    requestBody.amount = refund_amount;
+    requestBody.amount = req_data["amount"];
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/refunds`,
