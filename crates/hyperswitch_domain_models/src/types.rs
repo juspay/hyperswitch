@@ -2,8 +2,8 @@ use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
         AccessTokenAuth, Authorize, AuthorizeSessionToken, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, Execute, PSync, PaymentMethodToken, PreProcessing,
-        RSync, SetupMandate, Void,
+        CompleteAuthorize, CreateConnectorCustomer, Execute, PSync, PaymentMethodToken,
+        PreProcessing, RSync, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,

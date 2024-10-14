@@ -16,7 +16,6 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    foreign_traits_and_utils::ForeignFrom,
     types::ResponseRouterData,
     utils::{
         self as connector_utils, CardData as _, PaymentsAuthorizeRequestData, RouterData as _,
@@ -225,7 +224,7 @@ pub struct SubmitSinglePaymentResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PaymentResponse {
-    response_code: u8,
+    response_code: DigitalvirgoStatus,
     receipt: String,
     credit_card_token: Option<String>,
     declined_code: Option<String>,
@@ -233,10 +232,10 @@ pub struct PaymentResponse {
 }
 
 fn get_attempt_status(
-    response_code: u8,
+    response_code: DigitalvirgoStatus,
     capture_method: Option<enums::CaptureMethod>,
 ) -> enums::AttemptStatus {
-    match response_code {
+    match response_code.0 {
         0 => match capture_method {
             Some(enums::CaptureMethod::Automatic) | None => enums::AttemptStatus::Charged,
             Some(enums::CaptureMethod::Manual) => enums::AttemptStatus::Authorized,
@@ -299,7 +298,7 @@ impl<F>
                 None
             };
         // transaction approved
-        if response_code == 0 {
+        if response_code == DigitalvirgoStatus(0) {
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -733,18 +732,21 @@ pub struct SubmitSingleRefundResult {
     response: RefundResponse,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct DigitalvirgoStatus(u8);
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RefundResponse {
-    response_code: u8,
+    response_code: DigitalvirgoStatus,
     receipt: String,
     declined_code: Option<String>,
     declined_message: Option<String>,
 }
 
-impl ForeignFrom<u8> for enums::RefundStatus {
-    fn foreign_from(item: u8) -> Self {
-        match item {
+impl From<DigitalvirgoStatus> for enums::RefundStatus {
+    fn from(item: DigitalvirgoStatus) -> Self {
+        match item.0 {
             0 => Self::Success,
             1 => Self::Failure,
             _ => Self::Pending,
@@ -777,7 +779,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraapacRefundsResponse, RefundsData, R
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: connector_refund_id.to_owned(),
-                refund_status: enums::RefundStatus::foreign_from(response_code),
+                refund_status: enums::RefundStatus::from(response_code),
             }),
             ..item.data
         })
@@ -861,7 +863,7 @@ pub struct QueryResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SyncResponse {
-    response_code: u8,
+    response_code: DigitalvirgoStatus,
     receipt: String,
     declined_code: Option<String>,
     declined_message: Option<String>,
@@ -897,7 +899,7 @@ impl<F>
             .response
             .receipt;
         // transaction approved
-        if response_code == 0 {
+        if response_code == DigitalvirgoStatus(0) {
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1016,7 +1018,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraapacSyncResponse, RefundsData, Refu
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: connector_refund_id.to_owned(),
-                refund_status: enums::RefundStatus::foreign_from(response_code),
+                refund_status: enums::RefundStatus::from(response_code),
             }),
             ..item.data
         })
