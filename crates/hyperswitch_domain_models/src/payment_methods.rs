@@ -14,6 +14,20 @@ use time::PrimitiveDateTime;
 
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct VaultId(String);
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl VaultId {
+    pub fn get_string_repr(&self) -> &String {
+        &self.0
+    }
+
+    pub fn generate(id: String) -> Self {
+        Self(id)
+    }
+}
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -51,6 +65,9 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
     pub version: common_enums::ApiVersion,
+    pub network_token_requestor_reference_id: Option<String>,
+    pub network_token_locker_id: Option<String>,
+    pub network_token_payment_method_data: OptionalEncryptableValue,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -64,7 +81,7 @@ pub struct PaymentMethod {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: OptionalEncryptableValue,
-    pub locker_id: Option<String>,
+    pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -74,8 +91,11 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub version: common_enums::ApiVersion,
+    pub network_token_requestor_reference_id: Option<String>,
+    pub network_token_locker_id: Option<String>,
+    pub network_token_payment_method_data: OptionalEncryptableValue,
 }
 
 impl PaymentMethod {
@@ -88,7 +108,7 @@ impl PaymentMethod {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    pub fn get_id(&self) -> &String {
+    pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
     }
 }
@@ -136,6 +156,11 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             updated_by: self.updated_by,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 
@@ -207,6 +232,22 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .await?,
                 updated_by: item.updated_by,
                 version: item.version,
+                network_token_requestor_reference_id: item.network_token_requestor_reference_id,
+                network_token_locker_id: item.network_token_locker_id,
+                network_token_payment_method_data: item
+                    .network_token_payment_method_data
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
             })
         }
         .await
@@ -250,6 +291,11 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             updated_by: self.updated_by,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 }
@@ -270,7 +316,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_type: self.payment_method_type,
             metadata: self.metadata,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
-            locker_id: self.locker_id,
+            locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
             connector_mandate_details: self.connector_mandate_details,
             customer_acceptance: self.customer_acceptance,
@@ -283,6 +329,11 @@ impl super::behaviour::Conversion for PaymentMethod {
             updated_by: self.updated_by,
             locker_fingerprint_id: self.locker_fingerprint_id,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 
@@ -319,7 +370,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
-                locker_id: item.locker_id,
+                locker_id: item.locker_id.map(VaultId::generate),
                 last_used_at: item.last_used_at,
                 connector_mandate_details: item.connector_mandate_details,
                 customer_acceptance: item.customer_acceptance,
@@ -343,6 +394,22 @@ impl super::behaviour::Conversion for PaymentMethod {
                 updated_by: item.updated_by,
                 locker_fingerprint_id: item.locker_fingerprint_id,
                 version: item.version,
+                network_token_requestor_reference_id: item.network_token_requestor_reference_id,
+                network_token_locker_id: item.network_token_locker_id,
+                network_token_payment_method_data: item
+                    .network_token_payment_method_data
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
             })
         }
         .await
@@ -362,7 +429,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_type: self.payment_method_type,
             metadata: self.metadata,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
-            locker_id: self.locker_id,
+            locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
             connector_mandate_details: self.connector_mandate_details,
             customer_acceptance: self.customer_acceptance,
@@ -375,6 +442,11 @@ impl super::behaviour::Conversion for PaymentMethod {
             updated_by: self.updated_by,
             locker_fingerprint_id: self.locker_fingerprint_id,
             version: self.version,
+            network_token_requestor_reference_id: self.network_token_requestor_reference_id,
+            network_token_locker_id: self.network_token_locker_id,
+            network_token_payment_method_data: self
+                .network_token_payment_method_data
+                .map(|val| val.into()),
         })
     }
 }

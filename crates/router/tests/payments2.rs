@@ -2,7 +2,8 @@
     clippy::expect_used,
     clippy::unwrap_in_result,
     clippy::unwrap_used,
-    clippy::print_stdout
+    clippy::print_stdout,
+    unused_imports
 )]
 
 mod utils;
@@ -36,6 +37,7 @@ fn connector_list() {
     assert_eq!(true, true);
 }
 
+#[cfg(feature = "v1")]
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
@@ -203,7 +205,10 @@ async fn payments_create_core() {
         charges: None,
         frm_metadata: None,
         merchant_order_reference_id: None,
+        order_tax_amount: None,
+        connector_mandate_id: None,
     };
+
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response = Box::pin(payments::payments_core::<
@@ -212,6 +217,7 @@ async fn payments_create_core() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),
@@ -297,6 +303,7 @@ async fn payments_create_core() {
 //     assert_eq!(expected_response, actual_response);
 // }
 
+#[cfg(feature = "v1")]
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
@@ -465,6 +472,8 @@ async fn payments_create_core_adyen_no_redirect() {
             charges: None,
             frm_metadata: None,
             merchant_order_reference_id: None,
+            order_tax_amount: None,
+            connector_mandate_id: None,
         },
         vec![],
     ));
@@ -474,6 +483,7 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),

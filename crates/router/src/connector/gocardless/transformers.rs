@@ -248,7 +248,8 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 )
@@ -285,6 +286,7 @@ impl TryFrom<(&domain::BankDebitData, &types::TokenizationRouterData)> for Custo
             domain::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
+                ..
             } => {
                 let country_code = item.get_billing_country()?;
                 let account_holder_name = item.get_billing_full_name()?;
@@ -419,7 +421,8 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -428,7 +431,8 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
             types::PaymentMethodToken::Token(token) => Ok(token),
-            types::PaymentMethodToken::ApplePayDecrypt(_) => {
+            types::PaymentMethodToken::ApplePayDecrypt(_)
+            | types::PaymentMethodToken::PazeDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -511,6 +515,7 @@ impl<F>
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.mandates.id.clone().expose()),
             payment_method_id: None,
+            mandate_metadata: None,
         });
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -663,6 +668,7 @@ impl<F>
         let mandate_reference = MandateReference {
             connector_mandate_id: Some(item.data.request.get_connector_mandate_id()?),
             payment_method_id: None,
+            mandate_metadata: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),

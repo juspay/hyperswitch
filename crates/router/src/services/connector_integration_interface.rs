@@ -439,71 +439,6 @@ impl api::ConnectorCommon for ConnectorEnum {
     }
 }
 
-impl<T, ResourceCommonData, Req, Resp> api::ConnectorCommon
-    for ConnectorIntegrationEnum<'_, T, ResourceCommonData, Req, Resp>
-{
-    fn id(&self) -> &'static str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.id(),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.id(),
-        }
-    }
-
-    fn get_currency_unit(&self) -> CurrencyUnit {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.get_currency_unit(),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.get_currency_unit(),
-        }
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.get_auth_header(auth_type)
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.get_auth_header(auth_type)
-            }
-        }
-    }
-
-    fn common_get_content_type(&self) -> &'static str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.common_get_content_type()
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.common_get_content_type()
-            }
-        }
-    }
-
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.base_url(connectors),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.base_url(connectors),
-        }
-    }
-
-    fn build_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.build_error_response(res, event_builder)
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.build_error_response(res, event_builder)
-            }
-        }
-    }
-}
-
 pub trait ConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>: Send + Sync {
     fn clone_box(
         &self,
@@ -570,7 +505,7 @@ where
             }
             ConnectorIntegrationEnum::New(new_integration) => {
                 let new_router_data = ResourceCommonData::from_old_router_data(req)?;
-                new_integration.build_request_v2(&new_router_data, connectors)
+                new_integration.build_request_v2(&new_router_data)
             }
         }
     }

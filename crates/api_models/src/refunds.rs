@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use common_utils::pii;
 pub use common_utils::types::{ChargeRefunds, MinorUnit};
+use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::payments::{AmountFilter, TimeRange};
+use super::payments::AmountFilter;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums,
@@ -232,6 +232,12 @@ pub struct RefundListFilters {
     /// The list of available refund status filters
     #[schema(value_type = Vec<RefundStatus>)]
     pub refund_status: Vec<enums::RefundStatus>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct RefundAggregateResponse {
+    /// The list of refund status with their count
+    pub status_with_count: HashMap<enums::RefundStatus, i64>,
 }
 
 /// The status for refunds

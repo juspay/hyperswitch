@@ -1,16 +1,24 @@
 use std::collections::HashMap;
 
+use api_models::payments;
 use cards::CardNumber;
-use common_enums::{enums, CaptureMethod, Currency};
+use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
     crypto::GenerateDigest,
+    errors::CustomResult,
+    ext_traits::Encode,
     request::Method,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    payment_method_data::{
+        BankRedirectData, Card, GooglePayWalletData, PaymentMethodData, RealTimePaymentData,
+        WalletData,
+    },
+    router_data::{
+        ApplePayPredecryptData, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -23,13 +31,19 @@ use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
+use url::Url;
+
+// These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
+const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
+const GOOGLEPAY_API_VERSION: u8 = 2;
 
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
-    utils::{PaymentsAuthorizeRequestData, RouterData as _},
+    unimplemented_payment_method,
+    utils::{self, ApplePayDecrypt, PaymentsAuthorizeRequestData, QrImage, RouterData as _},
 };
 
 pub struct FiuuRouterData<T> {
@@ -70,9 +84,9 @@ impl TryFrom<&ConnectorAuthType> for FiuuAuthType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "UPPERCASE")]
-enum TxnType {
+pub enum TxnType {
     Sals,
     Auts,
 }
@@ -88,35 +102,172 @@ impl TryFrom<Option<CaptureMethod>> for TxnType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "UPPERCASE")]
+#[derive(Serialize, Deserialize, Display, Debug, Clone)]
 enum TxnChannel {
+    #[serde(rename = "CREDITAN")]
+    #[strum(serialize = "CREDITAN")]
     Creditan,
+    #[serde(rename = "RPP_DUITNOWQR")]
+    #[strum(serialize = "RPP_DUITNOWQR")]
+    RppDuitNowQr,
 }
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Deserialize, Display, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum FPXTxnChannel {
+    FpxAbb,
+    FpxUob,
+    FpxAbmb,
+    FpxScb,
+    FpxBsn,
+    FpxKfh,
+    FpxBmmb,
+    FpxBkrm,
+    FpxHsbc,
+    FpxAgrobank,
+    FpxBocm,
+    FpxMb2u,
+    FpxCimbclicks,
+    FpxAmb,
+    FpxHlb,
+    FpxPbb,
+    FpxRhb,
+    FpxBimb,
+    FpxOcbc,
+}
+impl TryFrom<BankNames> for FPXTxnChannel {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(bank_names: BankNames) -> Result<Self, Self::Error> {
+        match bank_names {
+            BankNames::AffinBank => Ok(Self::FpxAbb),
+            BankNames::AgroBank => Ok(Self::FpxAgrobank),
+            BankNames::AllianceBank => Ok(Self::FpxAbmb),
+            BankNames::AmBank => Ok(Self::FpxAmb),
+            BankNames::BankOfChina => Ok(Self::FpxBocm),
+            BankNames::BankIslam => Ok(Self::FpxBimb),
+            BankNames::BankMuamalat => Ok(Self::FpxBmmb),
+            BankNames::BankRakyat => Ok(Self::FpxBkrm),
+            BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
+            BankNames::CimbBank => Ok(Self::FpxCimbclicks),
+            BankNames::HongLeongBank => Ok(Self::FpxHlb),
+            BankNames::HsbcBank => Ok(Self::FpxHsbc),
+            BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
+            BankNames::Maybank => Ok(Self::FpxMb2u),
+            BankNames::PublicBank => Ok(Self::FpxPbb),
+            BankNames::RhbBank => Ok(Self::FpxRhb),
+            BankNames::StandardCharteredBank => Ok(Self::FpxScb),
+            BankNames::UobBank => Ok(Self::FpxUob),
+            BankNames::OcbcBank => Ok(Self::FpxOcbc),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Fiuu"),
+            ))?,
+        }
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct FiuuPaymentsRequest {
+pub struct FiuuPaymentRequest {
     #[serde(rename = "MerchantID")]
     merchant_id: Secret<String>,
     reference_no: String,
     txn_type: TxnType,
-    txn_channel: TxnChannel,
     txn_currency: Currency,
     txn_amount: StringMajorUnit,
     signature: Secret<String>,
-    #[serde(rename = "CC_PAN")]
-    cc_pan: CardNumber,
-    #[serde(rename = "CC_CVV2")]
-    cc_cvv2: Secret<String>,
-    #[serde(rename = "CC_MONTH")]
-    cc_month: Secret<String>,
-    #[serde(rename = "CC_YEAR")]
-    cc_year: Secret<String>,
-    #[serde(rename = "non_3DS")]
-    non_3ds: i32,
     #[serde(rename = "ReturnURL")]
     return_url: Option<String>,
+    #[serde(flatten)]
+    payment_method_data: FiuuPaymentMethodData,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum FiuuPaymentMethodData {
+    FiuuQRData(Box<FiuuQRData>),
+    FiuuCardData(Box<FiuuCardData>),
+    FiuuFpxData(Box<FiuuFPXData>),
+    FiuuGooglePayData(Box<FiuuGooglePayData>),
+    FiuuApplePayData(Box<FiuuApplePayData>),
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuFPXData {
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
+    txn_channel: FPXTxnChannel,
+}
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuQRData {
+    txn_channel: TxnChannel,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct FiuuCardData {
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
+    #[serde(rename = "TxnChannel")]
+    txn_channel: TxnChannel,
+    cc_pan: CardNumber,
+    cc_cvv2: Secret<String>,
+    cc_month: Secret<String>,
+    cc_year: Secret<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct FiuuApplePayData {
+    #[serde(rename = "TxnChannel")]
+    txn_channel: TxnChannel,
+    cc_month: Secret<String>,
+    cc_year: Secret<String>,
+    cc_token: Secret<String>,
+    eci: Option<String>,
+    token_cryptogram: Secret<String>,
+    token_type: FiuuTokenType,
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub enum FiuuTokenType {
+    ApplePay,
+    GooglePay,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuGooglePayData {
+    txn_channel: TxnChannel,
+    #[serde(rename = "GooglePay[apiVersion]")]
+    api_version: u8,
+    #[serde(rename = "GooglePay[apiVersionMinor]")]
+    api_version_minor: u8,
+    #[serde(rename = "GooglePay[paymentMethodData][info][assuranceDetails][accountVerified]")]
+    account_verified: Option<bool>,
+    #[serde(
+        rename = "GooglePay[paymentMethodData][info][assuranceDetails][cardHolderAuthenticated]"
+    )]
+    card_holder_authenticated: Option<bool>,
+    #[serde(rename = "GooglePay[paymentMethodData][info][cardDetails]")]
+    card_details: String,
+    #[serde(rename = "GooglePay[paymentMethodData][info][cardNetwork]")]
+    card_network: String,
+    #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][token]")]
+    token: Secret<String>,
+    #[serde(rename = "GooglePay[paymentMethodData][tokenizationData][type]")]
+    tokenization_data_type: Secret<String>,
+    #[serde(rename = "GooglePay[paymentMethodData][type]")]
+    pm_type: String,
+    #[serde(rename = "SCREAMING_SNAKE_CASE")]
+    token_type: FiuuTokenType,
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
 }
 
 pub fn calculate_signature(
@@ -131,7 +282,7 @@ pub fn calculate_signature(
     Ok(Secret::new(encoded_data))
 }
 
-impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequest {
+impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentRequest {
     type Error = Report<errors::ConnectorError>;
     fn try_from(item: &FiuuRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         let auth = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -144,50 +295,250 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequ
             "{}{merchant_id}{reference_no}{verify_key}",
             txn_amount.get_amount_as_string()
         ))?;
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => Ok(Self {
-                merchant_id: auth.merchant_id,
-                reference_no,
-                txn_type: match item.router_data.request.is_auto_capture()? {
-                    true => TxnType::Sals,
-                    false => TxnType::Auts,
-                },
-                txn_channel: TxnChannel::Creditan,
-                txn_currency,
-                txn_amount,
-                signature,
-                cc_pan: req_card.card_number,
-                cc_cvv2: req_card.card_cvc,
-                cc_month: req_card.card_exp_month,
-                cc_year: req_card.card_exp_year,
-                non_3ds: match item.router_data.is_three_ds() {
-                    false => 1,
-                    true => 0,
-                },
-                return_url: item.router_data.request.router_return_url.clone(),
-            }),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+        let txn_type = match item.router_data.request.is_auto_capture()? {
+            true => TxnType::Sals,
+            false => TxnType::Auts,
+        };
+        let return_url = item.router_data.request.router_return_url.clone();
+        let non_3ds = match item.router_data.is_three_ds() {
+            false => 1,
+            true => 0,
+        };
+        let payment_method_data = match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref card) => FiuuPaymentMethodData::try_from((card, &non_3ds)),
+            PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
+                match *real_time_payment_data.clone() {
+                    RealTimePaymentData::DuitNow {} => {
+                        Ok(FiuuPaymentMethodData::FiuuQRData(Box::new(FiuuQRData {
+                            txn_channel: TxnChannel::RppDuitNowQr,
+                        })))
+                    }
+                    RealTimePaymentData::Fps {}
+                    | RealTimePaymentData::PromptPay {}
+                    | RealTimePaymentData::VietQr {} => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("fiuu"),
+                        )
+                        .into())
+                    }
+                }
+            }
+            PaymentMethodData::BankRedirect(ref bank_redirect_data) => match bank_redirect_data {
+                BankRedirectData::OnlineBankingFpx { ref issuer } => {
+                    Ok(FiuuPaymentMethodData::FiuuFpxData(Box::new(FiuuFPXData {
+                        txn_channel: FPXTxnChannel::try_from(*issuer)?,
+                        non_3ds,
+                    })))
+                }
+                BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::Bizum {}
+                | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eps { .. }
+                | BankRedirectData::Giropay { .. }
+                | BankRedirectData::Ideal { .. }
+                | BankRedirectData::Interac { .. }
+                | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | BankRedirectData::OnlineBankingFinland { .. }
+                | BankRedirectData::OnlineBankingPoland { .. }
+                | BankRedirectData::OnlineBankingSlovakia { .. }
+                | BankRedirectData::OpenBankingUk { .. }
+                | BankRedirectData::Przelewy24 { .. }
+                | BankRedirectData::Sofort { .. }
+                | BankRedirectData::Trustly { .. }
+                | BankRedirectData::OnlineBankingThailand { .. }
+                | BankRedirectData::LocalBankRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    )
+                    .into())
+                }
+            },
+            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    FiuuPaymentMethodData::try_from(google_pay_data)
+                }
+                WalletData::ApplePay(_apple_pay_data) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        PaymentMethodToken::Token(_) => {
+                            Err(unimplemented_payment_method!("Apple Pay", "Manual", "Fiuu"))?
+                        }
+                        PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                            FiuuPaymentMethodData::try_from(decrypt_data)
+                        }
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Fiuu"))?
+                        }
+                    }
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
+                )
+                .into()),
+            },
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
+                )
+                .into())
+            }
+        }?;
+
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            reference_no,
+            txn_type,
+            txn_currency,
+            txn_amount,
+            return_url,
+            payment_method_data,
+            signature,
+        })
+    }
+}
+
+impl TryFrom<(&Card, &i32)> for FiuuPaymentMethodData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from((req_card, non_3ds): (&Card, &i32)) -> Result<Self, Self::Error> {
+        Ok(Self::FiuuCardData(Box::new(FiuuCardData {
+            txn_channel: TxnChannel::Creditan,
+            non_3ds: *non_3ds,
+            cc_pan: req_card.card_number.clone(),
+            cc_cvv2: req_card.card_cvc.clone(),
+            cc_month: req_card.card_exp_month.clone(),
+            cc_year: req_card.card_exp_year.clone(),
+        })))
+    }
+}
+
+impl TryFrom<&GooglePayWalletData> for FiuuPaymentMethodData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(data: &GooglePayWalletData) -> Result<Self, Self::Error> {
+        Ok(Self::FiuuGooglePayData(Box::new(FiuuGooglePayData {
+            txn_channel: TxnChannel::Creditan,
+            api_version: GOOGLEPAY_API_VERSION,
+            api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
+            account_verified: data
+                .info
+                .assurance_details
+                .as_ref()
+                .map(|details| details.account_verified),
+            card_holder_authenticated: data
+                .info
+                .assurance_details
+                .as_ref()
+                .map(|details| details.card_holder_authenticated),
+            card_details: data.info.card_details.clone(),
+            card_network: data.info.card_network.clone(),
+            token: data.tokenization_data.token.clone().into(),
+            tokenization_data_type: data.tokenization_data.token_type.clone().into(),
+            pm_type: data.pm_type.clone(),
+            token_type: FiuuTokenType::GooglePay,
+            // non_3ds field Applicable to card processing via specific processor using specific currency for pre-approved partner only.
+            // Equal to 0 by default and 1 for non-3DS transaction, That is why it is hardcoded to 1 for googlepay transactions.
+            non_3ds: 1,
+        })))
+    }
+}
+
+impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(decrypt_data: Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
+        Ok(Self::FiuuApplePayData(Box::new(FiuuApplePayData {
+            txn_channel: TxnChannel::Creditan,
+            cc_month: decrypt_data.get_expiry_month()?,
+            cc_year: decrypt_data.get_four_digit_expiry_year()?,
+            cc_token: decrypt_data.application_primary_account_number,
+            eci: decrypt_data.payment_data.eci_indicator,
+            token_cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+            token_type: FiuuTokenType::ApplePay,
+            // non_3ds field Applicable to card processing via specific processor using specific currency for pre-approved partner only.
+            // Equal to 0 by default and 1 for non-3DS transaction, That is why it is hardcoded to 1 for apple pay decrypt flow transactions.
+            non_3ds: 1,
+        })))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct FiuuPaymentsSuccessResponse {
+pub struct PaymentsResponse {
     pub reference_no: String,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
-    pub txn_type: String,
-    pub txn_currency: String,
-    pub txn_amount: String,
+    pub txn_type: TxnType,
+    pub txn_currency: Currency,
+    pub txn_amount: StringMajorUnit,
     pub txn_channel: String,
     pub txn_data: TxnData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct DuitNowQrCodeResponse {
+    pub reference_no: String,
+    pub txn_type: TxnType,
+    pub txn_currency: Currency,
+    pub txn_amount: StringMajorUnit,
+    pub txn_channel: String,
+    #[serde(rename = "TxnID")]
+    pub txn_id: String,
+    pub txn_data: QrTxnData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QrTxnData {
+    pub request_data: QrRequestData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QrRequestData {
+    pub qr_data: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FiuuPaymentsResponse {
-    Success(Box<FiuuPaymentsSuccessResponse>),
+    PaymentResponse(Box<PaymentsResponse>),
+    QRPaymentResponse(Box<DuitNowQrCodeResponse>),
     Error(FiuuErrorResponse),
 }
 
@@ -208,18 +559,20 @@ pub enum RequestType {
     Response,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ThreeDSResponseData {
-    #[serde(rename = "paRes")]
-    pa_res: String,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestData {
     NonThreeDS(NonThreeDSResponseData),
-    ThreeDS(ThreeDSResponseData),
+    RedirectData(Option<HashMap<String, String>>),
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QrCodeData {
+    #[serde(rename = "tranID")]
+    pub tran_id: String,
+    pub status: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NonThreeDSResponseData {
     #[serde(rename = "tranID")]
@@ -244,6 +597,20 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
+            FiuuPaymentsResponse::QRPaymentResponse(ref response) => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.txn_id.clone()),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: get_qr_metadata(response)?,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            }),
             FiuuPaymentsResponse::Error(error) => Ok(Self {
                 response: Err(ErrorResponse {
                     code: error.error_code.clone(),
@@ -255,13 +622,8 @@ impl<F>
                 }),
                 ..item.data
             }),
-            FiuuPaymentsResponse::Success(data) => match data.txn_data.request_data {
-                RequestData::ThreeDS(three_ds_data) => {
-                    let form_fields = {
-                        let mut map = HashMap::new();
-                        map.insert("paRes".to_string(), three_ds_data.pa_res.clone());
-                        map
-                    };
+            FiuuPaymentsResponse::PaymentResponse(data) => match data.txn_data.request_data {
+                RequestData::RedirectData(redirection_data) => {
                     let redirection_data = Some(RedirectForm::Form {
                         endpoint: data.txn_data.request_url.to_string(),
                         method: if data.txn_data.request_method.as_str() == "POST" {
@@ -269,7 +631,7 @@ impl<F>
                         } else {
                             Method::Get
                         },
-                        form_fields,
+                        form_fields: redirection_data.unwrap_or_default(),
                     });
                     Ok(Self {
                         status: enums::AttemptStatus::AuthenticationPending,
@@ -286,9 +648,8 @@ impl<F>
                         ..item.data
                     })
                 }
-
-                RequestData::NonThreeDS(non_threeds_data) => Ok(Self {
-                    status: match non_threeds_data.status.as_str() {
+                RequestData::NonThreeDS(non_threeds_data) => {
+                    let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
                                 Ok(enums::AttemptStatus::Charged)
@@ -301,19 +662,40 @@ impl<F>
                         other => Err(errors::ConnectorError::UnexpectedResponseError(
                             bytes::Bytes::from(other.to_owned()),
                         )),
-                    }?,
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charge_id: None,
-                    }),
-                    ..item.data
-                }),
+                    }?;
+                    let response = if status == enums::AttemptStatus::Failure {
+                        Err(ErrorResponse {
+                            code: non_threeds_data
+                                .error_code
+                                .clone()
+                                .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
+                            message: non_threeds_data
+                                .error_desc
+                                .clone()
+                                .unwrap_or_else(|| "NO_ERROR_MESSAGE".to_string()),
+                            reason: non_threeds_data.error_desc.clone(),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                        })
+                    } else {
+                        Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        })
+                    };
+                    Ok(Self {
+                        status,
+                        response,
+                        ..item.data
+                    })
+                }
             },
         }
     }
@@ -335,14 +717,8 @@ pub struct FiuuRefundRequest {
 #[derive(Debug, Serialize, Display)]
 pub enum RefundType {
     #[serde(rename = "P")]
+    #[strum(serialize = "P")]
     Partial,
-}
-impl RefundType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Partial => "P",
-        }
-    }
 }
 
 impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest {
@@ -362,7 +738,7 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
             amount: txn_amount.clone(),
             signature: calculate_signature(format!(
                 "{}{merchant_id}{reference_no}{txn_id}{}{secret_key}",
-                RefundType::Partial.as_str(),
+                RefundType::Partial,
                 txn_amount.get_amount_as_string()
             ))?,
         })
@@ -419,13 +795,13 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FiuuErrorResponse {
     pub error_code: String,
     pub error_desc: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FiuuPaymentSyncRequest {
     amount: StringMajorUnit,
     #[serde(rename = "txID")]
@@ -434,10 +810,10 @@ pub struct FiuuPaymentSyncRequest {
     skey: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentSyncResponse {
-    stat_code: String,
+    stat_code: StatCode,
     stat_name: StatName,
     #[serde(rename = "TranID")]
     tran_id: String,
@@ -445,6 +821,16 @@ pub struct FiuuPaymentSyncResponse {
     error_desc: String,
     #[serde(rename = "miscellaneous")]
     miscellaneous: Option<HashMap<String, Secret<String>>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Display, Clone, PartialEq)]
+pub enum StatCode {
+    #[serde(rename = "00")]
+    Success,
+    #[serde(rename = "11")]
+    Failure,
+    #[serde(rename = "22")]
+    Pending,
 }
 
 #[derive(Debug, Serialize, Deserialize, Display, Clone, Copy, PartialEq)]
@@ -501,24 +887,15 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>> for Paymen
         item: PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let stat_name = item.response.stat_name;
-        let status = match item.response.stat_code.as_str() {
-            "00" => {
-                if stat_name == StatName::Captured || stat_name == StatName::Settled {
-                    Ok(enums::AttemptStatus::Charged)
-                } else {
-                    Ok(enums::AttemptStatus::Authorized)
-                }
-            }
-            "22" => Ok(enums::AttemptStatus::Pending),
-            "11" => Ok(enums::AttemptStatus::Failure),
-            other => Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from(other.to_owned()),
-            )),
-        }?;
+        let stat_code = item.response.stat_code.clone();
+        let status = enums::AttemptStatus::try_from(FiuuSyncStatus {
+            stat_name,
+            stat_code,
+        })?;
         let error_response = if status == enums::AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
-                code: item.response.stat_code.as_str().to_owned(),
+                code: item.response.stat_code.to_string(),
                 message: item.response.stat_name.clone().to_string(),
                 reason: Some(item.response.stat_name.clone().to_string()),
                 attempt_status: Some(enums::AttemptStatus::Failure),
@@ -545,7 +922,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>> for Paymen
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentCaptureRequest {
     domain: String,
     #[serde(rename = "tranID")]
@@ -556,12 +933,36 @@ pub struct PaymentCaptureRequest {
     skey: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PaymentCaptureResponse {
     #[serde(rename = "TranID")]
     tran_id: String,
     stat_code: String,
+}
+
+pub struct FiuuSyncStatus {
+    pub stat_name: StatName,
+    pub stat_code: StatCode,
+}
+
+impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
+    type Error = errors::ConnectorError;
+    fn try_from(sync_status: FiuuSyncStatus) -> Result<Self, Self::Error> {
+        match (sync_status.stat_code, sync_status.stat_name) {
+            (StatCode::Success, StatName::Captured | StatName::Settled) => Ok(Self::Charged), // For Success as StatCode we can only expect Captured,Settled and Authorized as StatName.
+            (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
+            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknow as StatName.
+            (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
+            (StatCode::Failure, StatName::Cancelled) | (StatCode::Failure, StatName::ReqCancel) => {
+                Ok(Self::Voided)
+            }
+            (StatCode::Failure, _) => Ok(Self::Failure),
+            (other, _) => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(other.to_string()),
+            )),
+        }
+    }
 }
 
 impl TryFrom<&FiuuRouterData<&PaymentsCaptureRouterData>> for PaymentCaptureRequest {
@@ -664,7 +1065,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FiuuPaymentCancelRequest {
     #[serde(rename = "txnID")]
     txn_id: String,
@@ -672,7 +1073,7 @@ pub struct FiuuPaymentCancelRequest {
     skey: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentCancelResponse {
     #[serde(rename = "TranID")]
@@ -875,5 +1276,28 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Rejected => Self::Failure,
             RefundStatus::Processing => Self::Pending,
         }
+    }
+}
+
+pub fn get_qr_metadata(
+    response: &DuitNowQrCodeResponse,
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let image_data = QrImage::new_from_data(response.txn_data.request_data.qr_data.peek().clone())
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
+    let display_to_timestamp = None;
+
+    if let Some(image_data_url) = image_data_url {
+        let qr_code_info = payments::QrCodeInformation::QrDataUrl {
+            image_data_url,
+            display_to_timestamp,
+        };
+
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else {
+        Ok(None)
     }
 }

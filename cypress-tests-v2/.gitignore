@@ -1,0 +1,8 @@
+# Outputs
+reports
+screenshots
+
+# Files
+creds.json
+rotate-password.sh
+run_all.sh

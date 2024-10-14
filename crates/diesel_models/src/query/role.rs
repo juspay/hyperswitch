@@ -43,6 +43,20 @@ impl Role {
         .await
     }
 
+    pub async fn find_by_role_id_in_org_scope(
+        conn: &PgPooledConn,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::role_id
+                .eq(role_id.to_owned())
+                .and(dsl::org_id.eq(org_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn update_by_role_id(
         conn: &PgPooledConn,
         role_id: &str,

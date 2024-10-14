@@ -19,7 +19,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::SessionState,
     types::{
-        domain::BusinessProfile,
+        domain::Profile,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
@@ -188,6 +188,17 @@ impl MultipleCaptureData {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
+    type Error = TryFromIntError;
+    fn foreign_try_from(
+        (surcharge_details, payment_attempt): (&SurchargeDetails, &PaymentAttempt),
+    ) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsResponse {
     type Error = TryFromIntError;
     fn foreign_try_from(
@@ -201,8 +212,6 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
                 .tax_on_surcharge_amount
                 .get_amount_as_i64(),
         )?;
-        let display_final_amount = currency
-            .to_currency_base_unit_asf64(surcharge_details.final_amount.get_amount_as_i64())?;
         let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
             (surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount)
                 .get_amount_as_i64(),
@@ -213,7 +222,6 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
             display_total_surcharge_amount,
-            display_final_amount,
         })
     }
 }
@@ -291,7 +299,7 @@ impl SurchargeMetadata {
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
         state: &SessionState,
-        business_profile: &BusinessProfile,
+        business_profile: &Profile,
     ) -> RouterResult<()> {
         if !self.is_empty_result() {
             let redis_conn = state

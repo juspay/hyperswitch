@@ -86,6 +86,11 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
@@ -165,6 +170,11 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.42.18
@@ -323,6 +333,11 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0

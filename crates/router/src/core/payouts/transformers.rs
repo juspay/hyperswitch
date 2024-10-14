@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use common_utils::link_utils::EnabledPaymentMethod;
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
@@ -5,7 +9,11 @@
 ))]
 use crate::types::transformers::ForeignInto;
 #[cfg(feature = "olap")]
-use crate::types::{api, domain, storage, transformers::ForeignFrom};
+use crate::types::{api::payments, domain, storage};
+use crate::{
+    settings::PayoutRequiredFields,
+    types::{api, transformers::ForeignFrom},
+};
 
 #[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
 impl
@@ -13,6 +21,7 @@ impl
         storage::Payouts,
         storage::PayoutAttempt,
         Option<domain::Customer>,
+        Option<payments::Address>,
     )> for api::PayoutCreateResponse
 {
     fn foreign_from(
@@ -20,6 +29,7 @@ impl
             storage::Payouts,
             storage::PayoutAttempt,
             Option<domain::Customer>,
+            Option<payments::Address>,
         ),
     ) -> Self {
         todo!()
@@ -36,6 +46,7 @@ impl
         storage::Payouts,
         storage::PayoutAttempt,
         Option<domain::Customer>,
+        Option<payments::Address>,
     )> for api::PayoutCreateResponse
 {
     fn foreign_from(
@@ -43,9 +54,10 @@ impl
             storage::Payouts,
             storage::PayoutAttempt,
             Option<domain::Customer>,
+            Option<payments::Address>,
         ),
     ) -> Self {
-        let (payout, payout_attempt, customer) = item;
+        let (payout, payout_attempt, customer, address) = item;
         let attempt = api::PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
             status: payout_attempt.status,
@@ -86,10 +98,13 @@ impl
             created: Some(payout.created_at),
             connector_transaction_id: attempt.connector_transaction_id.clone(),
             priority: payout.priority,
-            attempts: Some(vec![attempt]),
-            billing: None,
+            billing: address,
+            payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),
             client_secret: None,
             payout_link: None,
+            unified_code: attempt.unified_code.clone(),
+            unified_message: attempt.unified_message.clone(),
+            attempts: Some(vec![attempt]),
             email: customer
                 .as_ref()
                 .and_then(|customer| customer.email.clone()),
@@ -101,5 +116,74 @@ impl
                 .as_ref()
                 .and_then(|customer| customer.phone_country_code.clone()),
         }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &PayoutRequiredFields,
+        Vec<EnabledPaymentMethod>,
+        api::RequiredFieldsOverrideRequest,
+    )> for Vec<api::PayoutEnabledPaymentMethodsInfo>
+{
+    fn foreign_from(
+        (payout_required_fields, enabled_payout_methods, value_overrides): (
+            &PayoutRequiredFields,
+            Vec<EnabledPaymentMethod>,
+            api::RequiredFieldsOverrideRequest,
+        ),
+    ) -> Self {
+        let value_overrides = value_overrides.flat_struct();
+
+        enabled_payout_methods
+            .into_iter()
+            .map(|enabled_payout_method| {
+                let payment_method = enabled_payout_method.payment_method;
+                let payment_method_types_info = enabled_payout_method
+                    .payment_method_types
+                    .into_iter()
+                    .filter_map(|pmt| {
+                        payout_required_fields
+                            .0
+                            .get(&payment_method)
+                            .and_then(|pmt_info| {
+                                pmt_info.0.get(&pmt).map(|connector_fields| {
+                                    let mut required_fields = HashMap::new();
+
+                                    for required_field_final in connector_fields.fields.values() {
+                                        required_fields.extend(required_field_final.common.clone());
+                                    }
+
+                                    for (key, value) in &value_overrides {
+                                        required_fields.entry(key.to_string()).and_modify(
+                                            |required_field| {
+                                                required_field.value =
+                                                    Some(masking::Secret::new(value.to_string()));
+                                            },
+                                        );
+                                    }
+                                    api::PaymentMethodTypeInfo {
+                                        payment_method_type: pmt,
+                                        required_fields: if required_fields.is_empty() {
+                                            None
+                                        } else {
+                                            Some(required_fields)
+                                        },
+                                    }
+                                })
+                            })
+                            .or(Some(api::PaymentMethodTypeInfo {
+                                payment_method_type: pmt,
+                                required_fields: None,
+                            }))
+                    })
+                    .collect();
+
+                api::PayoutEnabledPaymentMethodsInfo {
+                    payment_method,
+                    payment_method_types_info,
+                }
+            })
+            .collect()
     }
 }

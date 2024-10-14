@@ -117,6 +117,11 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install sccache
         uses: taiki-e/install-action@v2.42.18
         with:
@@ -214,6 +219,11 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         uses: taiki-e/install-action@v2.42.18
@@ -384,6 +394,12 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.3
@@ -394,14 +410,12 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Run cargo check with v2 features enabled
+      - name: Run cargo clippy with v2 features enabled
         shell: bash
-        # env:
-        #   # Not denying warnings for now.
-        #   # We only want to ensure successful compilation for now.
-        #   RUSTFLAGS: "-D warnings -A clippy::todo"
-        run: just check_v2
+        run: just clippy_v2 -- -D warnings -Aunused -Aclippy::todo -Aclippy::diverging_sub_expression
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2"

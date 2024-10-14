@@ -59,7 +59,11 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: rust:latest
+    build:
+      dockerfile_inline: |
+        FROM rust:latest
+        RUN apt-get update && \
+            apt-get install -y protobuf-compiler
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:

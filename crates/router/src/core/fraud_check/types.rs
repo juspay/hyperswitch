@@ -60,8 +60,8 @@ pub struct FrmData {
 }
 
 #[derive(Debug)]
-pub struct FrmInfo<F> {
-    pub fraud_check_operation: BoxedFraudCheckOperation<F>,
+pub struct FrmInfo<F, D> {
+    pub fraud_check_operation: BoxedFraudCheckOperation<F, D>,
     pub frm_data: Option<FrmData>,
     pub suggested_action: Option<FrmSuggestion>,
 }

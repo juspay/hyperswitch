@@ -97,6 +97,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.3
         if: ${{ env.RUN_TESTS == 'true' }}
 
+      - name: Install Protoc
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: baptiste0928/cargo-install@v3.1.1
