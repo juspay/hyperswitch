@@ -174,7 +174,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     state: &SessionState,
     user_id: &str,
     org_id: &id_type::OrganizationId,
-    merchant_id: &id_type::MerchantId,
+    merchant_id: Option<&id_type::MerchantId>,
     profile_id: Option<&id_type::ProfileId>,
     update: UserRoleUpdate,
 ) -> (
@@ -255,12 +255,57 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 ) -> UserResult<
     Option<(
         id_type::OrganizationId,
-        id_type::MerchantId,
+        Option<id_type::MerchantId>,
         Option<id_type::ProfileId>,
     )>,
 > {
     match entity_type {
-        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
+        EntityType::Organization => {
+            let Ok(org_id) =
+                id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id.clone()))
+            else {
+                return Ok(None);
+            };
+
+            let user_roles = state
+                .store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id,
+                    org_id: Some(&org_id),
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::InvitationSent),
+                    limit: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .collect::<HashSet<_>>();
+
+            if user_roles.len() > 1 {
+                return Ok(None);
+            }
+
+            if let Some(user_role) = user_roles.into_iter().next() {
+                let (_entity_id, entity_type) = user_role
+                    .get_entity_id_and_type()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                if entity_type != EntityType::Organization {
+                    return Ok(None);
+                }
+
+                return Ok(Some((
+                    user_role.org_id.ok_or(UserErrors::InternalServerError)?,
+                    None,
+                    None,
+                )));
+            }
+
+            Ok(None)
+        }
         EntityType::Merchant => {
             let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
                 return Ok(None);
@@ -298,7 +343,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 
                 return Ok(Some((
                     user_role.org_id.ok_or(UserErrors::InternalServerError)?,
-                    merchant_id,
+                    Some(merchant_id),
                     None,
                 )));
             }
@@ -343,9 +388,11 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 
                 return Ok(Some((
                     user_role.org_id.ok_or(UserErrors::InternalServerError)?,
-                    user_role
-                        .merchant_id
-                        .ok_or(UserErrors::InternalServerError)?,
+                    Some(
+                        user_role
+                            .merchant_id
+                            .ok_or(UserErrors::InternalServerError)?,
+                    ),
                     Some(profile_id),
                 )));
             }

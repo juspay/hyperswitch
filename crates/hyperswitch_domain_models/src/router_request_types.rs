@@ -279,6 +279,7 @@ pub struct PaymentsPreProcessingData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub metadata: Option<Secret<serde_json::Value>>,
 
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
@@ -308,6 +309,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: data.related_transaction_id,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            metadata: data.metadata.map(Secret::new),
         })
     }
 }
@@ -336,6 +338,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: None,
             redirect_response: data.redirect_response,
             enrolled_for_3ds: true,
+            metadata: data.connector_meta.map(Secret::new),
         })
     }
 }
@@ -509,8 +512,6 @@ pub struct SurchargeDetails {
     pub surcharge_amount: MinorUnit,
     /// tax on surcharge amount for this payment
     pub tax_on_surcharge_amount: MinorUnit,
-    /// sum of original amount,
-    pub final_amount: MinorUnit,
 }
 
 impl SurchargeDetails {
@@ -543,14 +544,13 @@ impl
         let surcharge_amount = request_surcharge_details.surcharge_amount;
         let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or_default();
         Self {
-            original_amount: payment_attempt.amount,
+            original_amount: payment_attempt.net_amount.get_order_amount(),
             surcharge: common_utils::types::Surcharge::Fixed(
                 request_surcharge_details.surcharge_amount,
             ),
             tax_on_surcharge: None,
             surcharge_amount,
             tax_on_surcharge_amount,
-            final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
         }
     }
 }

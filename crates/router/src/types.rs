@@ -252,15 +252,16 @@ pub trait Capturable {
 }
 
 impl Capturable for PaymentsAuthorizeData {
-    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
-        let final_amount = self
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount.get_amount_as_i64());
-        final_amount.or(Some(self.amount))
+        Some(
+            payment_data
+                .payment_attempt
+                .get_total_amount()
+                .get_amount_as_i64(),
+        )
     }
 
     fn get_amount_capturable<F>(
@@ -331,11 +332,16 @@ impl Capturable for PaymentsCaptureData {
 }
 
 impl Capturable for CompleteAuthorizeData {
-    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
-        Some(self.amount)
+        Some(
+            payment_data
+                .payment_attempt
+                .get_total_amount()
+                .get_amount_as_i64(),
+        )
     }
     fn get_amount_capturable<F>(
         &self,
