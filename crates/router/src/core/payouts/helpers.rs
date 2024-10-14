@@ -1,4 +1,3 @@
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     crypto::Encryptable,

@@ -881,6 +881,14 @@ impl RequestSurchargeDetails {
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_amount.unwrap_or_default()
     }
+
+    pub fn get_surcharge_amount(&self) -> MinorUnit {
+        self.surcharge_amount
+    }
+
+    pub fn get_tax_amount(&self) -> Option<MinorUnit> {
+        self.tax_amount
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1123,6 +1131,15 @@ pub enum MandateTransactionType {
 pub struct MandateIds {
     pub mandate_id: Option<String>,
     pub mandate_reference_id: Option<MandateReferenceId>,
+}
+
+impl MandateIds {
+    pub fn is_network_transaction_id_flow(&self) -> bool {
+        matches!(
+            self.mandate_reference_id,
+            Some(MandateReferenceId::NetworkMandateId(_))
+        )
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -1930,6 +1947,7 @@ impl GetPaymentMethodType for WalletData {
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::Paze(_) => api_enums::PaymentMethodType::Paze,
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
@@ -2819,6 +2837,8 @@ pub enum WalletData {
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Paze
+    Paze(PazeWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
     /// Wallet data for Twint Redirection
@@ -2879,6 +2899,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::GooglePayRedirect(_)
             | Self::GooglePayThirdPartySdk(_)
             | Self::PaypalSdk(_)
+            | Self::Paze(_)
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
@@ -2893,19 +2914,67 @@ impl GetAddressFromPaymentMethodData for WalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub struct PazeWalletData {
+    #[schema(value_type = String)]
+    pub complete_response: Secret<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletData {
     pub payment_credential: SamsungPayWalletCredentials,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case", untagged)]
+pub enum SamsungPayWalletCredentials {
+    SamsungPayWalletDataForWeb(SamsungPayWebWalletData),
+    SamsungPayWalletDataForApp(SamsungPayAppWalletData),
+}
+
+impl From<SamsungPayCardBrand> for common_enums::SamsungPayCardBrand {
+    fn from(samsung_pay_card_brand: SamsungPayCardBrand) -> Self {
+        match samsung_pay_card_brand {
+            SamsungPayCardBrand::Visa => Self::Visa,
+            SamsungPayCardBrand::MasterCard => Self::MasterCard,
+            SamsungPayCardBrand::Amex => Self::Amex,
+            SamsungPayCardBrand::Discover => Self::Discover,
+            SamsungPayCardBrand::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct SamsungPayWalletCredentials {
+pub struct SamsungPayAppWalletData {
+    /// Samsung Pay token data
+    #[serde(rename = "3_d_s")]
+    pub token_data: SamsungPayTokenData,
+    /// Brand of the payment card
+    pub payment_card_brand: SamsungPayCardBrand,
+    /// Currency type of the payment
+    pub payment_currency_type: String,
+    /// Last 4 digits of the device specific card number
+    pub payment_last4_dpan: Option<String>,
+    /// Last 4 digits of the card number
+    pub payment_last4_fpan: String,
+    /// Merchant reference id that was passed in the session call request
+    pub merchant_ref: Option<String>,
+    /// Specifies authentication method used
+    pub method: Option<String>,
+    /// Value if credential is enabled for recurring payment
+    pub recurring_payment: Option<bool>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayWebWalletData {
     /// Specifies authentication method used
     pub method: Option<String>,
     /// Value if credential is enabled for recurring payment
     pub recurring_payment: Option<bool>,
     /// Brand of the payment card
-    pub card_brand: String,
+    pub card_brand: SamsungPayCardBrand,
     /// Last 4 digits of the card number
     #[serde(rename = "card_last4digits")]
     pub card_last_four_digits: String,
@@ -2925,6 +2994,21 @@ pub struct SamsungPayTokenData {
     /// Samsung Pay encrypted payment credential data
     #[schema(value_type = String)]
     pub data: Secret<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SamsungPayCardBrand {
+    #[serde(alias = "VI")]
+    Visa,
+    #[serde(alias = "MC")]
+    MasterCard,
+    #[serde(alias = "AX")]
+    Amex,
+    #[serde(alias = "DC")]
+    Discover,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4313,6 +4397,8 @@ pub struct PaymentListFilterConstraints {
     /// The order in which payments list should be sorted
     #[serde(default)]
     pub order: Order,
+    /// The List of all the card networks to filter payments list
+    pub card_network: Option<Vec<enums::CardNetwork>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -4342,6 +4428,8 @@ pub struct PaymentListFiltersV2 {
     pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
     /// The list of available authentication types
     pub authentication_type: Vec<enums::AuthenticationType>,
+    /// The list of available card networks
+    pub card_network: Vec<enums::CardNetwork>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -4457,6 +4545,19 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
+// #[cfg(all(feature = "v2", feature = "payment_v2"))]
+// impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+//     fn from(item: PaymentsSessionRequest) -> Self {
+//         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
+//         Self {
+//             session_token: vec![],
+//             payment_id: item.payment_id,
+//             client_secret,
+//         }
+//     }
+// }
+
+#[cfg(feature = "v1")]
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
     fn from(item: PaymentsSessionRequest) -> Self {
         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
@@ -4704,6 +4805,11 @@ pub struct RedirectResponse {
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionRequest {}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment
@@ -4867,11 +4973,24 @@ pub struct GpaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PazeSessionTokenData {
+    #[serde(rename = "paze")]
+    pub data: PazeMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PazeMetadata {
+    pub client_id: String,
+    pub client_name: String,
+    pub client_profile_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SamsungPayCombinedMetadata {
     // This is to support the Samsung Pay decryption flow with application credentials,
     // where the private key, certificates, or any other information required for decryption
-    // will be obtained from the environment variables.
+    // will be obtained from the application configuration.
     ApplicationCredentials(SamsungPayApplicationCredentials),
     MerchantCredentials(SamsungPayMerchantCredentials),
 }
@@ -5072,8 +5191,21 @@ pub enum SessionToken {
     ApplePay(Box<ApplepaySessionTokenResponse>),
     /// Session token for OpenBanking PIS flow
     OpenBanking(OpenBankingSessionToken),
+    /// The session response structure for Paze
+    Paze(Box<PazeSessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct PazeSessionTokenResponse {
+    /// Paze Client ID
+    pub client_id: String,
+    /// Client Name to be displayed on the Paze screen
+    pub client_name: String,
+    /// Paze Client Profile ID
+    pub client_profile_id: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
