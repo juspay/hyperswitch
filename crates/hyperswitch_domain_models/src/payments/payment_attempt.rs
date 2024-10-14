@@ -1508,7 +1508,7 @@ impl behaviour::Conversion for PaymentAttempt {
         } = self;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
-            .map(|txn_id| ConnectorTransactionId::form_id_and_data(txn_id))
+            .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
 
