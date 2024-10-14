@@ -479,7 +479,7 @@ impl<F, T>
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
-                                connector_response_reference_id: data.merchant_reference_id.to_owned(),
+                                connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
                             }),
