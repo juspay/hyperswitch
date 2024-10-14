@@ -1,11 +1,7 @@
-use common_utils::{
-    crypto::OptionalEncryptableSecretString, custom_serde, encryption::Encryption,
-    types::keymanager::ToEncryptable,
-};
+use common_utils::{custom_serde, encryption::Encryption};
 use diesel::{
     expression::AsExpression, AsChangeset, Identifiable, Insertable, Queryable, Selectable,
 };
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

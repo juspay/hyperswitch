@@ -15,8 +15,7 @@ use diesel_models::configs;
 use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::merchant_connector_account::{
-    EncryptedMerchantConnectorAccount, FromRequestEncryptableMerchantConnectorAccount,
-    UpdateEncryptableMerchantConnectorAccount,
+    FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};

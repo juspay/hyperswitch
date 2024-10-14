@@ -126,21 +126,19 @@ pub async fn create_or_update_address_for_payment_by_request(
                     types::CryptoOperation::BatchEncrypt(
                         domain::FromRequestEncryptableAddress::to_encryptable(
                             domain::FromRequestEncryptableAddress {
-                                line1: address.address.as_ref().map(|a| a.line1.clone()).flatten(),
-                                line2: address.address.as_ref().map(|a| a.line2.clone()).flatten(),
-                                line3: address.address.as_ref().map(|a| a.line3.clone()).flatten(),
-                                state: address.address.as_ref().map(|a| a.state.clone()).flatten(),
+                                line1: address.address.as_ref().and_then(|a| a.line1.clone()),
+                                line2: address.address.as_ref().and_then(|a| a.line2.clone()),
+                                line3: address.address.as_ref().and_then(|a| a.line3.clone()),
+                                state: address.address.as_ref().and_then(|a| a.state.clone()),
                                 first_name: address
                                     .address
                                     .as_ref()
-                                    .map(|a| a.first_name.clone())
-                                    .flatten(),
+                                    .and_then(|a| a.first_name.clone()),
                                 last_name: address
                                     .address
                                     .as_ref()
-                                    .map(|a| a.last_name.clone())
-                                    .flatten(),
-                                zip: address.address.as_ref().map(|a| a.zip.clone()).flatten(),
+                                    .and_then(|a| a.last_name.clone()),
+                                zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                                 phone_number: address
                                     .phone
                                     .as_ref()
@@ -344,21 +342,13 @@ pub async fn get_domain_address(
             types::CryptoOperation::BatchEncrypt(
                 domain::FromRequestEncryptableAddress::to_encryptable(
                     domain::FromRequestEncryptableAddress {
-                        line1: address.address.as_ref().map(|a| a.line1.clone()).flatten(),
-                        line2: address.address.as_ref().map(|a| a.line2.clone()).flatten(),
-                        line3: address.address.as_ref().map(|a| a.line3.clone()).flatten(),
-                        state: address.address.as_ref().map(|a| a.state.clone()).flatten(),
-                        first_name: address
-                            .address
-                            .as_ref()
-                            .map(|a| a.first_name.clone())
-                            .flatten(),
-                        last_name: address
-                            .address
-                            .as_ref()
-                            .map(|a| a.last_name.clone())
-                            .flatten(),
-                        zip: address.address.as_ref().map(|a| a.zip.clone()).flatten(),
+                        line1: address.address.as_ref().and_then(|a| a.line1.clone()),
+                        line2: address.address.as_ref().and_then(|a| a.line2.clone()),
+                        line3: address.address.as_ref().and_then(|a| a.line3.clone()),
+                        state: address.address.as_ref().and_then(|a| a.state.clone()),
+                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
+                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
+                        zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                         phone_number: address
                             .phone
                             .as_ref()

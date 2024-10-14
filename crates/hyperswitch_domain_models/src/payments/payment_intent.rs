@@ -1,7 +1,7 @@
 use common_enums as storage_enums;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    crypto::{self, Encryptable},
+    crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
@@ -17,7 +17,6 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use masking::{Deserialize, PeekInterface, Secret};
-use rustc_hash::FxHashMap;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 

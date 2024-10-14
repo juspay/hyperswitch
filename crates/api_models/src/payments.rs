@@ -12,13 +12,12 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
-    pii::{self, Email, EmailStrategy},
-    types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
+    pii::{self, Email},
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
+use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-use rustc_hash::FxHashMap;
 use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
 use strum::Display;
 use time::{Date, PrimitiveDateTime};

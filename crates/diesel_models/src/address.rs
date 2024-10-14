@@ -1,7 +1,4 @@
-use common_utils::{
-    crypto::{self, Encryptable},
-    encryption::Encryption,
-};
+use common_utils::{crypto, encryption::Encryption};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

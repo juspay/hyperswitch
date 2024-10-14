@@ -21,7 +21,7 @@ pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
     #[encrypt]
-    pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
+    pub connector_account_details: Encryptable<Secret<Value>>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
@@ -41,9 +41,9 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     #[encrypt]
-    pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt]
-    pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
 }
 
