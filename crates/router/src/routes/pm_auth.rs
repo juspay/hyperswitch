@@ -2,7 +2,10 @@ use actix_web::{web, HttpRequest, Responder};
 use api_models as api_types;
 use router_env::{instrument, tracing, types::Flow};
 
-use crate::{core::api_locking, routes::AppState, services::api as oss_api};
+use crate::{
+    core::api_locking, routes::AppState, services::api as oss_api,
+    types::transformers::ForeignTryFrom,
+};
 
 #[instrument(skip_all, fields(flow = ?Flow::PmAuthLinkTokenCreate))]
 pub async fn link_token_create(
@@ -19,6 +22,14 @@ pub async fn link_token_create(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return oss_api::log_and_return_error_response(e),
     };
+
+    let header_payload = match api_types::payments::HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return oss_api::log_and_return_error_response(err);
+        }
+    };
+
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -30,6 +41,7 @@ pub async fn link_token_create(
                 auth.merchant_account,
                 auth.key_store,
                 payload,
+                header_payload.clone(),
             )
         },
         &*auth,

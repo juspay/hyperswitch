@@ -14,9 +14,6 @@ pub struct LinkTokenCreateRequest {
     pub payment_id: id_type::PaymentId, // payment_id to be passed in req body for redis pm_auth connector name fetch
     pub payment_method: PaymentMethod,  // payment_method to be used for filtering pm_auth connector
     pub payment_method_type: PaymentMethodType, // payment_method_type to be used for filtering pm_auth connector
-    pub client_platform: Option<api_enums::ClientPlatform>, // Client Platform to perform platform based processing
-    pub android_package_name: Option<String>, // Android Package name to be sent for Android platform
-    pub redirect_uri: Option<String>, // Merchant redirect_uri to be sent in case of IOS platform
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
