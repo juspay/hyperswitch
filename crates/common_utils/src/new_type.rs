@@ -18,34 +18,31 @@ impl masking::SerializableSecret for MerchantName {}
 /// Function for masking alphanumeric characters in a string.
 ///
 /// # Arguments
-///     `val`
-///         - holds reference to the string to be masked.
-///     `unmasked_char_count`
-///         - minimum character count to remain unmasked for identification
-///         - this number is for keeping the characters unmasked from
-///             both beginning (if feasible) and ending of the string.
-///     `min_masked_char_count`
-///         - this ensures the minimum number of characters to be masked
+///
+/// - `val`
+///   - holds reference to the string to be masked.
+/// - `unmasked_char_count`
+///   - minimum character count to remain unmasked for identification
+///   - this number is for keeping the characters unmasked from
+///     both beginning (if feasible) and ending of the string.
+/// - `min_masked_char_count`
+///   - this ensures the minimum number of characters to be masked
 ///
 /// # Behaviour
-///     - Returns the original string if its length is less than or equal to `unmasked_char_count`.
-///     - If the string length allows, keeps `unmasked_char_count` characters unmasked at both start and end.
-///     - Otherwise, keeps `unmasked_char_count` characters unmasked only at the end.
-///     - Only alphanumeric characters are masked; other characters remain unchanged.
+///
+/// - Returns the original string if its length is less than or equal to `unmasked_char_count`.
+/// - If the string length allows, keeps `unmasked_char_count` characters unmasked at both start and end.
+/// - Otherwise, keeps `unmasked_char_count` characters unmasked only at the end.
+/// - Only alphanumeric characters are masked; other characters remain unchanged.
 ///
 /// # Examples
-///     Sort Code
-///         (12-34-56, 2, 2) -> 12-**-56
-///     Routing number
-///         (026009593, 3, 3) -> 026***593
-///     CNPJ
-///         (12345678901, 4, 4) -> *******8901
-///     CNPJ
-///         (12345678901, 4, 3) -> 1234***8901
-///     Pix key
-///         (123e-a452-1243-1244-000, 4, 4) -> 123e-****-****-****-000
-///     IBAN
-///         (AL35202111090000000001234567, 5, 5) -> AL352******************34567
+///
+/// - Sort Code: `(12-34-56, 2, 2)` -> `12-**-56`
+/// - Routing number: `(026009593, 3, 3)` -> `026***593`
+/// - CNPJ: `(12345678901, 4, 4)` -> `*******8901`
+/// - CNPJ: `(12345678901, 4, 3)` -> `1234***8901`
+/// - Pix key: `(123e-a452-1243-1244-000, 4, 4)` -> `123e-****-****-****-000`
+/// - IBAN: `(AL35202111090000000001234567, 5, 5)` -> `AL352******************34567`
 fn apply_mask(val: &str, unmasked_char_count: usize, min_masked_char_count: usize) -> String {
     let len = val.len();
     if len <= unmasked_char_count {
