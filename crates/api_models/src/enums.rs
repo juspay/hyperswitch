@@ -97,6 +97,7 @@ pub enum Connector {
     // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
+    // Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -216,6 +217,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Elavon
 			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
