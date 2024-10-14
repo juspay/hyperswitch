@@ -19059,6 +19059,61 @@
           "FORMAT_TOTAL_ESTIMATED_AMOUNT"
         ]
       },
+      "SamsungPayAppWalletData": {
+        "type": "object",
+        "required": [
+          "3_d_s",
+          "payment_card_brand",
+          "payment_currency_type",
+          "payment_last4_fpan"
+        ],
+        "properties": {
+          "3_d_s": {
+            "$ref": "#/components/schemas/SamsungPayTokenData"
+          },
+          "payment_card_brand": {
+            "$ref": "#/components/schemas/SamsungPayCardBrand"
+          },
+          "payment_currency_type": {
+            "type": "string",
+            "description": "Currency type of the payment"
+          },
+          "payment_last4_dpan": {
+            "type": "string",
+            "description": "Last 4 digits of the device specific card number",
+            "nullable": true
+          },
+          "payment_last4_fpan": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "merchant_ref": {
+            "type": "string",
+            "description": "Merchant reference id that was passed in the session call request",
+            "nullable": true
+          },
+          "method": {
+            "type": "string",
+            "description": "Specifies authentication method used",
+            "nullable": true
+          },
+          "recurring_payment": {
+            "type": "boolean",
+            "description": "Value if credential is enabled for recurring payment",
+            "nullable": true
+          }
+        }
+      },
+      "SamsungPayCardBrand": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard",
+          "amex",
+          "discover",
+          "unknown"
+        ]
+      },
       "SamsungPayMerchantPaymentInformation": {
         "type": "object",
         "required": [
@@ -19151,6 +19206,27 @@
         }
       },
       "SamsungPayWalletCredentials": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SamsungPayWebWalletData"
+          },
+          {
+            "$ref": "#/components/schemas/SamsungPayAppWalletData"
+          }
+        ]
+      },
+      "SamsungPayWalletData": {
+        "type": "object",
+        "required": [
+          "payment_credential"
+        ],
+        "properties": {
+          "payment_credential": {
+            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
+          }
+        }
+      },
+      "SamsungPayWebWalletData": {
         "type": "object",
         "required": [
           "card_brand",
@@ -19169,8 +19245,7 @@
             "nullable": true
           },
           "card_brand": {
-            "type": "string",
-            "description": "Brand of the payment card"
+            "$ref": "#/components/schemas/SamsungPayCardBrand"
           },
           "card_last4digits": {
             "type": "string",
@@ -19178,17 +19253,6 @@
           },
           "3_d_s": {
             "$ref": "#/components/schemas/SamsungPayTokenData"
-          }
-        }
-      },
-      "SamsungPayWalletData": {
-        "type": "object",
-        "required": [
-          "payment_credential"
-        ],
-        "properties": {
-          "payment_credential": {
-            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
           }
         }
       },
