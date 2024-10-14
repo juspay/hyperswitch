@@ -9,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, OptionExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor,MinorUnit,MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -55,10 +56,17 @@ use crate::{
     utils::{self, RefundsRequestData as _},
 };
 
-#[derive(Debug, Clone)]
-pub struct Worldline;
+#[derive(Clone)]
+pub struct Worldline{
+    amount_converter:&'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
 
 impl Worldline {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
     pub fn generate_authorization_token(
         &self,
         auth: worldline::WorldlineAuthType,
@@ -400,8 +408,16 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = worldline::ApproveRequest::try_from(req)?;
-
+        let amount_to_capture = utils::convert_amount(
+            self.amount_converter,
+           req.request.amount,
+           req.request.currency,
+       )?;
+       let connector_router_data = worldline::WorldlineRouterData::try_from((
+           amount_to_capture,
+           req,
+         ))?;
+        let connector_req = worldline::PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -497,10 +513,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = worldline::WorldlineRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
+        let amount = utils::convert_amount(
+            self.amount_converter,  
             req.request.amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = worldline::WorldlineRouterData::try_from((
+            amount,
             req,
         ))?;
         let connector_req = worldline::PaymentsRequest::try_from(&connector_router_data)?;
@@ -587,7 +606,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldli
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = worldline::WorldlineRefundRequest::try_from(req)?;
+        let amount_to_capture = utils::convert_amount(
+            self.amount_converter,
+           req.request.amount,
+           req.request.currency,
+       )?;
+       let connector_router_data = worldline::WorldlineRouterData::try_from((
+           amount_to_capture,
+           req,
+         ))?;
+        let connector_req = worldline::PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
