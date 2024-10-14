@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{
-    errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState,
-};
+use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
