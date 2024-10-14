@@ -2318,7 +2318,6 @@ Cypress.Commands.add(
           .to.be.an("array").and.empty;
       }
       PMLength(response.body);
-      
     });
   }
 );
