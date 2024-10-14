@@ -3903,6 +3903,7 @@ pub async fn get_payment_filters(
             status: enums::IntentStatus::iter().collect(),
             payment_method: payment_method_types_map,
             authentication_type: enums::AuthenticationType::iter().collect(),
+            card_network: enums::CardNetwork::iter().collect(),
         },
     ))
 }
