@@ -567,13 +567,15 @@ fn create_samsung_pay_session_token(
         })?,
     };
 
+    let formatted_payment_id = router_data.payment_id.replace("_", "-");
+
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::SamsungPay(Box::new(
                 payment_types::SamsungPaySessionTokenResponse {
                     version: "2".to_string(),
                     service_id: samsung_pay_wallet_details.service_id,
-                    order_number: router_data.payment_id.clone(),
+                    order_number: formatted_payment_id,
                     merchant_payment_information:
                         payment_types::SamsungPayMerchantPaymentInformation {
                             name: samsung_pay_wallet_details.merchant_display_name,
