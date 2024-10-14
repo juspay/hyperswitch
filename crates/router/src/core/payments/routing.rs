@@ -1223,17 +1223,21 @@ pub async fn perform_success_based_routing(
             .clone()
             .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::RoutingError::GenericNotFoundError {
+                field: "dynamic_routing_algorithm".to_string(),
+            })
             .attach_printable(
                 "unable to deserialize dynamic routing algorithm ref from business profile",
             )?
             .unwrap_or_default();
+
     let success_based_algo_ref = success_based_dynamic_routing_algo_ref
         .success_based_algorithm
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .ok_or(errors::RoutingError::GenericNotFoundError { field: "success_based_algorithm".to_string() })
         .attach_printable(
-            "unable to fetch success_based_algorithm from dynamic_routing_algorithm",
+            "success_based_algorithm not found in dynamic_routing_algorithm from business_profile table",
         )?;
+
     if success_based_algo_ref.enabled_feature
         == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
     {
@@ -1242,9 +1246,10 @@ pub async fn perform_success_based_routing(
             .dynamic_routing
             .success_rate_client
             .as_ref()
-            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "success_rate gRPC client not found".to_string(),
-            })?;
+            .ok_or(errors::RoutingError::GenericNotFoundError {
+                field: "success_rate gRPC client".to_string(),
+            })
+            .attach_printable("success_rate gRPC client not found")?;
 
         let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
             state,
@@ -1252,7 +1257,7 @@ pub async fn perform_success_based_routing(
             dynamic_routing_algorithm,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
         let tenant_business_profile_id = format!(
@@ -1268,7 +1273,7 @@ pub async fn perform_success_based_routing(
                 routable_connectors.clone(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::RoutingError::SuccessRateCalculationError)
             .attach_printable(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
@@ -1277,21 +1282,27 @@ pub async fn perform_success_based_routing(
         for label_with_score in success_based_connectors.labels_with_score {
             let (connector, merchant_connector_id) = label_with_score.label
                 .split_once(':')
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .ok_or(errors::RoutingError::InvalidSuccessBasedConnectorLabel(label_with_score.label.to_string()))
                 .attach_printable(
                     "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
                 )?;
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
                 connector: common_enums::RoutableConnectors::from_str(connector)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "RoutableConnectors".to_string(),
+                    })
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: Some(
                     common_utils::id_type::MerchantConnectorAccountId::wrap(
                         merchant_connector_id.to_string(),
                     )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unable to infer routable_connector from connector")?,
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to infer MerchantConnectorAccountId from string")?,
                 ),
             });
         }
