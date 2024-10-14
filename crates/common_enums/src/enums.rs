@@ -1557,6 +1557,16 @@ pub enum PaymentExperience {
     DisplayWaitScreen,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
+#[serde(rename_all = "lowercase")]
+pub enum SamsungPayCardBrand {
+    Visa,
+    MasterCard,
+    Amex,
+    Discover,
+    Unknown,
+}
+
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,
