@@ -31,6 +31,7 @@ mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
 mod ebanx;
+mod elavon;
 mod fiserv;
 mod fiservemea;
 mod fiuu;

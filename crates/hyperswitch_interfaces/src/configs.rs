@@ -35,6 +35,7 @@ pub struct Connectors {
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
     pub ebanx: ConnectorParams,
+    pub elavon: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,

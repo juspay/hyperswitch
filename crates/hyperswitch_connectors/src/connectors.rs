@@ -6,6 +6,7 @@ pub mod cryptopay;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
+pub mod elavon;
 pub mod fiserv;
 pub mod fiservemea;
 pub mod fiuu;
@@ -26,7 +27,8 @@ pub mod worldline;
 pub use self::{
     bambora::Bambora, bitpay::Bitpay, cashtocode::Cashtocode, coinbase::Coinbase,
     cryptopay::Cryptopay, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay, helcim::Helcim,
-    mollie::Mollie, nexixpay::Nexixpay, novalnet::Novalnet, powertranz::Powertranz, square::Square,
-    stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
+    elavon::Elavon, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay,
+    helcim::Helcim, mollie::Mollie, nexixpay::Nexixpay, novalnet::Novalnet, powertranz::Powertranz,
+    square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt,
+    worldline::Worldline,
 };
