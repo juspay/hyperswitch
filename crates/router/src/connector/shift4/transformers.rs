@@ -28,6 +28,21 @@ trait Shift4AuthorizePreprocessingCommon {
     fn get_payment_method_data_required(&self) -> Result<domain::PaymentMethodData, Error>;
 }
 
+pub struct Shift4RouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(MinorUnit, T)> for Shift4RouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
     fn get_email_optional(&self) -> Option<pii::Email> {
         self.email.clone()
@@ -195,19 +210,19 @@ pub enum CardPayment {
     CardToken(Secret<String>),
 }
 
-impl<T, Req> TryFrom<&types::RouterData<T, Req, types::PaymentsResponseData>>
+impl<T, Req> TryFrom<&Shift4RouterData<&types::RouterData<T, Req, types::PaymentsResponseData>>>
     for Shift4PaymentsRequest
 where
     Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, Req, types::PaymentsResponseData>,
+        item: &Shift4RouterData<&types::RouterData<T, Req, types::PaymentsResponseData>>,
     ) -> Result<Self, Self::Error> {
-        let submit_for_settlement = item.request.is_automatic_capture()?;
-        let amount = MinorUnit::new(item.request.get_amount_required()?);
-        let currency = item.request.get_currency_required()?;
-        let payment_method = Shift4PaymentMethod::try_from(item)?;
+        let submit_for_settlement = item.router_data.request.is_automatic_capture()?;
+        let amount = item.amount.to_owned();
+        let currency = item.router_data.request.get_currency_required()?;
+        let payment_method = Shift4PaymentMethod::try_from(item.router_data)?;
         Ok(Self {
             amount,
             currency,
@@ -437,27 +452,33 @@ where
     }
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
-    for Shift4PaymentsRequest
+impl<T>
+    TryFrom<
+        &Shift4RouterData<
+            &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        >,
+    > for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        item: &Shift4RouterData<
+            &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        >,
     ) -> Result<Self, Self::Error> {
-        match &item.request.payment_method_data {
+        match &item.router_data.request.payment_method_data {
             Some(domain::PaymentMethodData::Card(_)) => {
                 let card_token: Shift4CardToken =
-                    to_connector_meta(item.request.connector_meta.clone())?;
+                    to_connector_meta(item.router_data.request.connector_meta.clone())?;
                 Ok(Self {
-                    amount: MinorUnit::new(item.request.amount),
-                    currency: item.request.currency,
+                    amount: item.amount.to_owned(),
+                    currency: item.router_data.request.currency,
                     payment_method: Shift4PaymentMethod::CardsNon3DSRequest(Box::new(
                         CardsNon3DSRequest {
                             card: CardPayment::CardToken(card_token.id),
-                            description: item.description.clone(),
+                            description: item.router_data.description.clone(),
                         },
                     )),
-                    captured: item.request.is_auto_capture()?,
+                    captured: item.router_data.request.is_auto_capture()?,
                 })
             }
             Some(domain::PaymentMethodData::Wallet(_))
@@ -651,7 +672,7 @@ pub struct Shift4WebhookObjectResource {
 pub struct Shift4NonThreeDsResponse {
     pub id: String,
     pub currency: String,
-    pub amount: MinorUnit,
+    pub amount: u32,
     pub status: Shift4PaymentStatus,
     pub captured: bool,
     pub refunded: bool,
@@ -817,12 +838,14 @@ pub struct Shift4RefundRequest {
     amount: MinorUnit,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
+impl<F> TryFrom<&Shift4RouterData<&types::RefundsRouterData<F>>> for Shift4RefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &Shift4RouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            charge_id: item.request.connector_transaction_id.clone(),
-            amount: MinorUnit::new(item.request.refund_amount),
+            charge_id: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount.to_owned(),
         })
     }
 }
@@ -840,7 +863,7 @@ impl From<Shift4RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
-    pub amount: MinorUnit,
+    pub amount: i64,
     pub currency: String,
     pub charge: String,
     pub status: Shift4RefundStatus,
