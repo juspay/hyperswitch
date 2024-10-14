@@ -120,16 +120,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionToke
         )
         .await?;
 
-        let payment_method_billing = helpers::get_address_by_id(
-            state,
-            payment_attempt.payment_method_billing_address_id.clone(),
-            key_store,
-            &payment_intent.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await?;
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -146,7 +136,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionToke
             address: payments::PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
                 billing_address.as_ref().map(From::from),
-                payment_method_billing.as_ref().map(From::from),
+                None,
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,

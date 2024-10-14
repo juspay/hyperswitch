@@ -389,7 +389,7 @@ pub async fn payments_post_session_tokens(
         |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::PostSessionTokens,
-                payment_types::PaymentsResponse,
+                payment_types::PaymentsPostSessionTokensResponse,
                 _,
                 _,
                 _,

@@ -1135,6 +1135,7 @@ pub struct PaypalMeta {
     pub capture_id: Option<String>,
     pub psync_flow: PaypalPaymentIntent,
     pub next_action: Option<api_models::payments::NextActionCall>,
+    pub order_id: Option<String>,
 }
 
 fn get_id_based_on_intent(
@@ -1189,6 +1190,7 @@ impl<F, T>
                     capture_id: Some(id),
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
+                    order_id: None,
                 }),
                 types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
@@ -1199,6 +1201,7 @@ impl<F, T>
                     capture_id: None,
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
+                    order_id: None,
                 }),
                 types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
@@ -1347,6 +1350,7 @@ impl<F, T>
             capture_id: None,
             psync_flow: item.response.intent,
             next_action,
+            order_id: None,
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
@@ -1401,6 +1405,7 @@ impl
             capture_id: None,
             psync_flow: item.response.intent,
             next_action: None,
+            order_id: None,
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
@@ -1458,13 +1463,14 @@ impl
             capture_id: None,
             psync_flow: item.response.intent,
             next_action,
+            order_id: Some(item.response.id.clone()),
         });
 
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id: types::ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
@@ -1542,6 +1548,7 @@ impl<F>
             capture_id: None,
             psync_flow: PaypalPaymentIntent::Authenticate, // when there is no capture or auth id present
             next_action: None,
+            order_id: None,
         });
 
         let status = storage_enums::AttemptStatus::foreign_from((
@@ -1964,6 +1971,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     capture_id: Some(item.response.id.clone()),
                     psync_flow: PaypalPaymentIntent::Capture,
                     next_action: None,
+                    order_id: None,
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: item

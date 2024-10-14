@@ -516,6 +516,41 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        let papal_sdk_next_action =
+            paypal_sdk_next_steps_check(payment_data.get_payment_attempt().clone())?;
+        let next_action = papal_sdk_next_action.map(|paypal_next_action_data| {
+            api_models::payments::NextActionData::InvokeSdkClient {
+                next_action_data: paypal_next_action_data,
+            }
+        });
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                next_action,
+            },
+            vec![],
+        )))
+    }
+}
+
 impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
     for api_models::payments::DisplayAmountOnSdk
 {

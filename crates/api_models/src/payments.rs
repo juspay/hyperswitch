@@ -3763,6 +3763,7 @@ pub enum QrCodeInformation {
 #[serde(rename_all = "snake_case")]
 pub struct SdkNextActionData {
     pub next_action: NextActionCall,
+    pub order_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4830,13 +4831,13 @@ pub struct PaymentsPostSessionTokensRequest {
     pub payment_method: api_enums::PaymentMethod,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsPostSessionTokensResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
-    /// A unique identifier for a order provided by the connector
-    pub order_id: String,
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

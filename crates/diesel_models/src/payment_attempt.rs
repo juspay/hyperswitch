@@ -477,7 +477,6 @@ pub enum PaymentAttemptUpdate {
     },
     PostSessionTokensUpdate {
         updated_by: String,
-        connector_transaction_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },
 }
@@ -3072,7 +3071,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::PostSessionTokensUpdate {
                 updated_by,
-                connector_transaction_id,
                 connector_metadata,
             } => Self {
                 status: None,
@@ -3086,7 +3084,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount: None,
                 net_amount: None,
                 currency: None,
-                connector_transaction_id,
+                connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
                 authentication_type: None,

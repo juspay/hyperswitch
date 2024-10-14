@@ -761,19 +761,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match &req.request.payment_method_data {
-            domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(_)) => {
+            domain::PaymentMethodData::Wallet(domain::WalletData::PaypalSdk(token)) => {
                 let authorize_url = if req.request.is_auto_capture()? {
                     "capture".to_string()
                 } else {
                     "authorize".to_string()
                 };
                 Ok(format!(
-                    "{}v2/checkout/orders/{}/{authorize_url}",
+                    "{}v2/checkout/orders/{:?}/{authorize_url}",
                     self.base_url(connectors),
-                    req.request
-                        .connector_transaction_id
-                        .clone()
-                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
+                    token
                 ))
             }
             _ => Ok(format!("{}v2/checkout/orders", self.base_url(connectors))),

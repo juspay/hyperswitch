@@ -813,7 +813,6 @@ pub enum PaymentAttemptUpdate {
     },
     PostSessionTokensUpdate {
         updated_by: String,
-        connector_transaction_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },
 }
@@ -1169,11 +1168,9 @@ impl PaymentAttemptUpdate {
             },
             Self::PostSessionTokensUpdate {
                 updated_by,
-                connector_transaction_id,
                 connector_metadata,
             } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
                 updated_by,
-                connector_transaction_id,
                 connector_metadata,
             },
         }
