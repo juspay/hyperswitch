@@ -350,6 +350,11 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run unit and documentation tests
         shell: bash
         # `cargo` does not allow us to exclude specific features from all features,
