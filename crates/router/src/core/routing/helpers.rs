@@ -12,9 +12,13 @@ use api_models::routing as routing_types;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(feature = "dynamic_routing")]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, metrics::add_attributes, tracing};
 use rustc_hash::FxHashSet;
@@ -30,7 +34,7 @@ use crate::{
     utils::StringExt,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::{core::metrics as core_metrics, routes::metrics};
+use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -588,7 +592,6 @@ pub async fn refresh_success_based_routing_cache(
     config
 }
 
-use external_services::grpc_client::dynamic_routing::success_rate::CalSuccessRateResponse;
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
@@ -597,38 +600,88 @@ pub async fn perform_success_based_routing(
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
     dynamic_routing_algorithm: serde_json::Value,
-) -> RouterResult<CalSuccessRateResponse> {
-    let client = state
-        .grpc_client
-        .dynamic_routing
-        .success_rate_client
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "success_rate gRPC client not found".to_string(),
-        })?;
+) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
+    use external_services::grpc_client::dynamic_routing::success_rate::CalSuccessRateResponse;
 
-    let success_based_routing_configs =
-        fetch_success_based_routing_configs(state, business_profile, dynamic_routing_algorithm)
+    let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
+        business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize dynamic routing algorithm ref from business profile",
+            )?
+            .unwrap_or_default();
+    let success_based_algo_ref = success_based_dynamic_routing_algo_ref
+        .success_based_algorithm
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to fetch success_based_algorithm from dynamic_routing_algorithm",
+        )?;
+    if success_based_algo_ref.enabled_feature
+        == routing_types::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+    {
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "success_rate gRPC client not found".to_string(),
+            })?;
+
+        let success_based_routing_configs =
+            fetch_success_based_routing_configs(state, business_profile, dynamic_routing_algorithm)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to retrieve success_rate based dynamic routing configs",
+                )?;
+
+        let tenant_business_profile_id = format!(
+            "{}:{}",
+            state.tenant.redis_key_prefix,
+            business_profile.get_id().get_string_repr()
+        );
+
+        let success_based_connectors: CalSuccessRateResponse = client
+            .calculate_success_rate(
+                tenant_business_profile_id.clone(),
+                success_based_routing_configs.clone(),
+                routable_connectors.clone(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+            .attach_printable(
+                "unable to calculate/fetch success rate from dynamic routing service",
+            )?;
 
-    let tenant_business_profile_id = format!(
-        "{}:{}",
-        state.tenant.redis_key_prefix,
-        business_profile.get_id().get_string_repr()
-    );
-
-    let success_based_connectors = client
-        .calculate_success_rate(
-            tenant_business_profile_id.clone(),
-            success_based_routing_configs.clone(),
-            routable_connectors.clone(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to calculate/fetch success rate from dynamic routing service")?;
-    Ok(success_based_connectors)
+        let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
+        for label_with_score in success_based_connectors.labels_with_score {
+            let (connector, merchant_connector_id) = label_with_score.label
+                .split_once(':')
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
+                )?;
+            connectors.push(routing_types::RoutableConnectorChoice {
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(connector)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                merchant_connector_id: Some(
+                    id_type::MerchantConnectorAccountId::wrap(merchant_connector_id.to_string())
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("unable to infer routable_connector from connector")?,
+                ),
+            });
+        }
+        Ok(connectors)
+    } else {
+        Ok(routable_connectors)
+    }
 }
 
 /// Checked fetch of success based routing configs
@@ -918,4 +971,60 @@ fn get_success_based_metrics_outcome_for_payment(
         }
         _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
     }
+}
+
+/// Checked fetch of success based routing configs
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn default_success_based_routing_setup(
+    state: &SessionState,
+    key_store: domain::MerchantKeyStore,
+    business_profile: domain::Profile,
+    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    merchant_id: id_type::MerchantId,
+    mut success_based_dynamic_routing_algo: routing_types::DynamicRoutingAlgorithmRef,
+) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let profile_id = business_profile.get_id().to_owned();
+    let default_success_based_routing_config = routing_types::SuccessBasedRoutingConfig::default();
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+    let algo = routing_algorithm::RoutingAlgorithm {
+        algorithm_id: algorithm_id.clone(),
+        profile_id: profile_id.clone(),
+        merchant_id,
+        name: "Dynamic routing algorithm".to_string(),
+        description: None,
+        kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+        algorithm_data: serde_json::json!(default_success_based_routing_config),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: common_enums::TransactionType::Payment,
+    };
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    success_based_dynamic_routing_algo.update_algorithm_id(algorithm_id, feature_to_enable);
+    update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        key_manager_state,
+        &key_store,
+        business_profile,
+        success_based_dynamic_routing_algo,
+    )
+    .await?;
+
+    let new_record = record.foreign_into();
+
+    core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
+    );
+    Ok(ApplicationResponse::Json(new_record))
 }

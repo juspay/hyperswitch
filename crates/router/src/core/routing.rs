@@ -455,7 +455,10 @@ pub async fn link_routing_config(
                 dynamic_routing_ref
                     .success_based_algorithm
                     .clone()
-                    .unwrap()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "missing success_based_algorithm in dynamic_algorithm_ref from business_profile table",
+                    )?
                     .enabled_feature,
             );
             helpers::update_business_profile_active_dynamic_algorithm_ref(
@@ -1210,7 +1213,8 @@ pub async fn toggle_success_based_routing(
             .unwrap_or_default();
 
     match feature_to_enable {
-        api_routing::SuccessBasedRoutingFeatures::Metrics => {
+        api_routing::SuccessBasedRoutingFeatures::Metrics
+        | api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
             if let Some(ref mut algo_with_timestamp) =
                 success_based_dynamic_routing_algo_ref.success_based_algorithm
             {
@@ -1257,249 +1261,27 @@ pub async fn toggle_success_based_routing(
                         }
                     }
                     None => {
-                        let default_success_based_routing_config =
-                            routing::SuccessBasedRoutingConfig::default();
-                        let algorithm_id = common_utils::generate_routing_id_of_default_length();
-                        let timestamp = common_utils::date_time::now();
-                        let algo = RoutingAlgorithm {
-                            algorithm_id: algorithm_id.clone(),
-                            profile_id: business_profile.get_id().to_owned(),
-                            merchant_id: merchant_account.get_id().to_owned(),
-                            name: "Dynamic routing algorithm".to_string(),
-                            description: None,
-                            kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                            algorithm_data: serde_json::json!(default_success_based_routing_config),
-                            created_at: timestamp,
-                            modified_at: timestamp,
-                            algorithm_for: common_enums::TransactionType::Payment,
-                        };
-
-                        let record = db
-                            .insert_routing_algorithm(algo)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Unable to insert record in routing algorithm table",
-                            )?;
-
-                        success_based_dynamic_routing_algo_ref.update_algorithm_id(
-                            algorithm_id,
-                            api_routing::SuccessBasedRoutingFeatures::Metrics,
-                        );
-                        helpers::update_business_profile_active_dynamic_algorithm_ref(
-                            db,
-                            key_manager_state,
-                            &key_store,
-                            business_profile,
+                        helpers::default_success_based_routing_setup(
+                            &state,
+                            key_store,
+                            business_profile.clone(),
+                            feature_to_enable,
+                            merchant_account.get_id().to_owned(),
                             success_based_dynamic_routing_algo_ref,
                         )
-                        .await?;
-
-                        let new_record = record.foreign_into();
-
-                        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &add_attributes([(
-                                "profile_id",
-                                profile_id.get_string_repr().to_owned(),
-                            )]),
-                        );
-                        Ok(service_api::ApplicationResponse::Json(new_record))
+                        .await
                     }
                 }
             } else {
-                let default_success_based_routing_config =
-                    routing::SuccessBasedRoutingConfig::default();
-                let algorithm_id = common_utils::generate_routing_id_of_default_length();
-                let timestamp = common_utils::date_time::now();
-                let algo = RoutingAlgorithm {
-                    algorithm_id: algorithm_id.clone(),
-                    profile_id: business_profile.get_id().to_owned(),
-                    merchant_id: merchant_account.get_id().to_owned(),
-                    name: "Dynamic routing algorithm".to_string(),
-                    description: None,
-                    kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                    algorithm_data: serde_json::json!(default_success_based_routing_config),
-                    created_at: timestamp,
-                    modified_at: timestamp,
-                    algorithm_for: common_enums::TransactionType::Payment,
-                };
-
-                let record = db
-                    .insert_routing_algorithm(algo)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to insert record in routing algorithm table")?;
-
-                success_based_dynamic_routing_algo_ref.update_algorithm_id(
-                    algorithm_id,
-                    api_routing::SuccessBasedRoutingFeatures::Metrics,
-                );
-                helpers::update_business_profile_active_dynamic_algorithm_ref(
-                    db,
-                    key_manager_state,
-                    &key_store,
-                    business_profile,
+                helpers::default_success_based_routing_setup(
+                    &state,
+                    key_store,
+                    business_profile.clone(),
+                    feature_to_enable,
+                    merchant_account.get_id().to_owned(),
                     success_based_dynamic_routing_algo_ref,
                 )
-                .await?;
-
-                let new_record = record.foreign_into();
-
-                metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
-                );
-                Ok(service_api::ApplicationResponse::Json(new_record))
-            }
-        }
-        api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
-            // we can probably remove this block and merge it above
-            if let Some(ref mut algo_with_timestamp) =
-                success_based_dynamic_routing_algo_ref.success_based_algorithm
-            {
-                match algo_with_timestamp
-                    .algorithm_id_with_timestamp
-                    .algorithm_id
-                    .clone()
-                {
-                    Some(algorithm_id) => {
-                        if algo_with_timestamp.enabled_feature == feature_to_enable {
-                            Err(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Success based routing is already enabled".to_string(),
-                            })?
-                        } else {
-                            algo_with_timestamp.update_enabled_features(feature_to_enable);
-                            let record = db
-                                .find_routing_algorithm_by_profile_id_algorithm_id(
-                                    business_profile.get_id(),
-                                    &algorithm_id,
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::ResourceIdNotFound,
-                                )?;
-                            let response = record.foreign_into();
-                            helpers::update_business_profile_active_dynamic_algorithm_ref(
-                                db,
-                                key_manager_state,
-                                &key_store,
-                                business_profile,
-                                success_based_dynamic_routing_algo_ref,
-                            )
-                            .await?;
-
-                            metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                                &metrics::CONTEXT,
-                                1,
-                                &add_attributes([(
-                                    "profile_id",
-                                    profile_id.get_string_repr().to_owned(),
-                                )]),
-                            );
-                            Ok(service_api::ApplicationResponse::Json(response))
-                        }
-                    }
-                    None => {
-                        // this can only occur when dynamic routing isn't enabled
-                        let default_success_based_routing_config =
-                            routing::SuccessBasedRoutingConfig::default();
-                        let algorithm_id = common_utils::generate_routing_id_of_default_length();
-                        let timestamp = common_utils::date_time::now();
-                        let algo = RoutingAlgorithm {
-                            algorithm_id: algorithm_id.clone(),
-                            profile_id: business_profile.get_id().to_owned(),
-                            merchant_id: merchant_account.get_id().to_owned(),
-                            name: "Dynamic routing algorithm".to_string(),
-                            description: None,
-                            kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                            algorithm_data: serde_json::json!(default_success_based_routing_config),
-                            created_at: timestamp,
-                            modified_at: timestamp,
-                            algorithm_for: common_enums::TransactionType::Payment,
-                        };
-
-                        let record = db
-                            .insert_routing_algorithm(algo)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Unable to insert record in routing algorithm table",
-                            )?;
-
-                        success_based_dynamic_routing_algo_ref.update_algorithm_id(
-                            algorithm_id,
-                            api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection,
-                        );
-                        helpers::update_business_profile_active_dynamic_algorithm_ref(
-                            db,
-                            key_manager_state,
-                            &key_store,
-                            business_profile,
-                            success_based_dynamic_routing_algo_ref,
-                        )
-                        .await?;
-
-                        let new_record = record.foreign_into();
-
-                        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &add_attributes([(
-                                "profile_id",
-                                profile_id.get_string_repr().to_owned(),
-                            )]),
-                        );
-                        Ok(service_api::ApplicationResponse::Json(new_record))
-                    }
-                }
-            } else {
-                let default_success_based_routing_config =
-                    routing::SuccessBasedRoutingConfig::default();
-                let algorithm_id = common_utils::generate_routing_id_of_default_length();
-                let timestamp = common_utils::date_time::now();
-                let algo = RoutingAlgorithm {
-                    algorithm_id: algorithm_id.clone(),
-                    profile_id: business_profile.get_id().to_owned(),
-                    merchant_id: merchant_account.get_id().to_owned(),
-                    name: "Dynamic routing algorithm".to_string(),
-                    description: None,
-                    kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                    algorithm_data: serde_json::json!(default_success_based_routing_config),
-                    created_at: timestamp,
-                    modified_at: timestamp,
-                    algorithm_for: common_enums::TransactionType::Payment,
-                };
-
-                let record = db
-                    .insert_routing_algorithm(algo)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to insert record in routing algorithm table")?;
-
-                success_based_dynamic_routing_algo_ref.update_algorithm_id(
-                    algorithm_id,
-                    api_routing::SuccessBasedRoutingFeatures::Metrics,
-                );
-                helpers::update_business_profile_active_dynamic_algorithm_ref(
-                    db,
-                    key_manager_state,
-                    &key_store,
-                    business_profile,
-                    success_based_dynamic_routing_algo_ref,
-                )
-                .await?;
-
-                let new_record = record.foreign_into();
-
-                metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
-                );
-                Ok(service_api::ApplicationResponse::Json(new_record))
+                .await
             }
         }
         api_routing::SuccessBasedRoutingFeatures::None => {
