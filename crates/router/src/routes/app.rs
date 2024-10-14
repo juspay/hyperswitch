@@ -82,6 +82,11 @@ use crate::{
     db::kafka_store::{KafkaStore, TenantID},
 };
 
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::pg::PgConnection;
+
+type DieselConnectionPool = Pool<ConnectionManager<PgConnection>>;
+
 #[derive(Clone)]
 pub struct ReqState {
     pub event_context: events::EventContext<crate::events::EventType, EventsHandler>,
@@ -106,6 +111,7 @@ pub struct SessionState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
+    pub dc_pool: DieselConnectionPool,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -204,6 +210,7 @@ pub struct AppState {
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
+	pub dc_pools: HashMap<String, DieselConnectionPool>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -355,6 +362,8 @@ impl AppState {
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
+            let dc_pools: HashMap<String, DieselConnectionPool> = HashMap::new();
+
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -372,6 +381,7 @@ impl AppState {
                 file_storage_client,
                 encryption_client,
                 grpc_client,
+                dc_pools,
             }
         })
         .await
@@ -453,6 +463,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
+            dc_pool: self.dc_pools.get(tenant).ok_or_else(err)?.clone()
         })
     }
 }

@@ -385,3 +385,7 @@ sts_role_session_name = ""
 
 [temp_locker_enable_config]
 paybox = { payment_method = "card" }
+
+# Multi Tenancy Configuration
+[mult_tenancy]
+tenant_name = { scehma = "tenant_schema" }
