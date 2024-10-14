@@ -4,8 +4,6 @@ use common_utils::{
     id_type, impl_api_event_type,
 };
 
-use crate::enums as api_enums;
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct LinkTokenCreateRequest {
