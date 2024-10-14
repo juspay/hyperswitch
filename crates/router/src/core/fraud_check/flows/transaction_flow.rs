@@ -96,7 +96,11 @@ impl
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckTransactionData {
-                amount: self.payment_attempt.amount.get_amount_as_i64(),
+                amount: self
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency,
                 payment_method,
