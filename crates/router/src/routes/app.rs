@@ -7,6 +7,10 @@ use api_models::routing::RoutingRetrieveQuery;
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
+use diesel::{
+    pg::PgConnection,
+    r2d2::{ConnectionManager, Pool},
+};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
@@ -81,9 +85,6 @@ use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
 };
-
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::pg::PgConnection;
 
 type DieselConnectionPool = Pool<ConnectionManager<PgConnection>>;
 
@@ -210,7 +211,7 @@ pub struct AppState {
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
-	pub dc_pools: HashMap<String, DieselConnectionPool>,
+    pub dc_pools: HashMap<String, DieselConnectionPool>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -463,7 +464,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
-            dc_pool: self.dc_pools.get(tenant).ok_or_else(err)?.clone()
+            dc_pool: self.dc_pools.get(tenant).ok_or_else(err)?.clone(),
         })
     }
 }
