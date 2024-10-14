@@ -7,6 +7,8 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
@@ -20,6 +22,10 @@ use euclid::{
     dssa::graph::{self as euclid_graph, CgraphExt},
     enums as euclid_enums,
     frontend::{ast, dir as euclid_dir},
+};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use external_services::grpc_client::dynamic_routing::{
+    success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
 use kgraph_utils::{
     mca as mca_graph,
@@ -1201,4 +1207,96 @@ pub fn make_dsl_input_for_surcharge(
         mandate: mandate_data,
     };
     Ok(backend_input)
+}
+
+/// success based dynamic routing
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_success_based_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    business_profile: &domain::Profile,
+    dynamic_routing_algorithm: serde_json::Value,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
+        business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize dynamic routing algorithm ref from business profile",
+            )?
+            .unwrap_or_default();
+    let success_based_algo_ref = success_based_dynamic_routing_algo_ref
+        .success_based_algorithm
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to fetch success_based_algorithm from dynamic_routing_algorithm",
+        )?;
+    if success_based_algo_ref.enabled_feature
+        == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+    {
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "success_rate gRPC client not found".to_string(),
+            })?;
+
+        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
+            state,
+            business_profile,
+            dynamic_routing_algorithm,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+
+        let tenant_business_profile_id = format!(
+            "{}:{}",
+            state.tenant.redis_key_prefix,
+            business_profile.get_id().get_string_repr()
+        );
+
+        let success_based_connectors: CalSuccessRateResponse = client
+            .calculate_success_rate(
+                tenant_business_profile_id.clone(),
+                success_based_routing_configs.clone(),
+                routable_connectors.clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to calculate/fetch success rate from dynamic routing service",
+            )?;
+
+        let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
+        for label_with_score in success_based_connectors.labels_with_score {
+            let (connector, merchant_connector_id) = label_with_score.label
+                .split_once(':')
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
+                )?;
+            connectors.push(api_routing::RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(connector)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                merchant_connector_id: Some(
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                ),
+            });
+        }
+        Ok(connectors)
+    } else {
+        Ok(routable_connectors)
+    }
 }

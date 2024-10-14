@@ -579,7 +579,7 @@ pub struct SuccessBasedRoutingUpdateConfigQuery {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ToggleSuccessBasedRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
-    pub enable: SuccessBasedRoutingFeatures,
+    pub feature_to_enable: SuccessBasedRoutingFeatures,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

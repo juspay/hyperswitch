@@ -2,7 +2,7 @@ pub mod helpers;
 pub mod transformers;
 
 use api_models::{
-    enums, mandates as mandates_api, routing, routing as api_routing,
+    enums, mandates as mandates_api, routing,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use diesel_models::routing_algorithm::RoutingAlgorithm;
@@ -434,7 +434,7 @@ pub async fn link_routing_config(
             utils::when(
                 matches!(
                     dynamic_routing_ref.success_based_algorithm,
-                    Some(api_routing::SuccessBasedAlgorithm {
+                    Some(routing::SuccessBasedAlgorithm {
                         algorithm_id_with_timestamp:
                         routing_types::DynamicAlgorithmWithTimestamp {
                             algorithm_id: Some(ref id),
@@ -1176,7 +1176,7 @@ pub async fn toggle_success_based_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    feature_to_enable: api_routing::SuccessBasedRoutingFeatures,
+    feature_to_enable: routing::SuccessBasedRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
@@ -1213,8 +1213,8 @@ pub async fn toggle_success_based_routing(
             .unwrap_or_default();
 
     match feature_to_enable {
-        api_routing::SuccessBasedRoutingFeatures::Metrics
-        | api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
+        routing::SuccessBasedRoutingFeatures::Metrics
+        | routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
             if let Some(ref mut algo_with_timestamp) =
                 success_based_dynamic_routing_algo_ref.success_based_algorithm
             {
@@ -1284,7 +1284,7 @@ pub async fn toggle_success_based_routing(
                 .await
             }
         }
-        api_routing::SuccessBasedRoutingFeatures::None => {
+        routing::SuccessBasedRoutingFeatures::None => {
             let timestamp = common_utils::date_time::now_unix_timestamp();
             match success_based_dynamic_routing_algo_ref.success_based_algorithm {
                 Some(algorithm_ref) => {
@@ -1292,13 +1292,13 @@ pub async fn toggle_success_based_routing(
                         algorithm_ref.algorithm_id_with_timestamp.algorithm_id
                     {
                         let dynamic_routing_algorithm = routing_types::DynamicRoutingAlgorithmRef {
-                            success_based_algorithm: Some(api_routing::SuccessBasedAlgorithm {
+                            success_based_algorithm: Some(routing::SuccessBasedAlgorithm {
                                 algorithm_id_with_timestamp:
                                     routing_types::DynamicAlgorithmWithTimestamp {
                                         algorithm_id: None,
                                         timestamp,
                                     },
-                                enabled_feature: api_routing::SuccessBasedRoutingFeatures::None,
+                                enabled_feature: routing::SuccessBasedRoutingFeatures::None,
                             }),
                         };
 

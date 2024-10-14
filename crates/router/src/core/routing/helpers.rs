@@ -16,7 +16,9 @@ use diesel_models::configs;
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(feature = "dynamic_routing")]
-use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::{
+    success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
+};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -601,8 +603,6 @@ pub async fn perform_success_based_routing(
     business_profile: &domain::Profile,
     dynamic_routing_algorithm: serde_json::Value,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-    use external_services::grpc_client::dynamic_routing::success_rate::CalSuccessRateResponse;
-
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm

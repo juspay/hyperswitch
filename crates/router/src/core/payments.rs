@@ -4557,9 +4557,6 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    println!(">>>>>>>>>>code comes here 0");
-    use super::routing::helpers::perform_success_based_routing;
-
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
 
@@ -4584,22 +4581,26 @@ where
 
     // success_based_routing_for_connectors
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    {
+    let connectors = {
         if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
         {
-            println!(">>>>>>>>>>code comes here 2");
-            let connectors = perform_success_based_routing(
+            if let Ok(success_based_connectors) = routing::perform_success_based_routing(
                 state,
                 connectors.clone(),
                 business_profile,
                 dynamic_routing_algorithm,
             )
             .await
-            .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-            .ok();
-            println!(">>>>>>>>>>code comes here 3   {connectors:?}");
+            .map_err(|e| logger::error!(dynamic_routing_connector_error=?e))
+            {
+                success_based_connectors
+            } else {
+                connectors
+            }
+        } else {
+            connectors
         }
-    }
+    };
 
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
