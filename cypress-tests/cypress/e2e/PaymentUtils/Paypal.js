@@ -148,6 +148,75 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 6500,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    Refund_7000: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 7000,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialRefundForFullCapture3DS1: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 5000,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialRefundForFullCapture3DS2: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 1500,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RefundforPartialCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 100,
         customer_acceptance: null,
       },
       Response: {
@@ -164,6 +233,41 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 1200,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialRefundForPartialCapture3DS: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 50,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialRefundNo3DS: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 3000,
         customer_acceptance: null,
       },
       Response: {
