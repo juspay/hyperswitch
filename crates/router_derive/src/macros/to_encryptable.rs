@@ -1,7 +1,9 @@
-use crate::macros::{helpers::get_struct_fields, misc::get_field_type};
-use quote::{format_ident, quote};
 use std::iter::Iterator;
+
+use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, token::Comma, Field, Ident, Type as SynType};
+
+use crate::macros::{helpers::get_struct_fields, misc::get_field_type};
 
 fn get_inner_type(path: &syn::TypePath) -> syn::Result<syn::TypePath> {
     path.path

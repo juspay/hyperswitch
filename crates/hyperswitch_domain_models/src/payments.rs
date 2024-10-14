@@ -1,8 +1,6 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
-use router_derive::ToEncryption;
-
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -11,11 +9,11 @@ use common_utils::{
     id_type, pii,
     types::{keymanager::ToEncryptable, MinorUnit},
 };
-use rustc_hash::FxHashMap;
-use serde_json::Value;
-
 use diesel_models::payment_intent::TaxDetails;
 use masking::Secret;
+use router_derive::ToEncryption;
+use rustc_hash::FxHashMap;
+use serde_json::Value;
 use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
