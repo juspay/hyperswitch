@@ -9,6 +9,40 @@ pub fn get_field_type(field_type: syn::Type) -> Option<syn::Ident> {
     }
 }
 
+#[allow(dead_code)]
+/// Get the inner type of option
+pub fn get_inner_option_type(field: &syn::Type) -> syn::Result<syn::Ident> {
+    if let syn::Type::Path(ref path) = &field {
+        if let Some(segment) = path.path.segments.last() {
+            if let syn::PathArguments::AngleBracketed(ref args) = &segment.arguments {
+                if let Some(syn::GenericArgument::Type(ty)) = args.args.first() {
+                    if let syn::Type::Path(path) = ty.clone() {
+                        return path
+                            .path
+                            .segments
+                            .last()
+                            .map(|last_path_segment| last_path_segment.ident.to_owned())
+                            .ok_or(syn::Error::new(
+                                proc_macro2::Span::call_site(),
+                                "Atleast one ident must be specified",
+                            ));
+                    } else {
+                        return Err(syn::Error::new(
+                            proc_macro2::Span::call_site(),
+                            "Only path fields are supported",
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    Err(syn::Error::new(
+        proc_macro2::Span::call_site(),
+        "Only path fields are supported",
+    ))
+}
+
 /// Implement the `validate` function for the struct by calling `validate` function on the fields
 pub fn validate_config(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> {
     let fields = super::helpers::get_struct_fields(input.data)
