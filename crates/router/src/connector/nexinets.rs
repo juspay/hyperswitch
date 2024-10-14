@@ -8,6 +8,7 @@ use error_stack::{report, ResultExt};
 use nexinets::NexinetsRouterData;
 use transformers as nexinets;
 
+use super::utils::PaymentsCancelRequestData;
 use crate::{
     configs::settings,
     connector::{
@@ -30,8 +31,6 @@ use crate::{
     },
     utils::BytesExt,
 };
-
-use super::utils::PaymentsCancelRequestData;
 
 #[derive(Clone)]
 pub struct Nexinets {
@@ -529,16 +528,15 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
+        let amount_to_cancel = connector_utils::convert_amount(
+            self.amount_converter,
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "amount",
-                })?;
-        let currency = req.request.get_currency()?;
-
-        let amount_to_cancel =
-            connector_utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+                })?,
+            req.request.get_currency()?,
+        )?;
         let connector_router_data = NexinetsRouterData::try_from((amount_to_cancel, req))?;
         let connector_req =
             nexinets::NexinetsCaptureOrVoidRequest::try_from(&connector_router_data)?;
