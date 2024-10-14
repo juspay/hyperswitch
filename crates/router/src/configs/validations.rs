@@ -236,6 +236,27 @@ impl super::settings::NetworkTokenizationService {
     }
 }
 
+impl super::settings::PazeDecryptConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.paze_private_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "paze_private_key must not be empty".into(),
+            ))
+        })?;
+
+        when(
+            self.paze_private_key_passphrase.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "paze_private_key_passphrase must not be empty".into(),
+                ))
+            },
+        )
+    }
+}
+
 impl super::settings::KeyManagerConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

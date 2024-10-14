@@ -297,6 +297,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -323,7 +324,8 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?
@@ -977,6 +979,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Bank Of America"
                                         ))?
                                     }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => Err(
+                                        unimplemented_payment_method!("Paze", "Bank Of America"),
+                                    )?,
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
@@ -1051,6 +1056,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::MobilePayRedirect(_)
                         | domain::WalletData::PaypalRedirect(_)
                         | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::Paze(_)
                         | domain::WalletData::SamsungPay(_)
                         | domain::WalletData::TwintRedirect {}
                         | domain::WalletData::VippsRedirect {}
@@ -1092,7 +1098,8 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
@@ -2328,6 +2335,9 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
                     "Manual",
                     "Bank Of America"
                 ))?,
+                types::PaymentMethodToken::PazeDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Paze", "Bank Of America"))?
+                }
             },
             None => PaymentInformation::from(&apple_pay_data),
         };

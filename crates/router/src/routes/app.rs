@@ -529,10 +529,15 @@ pub struct Payments;
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/{payment_id}/saved_payment_methods")
-                .route(web::get().to(list_customer_payment_method_for_payment)),
-        );
+        route = route
+            .service(
+                web::resource("/{payment_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_for_payment)),
+            )
+            .service(
+                web::resource("/{payment_id}/create_external_sdk_tokens")
+                    .route(web::post().to(payments_connector_session)),
+            );
 
         route
     }
@@ -1798,25 +1803,10 @@ impl User {
                 web::resource("/internal_signup").route(web::post().to(user::internal_user_signup)),
             )
             .service(
-                web::resource("/switch_merchant").route(web::post().to(user::switch_merchant_id)),
-            )
-            .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
             )
-            // TODO: Remove this endpoint once migration to /merchants/list is done
-            .service(
-                web::resource("/switch/list").route(web::get().to(user::list_merchants_for_user)),
-            )
-            .service(
-                web::resource("/merchants/list")
-                    .route(web::get().to(user::list_merchants_for_user)),
-            )
-            // The route is utilized to select an invitation from a list of merchants in an intermediate state
-            .service(
-                web::resource("/merchants_select/list")
-                    .route(web::get().to(user::list_merchants_for_user)),
-            )
+            // TODO: To be deprecated
             .service(
                 web::resource("/permission_info")
                     .route(web::get().to(user_role::get_authorization_info)),
@@ -1958,12 +1948,13 @@ impl User {
         // User management
         route = route.service(
             web::scope("/user")
-                .service(web::resource("").route(web::get().to(user::get_user_role_details)))
+                .service(web::resource("").route(web::post().to(user::list_user_roles_details)))
+                // TODO: To be deprecated
                 .service(web::resource("/v2").route(web::post().to(user::list_user_roles_details)))
                 .service(
-                    web::resource("/list")
-                        .route(web::get().to(user::list_users_for_merchant_account)),
+                    web::resource("/list").route(web::get().to(user_role::list_users_in_lineage)),
                 )
+                // TODO: To be deprecated
                 .service(
                     web::resource("/v2/list")
                         .route(web::get().to(user_role::list_users_in_lineage)),
@@ -1976,8 +1967,11 @@ impl User {
                     web::scope("/invite/accept")
                         .service(
                             web::resource("")
-                                .route(web::post().to(user_role::merchant_select))
-                                .route(web::put().to(user_role::accept_invitation)),
+                                .route(web::post().to(user_role::accept_invitations_v2)),
+                        )
+                        .service(
+                            web::resource("/pre_auth")
+                                .route(web::post().to(user_role::accept_invitations_pre_auth)),
                         )
                         .service(
                             web::scope("/v2")
@@ -2002,36 +1996,38 @@ impl User {
         );
 
         // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(user_role::get_role_from_token))
-                        .route(web::post().to(user_role::create_role)),
-                )
-                .service(
-                    web::resource("/v2/list").route(web::get().to(user_role::list_roles_with_info)),
-                )
-                .service(
-                    web::scope("/list")
-                        .service(web::resource("").route(web::get().to(user_role::list_all_roles)))
-                        .service(
-                            web::resource("/invite").route(
+        route =
+            route.service(
+                web::scope("/role")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(user_role::get_role_from_token))
+                            .route(web::post().to(user_role::create_role)),
+                    )
+                    // TODO: To be deprecated
+                    .service(
+                        web::resource("/v2/list")
+                            .route(web::get().to(user_role::list_roles_with_info)),
+                    )
+                    .service(
+                        web::scope("/list")
+                            .service(
+                                web::resource("")
+                                    .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),
-                            ),
-                        )
-                        .service(
-                            web::resource("/update").route(
+                            ))
+                            .service(web::resource("/update").route(
                                 web::get().to(user_role::list_updatable_roles_at_entity_level),
-                            ),
-                        ),
-                )
-                .service(
-                    web::resource("/{role_id}")
-                        .route(web::get().to(user_role::get_role))
-                        .route(web::put().to(user_role::update_role)),
-                ),
-        );
+                            )),
+                    )
+                    .service(
+                        web::resource("/{role_id}")
+                            .route(web::get().to(user_role::get_role))
+                            .route(web::put().to(user_role::update_role)),
+                    ),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {
