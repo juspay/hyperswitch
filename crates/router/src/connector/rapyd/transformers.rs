@@ -37,6 +37,7 @@ pub struct RapydPaymentsRequest {
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
     pub payment_method_options: Option<PaymentMethodOptions>,
+    pub merchant_reference_id: Option<String>,
     pub capture: Option<bool>,
     pub description: Option<String>,
     pub complete_payment_url: Option<String>,
