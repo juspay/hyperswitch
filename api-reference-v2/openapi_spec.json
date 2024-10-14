@@ -14677,17 +14677,20 @@
       "PaymentsPostSessionTokensResponse": {
         "type": "object",
         "required": [
-          "payment_id",
-          "order_id"
+          "payment_id"
         ],
         "properties": {
           "payment_id": {
             "type": "string",
             "description": "The identifier for the payment"
           },
-          "order_id": {
-            "type": "string",
-            "description": "A unique identifier for a order provided by the connector"
+          "next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NextActionData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19251,6 +19254,10 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "order_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
