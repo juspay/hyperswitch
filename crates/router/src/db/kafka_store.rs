@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
-    errors::CustomResult, id_type, id_type::MerchantId, pii, types::keymanager::KeyManagerState,
+    errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState,
 };
 use diesel_models::{
     enums,
@@ -3332,7 +3332,7 @@ impl BatchSampleDataInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn delete_disputes_for_sample_data(
         &self,
-        merchant_id: &MerchantId,
+        merchant_id: &id_type::MerchantId,
     ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
     {
         let disputes_list = self
