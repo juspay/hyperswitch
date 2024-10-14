@@ -1430,7 +1430,7 @@ pub async fn list_customer_payment_method_util(
     let resp = if let Some(cust) = customer_id {
         Box::pin(list_customer_payment_method(
             &state,
-            merchant_account,
+            &merchant_account,
             key_store,
             payment_intent,
             &cust,
@@ -1456,7 +1456,7 @@ pub async fn list_customer_payment_method_util(
 ))]
 pub async fn list_customer_payment_method(
     state: &SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payment_intent: Option<PaymentIntent>,
     customer_id: &id_type::CustomerId,
@@ -1482,7 +1482,7 @@ pub async fn list_customer_payment_method(
         .async_map(|pi| {
             pm_types::SavedPMLPaymentsInfo::form_payments_info(
                 pi,
-                &merchant_account,
+                merchant_account,
                 db,
                 key_manager_state,
                 &key_store,
@@ -1531,7 +1531,7 @@ pub async fn list_customer_payment_method(
             generate_saved_pm_response(
                 state,
                 &key_store,
-                &merchant_account,
+                merchant_account,
                 ctx,
                 &customer,
                 payments_info.as_ref(),
