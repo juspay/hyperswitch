@@ -1208,12 +1208,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             }
                         }
                     };
-                    let (connector_transaction_id, connector_transaction_data) =
-                        err.connector_transaction_id.map_or((None, None), |txn_id| {
-                            let (txn_id, txn_data) =
-                                ConnectorTransactionId::form_id_and_data(txn_id);
-                            (Some(txn_id), txn_data)
-                        });
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -1229,10 +1223,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             updated_by: storage_scheme.to_string(),
                             unified_code: Some(Some(unified_code)),
                             unified_message: Some(unified_translated_message),
-                            connector_transaction_id,
+                            connector_transaction_id: err.connector_transaction_id,
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,
-                            connector_transaction_data,
                         }),
                     )
                 }
@@ -1252,12 +1245,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None
                     };
                     let field_name = err.field_names;
-                    let (connector_transaction_id, connector_transaction_data) =
-                        err.connector_transaction_id.map_or((None, None), |txn_id| {
-                            let (txn_id, txn_data) =
-                                ConnectorTransactionId::form_id_and_data(txn_id);
-                            (Some(txn_id), txn_data)
-                        });
+                    let connector_transaction_id = err.connector_transaction_id;
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -1275,7 +1263,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_transaction_id,
                             payment_method_data: None,
                             authentication_type: auth_update,
-                            connector_transaction_data,
                         }),
                     )
                 }
@@ -1305,21 +1292,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_response_reference_id,
                             ..
                         } => {
-                            let (connector_transaction_id, connector_transaction_data) =
-                                match pre_processing_id.to_owned() {
-                                    types::PreprocessingResponseId::PreProcessingId(_) => {
-                                        (None, None)
-                                    }
-                                    types::PreprocessingResponseId::ConnectorTransactionId(
-                                        connector_txn_id,
-                                    ) => {
-                                        let (txn_id, txn_data) =
-                                            ConnectorTransactionId::form_id_and_data(
-                                                connector_txn_id,
-                                            );
-                                        (Some(txn_id), txn_data)
-                                    }
-                                };
+                            let connector_transaction_id = match pre_processing_id.to_owned() {
+                                types::PreprocessingResponseId::PreProcessingId(_) => None,
+
+                                types::PreprocessingResponseId::ConnectorTransactionId(
+                                    connector_txn_id,
+                                ) => Some(connector_txn_id),
+                            };
                             let preprocessing_step_id = match pre_processing_id {
                                 types::PreprocessingResponseId::PreProcessingId(
                                     pre_processing_id,
@@ -1338,7 +1317,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     connector_transaction_id,
                                     connector_response_reference_id,
                                     updated_by: storage_scheme.to_string(),
-                                    connector_transaction_data,
                                 };
 
                             (None, Some(payment_attempt_update))
@@ -1361,14 +1339,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .payment_intent
                                         .request_incremental_authorization,
                                 );
-                            let (connector_capture_id, connector_capture_data) = match resource_id {
-                                types::ResponseId::NoResponseId => (None, None),
-                                types::ResponseId::ConnectorTransactionId(id)
-                                | types::ResponseId::EncodedData(id) => {
-                                    let (txn_id, txn_data) =
-                                        ConnectorTransactionId::form_id_and_data(id);
-                                    (Some(txn_id), txn_data)
-                                }
+                            let connector_transaction_id = match resource_id {
+                                types::ResponseId::NoResponseId => None,
+                                types::ResponseId::ConnectorTransactionId(ref id)
+                                | types::ResponseId::EncodedData(ref id) => Some(id),
                             };
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
@@ -1417,6 +1391,16 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .multiple_capture_data
                             {
                                 Some(multiple_capture_data) => {
+                                    let (connector_capture_id, connector_capture_data) =
+                                        match resource_id {
+                                            types::ResponseId::NoResponseId => (None, None),
+                                            types::ResponseId::ConnectorTransactionId(id)
+                                            | types::ResponseId::EncodedData(id) => {
+                                                let (txn_id, txn_data) =
+                                                    ConnectorTransactionId::form_id_and_data(id);
+                                                (Some(txn_id), txn_data)
+                                            }
+                                        };
                                     let capture_update = storage::CaptureUpdate::ResponseUpdate {
                                         status: enums::CaptureStatus::foreign_try_from(
                                             router_data.status,
@@ -1441,7 +1425,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     Some(storage::PaymentAttemptUpdate::ResponseUpdate {
                                         status: updated_attempt_status,
                                         connector: None,
-                                        connector_transaction_id: connector_capture_id,
+                                        connector_transaction_id: connector_transaction_id.cloned(),
                                         authentication_type: auth_update,
                                         amount_capturable: router_data
                                             .request
@@ -1465,7 +1449,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
                                         charge_id,
-                                        connector_transaction_data: connector_capture_data,
                                     }),
                                 ),
                             };
@@ -1477,16 +1460,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             reason,
                             connector_response_reference_id,
                         } => {
-                            let (connector_transaction_id, connector_transaction_data) =
-                                match resource_id {
-                                    types::ResponseId::NoResponseId => (None, None),
-                                    types::ResponseId::ConnectorTransactionId(id)
-                                    | types::ResponseId::EncodedData(id) => {
-                                        let (txn_id, txn_data) =
-                                            ConnectorTransactionId::form_id_and_data(id);
-                                        (Some(txn_id), txn_data)
-                                    }
-                                };
+                            let connector_transaction_id = match resource_id {
+                                types::ResponseId::NoResponseId => None,
+                                types::ResponseId::ConnectorTransactionId(id)
+                                | types::ResponseId::EncodedData(id) => Some(id),
+                            };
                             (
                                 None,
                                 Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1502,7 +1480,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     error_reason: Some(reason.map(|cd| cd.message)),
                                     connector_response_reference_id,
                                     updated_by: storage_scheme.to_string(),
-                                    connector_transaction_data,
                                 }),
                             )
                         }

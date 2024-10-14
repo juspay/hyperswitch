@@ -777,21 +777,15 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    let connector_transaction_id = payment_attempt.clone()
-        .connector_transaction_id
-        .ok_or_else(|| {
-            report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
-        })?;
-
-    let connector_transaction_id_str = connector_transaction_id
-        .get_txn_id(payment_attempt.connector_transaction_data.as_ref())
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let connector_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
+        report!(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
+    })?;
 
     let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
             merchant_account.get_id(),
-            connector_transaction_id_str,
+            &connector_transaction_id,
             merchant_account.storage_scheme,
         )
         .await
@@ -831,6 +825,8 @@ pub async fn validate_and_create_refund(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
+    let (connector_transaction_id, connector_transaction_data) =
+        ConnectorTransactionId::form_id_and_data(connector_transaction_id);
     let refund_create_req = storage::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
@@ -859,7 +855,7 @@ pub async fn validate_and_create_refund(
         updated_by: Default::default(),
         organization_id: merchant_account.organization_id.clone(),
         connector_refund_data: None,
-        connector_transaction_data: payment_attempt.connector_transaction_data.clone(),
+        connector_transaction_data,
     };
 
     let refund = match db

@@ -1,6 +1,10 @@
 #[cfg(feature = "v2")]
 use common_utils::types::keymanager::KeyManagerState;
-use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
+use common_utils::{
+    errors::CustomResult,
+    fallback_reverse_lookup_not_found,
+    types::{ConnectorTransactionId, ConnectorTransactionIdTrait},
+};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -529,7 +533,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
-                    connector_transaction_data: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1376,6 +1379,11 @@ impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
     fn to_storage_model(self) -> Self::StorageModel {
+        let (connector_transaction_id, connector_transaction_data) = self
+            .connector_transaction_id
+            .map(ConnectorTransactionId::form_id_and_data)
+            .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+            .unwrap_or((None, None));
         DieselPaymentAttempt {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
@@ -1392,7 +1400,7 @@ impl DataModelExt for PaymentAttempt {
             tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
-            connector_transaction_id: self.connector_transaction_id,
+            connector_transaction_id,
             capture_method: self.capture_method,
             capture_on: self.capture_on,
             confirm: self.confirm,
@@ -1446,13 +1454,16 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
-            connector_transaction_data: self.connector_transaction_data,
+            connector_transaction_data,
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        let connector_transaction_id = storage_model
+            .get_optional_connector_transaction_id()
+            .cloned();
         Self {
             net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                 storage_model.amount,
@@ -1472,7 +1483,7 @@ impl DataModelExt for PaymentAttempt {
             offer_amount: storage_model.offer_amount,
             payment_method_id: storage_model.payment_method_id,
             payment_method: storage_model.payment_method,
-            connector_transaction_id: storage_model.connector_transaction_id,
+            connector_transaction_id,
             capture_method: storage_model.capture_method,
             capture_on: storage_model.capture_on,
             confirm: storage_model.confirm,
@@ -1521,7 +1532,6 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: storage_model.customer_acceptance,
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
-            connector_transaction_data: storage_model.connector_transaction_data,
         }
     }
 }

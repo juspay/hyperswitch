@@ -181,7 +181,6 @@ impl PaymentAttemptInterface for MockDb {
             customer_acceptance: payment_attempt.customer_acceptance,
             organization_id: payment_attempt.organization_id,
             profile_id: payment_attempt.profile_id,
-            connector_transaction_data: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

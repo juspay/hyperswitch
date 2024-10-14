@@ -1,9 +1,6 @@
 use std::{str::FromStr, vec::IntoIter};
 
-use common_utils::{
-    ext_traits::Encode,
-    types::{ConnectorTransactionId, MinorUnit},
-};
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{
@@ -425,19 +422,14 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
 
-            let (connector_transaction_id, connector_transaction_data) = match resource_id {
-                types::ResponseId::NoResponseId => (None, None),
-                types::ResponseId::ConnectorTransactionId(id)
-                | types::ResponseId::EncodedData(id) => {
-                    let (txn_id, txn_data) = ConnectorTransactionId::form_id_and_data(id);
-                    (Some(txn_id), txn_data)
-                }
-            };
-
             let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
                 connector: None,
-                connector_transaction_id,
+                connector_transaction_id: match resource_id {
+                    types::ResponseId::NoResponseId => None,
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
+                },
                 connector_response_reference_id: payment_data
                     .get_payment_attempt()
                     .connector_response_reference_id
@@ -464,7 +456,6 @@ where
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
-                connector_transaction_data,
             };
 
             #[cfg(feature = "v1")]
@@ -501,12 +492,6 @@ where
                 None
             };
 
-            let (connector_transaction_id, connector_transaction_data) = error_response
-                .connector_transaction_id
-                .clone()
-                .map(ConnectorTransactionId::form_id_and_data)
-                .map_or((None, None), |(id, data)| (Some(id), data));
-
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
                 error_code: Some(Some(error_response.code.clone())),
@@ -517,10 +502,9 @@ where
                 updated_by: storage_scheme.to_string(),
                 unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                 unified_message: option_gsm.map(|gsm| gsm.unified_message),
-                connector_transaction_id,
+                connector_transaction_id: error_response.connector_transaction_id.clone(),
                 payment_method_data: additional_payment_method_data,
                 authentication_type: auth_update,
-                connector_transaction_data,
             };
 
             #[cfg(feature = "v1")]

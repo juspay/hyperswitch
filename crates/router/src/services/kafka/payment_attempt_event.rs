@@ -1,8 +1,5 @@
 // use diesel_models::enums::MandateDetails;
-use common_utils::{
-    id_type,
-    types::{ConnectorTransactionIdTrait, MinorUnit},
-};
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
     mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
@@ -81,7 +78,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             tax_amount: attempt.net_amount.get_tax_on_surcharge(),
             payment_method_id: attempt.payment_method_id.as_ref(),
             payment_method: attempt.payment_method,
-            connector_transaction_id: attempt.get_optional_connector_transaction_id(),
+            connector_transaction_id: attempt.connector_transaction_id.as_ref(),
             capture_method: attempt.capture_method,
             capture_on: attempt.capture_on.map(|i| i.assume_utc()),
             confirm: attempt.confirm,
