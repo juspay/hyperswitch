@@ -19,7 +19,7 @@ impl ConnectorActions for WorldlineTest {}
 impl utils::Connector for WorldlineTest {
     fn get_data(&self) -> types::api::ConnectorData {
         utils::construct_connector_data_old(
-            Box::new(&Worldline),
+            Box::new(Worldline::new()),
             types::Connector::Worldline,
             types::api::GetToken::Connector,
             None,
