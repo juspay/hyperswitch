@@ -1213,6 +1213,8 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[cybersource.wallet]]
   payment_method_type = "google_pay"
+[[cybersource.wallet]]
+  payment_method_type = "paze"
 [cybersource.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
@@ -2258,6 +2260,8 @@ type="Text"
 api_key="Product Activation Key"
 key1="Payment Access Key"
 api_secret="Tariff ID"
+[novalnet.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [nuvei]
 [[nuvei.credit]]

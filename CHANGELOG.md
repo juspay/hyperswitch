@@ -4,6 +4,98 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.15.0
+
+### Features
+
+- **analytics:** Add metrics, filters and APIs for Analytics v2 Dashboard - Payments Page ([#5870](https://github.com/juspay/hyperswitch/pull/5870)) ([`f123df9`](https://github.com/juspay/hyperswitch/commit/f123df9aa31c45b417224af73c2a98325984b3dd))
+- **connector:** [CYBERSOURCE] Add paze dashboard configs ([#6304](https://github.com/juspay/hyperswitch/pull/6304)) ([`df280f2`](https://github.com/juspay/hyperswitch/commit/df280f2574ac701a5e32b9bcae90c87cab7bc5aa))
+- **payment_methods_v2:** Delete payment method api ([#6211](https://github.com/juspay/hyperswitch/pull/6211)) ([`8e538cd`](https://github.com/juspay/hyperswitch/commit/8e538cd6b3da4a155c55ce153982bff3c59ef575))
+- **payments:** Support for card_network filter in payments list ([#5994](https://github.com/juspay/hyperswitch/pull/5994)) ([`1ac8c92`](https://github.com/juspay/hyperswitch/commit/1ac8c92c4bd2259cdd8bf755210bcb3c0eb31472))
+- **router:** Add support for Samsung pay app tokens flow ([#6257](https://github.com/juspay/hyperswitch/pull/6257)) ([`f6b0b98`](https://github.com/juspay/hyperswitch/commit/f6b0b98e0a6c07308b481715f7c9ad063a5f0de9))
+
+### Bug Fixes
+
+- **router:**
+  - Update nick_name only if card_token.card_holder_name is non empty and populate additional card_details from payment_attempt if not present in the locker ([#6308](https://github.com/juspay/hyperswitch/pull/6308)) ([`9da9c5e`](https://github.com/juspay/hyperswitch/commit/9da9c5e0ffe219a0bf6e08281b87c77eeb5c4575))
+  - Replace underscore by hyphen in Samsung pay session call ([#6311](https://github.com/juspay/hyperswitch/pull/6311)) ([`7f1bbbf`](https://github.com/juspay/hyperswitch/commit/7f1bbbfffecb74555756b0003d6a0ae940e581db))
+
+### Refactors
+
+- **connector:** [Adyen platform] api contract change for webhook ([#6281](https://github.com/juspay/hyperswitch/pull/6281)) ([`5b4a1d5`](https://github.com/juspay/hyperswitch/commit/5b4a1d5f6d7b4143116c5f1faf6cb325e4368e6d))
+- Add user agent header in outgoing webhooks ([#6289](https://github.com/juspay/hyperswitch/pull/6289)) ([`fe62b1f`](https://github.com/juspay/hyperswitch/commit/fe62b1fe2137de456a6a0e8e315fd0592c29577d))
+
+### Documentation
+
+- **v2:** Added 'X-Merchant-Id' to headers in Profile API docs ([#6291](https://github.com/juspay/hyperswitch/pull/6291)) ([`ca086d0`](https://github.com/juspay/hyperswitch/commit/ca086d0b25ee12419ebcb7250b4a6678cc33a8a6))
+
+**Full Changelog:** [`2024.10.11.0...2024.10.15.0`](https://github.com/juspay/hyperswitch/compare/2024.10.11.0...2024.10.15.0)
+
+- - -
+
+## 2024.10.11.0
+
+### Features
+
+- **router:** Add network transaction id support for mit payments ([#6245](https://github.com/juspay/hyperswitch/pull/6245)) ([`ba75a3f`](https://github.com/juspay/hyperswitch/commit/ba75a3f5a936ec981422bbe3c4fbdd9f12928615))
+
+### Refactors
+
+- Refactor(router): modify `net_amount` to be a struct in the domain model of payment_attempt and handle amount changes across all flows ([#6252](https://github.com/juspay/hyperswitch/pull/6252)) ([`5930089`](https://github.com/juspay/hyperswitch/commit/5930089682f89e1cc3e14720fcfa31de43353686))
+
+**Full Changelog:** [`2024.10.10.0...2024.10.11.0`](https://github.com/juspay/hyperswitch/compare/2024.10.10.0...2024.10.11.0)
+
+- - -
+
+
+## 2024.10.09.0
+
+### Features
+
+- **connector:**
+  - [Novalnet] add webhooks for card ([#6033](https://github.com/juspay/hyperswitch/pull/6033)) ([`d61ebef`](https://github.com/juspay/hyperswitch/commit/d61ebef14908473458ae5962a63b035ddd0b3d94))
+  - Integrate PAZE Wallet ([#6030](https://github.com/juspay/hyperswitch/pull/6030)) ([`535f2f1`](https://github.com/juspay/hyperswitch/commit/535f2f12f825be384a17fba8628d8517027bb6c6))
+
+### Bug Fixes
+
+- **connector:**
+  - [deutsche bank] add support for sepa one-off payments ([#6246](https://github.com/juspay/hyperswitch/pull/6246)) ([`4e07fe9`](https://github.com/juspay/hyperswitch/commit/4e07fe9e8a8ccc19d9e247f4da787c5bf04411ca))
+  - [Stripe] fix cashapp webhooks response deserialization failure ([#5690](https://github.com/juspay/hyperswitch/pull/5690)) ([`2ccce01`](https://github.com/juspay/hyperswitch/commit/2ccce01bf4c65559fd085dbb3ab32ef646998c17))
+  - Remove placeholder from novalnet webhooks secret ([#6268](https://github.com/juspay/hyperswitch/pull/6268)) ([`86a43b9`](https://github.com/juspay/hyperswitch/commit/86a43b9bc41a358fe133c9fdea8dde09d4965c98))
+- **euclid_wasm:** Update dependency for wasm in validate.rs ([#6262](https://github.com/juspay/hyperswitch/pull/6262)) ([`cc7c17f`](https://github.com/juspay/hyperswitch/commit/cc7c17f873efbe2818bcc472c0e2add3c836e71d))
+- **users:** Allow accepting invites for `org_admin`s ([#6253](https://github.com/juspay/hyperswitch/pull/6253)) ([`2bc21cf`](https://github.com/juspay/hyperswitch/commit/2bc21cfc5e3e6d8403bec82fde14cfd01536f406))
+
+**Full Changelog:** [`2024.10.08.0...2024.10.09.0`](https://github.com/juspay/hyperswitch/compare/2024.10.08.0...2024.10.09.0)
+
+- - -
+
+## 2024.10.08.0
+
+### Bug Fixes
+
+- **user_role:** Restrict updating user role to the same `EntityType` ([#6224](https://github.com/juspay/hyperswitch/pull/6224)) ([`b499287`](https://github.com/juspay/hyperswitch/commit/b499287f2347837bc885387bb5eb99b3fd841f63))
+- **users:** Trustpay refund url update ([#6251](https://github.com/juspay/hyperswitch/pull/6251)) ([`f4830eb`](https://github.com/juspay/hyperswitch/commit/f4830ebaae5dcc8407e420dfeb1ca981c08bc8fb))
+
+### Refactors
+
+- **dynamic_fields:** Rename sepa in dynamic fields ([#6234](https://github.com/juspay/hyperswitch/pull/6234)) ([`e44eb13`](https://github.com/juspay/hyperswitch/commit/e44eb13c6188df4863dc6f960e35b2ab6e96c064))
+
+### Documentation
+
+- Fix broken links to Running Additional Services ([#6243](https://github.com/juspay/hyperswitch/pull/6243)) ([`da6c0ff`](https://github.com/juspay/hyperswitch/commit/da6c0ff60bf059e73383ac37671c6df5c26d332c))
+
+### Miscellaneous Tasks
+
+- V2 api changes for session token endpoint ([#6032](https://github.com/juspay/hyperswitch/pull/6032)) ([`6e355f3`](https://github.com/juspay/hyperswitch/commit/6e355f34a8cef41cb9d9047f7c8792d4b46c10d8))
+
+### Build System / Dependencies
+
+- **docker-compose-development:** Address build failure of `hyperswitch-server` service ([#6217](https://github.com/juspay/hyperswitch/pull/6217)) ([`b79f75a`](https://github.com/juspay/hyperswitch/commit/b79f75a7ab9ed63a75defa2b3c5f9c170fca493e))
+
+**Full Changelog:** [`2024.10.07.0...2024.10.08.0`](https://github.com/juspay/hyperswitch/compare/2024.10.07.0...2024.10.08.0)
+
+- - -
+
 ## 2024.10.07.0
 
 ### Features

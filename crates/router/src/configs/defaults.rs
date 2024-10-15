@@ -11607,9 +11607,9 @@ impl Default for super::settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                            "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                 display_name: "iban".to_string(),
                                                 field_type: enums::FieldType::UserIban,
                                                 value: None,
@@ -11650,9 +11650,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                     display_name: "iban".to_string(),
                                                     field_type: enums::FieldType::UserIban,
                                                     value: None,
@@ -11693,9 +11693,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                     display_name: "iban".to_string(),
                                                     field_type: enums::FieldType::UserIban,
                                                     value: None,
