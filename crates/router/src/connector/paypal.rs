@@ -766,13 +766,17 @@ impl
         req: &types::SdkSessionUpdateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let session_id =
+            req.request
+                .session_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "session_id",
+                })?;
         Ok(format!(
             "{}v2/checkout/orders/{}",
             self.base_url(connectors),
-            req.request
-                .connector_transaction_id
-                .clone()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
+            session_id
         ))
     }
 

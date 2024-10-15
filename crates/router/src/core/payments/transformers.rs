@@ -2112,7 +2112,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             order_tax_amount,
             currency: payment_data.currency,
             amount: payment_data.payment_intent.amount,
-            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
+            session_id: payment_data.session_id,
         })
     }
 }

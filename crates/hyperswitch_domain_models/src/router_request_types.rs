@@ -843,7 +843,7 @@ pub struct SdkPaymentsSessionUpdateData {
     pub net_amount: MinorUnit,
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
-    pub connector_transaction_id: Option<String>,
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

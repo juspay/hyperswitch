@@ -3488,6 +3488,7 @@ where
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
+    pub session_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
