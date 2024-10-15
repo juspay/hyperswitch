@@ -386,7 +386,8 @@ impl
                 })?;
         let amount =
             req.request
-                .minor_amount
+                .amount
+                .map(MinorUnit::new)
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "amount",
                 })?;

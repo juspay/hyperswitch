@@ -1,5 +1,5 @@
 use cards::CardNumber;
-use common_utils::{ext_traits::OptionExt, pii::Email, types::MinorUnit};
+use common_utils::{ext_traits::OptionExt, pii::Email};
 use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
@@ -91,8 +91,6 @@ pub struct ConnectorAuthenticationRequestData {
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     pub three_ds_requestor_url: String,
     pub webhook_url: String,
-
-    pub minor_amount: Option<MinorUnit>
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
