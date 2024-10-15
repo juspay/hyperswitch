@@ -1708,6 +1708,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     state: &SessionState,
     token: &str,
     payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
     card_token_data: Option<&domain::CardToken>,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
@@ -1734,12 +1735,15 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
             // from payment_method_data.card_token object
-            let name_on_card = card_token_data.and_then(|token_data| {
-                is_card_updated = true;
-                token_data.card_holder_name.clone()
-            });
+            let name_on_card =
+                card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
 
-            updated_card.nick_name = name_on_card;
+            if let Some(name) = name_on_card.clone() {
+                if !name.peek().is_empty() {
+                    is_card_updated = true;
+                    updated_card.nick_name = name_on_card;
+                }
+            }
 
             if let Some(token_data) = card_token_data {
                 if let Some(cvc) = token_data.card_cvc.clone() {
@@ -1747,6 +1751,38 @@ pub async fn retrieve_payment_method_with_temporary_token(
                     updated_card.card_cvc = cvc;
                 }
             }
+
+            // populate additional card details from payment_attempt.payment_method_data (additional_payment_data) if not present in the locker
+            if updated_card.card_issuer.is_none()
+                || updated_card.card_network.is_none()
+                || updated_card.card_type.is_none()
+                || updated_card.card_issuing_country.is_none()
+            {
+                let additional_payment_method_data: Option<
+                    api_models::payments::AdditionalPaymentData,
+                > = payment_attempt
+                    .payment_method_data
+                    .clone()
+                    .and_then(|data| match data {
+                        serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
+                        _ => Some(data.parse_value("AdditionalPaymentData")),
+                    })
+                    .transpose()
+                    .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
+                    .ok()
+                    .flatten();
+                if let Some(api_models::payments::AdditionalPaymentData::Card(card)) =
+                    additional_payment_method_data
+                {
+                    is_card_updated = true;
+                    updated_card.card_issuer = updated_card.card_issuer.or(card.card_issuer);
+                    updated_card.card_network = updated_card.card_network.or(card.card_network);
+                    updated_card.card_type = updated_card.card_type.or(card.card_type);
+                    updated_card.card_issuing_country = updated_card
+                        .card_issuing_country
+                        .or(card.card_issuing_country);
+                };
+            };
 
             if is_card_updated {
                 let updated_pm = domain::PaymentMethodData::Card(updated_card);
@@ -2208,6 +2244,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 merchant_key_store,
                 hyperswitch_token,
                 &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 card_token_data.as_ref(),
                 customer,
                 storage_scheme,
@@ -5389,6 +5426,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 state,
                 &generic_token.token,
                 payment_intent,
+                payment_attempt,
                 key_store,
                 None,
             )
@@ -5400,6 +5438,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 state,
                 &generic_token.token,
                 payment_intent,
+                payment_attempt,
                 key_store,
                 None,
             )

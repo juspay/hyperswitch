@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.04.0-hotfix2
+
+### Bug Fixes
+
+- **router:** Update nick_name only if card_token.card_holder_name is non empty and populate additional card_details from payment_attempt if not present in the locker ([#6320](https://github.com/juspay/hyperswitch/pull/6320)) ([`4fdf5a5`](https://github.com/juspay/hyperswitch/commit/4fdf5a5208431e22c434a3bd9563eed3dfb2c6a3))
+
+- - -
+
 ## 2024.10.04.0-hotfix1
 
 ### Features
