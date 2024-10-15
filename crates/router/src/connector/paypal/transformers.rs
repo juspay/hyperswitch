@@ -28,14 +28,32 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub struct PaypalRouterData<T> {
     pub amount: StringMajorUnit,
+    pub order_tax_amount: Option<StringMajorUnit>,
+    pub order_amount: Option<StringMajorUnit>,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for PaypalRouterData<T> {
+impl<T>
+    TryFrom<(
+        StringMajorUnit,
+        Option<StringMajorUnit>,
+        Option<StringMajorUnit>,
+        T,
+    )> for PaypalRouterData<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (amount, order_tax_amount, order_amount, item): (
+            StringMajorUnit,
+            Option<StringMajorUnit>,
+            Option<StringMajorUnit>,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
+            order_tax_amount,
+            order_amount,
             router_data: item,
         })
     }
@@ -54,6 +72,8 @@ pub mod auth_headers {
     pub const PAYPAL_REQUEST_ID: &str = "PayPal-Request-Id";
     pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
 }
+
+const ORDER_QUANTITY: u16 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -86,6 +106,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for OrderReque
                     currency_code: item.router_data.request.currency,
                     value: item.amount.clone(),
                 },
+                tax_total: None,
             },
         }
     }
@@ -101,14 +122,46 @@ impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for Or
                     currency_code: item.router_data.request.currency,
                     value: item.amount.clone(),
                 },
+                tax_total: None,
             },
         }
+    }
+}
+
+impl TryFrom<&PaypalRouterData<&types::SdkSessionUpdateRouterData>> for OrderRequestAmount {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaypalRouterData<&types::SdkSessionUpdateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            currency_code: item.router_data.request.currency,
+            value: item.amount.clone(),
+            breakdown: AmountBreakdown {
+                item_total: OrderAmount {
+                    currency_code: item.router_data.request.currency,
+                    value: item.order_amount.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "order_amount",
+                        },
+                    )?,
+                },
+                tax_total: Some(OrderAmount {
+                    currency_code: item.router_data.request.currency,
+                    value: item.order_tax_amount.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "order_tax_amount",
+                        },
+                    )?,
+                }),
+            },
+        })
     }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AmountBreakdown {
     item_total: OrderAmount,
+    tax_total: Option<OrderAmount>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -133,6 +186,7 @@ pub struct ItemDetails {
     name: String,
     quantity: u16,
     unit_amount: OrderAmount,
+    tax: Option<OrderAmount>,
 }
 
 impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetails {
@@ -142,11 +196,12 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
                 "Payment for invoice {}",
                 item.router_data.connector_request_reference_id
             ),
-            quantity: 1,
+            quantity: ORDER_QUANTITY,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
                 value: item.amount.clone(),
             },
+            tax: None,
         }
     }
 }
@@ -158,12 +213,44 @@ impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for It
                 "Payment for invoice {}",
                 item.router_data.connector_request_reference_id
             ),
-            quantity: 1,
+            quantity: ORDER_QUANTITY,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
                 value: item.amount.clone(),
             },
+            tax: None,
         }
+    }
+}
+
+impl TryFrom<&PaypalRouterData<&types::SdkSessionUpdateRouterData>> for ItemDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaypalRouterData<&types::SdkSessionUpdateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: format!(
+                "Payment for invoice {}",
+                item.router_data.connector_request_reference_id
+            ),
+            quantity: ORDER_QUANTITY,
+            unit_amount: OrderAmount {
+                currency_code: item.router_data.request.currency,
+                value: item.order_amount.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_amount",
+                    },
+                )?,
+            },
+            tax: Some(OrderAmount {
+                currency_code: item.router_data.request.currency,
+                value: item.order_tax_amount.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_tax_amount",
+                    },
+                )?,
+            }),
+        })
     }
 }
 
@@ -209,6 +296,40 @@ impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for Sh
             }),
         }
     }
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct PaypalUpdateOrderRequest(Vec<Operation>);
+
+impl PaypalUpdateOrderRequest {
+    pub fn get_inner_value(self) -> Vec<Operation> {
+        self.0
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct Operation {
+    pub op: PaypalOperationType,
+    pub path: String,
+    pub value: Value,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum PaypalOperationType {
+    Add,
+    Remove,
+    Replace,
+    Move,
+    Copy,
+    Test,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum Value {
+    Amount(OrderRequestAmount),
+    Items(Vec<ItemDetails>),
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -461,6 +582,39 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>>
     }
 }
 
+impl TryFrom<&PaypalRouterData<&types::SdkSessionUpdateRouterData>> for PaypalUpdateOrderRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &PaypalRouterData<&types::SdkSessionUpdateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let op = PaypalOperationType::Replace;
+
+        // Create separate paths for amount and items
+        let reference_id = &item.router_data.connector_request_reference_id;
+
+        let amount_path = format!("/purchase_units/@reference_id=='{}'/amount", reference_id);
+        let items_path = format!("/purchase_units/@reference_id=='{}'/items", reference_id);
+
+        let amount_value = Value::Amount(OrderRequestAmount::try_from(item)?);
+
+        let items_value = Value::Items(vec![ItemDetails::try_from(item)?]);
+
+        Ok(Self(vec![
+            Operation {
+                op: op.clone(),
+                path: amount_path,
+                value: amount_value,
+            },
+            Operation {
+                op,
+                path: items_path,
+                value: items_value,
+            },
+        ]))
+    }
+}
+
 impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -585,7 +739,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::GooglePayThirdPartySdk(_)
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -594,7 +747,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::Mifinity(_)
+                | domain::WalletData::Paze(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
