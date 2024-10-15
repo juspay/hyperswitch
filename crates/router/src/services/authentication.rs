@@ -823,8 +823,8 @@ impl<'a> HeaderMapStruct<'a> {
     pub fn get_organization_id_from_header(&self) -> RouterResult<id_type::OrganizationId> {
         self.get_mandatory_header_value_by_key(headers::X_ORGANIZATION_ID.into())
             .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                id_type::OrganizationId::wrap(merchant_id).change_context(
+            .and_then(|organization_id| {
+                id_type::OrganizationId::wrap(organization_id).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", headers::X_ORGANIZATION_ID),
                     },
