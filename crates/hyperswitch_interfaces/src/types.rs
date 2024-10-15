@@ -9,8 +9,8 @@ use hyperswitch_domain_models::{
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Session,
-            SetupMandate, Void,
+            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
+            Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
@@ -22,8 +22,8 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -65,6 +65,9 @@ pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
     PaymentsPostSessionTokensData,
     PaymentsResponseData,
 >;
+/// Type alias for `ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>`
+pub type SdkSessionUpdateType =
+    dyn ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>`
 pub type SetupMandateType =
     dyn ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;

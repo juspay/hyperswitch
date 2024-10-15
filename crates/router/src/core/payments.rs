@@ -2972,6 +2972,7 @@ where
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
+    pub session_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -5087,6 +5088,41 @@ pub async fn payments_manual_update(
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
         },
     ))
+}
+
+pub trait PaymentMethodChecker<F> {
+    fn should_update_in_post_update_tracker(&self) -> bool;
+    fn should_update_in_update_tracker(&self) -> bool;
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
+    fn should_update_in_post_update_tracker(&self) -> bool {
+        let payment_method_type = self
+            .payment_intent
+            .tax_details
+            .as_ref()
+            .and_then(|tax_details| tax_details.payment_method_type.as_ref().map(|pmt| pmt.pmt));
+
+        matches!(
+            payment_method_type,
+            Some(storage_enums::PaymentMethodType::Paypal)
+        )
+    }
+
+    fn should_update_in_update_tracker(&self) -> bool {
+        let payment_method_type = self
+            .payment_intent
+            .tax_details
+            .as_ref()
+            .and_then(|tax_details| tax_details.payment_method_type.as_ref().map(|pmt| pmt.pmt));
+
+        matches!(
+            payment_method_type,
+            Some(storage_enums::PaymentMethodType::ApplePay)
+                | Some(storage_enums::PaymentMethodType::GooglePay)
+        )
+    }
 }
 
 pub trait OperationSessionGetters<F> {

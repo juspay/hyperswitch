@@ -14405,6 +14405,11 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session Id",
+            "nullable": true
           }
         }
       },

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
-use common_enums::AuthorizationStatus;
+use common_enums::{AuthorizationStatus, SessionUpdateStatus};
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, MinorUnit},
@@ -25,6 +25,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
+        payment_methods::cards::create_encrypted_data,
         payments::{
             helpers::{
                 self as payments_helpers,
@@ -32,7 +33,7 @@ use crate::{
             },
             tokenization,
             types::MultipleCaptureData,
-            PaymentData,
+            PaymentData, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -615,16 +616,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 {
     async fn update_tracker<'b>(
         &'b self,
-        _db: &'b SessionState,
+        db: &'b SessionState,
         _payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        _router_data: types::RouterData<
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
             F,
             types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         >,
-        _key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
@@ -632,53 +633,96 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     where
         F: 'b + Send,
     {
-        // let session_update_details =
-        //     payment_data
-        //         .payment_intent
-        //         .tax_details
-        //         .clone()
-        //         .ok_or_else(|| {
-        //             report!(errors::ApiErrorResponse::InternalServerError)
-        //                 .attach_printable("missing tax_details in payment_intent")
-        //         })?;
+        let connector = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("connector not found")?;
 
-        // let pmt_amount = session_update_details
-        //     .pmt
-        //     .clone()
-        //     .map(|pmt| pmt.order_tax_amount)
-        //     .ok_or(errors::ApiErrorResponse::InternalServerError)
-        //     .attach_printable("Missing tax_details.order_tax_amount")?;
+        // For PayPal, if we call TaxJar for tax calculation, we need to call the connector again to update the order amount so that we can confirm the updated amount and order details. Therefore, we will store the required changes in the database during the post_update_tracker call.
+        if payment_data.should_update_in_post_update_tracker() {
+            match router_data.response.clone() {
+                Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
+                    if status == SessionUpdateStatus::Success {
+                        let shipping_address = payment_data
+                            .tax_data
+                            .clone()
+                            .map(|tax_data| tax_data.shipping_details);
 
-        // let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
+                        let shipping_details = shipping_address
+                            .clone()
+                            .async_map(|shipping_details| {
+                                create_encrypted_data(db, key_store, shipping_details)
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt shipping details")?;
 
-        // // if connector_ call successful -> payment_intent.amount update
-        // match router_data.response.clone() {
-        //     Err(_) => (None, None),
-        //     Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
-        //         if status == SessionUpdateStatus::Success {
-        //             (
-        //                 Some(
-        //                     storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-        //                         amount: total_amount,
-        //                         amount_capturable: total_amount,
-        //                     },
-        //                 ),
-        //                 Some(
-        //                     storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-        //                         amount: pmt_amount,
-        //                     },
-        //                 ),
-        //             )
-        //         } else {
-        //             (None, None)
-        //         }
-        //     }
-        //     _ => Err(errors::ApiErrorResponse::InternalServerError)
-        //         .attach_printable("unexpected response in session_update flow")?,
-        // };
+                        let shipping_address =
+                            payments_helpers::create_or_update_address_for_payment_by_request(
+                                db,
+                                shipping_address.as_ref(),
+                                payment_data.payment_intent.shipping_address_id.as_deref(),
+                                &payment_data.payment_intent.merchant_id,
+                                payment_data.payment_intent.customer_id.as_ref(),
+                                key_store,
+                                &payment_data.payment_intent.payment_id,
+                                storage_scheme,
+                            )
+                            .await?;
 
-        // let _shipping_address = payment_data.address.get_shipping();
-        // let _amount = payment_data.amount;
+                        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
+                    tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
+                    shipping_address_id: shipping_address.map(|address| address.address_id),
+                    updated_by: payment_data.payment_intent.updated_by.clone(),
+                    shipping_details,
+        };
+
+                        let m_db = db.clone().store;
+                        let payment_intent = payment_data.payment_intent.clone();
+                        let key_manager_state: KeyManagerState = db.into();
+
+                        let updated_payment_intent = m_db
+                            .update_payment_intent(
+                                &key_manager_state,
+                                payment_intent,
+                                payment_intent_update,
+                                key_store,
+                                storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                        payment_data.payment_intent = updated_payment_intent;
+                    } else {
+                        router_data.response.map_err(|err| {
+                            errors::ApiErrorResponse::ExternalConnectorError {
+                                code: err.code,
+                                message: err.message,
+                                connector,
+                                status_code: err.status_code,
+                                reason: err.reason,
+                            }
+                        })?;
+                    }
+                }
+                Err(err) => {
+                    Err(errors::ApiErrorResponse::ExternalConnectorError {
+                        code: err.code,
+                        message: err.message,
+                        connector,
+                        status_code: err.status_code,
+                        reason: err.reason,
+                    })?;
+                }
+                _ => {
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unexpected response in session_update flow")?;
+                }
+            }
+        }
 
         Ok(payment_data)
     }
@@ -1543,7 +1587,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
-                        // types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
+                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {
