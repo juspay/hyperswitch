@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_utils::{
     request::RequestContent,
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
