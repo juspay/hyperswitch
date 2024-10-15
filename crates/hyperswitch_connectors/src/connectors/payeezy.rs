@@ -42,7 +42,6 @@ use rand::distributions::DistString;
 use ring::hmac;
 use transformers as payeezy;
 
-// use self::bitpay::BitpayWebhookDetails;
 use crate::{
     constants::headers, types::ResponseRouterData, utils::construct_not_implemented_error_report,
 };

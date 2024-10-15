@@ -2,7 +2,6 @@ use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus};
 use common_utils::{consts, errors::CustomResult, request::Method};
-// use domain::PaymentMethodData;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -28,10 +27,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData as _,
-    }, // consts,
-       // core::errors,
-       // services,
-       // types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    },
 };
 
 #[derive(Debug, Serialize)]

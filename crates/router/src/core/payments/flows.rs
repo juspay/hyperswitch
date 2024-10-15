@@ -2706,6 +2706,7 @@ default_imp_for_connector_authentication!(
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
+    connector::Payeezy,
     connector::Payme,
     connector::Payone,
     connector::Paypal,

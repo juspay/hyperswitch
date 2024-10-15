@@ -25,11 +25,6 @@ use crate::{
     },
 };
 
-// use crate::{
-//     // connector::utils::{self, CardData, RouterData},
-//     // core::errors,
-//     // types::{self, api, domain, storage::enums, transformers::ForeignFrom},
-// };
 #[derive(Debug, Serialize)]
 pub struct PayeezyRouterData<T> {
     pub amount: String,
@@ -454,7 +449,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
     }
 }
 
-// impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for AttemptStatus {
 fn get_status(status: PayeezyPaymentStatus, method: PayeezyTransactionType) -> AttemptStatus {
     match status {
         PayeezyPaymentStatus::Approved => match method {
@@ -479,7 +473,6 @@ fn get_status(status: PayeezyPaymentStatus, method: PayeezyTransactionType) -> A
         },
     }
 }
-// }
 
 // REFUND :
 // Type definition for RefundRequest
