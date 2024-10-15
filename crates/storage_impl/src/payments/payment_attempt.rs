@@ -402,7 +402,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
-        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -425,7 +424,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             payment_method,
             payment_method_type,
             authentication_type,
-            profile_id_list,
             merchant_connector_id,
         )
         .await
@@ -1280,7 +1278,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
-        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1292,7 +1289,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
-                profile_id_list,
                 storage_scheme,
             )
             .await

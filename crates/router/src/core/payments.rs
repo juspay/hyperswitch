@@ -3763,8 +3763,18 @@ pub async fn apply_filters_on_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let total_count = db
-        .get_total_count_of_filtered_payment_attempts(
+    let total_count = if constraints.connector.is_none()
+        && constraints.payment_method.is_none()
+        && constraints.payment_method_type.is_none()
+        && constraints.authentication_type.is_none()
+        && constraints.merchant_connector_id.is_none()
+        && profile_id_list.is_none()
+    {
+        i64::try_from(active_attempt_ids.len())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while converting from usize to i64")
+    } else {
+        db.get_total_count_of_filtered_payment_attempts(
             merchant.get_id(),
             &active_attempt_ids,
             constraints.connector,
@@ -3772,11 +3782,11 @@ pub async fn apply_filters_on_payments(
             constraints.payment_method_type,
             constraints.authentication_type,
             constraints.merchant_connector_id,
-            pi_fetch_constraints.get_profile_id_list(),
             merchant.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+    }?;
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponseV2 {
