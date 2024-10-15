@@ -21,7 +21,6 @@ The single API to access payment ecosystems across 130+ countries</div>
   <a href="#community">Community</a> •
   <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
   <a href="#versioning">Versioning</a> •
-  <a href="#FAQs">FAQs</a> •
   <a href="#copyright-and-license">Copyright and License</a>
 </p>
 
@@ -308,15 +307,6 @@ If your problem or idea is not addressed yet, please [open a new issue].
 </a>
 
 Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
-
-<a href="#FAQs">
-  <h2 id="FAQs">🤔 FAQs</h2>
-</a>
-
-Got more questions?
-Please refer to our [FAQs page][faqs].
-
-[faqs]: https://hyperswitch.io/docs/devSupport
 
 <a href="#©Copyright and License">
   <h2 id="copyright-and-license">©️ Copyright and License</h2>
