@@ -543,8 +543,9 @@ where
         });
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
-                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                payment_id: payment_data.get_payment_intent().payment_id.clone(),
                 next_action,
+                status: payment_data.get_payment_intent().status,
             },
             vec![],
         )))

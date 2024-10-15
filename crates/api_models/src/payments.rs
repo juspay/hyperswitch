@@ -4898,6 +4898,8 @@ pub struct PaymentsPostSessionTokensResponse {
     pub payment_id: id_type::PaymentId,
     /// Additional information required for redirection
     pub next_action: Option<NextActionData>,
+    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    pub status: api_enums::IntentStatus,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
