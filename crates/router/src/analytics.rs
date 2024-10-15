@@ -26,6 +26,7 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
+    use common_utils::types::TimeRange;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
 
@@ -143,6 +144,10 @@ pub mod routes {
                                 .route(web::post().to(get_merchant_dispute_filters)),
                         )
                         .service(
+                            web::resource("metrics/sankey")
+                                .route(web::post().to(get_merchant_sankey)),
+                        )
+                        .service(
                             web::scope("/merchant")
                                 .service(
                                     web::resource("metrics/payments")
@@ -190,6 +195,10 @@ pub mod routes {
                                 .service(
                                     web::resource("filters/disputes")
                                         .route(web::post().to(get_merchant_dispute_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/sankey")
+                                        .route(web::post().to(get_merchant_sankey)),
                                 ),
                         )
                         .service(
@@ -232,6 +241,10 @@ pub mod routes {
                                 .service(
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_org_payment_report)),
+                                )
+                                .service(
+                                    web::resource("metrics/sankey")
+                                        .route(web::post().to(get_org_sankey)),
                                 ),
                         )
                         .service(
@@ -290,6 +303,10 @@ pub mod routes {
                                 .service(
                                     web::resource("sdk_event_logs")
                                         .route(web::post().to(get_profile_sdk_events)),
+                                )
+                                .service(
+                                    web::resource("metrics/sankey")
+                                        .route(web::post().to(get_profile_sankey)),
                                 ),
                         ),
                 )
@@ -2272,6 +2289,105 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::Analytics,
                 minimum_entity_level: EntityType::Organization,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_merchant_sankey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSankey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::payment_intents::get_sankey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::Analytics,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_org_sankey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSankey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
+                };
+                analytics::payment_intents::get_sankey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::Analytics,
+                minimum_entity_level: EntityType::Organization,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_sankey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSankey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state: crate::routes::SessionState, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
+                };
+                analytics::payment_intents::get_sankey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::Analytics,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
