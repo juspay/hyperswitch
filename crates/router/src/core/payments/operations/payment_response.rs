@@ -627,11 +627,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-        _business_profile: &domain::Profile,
+        #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -760,19 +757,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
     {
         match router_data.response.clone() {
             Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id,
-                connector_metadata,
-                ..
+                connector_metadata, ..
             }) => {
-                let connector_transaction_id = match resource_id {
-                    types::ResponseId::NoResponseId => None,
-                    types::ResponseId::ConnectorTransactionId(id)
-                    | types::ResponseId::EncodedData(id) => Some(id),
-                };
                 let m_db = db.clone().store;
                 let payment_attempt_update =
                     storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
-                        connector_transaction_id: connector_transaction_id.clone(),
                         updated_by: storage_scheme.clone().to_string(),
                         connector_metadata,
                     };
@@ -787,17 +776,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                 payment_data.payment_attempt = updated_payment_attempt;
             }
             Err(err) => {
-                Err(errors::ApiErrorResponse::ExternalConnectorError {
-                    code: err.code,
-                    message: err.message,
-                    connector: payment_data
-                        .payment_attempt
-                        .connector
-                        .clone()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("connector not found")?,
-                    status_code: err.status_code,
-                    reason: err.reason,
+                logger::error!("Invalid request sent to connector: {:?}", err);
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid request sent to connector".to_string(),
                 })?;
             }
             _ => {

@@ -366,6 +366,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SamsungPayAmountFormat,
         api_models::payments::SamsungPayProtocolType,
         api_models::payments::SamsungPayWalletCredentials,
+        api_models::payments::SamsungPayWebWalletData,
+        api_models::payments::SamsungPayAppWalletData,
+        api_models::payments::SamsungPayCardBrand,
         api_models::payments::SamsungPayTokenData,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
@@ -576,8 +579,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
-        api_models::payments::PaymentsPostSessionTokensRequest,
-        api_models::payments::PaymentsPostSessionTokensResponse,
     )),
     modifiers(&SecurityAddon)
 )]

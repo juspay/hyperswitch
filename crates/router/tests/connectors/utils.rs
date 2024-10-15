@@ -947,7 +947,6 @@ impl Default for PaymentAuthorizeType {
             charges: None,
             integrity_object: None,
             merchant_order_reference_id: None,
-            connector_transaction_id: None,
         };
         Self(data)
     }
