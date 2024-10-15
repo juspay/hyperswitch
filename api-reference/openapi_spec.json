@@ -17992,7 +17992,8 @@
       "PaymentsPostSessionTokensResponse": {
         "type": "object",
         "required": [
-          "payment_id"
+          "payment_id",
+          "status"
         ],
         "properties": {
           "payment_id": {
@@ -18006,6 +18007,14 @@
               }
             ],
             "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           }
         }
       },
