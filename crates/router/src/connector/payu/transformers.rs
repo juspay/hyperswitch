@@ -549,7 +549,6 @@ impl<F> TryFrom<&PayuRouterData<&types::RefundsRouterData<F>>> for PayuRefundReq
 }
 
 // Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Eq, PartialEq, Default, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
