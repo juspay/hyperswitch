@@ -43,7 +43,10 @@ use crate::{
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     unimplemented_payment_method,
-    utils::{self, ApplePayDecrypt, PaymentsAuthorizeRequestData, QrImage, RefundsRequestData, RouterData as _},
+    utils::{
+        self, ApplePayDecrypt, PaymentsAuthorizeRequestData, QrImage, RefundsRequestData,
+        RouterData as _,
+    },
 };
 
 pub struct FiuuRouterData<T> {
@@ -645,9 +648,9 @@ impl<F>
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
-                                Ok(enums::AttemptStatus::Pending)
+                                Ok(enums::AttemptStatus::Charged)
                             } else {
-                                Ok(enums::AttemptStatus::Pending)
+                                Ok(enums::AttemptStatus::Authorized)
                             }
                         }
                         "11" => Ok(enums::AttemptStatus::Failure),
@@ -736,7 +739,10 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
                 RefundType::Partial,
                 txn_amount.get_amount_as_string()
             ))?,
-            notify_url: Some(Url::parse(&item.router_data.request.get_webhook_url()?).change_context(errors::ConnectorError::RequestEncodingFailed)?),
+            notify_url: Some(
+                Url::parse(&item.router_data.request.get_webhook_url()?)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            ),
         })
     }
 }
@@ -926,15 +932,21 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 })
             }
             FiuuPaymentResponse::FiuuWebhooksPaymentResponse(response) => {
-                let status = enums::AttemptStatus::try_from(FiuuWebhookStatus{
-                    capture_method : item.data.request.capture_method,
+                let status = enums::AttemptStatus::try_from(FiuuWebhookStatus {
+                    capture_method: item.data.request.capture_method,
                     status: response.status,
                 })?;
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response.error_code.clone().unwrap_or(consts::NO_ERROR_CODE.to_owned()),
-                        message: response.error_code.clone().unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+                        code: response
+                            .error_code
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
+                        message: response
+                            .error_code
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                         reason: response.error_desc.clone(),
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: None,
@@ -957,29 +969,29 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     response: error_response.map_or_else(|| Ok(payments_response_data), Err),
                     ..item.data
                 })
-            },
+            }
         }
     }
 }
 
-pub struct FiuuWebhookStatus{
-    pub capture_method : Option<CaptureMethod>,
-    pub status : FiuuPaymentWebhookStatus
+pub struct FiuuWebhookStatus {
+    pub capture_method: Option<CaptureMethod>,
+    pub status: FiuuPaymentWebhookStatus,
 }
 
 impl TryFrom<FiuuWebhookStatus> for enums::AttemptStatus {
     type Error = Report<errors::ConnectorError>;
-    fn try_from(webhook_status : FiuuWebhookStatus) -> Result<Self,Self::Error> {
-        match webhook_status.status{
-            FiuuPaymentWebhookStatus::Success => match webhook_status.capture_method{
-                Some(CaptureMethod::Automatic) => Ok(enums::AttemptStatus::Charged),
-                Some(CaptureMethod::Manual) => Ok(enums::AttemptStatus::Authorized),
-                _=> Err(errors::ConnectorError::UnexpectedResponseError(
+    fn try_from(webhook_status: FiuuWebhookStatus) -> Result<Self, Self::Error> {
+        match webhook_status.status {
+            FiuuPaymentWebhookStatus::Success => match webhook_status.capture_method {
+                Some(CaptureMethod::Automatic) => Ok(Self::Charged),
+                Some(CaptureMethod::Manual) => Ok(Self::Authorized),
+                _ => Err(errors::ConnectorError::UnexpectedResponseError(
                     bytes::Bytes::from(webhook_status.status.to_string()),
                 ))?,
             },
-            FiuuPaymentWebhookStatus::Failure => Ok(enums::AttemptStatus::Failure),
-            FiuuPaymentWebhookStatus::Pending => Ok(enums::AttemptStatus::AuthenticationPending),
+            FiuuPaymentWebhookStatus::Failure => Ok(Self::Failure),
+            FiuuPaymentWebhookStatus::Pending => Ok(Self::AuthenticationPending),
         }
     }
 }
@@ -1327,15 +1339,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     ..item.data
                 })
             }
-            FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => {
-                Ok(Self{
-                    response: Ok(RefundsResponseData {
-                        connector_refund_id : fiuu_webhooks_refund_response.refund_id,
-                        refund_status : enums::RefundStatus::from(fiuu_webhooks_refund_response.status.clone())
-                    }),
-                    ..item.data
-                })
-            },
+            FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: fiuu_webhooks_refund_response.refund_id,
+                    refund_status: enums::RefundStatus::from(
+                        fiuu_webhooks_refund_response.status.clone(),
+                    ),
+                }),
+                ..item.data
+            }),
         }
     }
 }
@@ -1395,7 +1407,7 @@ pub struct FiuuWebhooksPaymentResponse {
     pub domain: Secret<String>,
     pub appcode: Secret<String>,
     pub paydate: String,
-    pub channel: String, 
+    pub channel: String,
     pub error_desc: Option<String>,
     pub error_code: Option<String>,
 }
