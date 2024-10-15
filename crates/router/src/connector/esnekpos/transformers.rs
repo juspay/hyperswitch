@@ -1,5 +1,5 @@
 use common_utils::{
-    pii::{self},
+    pii::{self, Email},
     types::StringMajorUnit,
 };
 use hyperswitch_connectors::utils::PhoneDetailsData;
@@ -40,7 +40,7 @@ struct EsnekposPaymentRequestConfig {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 struct EsnekposPaymentRequestCustomer {
-    mail: String,
+    mail: Email,
     phone: String,
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
@@ -103,16 +103,12 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
 
                 let req = item.router_data.request.clone();
 
-                let mailobj = req.get_email()?;
-                let mail = mailobj.expose().expose();
+                let mail = req.get_email()?;
 
                 let phone_details = item.router_data.get_billing_phone()?;
                 let phone = phone_details
                     .get_number_with_nullable_country_code()?
                     .expose();
-
-                let line1 = item.router_data.get_optional_billing_line1();
-                let line2 = item.router_data.get_optional_billing_line2();
 
                 let customer = EsnekposPaymentRequestCustomer {
                     // pub struct Email(Secret<String, EmailStrategy>);
@@ -122,18 +118,7 @@ impl TryFrom<&EsnekposRouterData<&types::PaymentsAuthorizeRouterData>> for Esnek
                     last_name: item.router_data.get_optional_billing_last_name(),
                     city: item.router_data.get_optional_billing_city(),
                     state: item.router_data.get_optional_billing_state(),
-                    address: match (line1, line2) {
-                        (Some(line1), Some(line2)) => {
-                            let line1val = line1.expose();
-                            let line2val = line2.expose();
-
-                            let addstr = format!("{}, {}", line1val, line2val);
-                            Some(Secret::new(addstr))
-                        }
-                        (Some(line1), None) => Some(line1),
-                        (None, Some(line2)) => Some(line2),
-                        (None, None) => None,
-                    },
+                    address: item.router_data.get_optional_line1_and_line2(),
                     client_ip: req.get_ip_address_as_optional().clone(),
                 };
 
