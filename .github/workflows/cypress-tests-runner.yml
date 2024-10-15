@@ -200,6 +200,5 @@ jobs:
         with:
           name: cypress-test-results
           path: |
-            cypress-tests/cypress/reports/*.json
-            cypress-tests/cypress/reports/*.html
+            cypress-tests/cypress/reports/
           retention-days: 1
