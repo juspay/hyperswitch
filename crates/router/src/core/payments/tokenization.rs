@@ -5,7 +5,7 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
+use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
     crypto::Encryptable,
@@ -72,14 +72,11 @@ pub struct SavePaymentMethodDataResponse {
 pub async fn save_payment_method<FData>(
     state: &SessionState,
     connector_name: String,
-    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     save_payment_method_data: SavePaymentMethodData<FData>,
     customer_id: Option<id_type::CustomerId>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-    amount: Option<i64>,
-    currency: Option<storage_enums::Currency>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
     business_profile: &domain::Profile,
@@ -711,14 +708,11 @@ where
 pub async fn save_payment_method<FData>(
     _state: &SessionState,
     _connector_name: String,
-    _merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     _save_payment_method_data: SavePaymentMethodData<FData>,
     _customer_id: Option<id_type::CustomerId>,
     _merchant_account: &domain::MerchantAccount,
     _payment_method_type: Option<storage_enums::PaymentMethodType>,
     _key_store: &domain::MerchantKeyStore,
-    _amount: Option<i64>,
-    _currency: Option<storage_enums::Currency>,
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
     _business_profile: &domain::Profile,
@@ -1160,7 +1154,6 @@ pub fn update_connector_mandate_details_in_payment_method(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<serde_json::Value>,
 ) -> RouterResult<Option<serde_json::Value>> {
-    println!("ENTER7");
     let mandate_reference = match mandate_details {
         Some(mut payment_mandate_reference) => {
             if let Some((mca_id, connector_mandate_id)) =

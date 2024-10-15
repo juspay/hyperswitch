@@ -219,11 +219,11 @@ mod storage {
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                             .map(Some)

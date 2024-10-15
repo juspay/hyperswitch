@@ -120,7 +120,7 @@ mod storage {
                         },
                     };
 
-                    match kv_wrapper::<ReverseLookup, _, _>(
+                    match Box::pin(kv_wrapper::<ReverseLookup, _, _>(
                         self,
                         KvOperation::SetNx(&created_rev_lookup, redis_entry),
                         PartitionKey::CombinationKey {
@@ -129,7 +129,7 @@ mod storage {
                                 &created_rev_lookup.lookup_id
                             ),
                         },
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
                     .try_into_setnx()
@@ -168,13 +168,13 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let redis_fut = async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<ReverseLookup>::Get,
                             PartitionKey::CombinationKey {
                                 combination: &format!("reverse_lookup_{id}"),
                             },
-                        )
+                        ))
                         .await?
                         .try_into_get()
                     };

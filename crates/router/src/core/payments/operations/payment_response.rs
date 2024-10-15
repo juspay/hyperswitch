@@ -184,14 +184,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),
-            merchant_connector_id.clone(),
             save_payment_data,
             customer_id.clone(),
             merchant_account,
             resp.request.payment_method_type,
             key_store,
-            Some(resp.request.amount),
-            Some(resp.request.currency),
             billing_name.clone(),
             payment_method_billing_address,
             business_profile,
@@ -236,7 +233,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 connector_mandate_reference_id,
                 ..
             } = save_payment_call_future.await?;
-            println!("CHECKONCE");
             payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
                 match state
                     .store
@@ -275,11 +271,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     MandateReferenceId::ConnectorMandateId(connector_mandate_id)
                 }),
             });
-            println!("CHECK{:?}", payment_data.payment_method_info);
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
-                println!("ENETRESHERE");
                 payment_data.payment_attempt.payment_method_id = Some(pm_info.get_id().clone());
             };
             Ok(())
@@ -290,14 +284,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let key_store = key_store.clone();
             let state = state.clone();
             let customer_id = payment_data.payment_intent.customer_id.clone();
-
-            let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_attempt = payment_data.payment_attempt.clone();
 
             let business_profile = business_profile.clone();
-
-            let amount = resp.request.amount;
-            let currency = resp.request.currency;
             let payment_method_type = resp.request.payment_method_type;
             let payment_method_billing_address = payment_method_billing_address.cloned();
 
@@ -309,14 +298,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     let result = Box::pin(tokenization::save_payment_method(
                         &state,
                         connector_name,
-                        merchant_connector_id,
                         save_payment_data,
                         customer_id,
                         &merchant_account,
                         payment_method_type,
                         &key_store,
-                        Some(amount),
-                        Some(currency),
                         billing_name,
                         payment_method_billing_address.as_ref(),
                         &business_profile,
@@ -587,39 +573,33 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = match resp.response.clone() {
-            Ok(resp) => match resp {
-                types::PaymentsResponseData::TransactionResponse {
-                    ref mandate_reference,
-                    ..
-                } => {
-                    if let Some(mandate_ref) = mandate_reference {
+        let (connector_mandate_id, mandate_metadata) = resp
+            .response
+            .clone()
+            .ok()
+            .and_then(|resp| {
+                if let types::PaymentsResponseData::TransactionResponse {
+                    mandate_reference, ..
+                } = resp
+                {
+                    mandate_reference.map(|mandate_ref| {
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
                         )
-                    } else {
-                        (None, None)
-                    }
+                    })
+                } else {
+                    None
                 }
-                _ => (None, None),
-            },
-            Err(_) => (None, None),
-        };
+            })
+            .unwrap_or((None, None));
 
-        let connector_mandate_reference_id = Some(ConnectorMandateReferenceId {
-            connector_mandate_id: connector_mandate_id.clone(),
-            payment_method_id: None,
-            update_history: None,
-            mandate_metadata: mandate_metadata.clone(),
-        });
+        update_connector_mandate_details_for_the_flow(
+            connector_mandate_id,
+            mandate_metadata,
+            payment_data,
+        )?;
 
-        payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        println!("CHECK7{:?}", payment_data.payment_method_info);
         update_payment_method_status_and_ntid(
             state,
             key_store,
@@ -1001,14 +981,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         } = Box::pin(tokenization::save_payment_method(
             state,
             connector_name,
-            merchant_connector_id.clone(),
             save_payment_data,
             customer_id.clone(),
             merchant_account,
             resp.request.payment_method_type,
             key_store,
-            resp.request.amount,
-            Some(resp.request.currency),
             billing_name,
             None,
             business_profile,
@@ -1092,7 +1069,31 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_connector_mandate_details_for_the_flow()
+        let (connector_mandate_id, mandate_metadata) = resp
+            .response
+            .clone()
+            .ok()
+            .and_then(|resp| {
+                if let types::PaymentsResponseData::TransactionResponse {
+                    mandate_reference, ..
+                } = resp
+                {
+                    mandate_reference.map(|mandate_ref| {
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                        )
+                    })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or((None, None));
+        update_connector_mandate_details_for_the_flow(
+            connector_mandate_id,
+            mandate_metadata,
+            payment_data,
+        )?;
 
         update_payment_method_status_and_ntid(
             state,
@@ -1513,7 +1514,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                                 .get_total_amount()
                                                                 .get_amount_as_i64(),
                                                         ),
-                                                        payment_data.payment_attempt.currency.clone(),
+                                                        payment_data.payment_attempt.currency,
                                                         payment_data.payment_attempt.merchant_connector_id.clone(),
                                                         connector_mandate_id,
                                                         mandate_metadata,
@@ -2012,37 +2013,11 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     Ok(())
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
+    connector_mandate_id: Option<String>,
+    mandate_metadata: Option<serde_json::Value>,
     payment_data: &mut PaymentData<F>,
-    attempt_status: common_enums::AttemptStatus,
-    payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
-    storage_scheme: enums::MerchantStorageScheme,
-    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
-    let (connector_mandate_id, mandate_metadata) = match resp.response.clone() {
-        Ok(resp) => match resp {
-            types::PaymentsResponseData::TransactionResponse {
-                ref mandate_reference,
-                ..
-            } => {
-                if let Some(mandate_ref) = mandate_reference {
-                    (
-                        mandate_ref.connector_mandate_id.clone(),
-                        mandate_ref.mandate_metadata.clone(),
-                    )
-                } else {
-                    (None, None)
-                }
-            }
-            _ => (None, None),
-        },
-        Err(_) => (None, None),
-    };
-
     let connector_mandate_reference_id = Some(ConnectorMandateReferenceId {
         connector_mandate_id: connector_mandate_id.clone(),
         payment_method_id: None,
@@ -2064,6 +2039,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
     });
     Ok(())
 }
+
 fn response_to_capture_update(
     multiple_capture_data: &MultipleCaptureData,
     response_list: HashMap<String, CaptureSyncResponse>,
