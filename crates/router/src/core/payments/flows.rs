@@ -3041,7 +3041,6 @@ default_imp_for_session_update!(
     connector::Payeezy,
     connector::Payme,
     connector::Payone,
-    // connector::Paypal,
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,

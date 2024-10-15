@@ -689,6 +689,7 @@ impl
                 .url(&types::PaymentsPostSessionTokensType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsPostSessionTokensType::get_headers(
                     self, req, connectors,
                 )?)
@@ -942,6 +943,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)

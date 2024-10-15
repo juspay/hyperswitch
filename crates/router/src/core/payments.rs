@@ -5726,6 +5726,7 @@ pub trait PaymentMethodChecker<F> {
     fn should_update_in_update_tracker(&self) -> bool;
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
     fn should_update_in_post_update_tracker(&self) -> bool {
         let payment_method_type = self

@@ -73,6 +73,8 @@ pub mod auth_headers {
     pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
 }
 
+const ORDER_QUANTITY: u16 = 1;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PaypalPaymentIntent {
@@ -194,7 +196,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
                 "Payment for invoice {}",
                 item.router_data.connector_request_reference_id
             ),
-            quantity: 1,
+            quantity: ORDER_QUANTITY,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
                 value: item.amount.clone(),
@@ -211,7 +213,7 @@ impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for It
                 "Payment for invoice {}",
                 item.router_data.connector_request_reference_id
             ),
-            quantity: 1,
+            quantity: ORDER_QUANTITY,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
                 value: item.amount.clone(),
@@ -231,7 +233,7 @@ impl TryFrom<&PaypalRouterData<&types::SdkSessionUpdateRouterData>> for ItemDeta
                 "Payment for invoice {}",
                 item.router_data.connector_request_reference_id
             ),
-            quantity: 1,
+            quantity: ORDER_QUANTITY,
             unit_amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
                 value: item.order_amount.clone().ok_or(
@@ -589,12 +591,10 @@ impl TryFrom<&PaypalRouterData<&types::SdkSessionUpdateRouterData>> for PaypalUp
         let op = PaypalOperationType::Replace;
 
         // Create separate paths for amount and items
-        let amount_path = "/purchase_units/@reference_id=='".to_string()
-            + &item.router_data.connector_request_reference_id
-            + "'/amount";
-        let items_path = "/purchase_units/@reference_id=='".to_string()
-            + &item.router_data.connector_request_reference_id
-            + "'/items";
+        let reference_id = &item.router_data.connector_request_reference_id;
+
+        let amount_path = format!("/purchase_units/@reference_id=='{}'/amount", reference_id);
+        let items_path = format!("/purchase_units/@reference_id=='{}'/items", reference_id);
 
         let amount_value = Value::Amount(OrderRequestAmount::try_from(item)?);
 
