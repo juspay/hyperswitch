@@ -157,7 +157,6 @@ pub trait PaymentAttemptInterface {
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-        time_range: Option<common_utils::types::TimeRange>,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
@@ -714,6 +713,10 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+    },
+    PostSessionTokensUpdate {
+        updated_by: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
