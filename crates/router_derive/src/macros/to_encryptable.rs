@@ -197,6 +197,8 @@ fn generate_to_encryptable(
     fields: Vec<Field>,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let struct_types = [
+        // The first two are to be used as return types we do not need to implement ToEncryptable
+        // on it
         ("Decrypted", StructType::Decrypted),
         ("DecryptedUpdate", StructType::DecryptedUpdate),
         ("FromRequestEncryptable", StructType::FromRequest),
@@ -228,8 +230,8 @@ fn generate_to_encryptable(
     let impls = struct_types
         .iter()
         .skip(2)
-        .map(|(suffix, struct_type)| {
-            let name = format_ident!("{}{}", suffix, struct_name);
+        .map(|(prefix, struct_type)| {
+            let name = format_ident!("{}{}", prefix, struct_name);
 
             let impl_block = if *struct_type != StructType::DecryptedUpdate
                 || *struct_type != StructType::Decrypted
