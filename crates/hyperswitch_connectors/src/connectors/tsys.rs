@@ -5,7 +5,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -39,17 +39,17 @@ use hyperswitch_interfaces::{
 };
 use transformers as tsys;
 
-use super::utils::convert_amount;
+// use super::utils::convert_amount;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 #[derive(Clone)]
 pub struct Tsys {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Tsys {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMajorUnitForConnector,
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
@@ -164,7 +164,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -331,7 +331,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_payment_amount,
             req.request.currency,
@@ -494,7 +494,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tsys {
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,

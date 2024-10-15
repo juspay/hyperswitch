@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMajorUnit;
+use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -8,20 +8,20 @@ use hyperswitch_domain_models::{
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        self, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        self, PaymentsCancelRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 pub struct TsysRouterData<T> {
-    pub amount: StringMajorUnit,
+    pub amount: StringMinorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(StringMajorUnit, T)> for TsysRouterData<T> {
-    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+impl<T> From<(StringMinorUnit, T)> for TsysRouterData<T> {
+    fn from((amount, router_data): (StringMinorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -47,7 +47,7 @@ pub struct TsysPaymentAuthSaleRequest {
     device_id: Secret<String>,
     transaction_key: Secret<String>,
     card_data_source: String,
-    transaction_amount: StringMajorUnit,
+    transaction_amount: StringMinorUnit,
     currency_code: enums::Currency,
     card_number: cards::CardNumber,
     expiration_date: Secret<String>,
@@ -444,7 +444,7 @@ pub struct TsysCaptureRequest {
     #[serde(rename = "deviceID")]
     device_id: Secret<String>,
     transaction_key: Secret<String>,
-    transaction_amount: StringMajorUnit,
+    transaction_amount: StringMinorUnit,
     #[serde(rename = "transactionID")]
     transaction_id: String,
     #[serde(rename = "developerID")]
@@ -483,7 +483,7 @@ pub struct TsysReturnRequest {
     #[serde(rename = "deviceID")]
     device_id: Secret<String>,
     transaction_key: Secret<String>,
-    transaction_amount: StringMajorUnit,
+    transaction_amount: StringMinorUnit,
     #[serde(rename = "transactionID")]
     transaction_id: String,
 }
@@ -495,12 +495,12 @@ pub struct TsysRefundRequest {
     return_request: TsysReturnRequest,
 }
 
-impl<F> TryFrom<&TsysRouterData<&types::RefundsRouterData<F>>> for TsysRefundRequest {
+impl<F> TryFrom<&TsysRouterData<&RefundsRouterData<F>>> for TsysRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item_data: &TsysRouterData<&types::RefundsRouterData<F>>,
+        item_data: &TsysRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let item = item_data.router_data.clone();
+        let item = item_data.router_data;
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let return_request = TsysReturnRequest {
             device_id: connector_auth.device_id,
