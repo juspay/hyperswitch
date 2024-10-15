@@ -1466,7 +1466,6 @@ impl
             order_id: Some(item.response.id.clone()),
         });
 
-        let purchase_units = item.response.purchase_units.first();
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1475,9 +1474,7 @@ impl
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
-                connector_response_reference_id: Some(
-                    purchase_units.map_or(item.response.id.clone(), |item| item.invoice_id.clone()),
-                ),
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),

@@ -626,11 +626,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-        _business_profile: &domain::Profile,
+        #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -734,7 +731,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 payment_data.payment_attempt = updated_payment_attempt;
             }
-            Err(_) => {
+            Err(err) => {
+                logger::error!("Invalid request sent to connector: {:?}", err);
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid request sent to connector".to_string(),
                 })?;

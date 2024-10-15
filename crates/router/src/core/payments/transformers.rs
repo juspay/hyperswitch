@@ -1809,7 +1809,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
-            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
         })
     }
 }
