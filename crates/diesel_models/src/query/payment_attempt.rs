@@ -23,6 +23,12 @@ use crate::{
 };
 
 impl PaymentAttemptNew {
+    #[cfg(feature = "v1")]
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
+        generics::generic_insert(conn, self).await
+    }
+
+    #[cfg(feature = "v2")]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self).await
     }
@@ -68,11 +74,7 @@ impl PaymentAttempt {
             _,
             _,
             _,
-        >(
-            conn,
-            dsl::id.eq(self.id.to_owned()),
-            payment_attempt.populate_derived_fields(&self),
-        )
+        >(conn, dsl::id.eq(self.id.to_owned()), payment_attempt)
         .await
         {
             Err(error) => match error.current_context() {

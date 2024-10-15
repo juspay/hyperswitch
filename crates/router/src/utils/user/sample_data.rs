@@ -3,7 +3,9 @@ use api_models::{
     user::sample_data::SampleDataRequest,
 };
 use common_utils::{id_type, types::MinorUnit};
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
+#[cfg(feature = "v1")]
+use diesel_models::user::sample_data::PaymentAttemptBatchNew;
+use diesel_models::RefundNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};

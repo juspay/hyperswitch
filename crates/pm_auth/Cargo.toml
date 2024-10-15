@@ -14,7 +14,7 @@ v1 = ["api_models/v1"]
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["v1"] }
 masking = { version = "0.1.0", path = "../masking" }
 
 # Third party crates

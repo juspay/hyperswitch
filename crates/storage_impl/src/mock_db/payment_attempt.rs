@@ -225,7 +225,7 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v2")]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt(
         &self,
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
