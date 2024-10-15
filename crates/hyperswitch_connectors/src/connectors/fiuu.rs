@@ -761,7 +761,7 @@ impl webhooks::IncomingWebhook for Fiuu {
             }
             FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
                 format!(
-                    "{}{:?}{}{}{}{}{}{}",
+                    "{}{}{}{}{}{}{}{}",
                     webhooks_refunds_response.refund_type,
                     webhooks_refunds_response.merchant_id.peek(),
                     webhooks_refunds_response.ref_id,

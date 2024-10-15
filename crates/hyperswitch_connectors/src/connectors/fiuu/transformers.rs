@@ -1431,10 +1431,13 @@ pub struct FiuuWebhooksRefundResponse {
 
 #[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
 pub enum FiuuRefundsWebhookStatus {
+    #[strum(serialize = "00")]
     #[serde(rename = "00")]
     RefundSuccess,
+    #[strum(serialize = "11")]
     #[serde(rename = "11")]
     RefundFailure,
+    #[strum(serialize = "22")]
     #[serde(rename = "22")]
     RefundPending,
 }
