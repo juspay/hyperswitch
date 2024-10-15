@@ -2,16 +2,16 @@ openapi: "3.0.2"
 info:
   title: Tartarus - OpenAPI 3.0
   description: |-
-    This the the open API 3.0 specification for the card locker.
+    This is the OpenAPI 3.0 specification for the card locker.
     This is used by the [hyperswitch](https://github.com/juspay/hyperswitch) for storing card information securely.
   version: "1.0"
 tags:
   - name: Key Custodian
     description: API used to initialize the locker after deployment.
   - name: Data
-    description: CRUD APIs to for working with data to be stored in the locker
+    description: CRUD APIs for working with data to be stored in the locker
   - name: Cards
-    description: CRUD APIs to for working with cards data to be stored in the locker (deprecated)
+    description: CRUD APIs for working with cards data to be stored in the locker (deprecated)
 paths:
   /custodian/key1:
     post:
@@ -39,7 +39,7 @@ paths:
       tags:
         - Key Custodian
       summary: Provide Key 2
-      description: Provide the first key to unlock the locker
+      description: Provide the second key to unlock the locker
       operationId: setKey2
       requestBody:
         description: Provide key 2 to unlock the locker
