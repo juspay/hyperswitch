@@ -1,8 +1,9 @@
-use super::requests::*;
-use crate::core::errors;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use super::requests::*;
+use crate::core::errors;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
