@@ -644,7 +644,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
             .attach_printable("connector not found")?;
 
         // For PayPal, if we call TaxJar for tax calculation, we need to call the connector again to update the order amount so that we can confirm the updated amount and order details. Therefore, we will store the required changes in the database during the post_update_tracker call.
-        if payment_data.should_upadte_in_post_update_tracker() {
+        if payment_data.should_update_in_post_update_tracker() {
             match router_data.response.clone() {
                 Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
                     if status == SessionUpdateStatus::Success {
