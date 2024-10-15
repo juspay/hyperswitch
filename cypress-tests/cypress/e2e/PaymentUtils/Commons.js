@@ -1197,16 +1197,15 @@ export const connectorDetails = {
       },
     },
     CaptureGreaterAmount: {
-      Request: {
         Request: {
           payment_method: "card",
           payment_method_data: {
             card: successfulNo3DSCardDetails,
           },
           currency: "USD",
+          amount_to_capture: 65000,
           customer_acceptance: null,
         },
-      },
       Response: {
         status: 400,
         body: {
@@ -1219,16 +1218,15 @@ export const connectorDetails = {
       },
     },
     CaptureCapturedAmount: getCustomExchange({
-      Request: {
         Request: {
           payment_method: "card",
           payment_method_data: {
             card: successfulNo3DSCardDetails,
           },
           currency: "USD",
+          amount: 6500,
           customer_acceptance: null,
         },
-      },
       Response: {
         status: 400,
         body: {

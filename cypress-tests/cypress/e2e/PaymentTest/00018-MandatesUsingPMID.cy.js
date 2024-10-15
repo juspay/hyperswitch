@@ -140,7 +140,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -257,7 +256,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -285,7 +283,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -313,7 +310,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -430,7 +426,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
