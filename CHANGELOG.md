@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.04.0-hotfix3
+
+### Features
+
+- **core:** Add payments post_session_tokens flow ([#6326](https://github.com/juspay/hyperswitch/pull/6326)) ([`f55aa78`](https://github.com/juspay/hyperswitch/commit/f55aa78f503e0e2d77eacc79882f054300af71b5))
+- **router:** Implement post_update_tracker for SessionUpdate Flow and add support for session_update_flow for Paypal ([#6328](https://github.com/juspay/hyperswitch/pull/6328)) ([`d9adbb3`](https://github.com/juspay/hyperswitch/commit/d9adbb371960f94ef7cdc83ef3590ffd63e4e672))
+
+### Refactors
+
+- Refactor(router): modify `net_amount` to be a struct in the domain model of payment_attempt and handle amount changes across all flows ([#6323](https://github.com/juspay/hyperswitch/pull/6323)) ([`6eb86e7`](https://github.com/juspay/hyperswitch/commit/6eb86e738a74b763316b5d52f02ae85f81438bae))
+
+- - -
+
 ## 2024.10.04.0-hotfix2
 
 ### Bug Fixes
