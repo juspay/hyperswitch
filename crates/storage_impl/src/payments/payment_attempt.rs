@@ -799,7 +799,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
+                        Box::pin(kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key)).await?.try_into_hget()
                     },
                         || async {self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await},
                     ))
@@ -975,11 +975,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 };
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },

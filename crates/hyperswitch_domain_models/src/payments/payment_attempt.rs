@@ -1504,6 +1504,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost,
             order_tax_amount,
             connector,
+            connector_mandate_detail,
         } = self;
 
         Ok(DieselPaymentAttempt {
@@ -1561,6 +1562,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_applied,
             external_reference_id,
             connector,
+            connector_mandate_detail,
         })
     }
 
@@ -1696,6 +1698,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
             amount_to_capture: self.amount_to_capture,
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }

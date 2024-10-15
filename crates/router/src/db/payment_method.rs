@@ -210,13 +210,13 @@ mod storage {
 
                         Box::pin(db_utils::try_redis_get_else_try_database_get(
                             async {
-                                kv_wrapper(
+                                Box::pin(kv_wrapper(
                                     self,
                                     KvOperation::<storage_types::PaymentMethod>::HGet(
                                         &lookup.sk_id,
                                     ),
                                     key,
-                                )
+                                ))
                                 .await?
                                 .try_into_hget()
                             },
@@ -348,13 +348,13 @@ mod storage {
 
                         Box::pin(db_utils::try_redis_get_else_try_database_get(
                             async {
-                                kv_wrapper(
+                                Box::pin(kv_wrapper(
                                     self,
                                     KvOperation::<storage_types::PaymentMethod>::HGet(
                                         &lookup.sk_id,
                                     ),
                                     key,
-                                )
+                                ))
                                 .await?
                                 .try_into_hget()
                             },
