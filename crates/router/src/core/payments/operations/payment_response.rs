@@ -50,7 +50,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data"
 )]
 pub struct PaymentResponse;
 
@@ -626,11 +626,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-        _business_profile: &domain::Profile,
+        #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -683,6 +680,68 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         // let _shipping_address = payment_data.address.get_shipping();
         // let _amount = payment_data.amount;
 
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTokensData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsPostSessionTokensData,
+            types::PaymentsResponseData,
+        >,
+        _key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        match router_data.response.clone() {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) => {
+                let m_db = db.clone().store;
+                let payment_attempt_update =
+                    storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
+                        updated_by: storage_scheme.clone().to_string(),
+                        connector_metadata,
+                    };
+                let updated_payment_attempt = m_db
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                payment_data.payment_attempt = updated_payment_attempt;
+            }
+            Err(err) => {
+                logger::error!("Invalid request sent to connector: {:?}", err);
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid request sent to connector".to_string(),
+                })?;
+            }
+            _ => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in PostSessionTokens flow")?;
+            }
+        }
         Ok(payment_data)
     }
 }
