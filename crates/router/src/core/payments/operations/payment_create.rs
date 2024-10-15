@@ -801,7 +801,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_attempt
             .straight_through_algorithm
             .clone();
-        let authorized_amount = payment_data.payment_attempt.amount;
+        let authorized_amount = payment_data.payment_attempt.get_total_amount();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
         let surcharge_amount = payment_data
@@ -1113,12 +1113,6 @@ impl PaymentCreate {
         } else {
             payment_id.get_attempt_id(1)
         };
-        let surcharge_amount = request
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
-        let tax_amount = request
-            .surcharge_details
-            .and_then(|surcharge_details| surcharge_details.tax_amount);
 
         if request.mandate_data.as_ref().map_or(false, |mandate_data| {
             mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
@@ -1146,7 +1140,6 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
-                amount: MinorUnit::from(amount),
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,
@@ -1163,8 +1156,6 @@ impl PaymentCreate {
                 payment_token: request.payment_token.clone(),
                 mandate_id: request.mandate_id.clone(),
                 business_sub_label: request.business_sub_label.clone(),
-                surcharge_amount,
-                tax_amount,
                 mandate_details: request
                     .mandate_data
                     .as_ref()
@@ -1172,7 +1163,10 @@ impl PaymentCreate {
                 external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
-                net_amount: MinorUnit::new(i64::default()),
+                net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
+                    request,
+                    MinorUnit::from(amount),
+                ),
                 save_to_locker: None,
                 connector: None,
                 error_message: None,
@@ -1210,8 +1204,6 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
-                shipping_cost: request.shipping_cost,
-                order_tax_amount: None,
             },
             additional_pm_data,
         ))
