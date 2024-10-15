@@ -332,6 +332,7 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub connector_mandate_detail: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -623,6 +624,7 @@ pub struct PaymentAttemptNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub connector_mandate_detail: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -731,6 +733,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_mandate_detail: Option<serde_json::Value>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -987,6 +990,7 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1008,6 +1012,7 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1263,6 +1268,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 
@@ -1340,6 +1346,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 customer_acceptance: storage_model.customer_acceptance,
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -1421,6 +1428,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }

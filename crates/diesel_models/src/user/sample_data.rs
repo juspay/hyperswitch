@@ -203,6 +203,7 @@ pub struct PaymentAttemptBatchNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -281,6 +282,7 @@ impl PaymentAttemptBatchNew {
             organization_id: self.organization_id,
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
+            connector_mandate_detail: self.connector_mandate_detail,
         }
     }
 }

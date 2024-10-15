@@ -1209,8 +1209,10 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
+                connector_mandate_detail: None,
             },
             additional_pm_data,
+
         ))
     }
 

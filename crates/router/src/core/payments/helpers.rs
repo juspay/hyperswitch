@@ -421,15 +421,18 @@ pub async fn get_token_pm_type_mandate_details(
         mandate_connector_details,
         payment_method_info,
     ) = match mandate_type {
-        Some(api::MandateTransactionType::NewMandateTransaction) => (
-            request.payment_token.to_owned(),
-            request.payment_method,
-            request.payment_method_type,
-            mandate_data.clone(),
-            None,
-            None,
-            None,
-        ),
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
+            println!("ENTER99");
+            (
+                request.payment_token.to_owned(),
+                request.payment_method,
+                request.payment_method_type,
+                mandate_data.clone(),
+                None,
+                None,
+                None,
+            )
+        }
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
                 Some(recurring_details) => {
@@ -4036,6 +4039,7 @@ impl AttemptType {
             customer_acceptance: old_payment_attempt.customer_acceptance,
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
+            connector_mandate_detail: None,
         }
     }
 
