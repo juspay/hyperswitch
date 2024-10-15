@@ -294,7 +294,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
-            flow: "sync".to_string(),
+            flow: "refund".to_string(),
             connector: "esnekpos".to_string(),
         }
         .into())
