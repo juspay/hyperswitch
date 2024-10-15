@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.15.0
+
+### Features
+
+- **analytics:** Add metrics, filters and APIs for Analytics v2 Dashboard - Payments Page ([#5870](https://github.com/juspay/hyperswitch/pull/5870)) ([`f123df9`](https://github.com/juspay/hyperswitch/commit/f123df9aa31c45b417224af73c2a98325984b3dd))
+- **connector:** [CYBERSOURCE] Add paze dashboard configs ([#6304](https://github.com/juspay/hyperswitch/pull/6304)) ([`df280f2`](https://github.com/juspay/hyperswitch/commit/df280f2574ac701a5e32b9bcae90c87cab7bc5aa))
+- **payment_methods_v2:** Delete payment method api ([#6211](https://github.com/juspay/hyperswitch/pull/6211)) ([`8e538cd`](https://github.com/juspay/hyperswitch/commit/8e538cd6b3da4a155c55ce153982bff3c59ef575))
+- **payments:** Support for card_network filter in payments list ([#5994](https://github.com/juspay/hyperswitch/pull/5994)) ([`1ac8c92`](https://github.com/juspay/hyperswitch/commit/1ac8c92c4bd2259cdd8bf755210bcb3c0eb31472))
+- **router:** Add support for Samsung pay app tokens flow ([#6257](https://github.com/juspay/hyperswitch/pull/6257)) ([`f6b0b98`](https://github.com/juspay/hyperswitch/commit/f6b0b98e0a6c07308b481715f7c9ad063a5f0de9))
+
+### Bug Fixes
+
+- **router:**
+  - Update nick_name only if card_token.card_holder_name is non empty and populate additional card_details from payment_attempt if not present in the locker ([#6308](https://github.com/juspay/hyperswitch/pull/6308)) ([`9da9c5e`](https://github.com/juspay/hyperswitch/commit/9da9c5e0ffe219a0bf6e08281b87c77eeb5c4575))
+  - Replace underscore by hyphen in Samsung pay session call ([#6311](https://github.com/juspay/hyperswitch/pull/6311)) ([`7f1bbbf`](https://github.com/juspay/hyperswitch/commit/7f1bbbfffecb74555756b0003d6a0ae940e581db))
+
+### Refactors
+
+- **connector:** [Adyen platform] api contract change for webhook ([#6281](https://github.com/juspay/hyperswitch/pull/6281)) ([`5b4a1d5`](https://github.com/juspay/hyperswitch/commit/5b4a1d5f6d7b4143116c5f1faf6cb325e4368e6d))
+- Add user agent header in outgoing webhooks ([#6289](https://github.com/juspay/hyperswitch/pull/6289)) ([`fe62b1f`](https://github.com/juspay/hyperswitch/commit/fe62b1fe2137de456a6a0e8e315fd0592c29577d))
+
+### Documentation
+
+- **v2:** Added 'X-Merchant-Id' to headers in Profile API docs ([#6291](https://github.com/juspay/hyperswitch/pull/6291)) ([`ca086d0`](https://github.com/juspay/hyperswitch/commit/ca086d0b25ee12419ebcb7250b4a6678cc33a8a6))
+
+**Full Changelog:** [`2024.10.11.0...2024.10.15.0`](https://github.com/juspay/hyperswitch/compare/2024.10.11.0...2024.10.15.0)
+
+- - -
+
 ## 2024.10.11.0
 
 ### Features
