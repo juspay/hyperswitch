@@ -14654,46 +14654,6 @@
           }
         }
       },
-      "PaymentsPostSessionTokensRequest": {
-        "type": "object",
-        "required": [
-          "client_secret",
-          "payment_method_type",
-          "payment_method"
-        ],
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification."
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          }
-        }
-      },
-      "PaymentsPostSessionTokensResponse": {
-        "type": "object",
-        "required": [
-          "payment_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          },
-          "next_action": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NextActionData"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "PaymentsRequest": {
         "type": "object",
         "properties": {
