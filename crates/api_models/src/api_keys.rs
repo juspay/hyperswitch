@@ -30,7 +30,7 @@ pub struct CreateApiKeyRequest {
 pub struct CreateApiKeyResponse {
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
-    pub key_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
 
     /// The identifier for the Merchant Account.
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
@@ -73,7 +73,7 @@ pub struct CreateApiKeyResponse {
 pub struct RetrieveApiKeyResponse {
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
-    pub key_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
 
     /// The identifier for the Merchant Account.
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
@@ -131,7 +131,7 @@ pub struct UpdateApiKeyRequest {
     pub expiration: Option<ApiKeyExpiration>,
 
     #[serde(skip_deserializing)]
-    pub key_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
 
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
@@ -147,7 +147,7 @@ pub struct RevokeApiKeyResponse {
 
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
-    pub key_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
     /// Indicates whether the API key was revoked or not.
     #[schema(example = "true")]
     pub revoked: bool,

@@ -13,7 +13,6 @@ use crate::{
     routes::{metrics, SessionState},
     services::{authentication, ApplicationResponse},
     types::{api, storage, transformers::ForeignInto},
-    utils,
 };
 
 #[cfg(feature = "email")]
@@ -63,9 +62,9 @@ impl PlaintextApiKey {
         Self(format!("{env}_{key}").into())
     }
 
-    pub fn new_key_id() -> String {
+    pub fn new_key_id() -> common_utils::id_type::ApiKeyId {
         let env = router_env::env::prefix_for_env();
-        utils::generate_id(consts::ID_LENGTH, env)
+        common_utils::id_type::ApiKeyId::generate_key_id(env)
     }
 
     pub fn prefix(&self) -> String {
@@ -258,11 +257,11 @@ pub async fn add_api_key_expiry_task(
 pub async fn retrieve_api_key(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    key_id: &str,
+    key_id: common_utils::id_type::ApiKeyId,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let store = state.store.as_ref();
     let api_key = store
-        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, key_id)
+        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, &key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
         .attach_printable("Failed to retrieve API key")?
@@ -430,7 +429,7 @@ pub async fn update_api_key_expiry_task(
 pub async fn revoke_api_key(
     state: SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    key_id: &str,
+    key_id: &common_utils::id_type::ApiKeyId,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
 

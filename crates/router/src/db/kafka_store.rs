@@ -226,7 +226,7 @@ impl ApiKeyInterface for KafkaStore {
     async fn update_api_key(
         &self,
         merchant_id: id_type::MerchantId,
-        key_id: String,
+        key_id: id_type::ApiKeyId,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         self.diesel_store
@@ -237,7 +237,7 @@ impl ApiKeyInterface for KafkaStore {
     async fn revoke_api_key(
         &self,
         merchant_id: &id_type::MerchantId,
-        key_id: &str,
+        key_id: &id_type::ApiKeyId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store.revoke_api_key(merchant_id, key_id).await
     }
@@ -245,7 +245,7 @@ impl ApiKeyInterface for KafkaStore {
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
         merchant_id: &id_type::MerchantId,
-        key_id: &str,
+        key_id: &id_type::ApiKeyId,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         self.diesel_store
             .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)

@@ -1,7 +1,10 @@
 use std::{borrow::Cow, string::ToString};
 
 use actix_web::http::header::HeaderMap;
-use common_utils::{crypto::VerifySignature, id_type::MerchantId};
+use common_utils::{
+    crypto::VerifySignature,
+    id_type::{ApiKeyId, MerchantId},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
@@ -16,7 +19,7 @@ const HEADER_CHECKSUM: &str = "x-checksum";
 pub struct ExtractedPayload {
     pub payload_type: PayloadType,
     pub merchant_id: Option<MerchantId>,
-    pub key_id: Option<String>,
+    pub key_id: Option<ApiKeyId>,
 }
 
 #[derive(strum::EnumString, strum::Display, PartialEq, Debug)]
@@ -61,13 +64,25 @@ impl ExtractedPayload {
                 message: format!("`{}` header not present", HEADER_AUTH_TYPE),
             })?;
 
+        let key_id = headers
+            .get(HEADER_KEY_ID)
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header is invalid or not present", HEADER_KEY_ID),
+            })
+            .map_err(error_stack::Report::from)
+            .and_then(|key_id| {
+                ApiKeyId::try_from(Cow::from(key_id.to_string())).change_context(
+                    ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid or not present", HEADER_KEY_ID),
+                    },
+                )
+            })?;
+
         Ok(Self {
             payload_type: auth_type,
             merchant_id: Some(merchant_id),
-            key_id: headers
-                .get(HEADER_KEY_ID)
-                .and_then(|v| v.to_str().ok())
-                .map(|v| v.to_string()),
+            key_id: Some(key_id),
         })
     }
 
@@ -95,7 +110,7 @@ impl ExtractedPayload {
             &self
                 .merchant_id
                 .as_ref()
-                .map(|inner| append_option(inner.get_string_repr(), &self.key_id)),
+                .map(|inner| append_api_key(inner.get_string_repr(), &self.key_id)),
         )
     }
 }
@@ -104,6 +119,14 @@ impl ExtractedPayload {
 fn append_option(prefix: &str, data: &Option<String>) -> String {
     match data {
         Some(inner) => format!("{}:{}", prefix, inner),
+        None => prefix.to_string(),
+    }
+}
+
+#[inline]
+fn append_api_key(prefix: &str, data: &Option<ApiKeyId>) -> String {
+    match data {
+        Some(inner) => format!("{}:{}", prefix, inner.get_string_repr()),
         None => prefix.to_string(),
     }
 }

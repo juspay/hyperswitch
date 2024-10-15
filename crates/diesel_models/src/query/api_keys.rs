@@ -18,7 +18,7 @@ impl ApiKey {
     pub async fn update_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: common_utils::id_type::MerchantId,
-        key_id: String,
+        key_id: common_utils::id_type::ApiKeyId,
         api_key_update: ApiKeyUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -57,7 +57,7 @@ impl ApiKey {
     pub async fn revoke_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        key_id: &str,
+        key_id: &common_utils::id_type::ApiKeyId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -71,7 +71,7 @@ impl ApiKey {
     pub async fn find_optional_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        key_id: &str,
+        key_id: &common_utils::id_type::ApiKeyId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
