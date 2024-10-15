@@ -148,9 +148,9 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Forte"),
-            ))?
-        }
+                    utils::get_unimplemented_payment_method_error_message("Forte"),
+                ))?
+            }
         }
     }
 }
