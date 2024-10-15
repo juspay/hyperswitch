@@ -3768,7 +3768,6 @@ pub async fn apply_filters_on_payments(
         && constraints.payment_method_type.is_none()
         && constraints.authentication_type.is_none()
         && constraints.merchant_connector_id.is_none()
-        && profile_id_list.is_none()
     {
         i64::try_from(active_attempt_ids.len())
             .change_context(errors::ApiErrorResponse::InternalServerError)
