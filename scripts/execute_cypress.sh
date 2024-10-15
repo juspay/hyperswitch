@@ -57,7 +57,6 @@ function read_service_arrays() {
     fi
   done
 }
-export -f read_service_arrays
 
 # Function to execute Cypress tests
 function execute_test() {
