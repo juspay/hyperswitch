@@ -33,7 +33,7 @@ use crate::{
             },
             tokenization,
             types::MultipleCaptureData,
-            PaymentData,
+            PaymentData, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -636,16 +636,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     where
         F: 'b + Send,
     {
-        let paypal = payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax_details| {
-                tax_details
-                    .payment_method_type
-                    .map(|payment_method_type| payment_method_type.pmt)
-            })
-            == Some(enums::PaymentMethodType::Paypal);
         let connector = payment_data
             .payment_attempt
             .connector
@@ -653,7 +643,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("connector not found")?;
 
-        if paypal {
+        // For PayPal, if we call TaxJar for tax calculation, we need to call the connector again to update the order amount so that we can confirm the updated amount and order details. Therefore, we will store the required changes in the database during the post_update_tracker call.
+        if payment_data.should_upadte_in_post_update_tracker() {
             match router_data.response.clone() {
                 Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
                     if status == SessionUpdateStatus::Success {

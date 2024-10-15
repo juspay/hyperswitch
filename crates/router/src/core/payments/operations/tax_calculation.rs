@@ -13,7 +13,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::cards::create_encrypted_data,
-        payments::{self, helpers, operations, PaymentData},
+        payments::{self, helpers, operations, PaymentData, PaymentMethodChecker},
         utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
@@ -382,21 +382,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        let apple_or_google_pay = payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .and_then(|tax_details| {
-                tax_details
-                    .payment_method_type
-                    .map(|payment_method_type| payment_method_type.pmt)
-            })
-            .map_or(false, |pmt| {
-                pmt == storage_enums::PaymentMethodType::ApplePay
-                    || pmt == storage_enums::PaymentMethodType::GooglePay
-            });
-
-        if apple_or_google_pay {
+        // For Google Pay and Apple Pay, we don’t need to call the connector again; we can directly confirm the payment after tax_calculation. So, we update the required fields in the database during the update_tracker call.
+        if payment_data.should_update_in_update_tracker() {
             let shipping_address = payment_data
                 .tax_data
                 .clone()
