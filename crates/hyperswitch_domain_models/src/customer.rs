@@ -14,10 +14,10 @@ use common_utils::{
 use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
+use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
 use crate::type_encryption as types;
-use rustc_hash::FxHashMap;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]

@@ -10,13 +10,12 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 
 use crate::{
     errors::{CustomResult, ValidationError},
     types::domain::types,
 };
-
-use rustc_hash::FxHashMap;
 
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Event {

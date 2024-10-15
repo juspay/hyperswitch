@@ -36,14 +36,13 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
 use uuid::Uuid;
-
-use masking::{ExposeInterface, SwitchStrategy};
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 #[cfg(feature = "v1")]
