@@ -250,21 +250,21 @@ pub struct PaymentIntent {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     /// The details of the customer in a denormalized form. Only a subset of fields are stored.
     #[encrypt]
-    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub customer_details: Option<Encryptable<Secret<Value>>>,
     /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
     pub merchant_reference_id: Option<id_type::PaymentId>,
     /// The billing address for the order in a denormalized form.
     #[encrypt]
-    pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub billing_address: Option<Encryptable<Secret<Value>>>,
     /// The shipping address for the order in a denormalized form.
     #[encrypt]
-    pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub shipping_address: Option<Encryptable<Secret<Value>>>,
     /// Capture method for the payment
     pub capture_method: Option<storage_enums::CaptureMethod>,
     /// Authentication type that is requested by the merchant for this payment.
     pub authentication_type: Option<common_enums::AuthenticationType>,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
-    pub prerouting_algorithm: Option<serde_json::Value>,
+    pub prerouting_algorithm: Option<Value>,
     /// The organization id for the payment. This is derived from the merchant account
     pub organization_id: id_type::OrganizationId,
     /// Denotes the request by the merchant whether to enable a payment link for this payment.
