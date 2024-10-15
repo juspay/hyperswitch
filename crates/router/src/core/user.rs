@@ -1686,10 +1686,10 @@ pub async fn verify_totp(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
-    let user_recovery_code_attempts =
+    let user_totp_attempts =
         tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?;
 
-    if user_recovery_code_attempts >= consts::user::TOTP_MAX_ATTEMPTS {
+    if user_totp_attempts >= consts::user::TOTP_MAX_ATTEMPTS {
         return Err(UserErrors::MaxTotpAttemptsReached.into());
     }
 
@@ -1712,7 +1712,7 @@ pub async fn verify_totp(
         let _ = tfa_utils::insert_totp_attempts_in_redis(
             &state,
             &user_token.user_id,
-            user_recovery_code_attempts + 1,
+            user_totp_attempts + 1,
         )
         .await
         .inspect_err(|error| logger::error!(?error));
@@ -1870,10 +1870,10 @@ pub async fn verify_recovery_code(
         return Err(UserErrors::TwoFactorAuthNotSetup.into());
     }
 
-    let user_totp_attempts =
+    let user_recovery_code_attempts =
         tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?;
 
-    if user_totp_attempts >= consts::user::RECOVERY_CODE_MAX_ATTEMPTS {
+    if user_recovery_code_attempts >= consts::user::RECOVERY_CODE_MAX_ATTEMPTS {
         return Err(UserErrors::MaxRecoveryCodeAttemptsReached.into());
     }
 
@@ -1889,7 +1889,7 @@ pub async fn verify_recovery_code(
         let _ = tfa_utils::insert_recovery_code_attempts_in_redis(
             &state,
             &user_token.user_id,
-            user_totp_attempts + 1,
+            user_recovery_code_attempts + 1,
         )
         .await
         .inspect_err(|error| logger::error!(?error));
