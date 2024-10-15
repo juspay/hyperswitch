@@ -1490,7 +1490,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .unwrap_or(false)
                                     {
                                         // Parse the value stored with the successful payment attempt
-                                        let connector_mandate_refernce = payment_data.payment_attempt.connector_mandate_detail.clone().map(|cmd|cmd.parse_value::<ConnectorMandateReferenceId>("ConnectorMandateReferenceId")).transpose()
+                                        let connector_mandate_reference = payment_data.payment_attempt.connector_mandate_detail.clone().map(|cmd|cmd.parse_value::<ConnectorMandateReferenceId>("ConnectorMandateReferenceId")).transpose()
                                         .change_context(
                                             errors::ApiErrorResponse::InternalServerError,
                                         )
@@ -1498,7 +1498,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             "Failed to deserialize to Connector Mandate Reference ",
                                         )? ;
 
-                                        let (connector_mandate_id, mandate_metadata) = connector_mandate_refernce
+                                        let (connector_mandate_id, mandate_metadata) = connector_mandate_reference
                                         .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata))
                                         .unwrap_or((None, None));
 
