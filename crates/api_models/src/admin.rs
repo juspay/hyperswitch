@@ -201,8 +201,6 @@ pub struct MerchantAccountCreate {
     pub merchant_name: Secret<common_utils::new_type::MerchantName>,
     pub merchant_details: Option<MerchantDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
-
-    // #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
     pub organization_id: id_type::OrganizationId,
 }
 
