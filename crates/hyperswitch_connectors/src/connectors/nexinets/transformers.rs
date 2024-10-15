@@ -669,7 +669,7 @@ fn get_applepay_details(
     wallet_data: &WalletData,
     applepay_data: &ApplePayWalletData,
 ) -> CustomResult<ApplePayDetails, errors::ConnectorError> {
-    let payment_data = WalletData::get_wallet_token_as_json(&wallet_data, "Apple Pay".to_string())?;
+    let payment_data = WalletData::get_wallet_token_as_json(wallet_data, "Apple Pay".to_string())?;
     Ok(ApplePayDetails {
         payment_data,
         payment_method: ApplepayPaymentMethod {
