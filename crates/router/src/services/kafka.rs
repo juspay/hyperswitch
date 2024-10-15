@@ -295,8 +295,8 @@ impl KafkaProducer {
         self.ckh_database_name = Some(tenant_config.get_clickhouse_database().to_string());
     }
 
-    pub fn flush_kafka(&self) {
-        self.producer.0.flush(rdkafka::util::Timeout::Never).change_context(KafkaError::GenericError);
+    pub fn flush_kafka(&self) -> MQResult<()> {
+        self.producer.0.flush(rdkafka::util::Timeout::Never).change_context(KafkaError::GenericError)
     }
 
     pub async fn create(conf: &KafkaSettings) -> MQResult<Self> {
