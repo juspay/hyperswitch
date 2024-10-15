@@ -396,7 +396,7 @@ impl PaymentAttempt {
 
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
-        // TODO: Remove these logs after debugging the issue for dealay in count query
+        // TODO: Remove these logs after debugging the issue for delay in count query
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
