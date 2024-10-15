@@ -1686,9 +1686,10 @@ pub async fn verify_totp(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
-    if tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?
-        >= consts::user::TOTP_MAX_ATTEMPTS
-    {
+    let user_recovery_code_attempts =
+        tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?;
+
+    if user_recovery_code_attempts >= consts::user::TOTP_MAX_ATTEMPTS {
         return Err(UserErrors::MaxTotpAttemptsReached.into());
     }
 
@@ -1708,9 +1709,13 @@ pub async fn verify_totp(
         .change_context(UserErrors::InternalServerError)?
         != req.totp.expose()
     {
-        let _ = tfa_utils::insert_totp_attempts_in_redis(&state, &user_token.user_id)
-            .await
-            .map_err(|error| logger::error!(?error));
+        let _ = tfa_utils::insert_totp_attempts_in_redis(
+            &state,
+            &user_token.user_id,
+            user_recovery_code_attempts + 1,
+        )
+        .await
+        .inspect_err(|error| logger::error!(?error));
         return Err(UserErrors::InvalidTotp.into());
     }
 
@@ -1865,9 +1870,10 @@ pub async fn verify_recovery_code(
         return Err(UserErrors::TwoFactorAuthNotSetup.into());
     }
 
-    if tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?
-        >= consts::user::RECOVERY_CODE_MAX_ATTEMPTS
-    {
+    let user_totp_attempts =
+        tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?;
+
+    if user_totp_attempts >= consts::user::RECOVERY_CODE_MAX_ATTEMPTS {
         return Err(UserErrors::MaxRecoveryCodeAttemptsReached.into());
     }
 
@@ -1880,9 +1886,13 @@ pub async fn verify_recovery_code(
         &recovery_codes,
     )?
     else {
-        let _ = tfa_utils::insert_recovery_code_attempts_in_redis(&state, &user_token.user_id)
-            .await
-            .map_err(|error| logger::error!(?error));
+        let _ = tfa_utils::insert_recovery_code_attempts_in_redis(
+            &state,
+            &user_token.user_id,
+            user_totp_attempts + 1,
+        )
+        .await
+        .inspect_err(|error| logger::error!(?error));
         return Err(UserErrors::InvalidRecoveryCode.into());
     };
 
@@ -1950,10 +1960,10 @@ pub async fn terminate_two_factor_auth(
 
     let _ = tfa_utils::delete_totp_attempts_from_redis(&state, &user_token.user_id)
         .await
-        .map_err(|error| logger::error!(?error));
+        .inspect_err(|error| logger::error!(?error));
     let _ = tfa_utils::delete_recovery_code_attempts_from_redis(&state, &user_token.user_id)
         .await
-        .map_err(|error| logger::error!(?error));
+        .inspect_err(|error| logger::error!(?error));
 
     auth::cookies::set_cookie_response(
         user_api::TokenResponse {

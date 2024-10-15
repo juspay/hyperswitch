@@ -29,8 +29,8 @@ pub const REDIS_TOTP_SECRET_PREFIX: &str = "TOTP_SEC_";
 pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 15 * 60; // 15 minutes
 pub const REDIS_TOTP_ATTEMPTS_PREFIX: &str = "TOTP_ATTEMPTS_";
 pub const REDIS_RECOVERY_CODE_ATTEMPTS_PREFIX: &str = "RC_ATTEMPTS_";
-pub const REDIS_TOTP_ATTEMPTS_TTL_IN_SEC: i64 = 5 * 60; // 5 mins
-pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SEC: i64 = 10 * 60; // 10 mins
+pub const REDIS_TOTP_ATTEMPTS_TTL_IN_SECS: i64 = 5 * 60; // 5 mins
+pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS: i64 = 10 * 60; // 10 mins
 
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
