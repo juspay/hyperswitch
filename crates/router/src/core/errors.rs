@@ -234,6 +234,16 @@ pub enum ApplePayDecryptionError {
     DerivingSharedSecretKeyFailed,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum PazeDecryptionError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+}
+
 #[cfg(feature = "detailed_errors")]
 pub mod error_stack_parsing {
 

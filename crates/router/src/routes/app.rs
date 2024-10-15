@@ -517,10 +517,15 @@ pub struct Payments;
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/{payment_id}/saved_payment_methods")
-                .route(web::get().to(list_customer_payment_method_for_payment)),
-        );
+        route = route
+            .service(
+                web::resource("/{payment_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_for_payment)),
+            )
+            .service(
+                web::resource("/{payment_id}/create_external_sdk_tokens")
+                    .route(web::post().to(payments_connector_session)),
+            );
 
         route
     }
@@ -1086,7 +1091,8 @@ impl PaymentMethods {
                 web::resource("/{id}/update_saved_payment_method")
                     .route(web::patch().to(payment_method_update_api)),
             )
-            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)));
+            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
+            .service(web::resource("/{id}").route(web::delete().to(payment_method_delete_api)));
 
         route
     }

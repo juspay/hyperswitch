@@ -52,7 +52,7 @@ pub trait UserRoleInterface {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -120,7 +120,7 @@ impl UserRoleInterface for Store {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -130,7 +130,7 @@ impl UserRoleInterface for Store {
             &conn,
             user_id.to_owned(),
             org_id.to_owned(),
-            merchant_id.to_owned(),
+            merchant_id.cloned(),
             profile_id.cloned(),
             update,
             version,
@@ -280,7 +280,7 @@ impl UserRoleInterface for MockDb {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -293,11 +293,11 @@ impl UserRoleInterface for MockDb {
                 && user_role.profile_id.is_none();
 
             let merchant_level_check = user_role.org_id.as_ref() == Some(org_id)
-                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.merchant_id.as_ref() == merchant_id
                 && user_role.profile_id.is_none();
 
             let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
-                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.merchant_id.as_ref() == merchant_id
                 && user_role.profile_id.as_ref() == profile_id;
 
             // Check if the user role matches the conditions and the version matches

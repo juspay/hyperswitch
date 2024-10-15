@@ -96,6 +96,7 @@ pub struct Settings<S: SecretState> {
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
+    pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -724,6 +725,12 @@ pub struct ApplePayDecryptConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct PazeDecryptConfig {
+    pub paze_private_key: Secret<String>,
+    pub paze_private_key_passphrase: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LockerBasedRecipientConnectorList {
     #[serde(deserialize_with = "deserialize_hashset")]
@@ -860,6 +867,11 @@ impl Settings<SecuredSecret> {
         #[cfg(feature = "v2")]
         self.cell_information.validate()?;
         self.network_tokenization_service
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.paze_decrypt_keys
             .as_ref()
             .map(|x| x.get_inner().validate())
             .transpose()?;

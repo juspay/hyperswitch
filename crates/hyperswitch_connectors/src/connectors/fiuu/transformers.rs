@@ -366,6 +366,9 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             FiuuPaymentMethodData::try_from(decrypt_data)
                         }
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Fiuu"))?
+                        }
                     }
                 }
                 WalletData::AliPayQr(_)
@@ -384,6 +387,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalRedirect(_)
                 | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
@@ -409,10 +413,13 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("fiuu"),
-            )
-            .into()),
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
+                )
+                .into())
+            }
         }?;
 
         Ok(Self {
