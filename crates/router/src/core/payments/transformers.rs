@@ -2169,39 +2169,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data.clone();
-
-        let order_details = additional_data
-            .payment_data
-            .payment_intent
-            .order_details
-            .map(|order_details| {
-                order_details
-                    .iter()
-                    .map(|data| data.to_owned().expose())
-                    .collect()
-            });
-        let amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
-
-        Ok(Self {
-            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
-            minor_amount: amount,
-            currency: payment_data.currency,
-            country: payment_data.address.get_payment_method_billing().and_then(
-                |billing_address| {
-                    billing_address
-                        .address
-                        .as_ref()
-                        .and_then(|address| address.country)
-                },
-            ),
-            order_details,
-            surcharge_details: payment_data.surcharge_details,
-        })
+        todo!();
     }
 }
 

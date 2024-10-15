@@ -515,14 +515,6 @@ pub struct SurchargeDetails {
 }
 
 impl SurchargeDetails {
-    pub fn is_request_surcharge_matching(
-        &self,
-        request_surcharge_details: RequestSurchargeDetails,
-    ) -> bool {
-        request_surcharge_details.surcharge_amount == self.surcharge_amount
-            && request_surcharge_details.tax_amount.unwrap_or_default()
-                == self.tax_on_surcharge_amount
-    }
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
     }
