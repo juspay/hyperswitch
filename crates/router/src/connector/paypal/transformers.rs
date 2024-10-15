@@ -739,7 +739,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::GooglePayThirdPartySdk(_)
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -748,7 +747,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | domain::WalletData::WeChatPayQr(_)
                 | domain::WalletData::CashappQr(_)
                 | domain::WalletData::SwishQr(_)
-                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | domain::WalletData::Mifinity(_)
+                | domain::WalletData::Paze(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
