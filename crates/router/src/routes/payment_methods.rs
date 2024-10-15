@@ -258,7 +258,7 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         payload,
-        |state, auth, pm, _| {
+        |state, auth: auth::AuthenticationDataV2, pm, _| {
             delete_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
