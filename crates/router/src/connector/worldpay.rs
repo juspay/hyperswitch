@@ -64,6 +64,7 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string().into(),
             ),
+            (headers::X_WP_API_VERSION.to_string(), "2024-06-01".into()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -81,7 +82,7 @@ impl ConnectorCommon for Worldpay {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/vnd.worldpay.payments-v7+json"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -205,8 +206,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/authorizations/cancellations/{connector_payment_id}",
+            "{}api/payments/{}/cancellations",
             self.base_url(connectors),
+            urlencoding::encode(&connector_payment_id),
         ))
     }
 
@@ -244,15 +246,24 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
+                let optional_correlation_id = res.headers.and_then(|headers| {
+                    headers
+                        .get("WP-CorrelationId")
+                        .and_then(|header_value| header_value.to_str().ok())
+                        .map(|s| s.to_string())
+                });
                 Ok(types::PaymentsCancelRouterData {
-                    status: enums::AttemptStatus::Voided,
+                    status: enums::AttemptStatus::VoidInitiated,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::foreign_try_from(response.links)?,
+                        resource_id: types::ResponseId::foreign_try_from((
+                            response,
+                            Some(data.request.connector_transaction_id.clone()),
+                        ))?,
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
@@ -306,9 +317,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}payments/events/{}",
+            "{}api/payments/{}",
             self.base_url(connectors),
-            connector_payment_id
+            urlencoding::encode(&connector_payment_id),
         ))
     }
 
@@ -349,6 +360,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let optional_correlation_id = res.headers.and_then(|headers| {
+            headers
+                .get("WP-CorrelationId")
+                .and_then(|header_value| header_value.to_str().ok())
+                .map(|s| s.to_string())
+        });
         let attempt_status = data.request.attempt_status;
         let intent_status = data.request.intent_status;
         let worldpay_status = response.last_event;
@@ -366,7 +383,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: optional_correlation_id,
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -398,9 +415,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/settlements/partials/{}",
+            "{}api/payments/{}/partialSettlements",
             self.base_url(connectors),
-            connector_payment_id
+            urlencoding::encode(&connector_payment_id),
         ))
     }
 
@@ -452,15 +469,24 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
+                let optional_correlation_id = res.headers.and_then(|headers| {
+                    headers
+                        .get("WP-CorrelationId")
+                        .and_then(|header_value| header_value.to_str().ok())
+                        .map(|s| s.to_string())
+                });
                 Ok(types::PaymentsCaptureRouterData {
                     status: enums::AttemptStatus::Pending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::foreign_try_from(response.links)?,
+                        resource_id: types::ResponseId::foreign_try_from((
+                            response,
+                            Some(data.request.connector_transaction_id.clone()),
+                        ))?,
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
@@ -509,10 +535,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}cardPayments/customerInitiatedTransactions",
-            self.base_url(connectors)
-        ))
+        Ok(format!("{}api/payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -568,12 +591,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let optional_correlation_id = res.headers.and_then(|headers| {
+            headers
+                .get("WP-CorrelationId")
+                .and_then(|header_value| header_value.to_str().ok())
+                .map(|s| s.to_string())
+        });
 
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            optional_correlation_id,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -626,9 +658,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/settlements/refunds/partials/{}",
+            "{}api/payments/{}/partialRefunds",
             self.base_url(connectors),
-            connector_payment_id
+            urlencoding::encode(&connector_payment_id),
         ))
     }
 
@@ -665,9 +697,19 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
+                let optional_correlation_id = res.headers.and_then(|headers| {
+                    headers
+                        .get("WP-CorrelationId")
+                        .and_then(|header_value| header_value.to_str().ok())
+                        .map(|s| s.to_string())
+                });
                 Ok(types::RefundExecuteRouterData {
                     response: Ok(types::RefundsResponseData {
-                        connector_refund_id: ResponseIdStr::try_from(response.links)?.id,
+                        connector_refund_id: ResponseIdStr::foreign_try_from((
+                            response,
+                            optional_correlation_id,
+                        ))?
+                        .id,
                         refund_status: enums::RefundStatus::Pending,
                     }),
                     ..data.clone()
@@ -705,9 +747,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}payments/events/{}",
+            "{}api/payments/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            urlencoding::encode(&req.request.get_connector_refund_id()?),
         ))
     }
 

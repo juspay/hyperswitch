@@ -51,7 +51,7 @@ fn fetch_payment_instrument(
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
-            payment_type: PaymentType::Card,
+            payment_type: PaymentType::Plain,
             expiry_date: ExpiryDate {
                 month: utils::CardData::get_expiry_month_as_i8(&card)?,
                 year: utils::CardData::get_expiry_year_as_i32(&card)?,
@@ -85,13 +85,13 @@ fn fetch_payment_instrument(
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
-                    payment_type: PaymentType::Googlepay,
+                    payment_type: PaymentType::Encrypted,
                     wallet_token: Secret::new(data.tokenization_data.token),
                     ..WalletPayment::default()
                 }))
             }
             domain::WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
-                payment_type: PaymentType::Applepay,
+                payment_type: PaymentType::Encrypted,
                 wallet_token: Secret::new(data.payment_data),
                 ..WalletPayment::default()
             })),
@@ -149,6 +149,27 @@ fn fetch_payment_instrument(
     }
 }
 
+impl TryFrom<(enums::PaymentMethod, enums::PaymentMethodType)> for PaymentMethod {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        src: (enums::PaymentMethod, enums::PaymentMethodType),
+    ) -> Result<Self, Self::Error> {
+        match (src.0, src.1) {
+            (enums::PaymentMethod::Card, _) => Ok(Self::Card),
+            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::ApplePay) => {
+                Ok(Self::ApplePay)
+            }
+            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::GooglePay) => {
+                Ok(Self::GooglePay)
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into()),
+        }
+    }
+}
+
 impl
     TryFrom<(
         &WorldpayRouterData<
@@ -178,14 +199,27 @@ impl
         let (item, entity_id) = req;
         Ok(Self {
             instruction: Instruction {
-                request_auto_settlement: RequestAutoSettlement {
-                    enabled: item.router_data.request.capture_method
-                        == Some(enums::CaptureMethod::Automatic),
-                },
-                value: PaymentValue {
-                    amount: item.amount,
-                    currency: item.router_data.request.currency,
-                },
+                settlement: item
+                    .router_data
+                    .request
+                    .capture_method
+                    .map(|capture_method| AutoSettlement {
+                        auto: capture_method == enums::CaptureMethod::Automatic,
+                    }),
+                method: item
+                    .router_data
+                    .request
+                    .payment_method_type
+                    .map(|pmt| PaymentMethod::try_from((item.router_data.payment_method, pmt)))
+                    .transpose()?
+                    .get_required_value("payment_method")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_method",
+                    })?,
+                payment_instrument: fetch_payment_instrument(
+                    item.router_data.request.payment_method_data.clone(),
+                    item.router_data.get_optional_billing(),
+                )?,
                 narrative: InstructionNarrative {
                     line1: item
                         .router_data
@@ -194,10 +228,10 @@ impl
                         .replace('_', "-"),
                     ..Default::default()
                 },
-                payment_instrument: fetch_payment_instrument(
-                    item.router_data.request.payment_method_data.clone(),
-                    item.router_data.get_optional_billing(),
-                )?,
+                value: PaymentValue {
+                    amount: item.amount,
+                    currency: item.router_data.request.currency,
+                },
                 debt_repayment: None,
             },
             merchant: Merchant {
@@ -205,7 +239,6 @@ impl
                 ..Default::default()
             },
             transaction_reference: item.router_data.connector_request_reference_id.clone(),
-            channel: Channel::Ecom,
             customer: None,
         })
     }
@@ -250,9 +283,10 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
-            PaymentOutcome::Refused => Self::Failure,
+            PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
             PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
             PaymentOutcome::SentForRefund => Self::AutoRefunded,
+            PaymentOutcome::ThreeDsDeviceDataRequired => Self::DeviceDataCollectionPending,
         }
     }
 }
@@ -293,32 +327,43 @@ impl From<EventType> for enums::RefundStatus {
     }
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
-    for types::PaymentsAuthorizeRouterData
+impl
+    ForeignTryFrom<(
+        types::PaymentsResponseRouterData<WorldpayPaymentsResponse>,
+        Option<String>,
+    )> for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::PaymentsResponseRouterData<WorldpayPaymentsResponse>,
+    fn foreign_try_from(
+        item: (
+            types::PaymentsResponseRouterData<WorldpayPaymentsResponse>,
+            Option<String>,
+        ),
     ) -> Result<Self, Self::Error> {
+        let (router_data, optional_correlation_id) = item;
+        let description = match router_data.response.other_fields {
+            WorldpayPaymentResponseFields::AuthorizedResponse(ref res) => res.description.clone(),
+            WorldpayPaymentResponseFields::DDCResponse(_)
+            | WorldpayPaymentResponseFields::FraudHighRisk(_)
+            | WorldpayPaymentResponseFields::RefusedResponse(_) => None,
+        };
         Ok(Self {
-            status: match item.response.outcome {
-                Some(outcome) => enums::AttemptStatus::from(outcome),
-                None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "outcome",
-                })?,
-            },
-            description: item.response.description,
+            status: enums::AttemptStatus::from(router_data.response.outcome.clone()),
+            description,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::foreign_try_from(item.response.links)?,
+                resource_id: types::ResponseId::foreign_try_from((
+                    router_data.response,
+                    optional_correlation_id.clone(),
+                ))?,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: optional_correlation_id,
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            ..item.data
+            ..router_data.data
         })
     }
 }
@@ -358,5 +403,23 @@ impl TryFrom<WorldpayWebhookEventType> for WorldpayEventResponse {
             last_event: event.event_details.event_type,
             links: None,
         })
+    }
+}
+
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for ResponseIdStr {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        item: (WorldpayPaymentsResponse, Option<String>),
+    ) -> Result<Self, Self::Error> {
+        get_resource_id(item.0, item.1, |id| Self { id })
+    }
+}
+
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for types::ResponseId {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        item: (WorldpayPaymentsResponse, Option<String>),
+    ) -> Result<Self, Self::Error> {
+        get_resource_id(item.0, item.1, Self::ConnectorTransactionId)
     }
 }
