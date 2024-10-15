@@ -711,6 +711,20 @@
         "summary": "Profile - Create",
         "description": "Creates a new *profile* for a merchant",
         "operationId": "Create A Profile",
+        "parameters": [
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -767,6 +781,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
+            }
           }
         ],
         "responses": {
@@ -805,6 +831,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
             }
           }
         ],
@@ -863,6 +901,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
             }
           }
         ],

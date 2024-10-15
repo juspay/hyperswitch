@@ -523,6 +523,7 @@ pub async fn retrieve_payment_method_with_token(
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
     card_token_data: Option<&domain::CardToken>,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
@@ -536,6 +537,7 @@ pub async fn retrieve_payment_method_with_token(
                 state,
                 &generic_token.token,
                 payment_intent,
+                payment_attempt,
                 merchant_key_store,
                 card_token_data,
             )
@@ -555,6 +557,7 @@ pub async fn retrieve_payment_method_with_token(
                 state,
                 &generic_token.token,
                 payment_intent,
+                payment_attempt,
                 merchant_key_store,
                 card_token_data,
             )
