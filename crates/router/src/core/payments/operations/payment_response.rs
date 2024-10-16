@@ -1594,10 +1594,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         // check if the mandate has not already been set to active
                                         if !mandate_details
                                         .as_ref()
-                                        .map(|key| {
-                                            key.0.contains_key(&mca_id)
-                                                && key.0.get(&mca_id)
-                                                    .map(|rec| rec.connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active))
+                                        .map(|payment_mandate_reference| {
+                                            payment_mandate_reference.0.contains_key(&mca_id)
+                                                && payment_mandate_reference.0.get(&mca_id)
+                                                    .map(|payment_mandate_reference_record| payment_mandate_reference_record.connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active))
                                                     .unwrap_or(false)
                                         })
                                         .unwrap_or(false)
@@ -1617,7 +1617,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                                         // Update the connector mandate details with the payment attempt connector mandate id
                                         let connector_mandate_details =
-                                                    tokenization::update_connector_mandate_details_in_payment_method(
+                                                    tokenization::update_connector_mandate_details(
                                                         mandate_details,
                                                         payment_data.payment_attempt.payment_method_type,
                                                         Some(

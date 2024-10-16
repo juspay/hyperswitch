@@ -456,10 +456,7 @@ where
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
-                connector_mandate_detail: payment_data
-                    .get_payment_attempt()
-                    .connector_mandate_detail
-                    .clone(),
+                connector_mandate_detail: None,
             };
 
             #[cfg(feature = "v1")]

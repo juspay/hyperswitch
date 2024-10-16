@@ -1145,7 +1145,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     }
 }
 
-pub fn update_connector_mandate_details_in_payment_method(
+pub fn update_connector_mandate_details(
     mandate_details: Option<storage::PaymentsMandateReference>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
