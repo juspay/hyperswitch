@@ -26,3 +26,10 @@ pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 15 * 60; // 15 minutes
 
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
+
+/// Email subject
+pub const EMAIL_SUBJECT_SIGNUP: &str = "Welcome to the Hyperswitch community!";
+pub const EMAIL_SUBJECT_INVITATION: &str = "You have been invited to join Hyperswitch Community!";
+pub const EMAIL_SUBJECT_MAGIC_LINK: &str = "Unlock Hyperswitch: Use Your Magic Link to Sign In";
+pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset Your Password Now";
+pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";
