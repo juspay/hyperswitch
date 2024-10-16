@@ -51,20 +51,21 @@ pub struct WorldpayEventResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EventType {
-    #[serde(alias = "Authorized", alias = "authorized")]
+    SentForAuthorization,
+    #[serde(alias = "Authorized")]
     Authorized,
-    Cancelled,
-    Charged,
-    #[serde(rename = "Sent for Refund")]
-    SentForRefund,
-    RefundFailed,
-    Refused,
-    Refunded,
-    Error,
-    #[serde(rename = "Sent for Settlement")]
+    #[serde(alias = "Sent for Settlement")]
     SentForSettlement,
+    Settled,
+    SettlementFailed,
+    Cancelled,
+    Error,
     Expired,
-    CaptureFailed,
+    Refused,
+    #[serde(alias = "Sent for Refund")]
+    SentForRefund,
+    Refunded,
+    RefundFailed,
     #[serde(other)]
     Unknown,
 }
