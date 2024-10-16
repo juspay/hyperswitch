@@ -1451,9 +1451,12 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "captureCallTest",
-  (requestBody, req_data, res_data, amount_to_capture, globalState) => {
+  (requestBody, req_data, res_data, globalState) => {
     const payment_id = globalState.get("paymentID");
-    requestBody.amount_to_capture = amount_to_capture;
+    // requestBody.amount = req_data.amount;
+    for (const key in req_data) {
+      requestBody[key] = req_data[key];
+    }
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}/capture`,
