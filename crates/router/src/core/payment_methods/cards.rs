@@ -508,7 +508,7 @@ pub async fn migrate_payment_method(
     let payment_method_response = match resp {
         services::ApplicationResponse::Json(response) => response,
         _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the payment method response")?, // Handle the case where the response is not what you expect
+            .attach_printable("Failed to fetch the payment method response")?,
     };
 
     let pm_id = payment_method_response.payment_method_id.clone();
@@ -590,15 +590,9 @@ pub async fn populate_bin_details_for_masked_card(
         Err(_) => {
             utils::when(!skip_card_expiry_validation, || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("Invalid card expiry",)
+                    message: "Invalid card expiry".to_string(),
                 }))
             })?
-
-            // if !skip_card_expiry_validation {
-            //     Err(errors::ApiErrorResponse::InvalidRequestData {
-            //         message: "Invalid card expiry".to_string(),
-            //     })? //use when
-            // }
         }
     };
 
@@ -809,14 +803,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     // // In this case, since we do not have valid card details, recurring payments can only be done through connector mandate details.
-    // let connector_mandate_details_req = req
-    //     .connector_mandate_details
-    //     .clone()
-    //     .get_required_value("connector mandate details")?;
-
-    // let connector_mandate_details = serde_json::to_value(&connector_mandate_details_req)
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Failed to parse connector mandate details")?;
 
     let connector_mandate_details = if should_require_connector_mandate_details {
         // If `should_require_connector_mandate_details` is true, we must extract it
@@ -832,7 +818,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         )
     } else {
         // If not required, serialize only if present in the request, else handle it (e.g., return null or skip)
-        let connector_mandate_details = req
+        req
             .connector_mandate_details
             .clone()
             .map(|connector_mandate_details_req| {
@@ -840,8 +826,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse connector mandate details")
             })
-            .transpose()?;
-        connector_mandate_details
+            .transpose()?
     };
 
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
@@ -953,6 +938,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
 ))]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_network_token_and_update_payment_method(
     state: routes::SessionState,
     req: &api::PaymentMethodMigrate,
@@ -1226,7 +1212,6 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
         let res = create_payment_method(
-            //return this
             state,
             &req,
             &customer_id,

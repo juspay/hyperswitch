@@ -27,7 +27,6 @@ pub struct CardNumberValidationErr(&'static str);
 /// Card number
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
-pub struct NetworkToken(CardNumber); //will take this up in diff pr
 
 impl CardNumber {
     pub fn get_card_isin(&self) -> String {
