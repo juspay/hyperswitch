@@ -17,6 +17,7 @@ pub mod nexinets;
 pub mod nexixpay;
 pub mod novalnet;
 pub mod payeezy;
+pub mod payu;
 pub mod powertranz;
 pub mod square;
 pub mod stax;
@@ -31,6 +32,6 @@ pub use self::{
     cryptopay::Cryptopay, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
     fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay,
     helcim::Helcim, mollie::Mollie, nexinets::Nexinets, nexixpay::Nexixpay, novalnet::Novalnet,
-    payeezy::Payeezy, powertranz::Powertranz, square::Square, stax::Stax, taxjar::Taxjar,
-    thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
+    payeezy::Payeezy, payu::Payu, powertranz::Powertranz, square::Square, stax::Stax,
+    taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
 };

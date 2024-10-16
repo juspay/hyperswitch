@@ -32,6 +32,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 
+use crate::types::RefreshTokenRouterData;
+
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub(crate) fn construct_not_supported_error_report(
@@ -891,6 +893,19 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
     map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
     map
 });
+
+pub trait AccessTokenRequestInfo {
+    fn get_request_id(&self) -> Result<Secret<String>, Error>;
+}
+
+impl AccessTokenRequestInfo for RefreshTokenRouterData {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
+        self.request
+            .id
+            .clone()
+            .ok_or_else(missing_field_err("request.id"))
+    }
+}
 
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;

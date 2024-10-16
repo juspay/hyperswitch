@@ -33,7 +33,6 @@ pub mod paybox;
 pub mod payme;
 pub mod payone;
 pub mod paypal;
-pub mod payu;
 pub mod placetopay;
 pub mod plaid;
 pub mod prophetpay;
@@ -60,9 +59,9 @@ pub use hyperswitch_connectors::connectors::{
     fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte,
     forte::Forte, globepay, globepay::Globepay, helcim, helcim::Helcim, mollie, mollie::Mollie,
     nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet,
-    payeezy, payeezy::Payeezy, powertranz, powertranz::Powertranz, square, square::Square, stax,
-    stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt,
-    worldline, worldline::Worldline,
+    payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz, powertranz::Powertranz, square,
+    square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
+    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -75,9 +74,8 @@ pub use self::{
     gocardless::Gocardless, gpayments::Gpayments, iatapay::Iatapay, itaubank::Itaubank,
     klarna::Klarna, mifinity::Mifinity, multisafepay::Multisafepay, netcetera::Netcetera, nmi::Nmi,
     noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payme::Payme,
-    payone::Payone, paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4,
-    signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
-    wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldpay::Worldpay,
-    zen::Zen, zsl::Zsl,
+    payone::Payone, paypal::Paypal, placetopay::Placetopay, plaid::Plaid, prophetpay::Prophetpay,
+    rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
+    stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargo::Wellsfargo,
+    wellsfargopayout::Wellsfargopayout, wise::Wise, worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };
