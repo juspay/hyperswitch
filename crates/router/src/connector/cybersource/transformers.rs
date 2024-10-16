@@ -9,7 +9,7 @@ use common_enums::FutureUsage;
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
-    types::SemanticVersion,
+    types::{SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use josekit::jwt::decode_header;
@@ -42,21 +42,30 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CybersourceRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        // This conversion function is used at different places in the file, if updating this, keep a check for those
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+// impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRouterData<T> {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+//     ) -> Result<Self, Self::Error> {
+//         // This conversion function is used at different places in the file, if updating this, keep a check for those
+//         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+//         Ok(Self {
+//             amount,
+//             router_data: item,
+//         })
+//     }
+// }
+
+impl<T> From<(StringMajorUnit, T)> for CybersourceRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
 
@@ -86,15 +95,20 @@ pub struct CybersourceZeroMandateRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
+impl TryFrom<&CybersourceRouterData<&types::SetupMandateRouterData>>
+    for CybersourceZeroMandateRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &CybersourceRouterData<&types::SetupMandateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data.clone();
         let email = item.get_billing_email().or(item.request.get_email())?;
         let bill_to = build_bill_to(item.get_optional_billing(), email)?;
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
-                total_amount: "0".to_string(),
+                total_amount: item_data.amount.clone(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
@@ -525,14 +539,14 @@ pub struct OrderInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalAmount {
-    additional_amount: String,
+    additional_amount: StringMajorUnit,
     currency: String,
 }
 
@@ -2671,12 +2685,13 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &CybersourceRouterData<&types::PaymentsPreProcessingRouterData>,
+        item_data: &CybersourceRouterData<&types::PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data.clone();
         let client_reference_information = ClientReferenceInformation {
-            code: Some(item.router_data.connector_request_reference_id.clone()),
+            code: Some(item.connector_request_reference_id.clone()),
         };
-        let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
+        let payment_method_data = item.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
                 field_name: "payment_method_data",
             },
@@ -2725,15 +2740,15 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
             }
         }?;
 
-        let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
+        let redirect_response = item.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "redirect_response",
             },
         )?;
 
         let amount_details = Amount {
-            total_amount: item.amount.clone(),
-            currency: item.router_data.request.currency.ok_or(
+            total_amount: item_data.amount.clone(),
+            currency: item.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 },
@@ -2751,11 +2766,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     })?
                     .1
                     .to_string();
-                let email = item
-                    .router_data
-                    .get_billing_email()
-                    .or(item.router_data.request.get_email())?;
-                let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+                let email = item.get_billing_email().or(item.request.get_email())?;
+                let bill_to = build_bill_to(item.get_optional_billing(), email)?;
                 let order_information = OrderInformationWithBill {
                     amount_details,
                     bill_to: Some(bill_to),
@@ -2766,10 +2778,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                         client_reference_information,
                         consumer_authentication_information:
                             CybersourceConsumerAuthInformationRequest {
-                                return_url: item
-                                    .router_data
-                                    .request
-                                    .get_complete_authorize_url()?,
+                                return_url: item.request.get_complete_authorize_url()?,
                                 reference_id,
                             },
                         order_information,
@@ -3405,17 +3414,18 @@ pub struct CybersourceRefundRequest {
 impl<F> TryFrom<&CybersourceRouterData<&types::RefundsRouterData<F>>> for CybersourceRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &CybersourceRouterData<&types::RefundsRouterData<F>>,
+        item_data: &CybersourceRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
-                    total_amount: item.amount.clone(),
-                    currency: item.router_data.request.currency,
+                    total_amount: item_data.amount.clone(),
+                    currency: item.request.currency,
                 },
             },
             client_reference_information: ClientReferenceInformation {
-                code: Some(item.router_data.request.refund_id.clone()),
+                code: Some(item.request.refund_id.clone()),
             },
         })
     }
