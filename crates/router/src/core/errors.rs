@@ -298,8 +298,6 @@ pub enum RoutingError {
     DslFinalConnectorSelectionFailed,
     #[error("[DSL] Received incorrect selection algorithm as DSL output")]
     DslIncorrectSelectionAlgorithm,
-    #[error("unable to find '{field}'")]
-    GenericNotFoundError { field: String },
     #[error("there was an error saving/retrieving values from the kgraph cache")]
     KgraphCacheFailure,
     #[error("failed to refresh the kgraph cache")]
@@ -328,6 +326,8 @@ pub enum RoutingError {
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
     InvalidSuccessBasedConnectorLabel(String),
+    #[error("unable to find '{field}'")]
+    GenericNotFoundError { field: String },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

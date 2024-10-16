@@ -1224,11 +1224,14 @@ pub async fn toggle_success_based_routing(
                     .clone()
                 {
                     Some(algorithm_id) => {
+                        // algorithm is already present in profile
                         if algo_with_timestamp.enabled_feature == feature_to_enable {
+                            // algortihm already has the required feature
                             Err(errors::ApiErrorResponse::PreconditionFailed {
                                 message: "Success based routing is already enabled".to_string(),
                             })?
                         } else {
+                            // enable the requested feature for the algorithm
                             algo_with_timestamp.update_enabled_features(feature_to_enable);
                             let record = db
                                 .find_routing_algorithm_by_profile_id_algorithm_id(
@@ -1261,6 +1264,7 @@ pub async fn toggle_success_based_routing(
                         }
                     }
                     None => {
+                        // algorithm isn't present in profile
                         helpers::default_success_based_routing_setup(
                             &state,
                             key_store,
@@ -1273,6 +1277,7 @@ pub async fn toggle_success_based_routing(
                     }
                 }
             } else {
+                // algorithm isn't present in profile
                 helpers::default_success_based_routing_setup(
                     &state,
                     key_store,
@@ -1285,6 +1290,7 @@ pub async fn toggle_success_based_routing(
             }
         }
         routing::SuccessBasedRoutingFeatures::None => {
+            // disable success based routing for the requested profile
             let timestamp = common_utils::date_time::now_unix_timestamp();
             match success_based_dynamic_routing_algo_ref.success_based_algorithm {
                 Some(algorithm_ref) => {

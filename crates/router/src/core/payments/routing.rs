@@ -1227,7 +1227,7 @@ pub async fn perform_success_based_routing(
                 field: "dynamic_routing_algorithm".to_string(),
             })
             .attach_printable(
-                "unable to deserialize dynamic routing algorithm ref from business profile",
+                "unable to deserialize dynamic_routing_algorithm from business profile to dynamic_routing_algorithm_ref",
             )?
             .unwrap_or_default();
 
@@ -1258,7 +1258,7 @@ pub async fn perform_success_based_routing(
         )
         .await
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-        .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+        .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
         let tenant_business_profile_id = format!(
             "{}:{}",
@@ -1293,7 +1293,7 @@ pub async fn perform_success_based_routing(
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
                     })
-                    .attach_printable("unable to infer routable_connector from connector")?,
+                    .attach_printable("unable to convert routable_connector from connector")?,
                 merchant_connector_id: Some(
                     common_utils::id_type::MerchantConnectorAccountId::wrap(
                         merchant_connector_id.to_string(),
@@ -1302,7 +1302,7 @@ pub async fn perform_success_based_routing(
                         from: "String".to_string(),
                         to: "MerchantConnectorAccountId".to_string(),
                     })
-                    .attach_printable("unable to infer MerchantConnectorAccountId from string")?,
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
                 ),
             });
         }

@@ -2,6 +2,7 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
+
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
@@ -15,7 +16,7 @@ use diesel_models::configs;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
-#[cfg(feature = "dynamic_routing")]
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
@@ -611,15 +612,17 @@ pub async fn perform_success_based_routing(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
-                "unable to deserialize dynamic routing algorithm ref from business profile",
+                "unable to deserialize dynamic routing algorithm from business profile to dynamic_routing_algorithm_ref",
             )?
             .unwrap_or_default();
+
     let success_based_algo_ref = success_based_dynamic_routing_algo_ref
         .success_based_algorithm
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "unable to fetch success_based_algorithm from dynamic_routing_algorithm",
         )?;
+
     if success_based_algo_ref.enabled_feature
         == routing_types::SuccessBasedRoutingFeatures::DynamicConnectorSelection
     {
@@ -973,7 +976,7 @@ fn get_success_based_metrics_outcome_for_payment(
     }
 }
 
-/// Checked fetch of success based routing configs
+/// default config setup for success_based_routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn default_success_based_routing_setup(
