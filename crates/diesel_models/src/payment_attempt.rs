@@ -3151,6 +3151,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
         }
     }
