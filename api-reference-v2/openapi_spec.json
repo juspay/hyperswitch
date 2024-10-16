@@ -10218,6 +10218,7 @@
       "NextActionCall": {
         "type": "string",
         "enum": [
+          "post_session_tokens",
           "confirm",
           "sync",
           "complete_authorize"
@@ -14572,6 +14573,11 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session Id",
+            "nullable": true
           }
         }
       },
@@ -19329,6 +19335,10 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "order_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
