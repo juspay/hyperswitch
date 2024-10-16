@@ -589,6 +589,42 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        let papal_sdk_next_action =
+            paypal_sdk_next_steps_check(payment_data.get_payment_attempt().clone())?;
+        let next_action = papal_sdk_next_action.map(|paypal_next_action_data| {
+            api_models::payments::NextActionData::InvokeSdkClient {
+                next_action_data: paypal_next_action_data,
+            }
+        });
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                next_action,
+                status: payment_data.get_payment_intent().status,
+            },
+            vec![],
+        )))
+    }
+}
+
 impl ForeignTryFrom<(MinorUnit, Option<MinorUnit>, Option<MinorUnit>, Currency)>
     for api_models::payments::DisplayAmountOnSdk
 {
@@ -2147,6 +2183,48 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
         Ok(Self {
             net_amount,
             order_tax_amount,
+            currency: payment_data.currency,
+            amount: payment_data.payment_intent.amount,
+            session_id: payment_data.session_id,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data.clone();
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        // amount here would include amount, surcharge_amount and shipping_cost
+        let amount = payment_data.payment_intent.amount + shipping_cost + surcharge_amount;
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+        Ok(Self {
+            amount, //need to change after we move to connector module
+            currency: payment_data.currency,
+            merchant_order_reference_id,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }

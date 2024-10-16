@@ -585,6 +585,9 @@ impl Payments {
                         .route(web::post().to(payments_update)),
                 )
                 .service(
+                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments_post_session_tokens)),
+                )
+                .service(
                     web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
                 )
                 .service(

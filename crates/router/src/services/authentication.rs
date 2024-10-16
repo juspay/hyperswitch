@@ -2018,6 +2018,12 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
