@@ -250,7 +250,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     headers
                         .get("WP-CorrelationId")
                         .and_then(|header_value| header_value.to_str().ok())
-                        .map(|s| s.to_string())
+                        .map(|id| id.to_string())
                 });
                 Ok(types::PaymentsCancelRouterData {
                     status: enums::AttemptStatus::VoidInitiated,
@@ -364,14 +364,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             headers
                 .get("WP-CorrelationId")
                 .and_then(|header_value| header_value.to_str().ok())
-                .map(|s| s.to_string())
+                .map(|id| id.to_string())
         });
-        let attempt_status = data.request.attempt_status;
-        let intent_status = data.request.intent_status;
+        let attempt_status = data.status;
         let worldpay_status = response.last_event;
-        let status = match (attempt_status, intent_status, worldpay_status.clone()) {
-            (_, enums::IntentStatus::RequiresCapture, EventType::Authorized) => attempt_status,
-            (enums::AttemptStatus::Pending, _, EventType::Authorized) => attempt_status,
+        let status = match (attempt_status, worldpay_status.clone()) {
+            (
+                enums::AttemptStatus::Authorizing
+                | enums::AttemptStatus::Authorized
+                | enums::AttemptStatus::CaptureInitiated
+                | enums::AttemptStatus::Pending
+                | enums::AttemptStatus::VoidInitiated,
+                EventType::Authorized,
+            ) => attempt_status,
             _ => enums::AttemptStatus::from(&worldpay_status),
         };
 
@@ -473,7 +478,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     headers
                         .get("WP-CorrelationId")
                         .and_then(|header_value| header_value.to_str().ok())
-                        .map(|s| s.to_string())
+                        .map(|id| id.to_string())
                 });
                 Ok(types::PaymentsCaptureRouterData {
                     status: enums::AttemptStatus::Pending,
@@ -595,7 +600,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             headers
                 .get("WP-CorrelationId")
                 .and_then(|header_value| header_value.to_str().ok())
-                .map(|s| s.to_string())
+                .map(|id| id.to_string())
         });
 
         types::RouterData::foreign_try_from((
@@ -701,7 +706,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                     headers
                         .get("WP-CorrelationId")
                         .and_then(|header_value| header_value.to_str().ok())
-                        .map(|s| s.to_string())
+                        .map(|id| id.to_string())
                 });
                 Ok(types::RefundExecuteRouterData {
                     response: Ok(types::RefundsResponseData {
@@ -863,19 +868,20 @@ impl api::IncomingWebhook for Worldpay {
             .parse_struct("WorldpayWebhookEventType")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         match body.event_details.event_type {
-            EventType::SentForSettlement | EventType::Charged => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+            EventType::Authorized => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
             }
-            EventType::Error | EventType::Expired => {
+            EventType::SentForSettlement => Ok(api::IncomingWebhookEvent::PaymentIntentProcessing),
+            EventType::Settled => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
+            EventType::Error | EventType::Expired | EventType::SettlementFailed => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
             EventType::Unknown
-            | EventType::Authorized
+            | EventType::SentForAuthorization
             | EventType::Cancelled
             | EventType::Refused
             | EventType::Refunded
             | EventType::SentForRefund
-            | EventType::CaptureFailed
             | EventType::RefundFailed => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
