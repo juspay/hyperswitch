@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
 
+set -x
 set -euo pipefail
 
 # Initialize tmp_file globally
@@ -186,3 +187,4 @@ function main() {
 
 # Execute the main function with passed arguments
 main "$@"
+set +x
