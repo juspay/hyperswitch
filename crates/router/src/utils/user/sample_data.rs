@@ -3,8 +3,9 @@ use api_models::{
     user::sample_data::SampleDataRequest,
 };
 use common_utils::{id_type, types::MinorUnit};
-use diesel_models::enums as storage_enums;
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew};
+use diesel_models::{
+    enums as storage_enums, user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
