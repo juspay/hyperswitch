@@ -71,6 +71,8 @@ pub async fn generate_sample_data_for_user(
         .await
         .switch()?;
 
+    // TODO: include store for disputes
+
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -109,6 +111,8 @@ pub async fn delete_sample_data_for_user(
         .delete_refunds_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
+
+    // TODO: delete store for disputes
 
     Ok(ApplicationResponse::StatusOk)
 }
