@@ -1749,7 +1749,7 @@ impl
         let processing_information = ProcessingInformation::try_from((
             item,
             Some(PaymentSolution::SamsungPay),
-            Some(samsung_pay_data.payment_credential.card_brand),
+            Some(samsung_pay_data.payment_credential.card_brand.to_string()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item

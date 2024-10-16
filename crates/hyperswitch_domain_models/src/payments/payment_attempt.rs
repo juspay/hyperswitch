@@ -558,6 +558,8 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -812,6 +814,10 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+    },
+    PostSessionTokensUpdate {
+        updated_by: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -1165,6 +1171,13 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+            },
+            Self::PostSessionTokensUpdate {
+                updated_by,
+                connector_metadata,
+            } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
+                updated_by,
+                connector_metadata,
             },
         }
     }
