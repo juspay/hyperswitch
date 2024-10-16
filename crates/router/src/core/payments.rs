@@ -3763,7 +3763,7 @@ pub async fn apply_filters_on_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let total_count = if !constraints.has_no_attempt_filters() {
+    let total_count = if constraints.has_no_attempt_filters() {
         i64::try_from(active_attempt_ids.len())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while converting from usize to i64")
