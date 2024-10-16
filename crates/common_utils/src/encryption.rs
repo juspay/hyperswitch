@@ -1,3 +1,4 @@
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize::{self, FromSql, Queryable},
@@ -9,6 +10,7 @@ use masking::Secret;
 
 use crate::{crypto::Encryptable, pii::EncryptionStrategy};
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
@@ -19,6 +21,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
@@ -32,6 +35,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
@@ -43,8 +47,9 @@ where
     }
 }
 
-#[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
-#[diesel(sql_type = sql_types::Binary)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Binary))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Encryption {
     inner: Secret<Vec<u8>, EncryptionStrategy>,

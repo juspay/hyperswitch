@@ -16,7 +16,9 @@ crate::impl_default_id_type!(PaymentId, "pay");
 crate::impl_try_from_cow_str_id_type!(PaymentId, "payment_id");
 
 // Database related implementations so that this field can be used directly in the database tables
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(PaymentId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_id_type!(PaymentId);
 
 impl PaymentId {
