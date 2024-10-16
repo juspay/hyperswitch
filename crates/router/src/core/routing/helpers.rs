@@ -2,7 +2,6 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
@@ -13,9 +12,9 @@ use api_models::routing as routing_types;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
+use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use diesel_models::routing_algorithm;
-use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
@@ -24,6 +23,8 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, metrics::add_attributes, tracing};
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
@@ -36,8 +37,6 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them

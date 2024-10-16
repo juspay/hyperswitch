@@ -7,8 +7,6 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
@@ -23,6 +21,8 @@ use euclid::{
     enums as euclid_enums,
     frontend::{ast, dir as euclid_dir},
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::routing as api_routing;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
