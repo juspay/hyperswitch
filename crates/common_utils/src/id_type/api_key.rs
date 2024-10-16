@@ -14,7 +14,7 @@ crate::impl_to_sql_from_sql_id_type!(ApiKeyId);
 
 impl ApiKeyId {
     /// Generate Api Key Id from prefix
-    pub fn generate_key_id(prefix: &str) -> Self {
+    pub fn generate_key_id(prefix: &'static str) -> Self {
         Self(crate::generate_ref_id_with_default_length(prefix))
     }
 }
@@ -38,7 +38,7 @@ impl crate::events::ApiEventMetric for (super::MerchantId, ApiKeyId) {
 impl crate::events::ApiEventMetric for (&super::MerchantId, &ApiKeyId) {
     fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
         Some(crate::events::ApiEventsType::ApiKey {
-            key_id: self.1.clone().to_owned(),
+            key_id: self.1.clone(),
         })
     }
 }
