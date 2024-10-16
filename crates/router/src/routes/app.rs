@@ -1126,6 +1126,10 @@ impl PaymentMethods {
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
                 .service(
+                    web::resource("/update_connector_mandate_details")
+                        .route(web::post().to(update_connector_mandate_details)),
+                )
+                .service(
                     web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
                 )
                 .service(

@@ -112,6 +112,7 @@ impl
             bank_transfer: None,
             last_used_at: None,
             client_secret: item.client_secret,
+            connector_mandate_details: None,
         }
     }
 }

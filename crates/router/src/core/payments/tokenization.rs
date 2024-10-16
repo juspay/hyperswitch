@@ -869,6 +869,7 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                connector_mandate_details: None,
             };
 
             Ok((pm_resp, None))
@@ -891,6 +892,7 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                connector_mandate_details: None,
             };
             Ok((payment_method_response, None))
         }
@@ -956,6 +958,7 @@ pub async fn save_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                connector_mandate_details: None,
             };
             Ok((payment_method_response, None))
         }

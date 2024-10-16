@@ -824,6 +824,26 @@ pub async fn payment_method_update_api(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdateConnectorMandateDetails))]
+pub async fn update_connector_mandate_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::PaymentMethodUpdateConnectorMandateDetails>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsUpdateConnectorMandateDetails;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, _, payload, _| cards::update_connector_mandate_details(state, payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")

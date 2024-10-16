@@ -250,6 +250,7 @@ pub fn store_default_payment_method(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        connector_mandate_details: None,
     };
 
     (payment_method_response, None)
@@ -1679,6 +1680,7 @@ pub async fn update_customer_payment_method(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: pm.client_secret.clone(),
+                connector_mandate_details: None,
             }
         };
 
@@ -1688,6 +1690,86 @@ pub async fn update_customer_payment_method(
             message: "Payment method update for the given payment method is not supported".into()
         }))
     }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[instrument(skip_all)]
+pub async fn update_connector_mandate_details(
+    state: routes::SessionState,
+    update_connector_mandate_details_request: api_models::payment_methods::PaymentMethodUpdateConnectorMandateDetails,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let db = state.store.as_ref();
+    let merchant_id = update_connector_mandate_details_request.merchant_id.clone();
+
+    let key_manager_state = &(&state).into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let pm = db
+        .find_payment_method(
+            &((&state).into()),
+            &key_store,
+            update_connector_mandate_details_request
+                .payment_method_id
+                .as_str(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    let connector_mandate_details =
+        match update_connector_mandate_details_request.connector_mandate_id {
+            Some(connector_mandate_id) => Some(Some(connector_mandate_id)),
+            None => Some(None),
+        };
+    let update = storage::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details,
+    };
+    let pm = db
+        .update_payment_method(
+            key_manager_state,
+            &key_store,
+            pm,
+            update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode payout method data")?;
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodResponse {
+            merchant_id: pm.merchant_id,
+            customer_id: Some(pm.customer_id),
+            payment_method_id: pm.payment_method_id,
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
+            bank_transfer: None,
+            card: None,
+            metadata: pm.metadata,
+            created: Some(pm.created_at),
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: None,
+            last_used_at: Some(pm.last_used_at),
+            client_secret: pm.client_secret,
+            connector_mandate_details: pm.connector_mandate_details,
+        },
+    ))
 }
 
 #[cfg(all(
@@ -2280,7 +2362,7 @@ pub async fn update_payment_method_connector_mandate_details(
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details,
+        connector_mandate_details: Some(connector_mandate_details),
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -5234,6 +5316,7 @@ pub async fn retrieve_payment_method(
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             last_used_at: Some(pm.last_used_at),
             client_secret: pm.client_secret,
+            connector_mandate_details: None,
         },
     ))
 }
