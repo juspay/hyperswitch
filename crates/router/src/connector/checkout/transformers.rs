@@ -106,6 +106,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -133,7 +134,9 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -300,6 +303,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                         )?,
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
                     },
                 })),
                 domain::WalletData::ApplePay(_) => {
@@ -326,6 +332,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                 },
                             )))
                         }
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
                     }
                 }
                 domain::WalletData::AliPayQr(_)
@@ -344,6 +353,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -370,7 +380,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 ))

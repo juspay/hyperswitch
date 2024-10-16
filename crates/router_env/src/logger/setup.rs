@@ -33,6 +33,7 @@ pub struct TelemetryGuard {
 /// Setup logging sub-system specifying the logging configuration, service (binary) name, and a
 /// list of external crates for which a more verbose logging must be enabled. All crates within the
 /// current cargo workspace are automatically considered for verbose logging.
+#[allow(clippy::print_stdout)] // The logger hasn't been initialized yet
 pub fn setup(
     config: &config::Log,
     service_name: &str,
@@ -271,6 +272,7 @@ fn setup_tracing_pipeline(
         .install_batch(runtime::TokioCurrentThread)
         .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
 
+    #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
     if config.ignore_errors {
         traces_layer_result
             .map_err(|error| {
@@ -315,6 +317,7 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         )]))
         .build();
 
+    #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
     if config.ignore_errors {
         metrics_controller_result
             .map_err(|error| eprintln!("Failed to setup metrics pipeline: {error:?}"))

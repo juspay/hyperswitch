@@ -1,16 +1,21 @@
+use std::collections::HashMap;
+
+use common_utils::types::TimeRange;
 use masking::{Deserialize, Serialize};
+use serde::de::Error;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
-use crate::files;
+use crate::{admin::MerchantConnectorInfo, enums, files};
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
     /// The identifier for payment_intent
-    pub payment_id: String,
+    #[schema(value_type = String)]
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for payment_attempt
     pub attempt_id: String,
     /// The dispute amount
@@ -44,9 +49,11 @@ pub struct DisputeResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     /// The `profile_id` associated with the dispute
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
@@ -103,40 +110,51 @@ pub struct DisputeEvidenceBlock {
     pub file_metadata_response: files::FileMetadataResponse,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct DisputeListConstraints {
-    /// limit on the number of objects to return
-    pub limit: Option<i64>,
+pub struct DisputeListGetConstraints {
+    /// The identifier for dispute
+    pub dispute_id: Option<String>,
+    /// The payment_id against which dispute is raised
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    /// Limit on the number of objects to return
+    pub limit: Option<u32>,
+    /// The starting point within a list of object
+    pub offset: Option<u32>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
-    /// status of the dispute
-    pub dispute_status: Option<DisputeStatus>,
-    /// stage of the dispute
-    pub dispute_stage: Option<DisputeStage>,
-    /// reason for the dispute
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// The comma separated list of status of the disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub dispute_status: Option<Vec<DisputeStatus>>,
+    /// The comma separated list of stages of the disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub dispute_stage: Option<Vec<DisputeStage>>,
+    /// Reason for the dispute
     pub reason: Option<String>,
-    /// connector linked to dispute
-    pub connector: Option<String>,
-    /// The time at which dispute is received
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    pub received_time: Option<PrimitiveDateTime>,
-    /// Time less than the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.lt")]
-    pub received_time_lt: Option<PrimitiveDateTime>,
-    /// Time greater than the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.gt")]
-    pub received_time_gt: Option<PrimitiveDateTime>,
-    /// Time less than or equals to the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.lte")]
-    pub received_time_lte: Option<PrimitiveDateTime>,
-    /// Time greater than or equals to the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.gte")]
-    pub received_time_gte: Option<PrimitiveDateTime>,
+    /// The comma separated list of connectors linked to disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub connector: Option<Vec<String>>,
+    /// The comma separated list of currencies of the disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub currency: Option<Vec<common_enums::Currency>>,
+    /// The merchant connector id to filter the disputes list
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct DisputeListFilters {
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available dispute status filters
+    pub dispute_status: Vec<DisputeStatus>,
+    /// The list of available dispute stage filters
+    pub dispute_stage: Vec<DisputeStage>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -203,4 +221,26 @@ pub struct DeleteEvidenceRequest {
     pub dispute_id: String,
     /// Evidence Type to be deleted
     pub evidence_type: EvidenceType,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct DisputesAggregateResponse {
+    /// Different status of disputes with their count
+    pub status_with_count: HashMap<DisputeStatus, i64>,
+}
+
+fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    let output = Option::<&str>::deserialize(v)?;
+    output
+        .map(|s| {
+            s.split(",")
+                .map(|x| x.parse::<T>().map_err(D::Error::custom))
+                .collect::<Result<_, _>>()
+        })
+        .transpose()
 }

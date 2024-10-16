@@ -74,7 +74,7 @@ where
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
@@ -273,6 +273,7 @@ impl MerchantAccountInterface for Store {
                 .change_context(errors::StorageError::DecryptionError)?,
 
             key_store,
+            profile_id: None,
         })
     }
 
@@ -281,7 +282,7 @@ impl MerchantAccountInterface for Store {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         use futures::future::try_join_all;
         let conn = connection::pg_connection_read(self).await?;
@@ -483,7 +484,7 @@ impl MerchantAccountInterface for MockDb {
         let accounts = self.merchant_accounts.lock().await;
         let account: Option<domain::MerchantAccount> = accounts
             .iter()
-            .find(|account| account.merchant_id == *merchant_id)
+            .find(|account| account.get_id() == merchant_id)
             .cloned()
             .async_map(|a| async {
                 a.convert(
@@ -554,7 +555,7 @@ impl MerchantAccountInterface for MockDb {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         _state: &KeyManagerState,
-        _organization_id: &str,
+        _organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -579,16 +580,21 @@ async fn publish_and_redact_merchant_account_cache(
         .as_ref()
         .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
 
+    #[cfg(feature = "v1")]
     let cgraph_key = merchant_account.default_profile.as_ref().map(|profile_id| {
         CacheKind::CGraph(
             format!(
                 "cgraph_{}_{}",
-                merchant_account.get_id().clone(),
-                profile_id,
+                merchant_account.get_id().get_string_repr(),
+                profile_id.get_string_repr(),
             )
             .into(),
         )
     });
+
+    // TODO: we will not have default profile in v2
+    #[cfg(feature = "v2")]
+    let cgraph_key = None;
 
     let mut cache_keys = vec![CacheKind::Accounts(
         merchant_account.get_id().get_string_repr().into(),
@@ -608,7 +614,7 @@ async fn publish_and_redact_all_merchant_account_cache(
 ) -> CustomResult<(), errors::StorageError> {
     let merchant_ids = merchant_accounts
         .iter()
-        .map(|m| m.merchant_id.get_string_repr().to_string());
+        .map(|merchant_account| merchant_account.get_id().get_string_repr().to_string());
     let publishable_keys = merchant_accounts
         .iter()
         .filter_map(|m| m.publishable_key.clone());

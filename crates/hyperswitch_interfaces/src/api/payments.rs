@@ -2,18 +2,20 @@
 
 use hyperswitch_domain_models::{
     router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
+        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, SetupMandateRequestData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
-    router_response_types::PaymentsResponseData,
+    router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
 
 use crate::api;
@@ -37,6 +39,8 @@ pub trait Payment:
     + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
+    + PaymentSessionUpdate
+    + PaymentPostSessionTokens
 {
 }
 
@@ -107,6 +111,24 @@ pub trait PaymentIncrementalAuthorization:
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >
+{
+}
+
+/// trait TaxCalculation
+pub trait TaxCalculation:
+    api::ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>
+{
+}
+
+/// trait SessionUpdate
+pub trait PaymentSessionUpdate:
+    api::ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
+{
+}
+
+/// trait PostSessionTokens
+pub trait PaymentPostSessionTokens:
+    api::ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
 {
 }
 

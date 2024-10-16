@@ -1,6 +1,9 @@
 use api_models::enums::BankNames;
 use common_enums::AttemptStatus;
-use common_utils::pii::{Email, IpAddress};
+use common_utils::{
+    pii::{Email, IpAddress},
+    types::{FloatMajorUnit, MinorUnit},
+};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -17,20 +20,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRouterData<T> {
-    amount: i64,
+    amount: MinorUnit,
     router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MultisafepayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for MultisafepayRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -244,6 +243,7 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::AllianceBank
             | BankNames::AmBank
             | BankNames::BankOfAmerica
+            | BankNames::BankOfChina
             | BankNames::BankIslam
             | BankNames::BankMuamalat
             | BankNames::BankRakyat
@@ -408,7 +408,7 @@ pub struct CheckoutOptions {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Item {
     pub name: String,
-    pub unit_price: f64,
+    pub unit_price: FloatMajorUnit,
     pub description: Option<String>,
     pub quantity: i64,
 }
@@ -426,7 +426,7 @@ pub struct MultisafepayPaymentsRequest {
     pub gateway: Option<Gateway>,
     pub order_id: String,
     pub currency: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub description: String,
     pub payment_options: Option<PaymentOptions>,
     pub customer: Option<Customer>,
@@ -493,6 +493,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -556,6 +557,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -607,7 +609,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?
@@ -713,6 +717,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -788,7 +793,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::OpenBanking(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?
@@ -888,7 +895,7 @@ pub struct Data {
     pub payment_type: Option<String>,
     pub order_id: String,
     pub currency: Option<String>,
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub description: Option<String>,
     pub capture: Option<String>,
     pub payment_url: Option<Url>,
@@ -980,6 +987,7 @@ impl<F, T>
                                 .map(|id| types::MandateReference {
                                     connector_mandate_id: Some(id.expose()),
                                     payment_method_id: None,
+                                    mandate_metadata: None,
                                 }),
                             connector_metadata: None,
                             network_txn_id: None,
@@ -1016,7 +1024,7 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
     pub currency: diesel_models::enums::Currency,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,
     pub checkout_data: Option<ShoppingCart>,

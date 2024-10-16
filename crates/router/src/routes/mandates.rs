@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -44,30 +45,14 @@ pub async fn get_mandate(
         |state, auth, req, _| {
             mandate::get_mandate(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-/// Mandates - Revoke Mandate
-///
-/// Revokes a mandate created using the Payments/Create API
-#[utoipa::path(
-    post,
-    path = "/mandates/revoke/{mandate_id}",
-    params(
-        ("mandate_id" = String, Path, description = "The identifier for a mandate")
-    ),
-    responses(
-        (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
-        (status = 400, description = "Mandate does not exist in our records")
-    ),
-    tag = "Mandates",
-    operation_id = "Revoke a Mandate",
-    security(("api_key" = []))
-)]
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
-// #[post("/revoke/{id}")]
 pub async fn revoke_mandate(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -85,7 +70,7 @@ pub async fn revoke_mandate(
         |state, auth, req, _| {
             mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -130,8 +115,11 @@ pub async fn retrieve_mandates_list(
             mandate::retrieve_mandates_list(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MandateRead),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MandateRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

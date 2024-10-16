@@ -610,6 +610,7 @@ impl
                         | common_enums::PaymentMethodType::OpenBankingUk
                         | common_enums::PaymentMethodType::PayBright
                         | common_enums::PaymentMethodType::Paypal
+                        | common_enums::PaymentMethodType::Paze
                         | common_enums::PaymentMethodType::Pix
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
@@ -664,7 +665,9 @@ impl
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(report!(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message(
                         req.connector.as_str(),

@@ -115,9 +115,73 @@ pub struct MandateListConstraints {
 }
 
 /// Details required for recurring payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RecurringDetails {
     MandateId(String),
     PaymentMethodId(String),
+    ProcessorPaymentToken(ProcessorPaymentToken),
+
+    /// Network transaction ID and Card Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    NetworkTransactionIdAndCardDetails(NetworkTransactionIdAndCardDetails),
+}
+
+/// Processor payment token for MIT payments where payment_method_data is not available
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct ProcessorPaymentToken {
+    pub processor_payment_token: String,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndCardDetails {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: cards::CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
+    /// where `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Secret<String>,
+}
+
+impl RecurringDetails {
+    pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
+        matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
+    }
 }

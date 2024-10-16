@@ -5,7 +5,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, RouterData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, domain, storage::enums, transformers::ForeignFrom},
 };
@@ -91,24 +91,56 @@ fn get_transaction_body(
 }
 
 fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
-    let card_holder_name = req.get_billing_full_name()?;
     let card_data = match &req.request.payment_method_data {
         domain::PaymentMethodData::Card(card) => {
+            let card_holder_name = req.get_billing_full_name()?;
+
+            if req.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
+                format!(
+                    r#"
+                    <CreditCard Registered="False">
+                        <TokeniseAlgorithmID>2</TokeniseAlgorithmID>
+                        <CardNumber>{}</CardNumber>
+                        <ExpM>{}</ExpM>
+                        <ExpY>{}</ExpY>
+                        <CVN>{}</CVN>
+                        <CardHolderName>{}</CardHolderName>
+                    </CreditCard>
+                "#,
+                    card.card_number.get_card_no(),
+                    card.card_exp_month.peek(),
+                    card.get_expiry_year_4_digit().peek(),
+                    card.card_cvc.peek(),
+                    card_holder_name.peek(),
+                )
+            } else {
+                format!(
+                    r#"
+                    <CreditCard Registered="False">
+                        <CardNumber>{}</CardNumber>
+                        <ExpM>{}</ExpM>
+                        <ExpY>{}</ExpY>
+                        <CVN>{}</CVN>
+                        <CardHolderName>{}</CardHolderName>
+                    </CreditCard>
+                "#,
+                    card.card_number.get_card_no(),
+                    card.card_exp_month.peek(),
+                    card.get_expiry_year_4_digit().peek(),
+                    card.card_cvc.peek(),
+                    card_holder_name.peek(),
+                )
+            }
+        }
+        domain::PaymentMethodData::MandatePayment => {
             format!(
                 r#"
-                <CreditCard Registered="False">
-                    <CardNumber>{}</CardNumber>
-                    <ExpM>{}</ExpM>
-                    <ExpY>{}</ExpY>
-                    <CVN>{}</CVN>
-                    <CardHolderName>{}</CardHolderName>
+                <CreditCard>
+                <TokeniseAlgorithmID>2</TokeniseAlgorithmID>
+                <CardNumber>{}</CardNumber>
                 </CreditCard>
             "#,
-                card.card_number.get_card_no(),
-                card.card_exp_month.peek(),
-                card.get_expiry_year_4_digit().peek(),
-                card.card_cvc.peek(),
-                card_holder_name.peek(),
+                req.request.get_connector_mandate_id()?
             )
         }
         _ => {
@@ -122,7 +154,7 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
 
 fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<u8, Error> {
     match capture_method {
-        Some(enums::CaptureMethod::Automatic) => Ok(1),
+        Some(enums::CaptureMethod::Automatic) | None => Ok(1),
         Some(enums::CaptureMethod::Manual) => Ok(2),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
@@ -182,6 +214,7 @@ pub struct SubmitSinglePaymentResult {
 pub struct PaymentResponse {
     response_code: u8,
     receipt: String,
+    credit_card_token: Option<String>,
     declined_code: Option<String>,
     declined_message: Option<String>,
 }
@@ -192,7 +225,7 @@ fn get_attempt_status(
 ) -> enums::AttemptStatus {
     match response_code {
         0 => match capture_method {
-            Some(enums::CaptureMethod::Automatic) => enums::AttemptStatus::Charged,
+            Some(enums::CaptureMethod::Automatic) | None => enums::AttemptStatus::Charged,
             Some(enums::CaptureMethod::Manual) => enums::AttemptStatus::Authorized,
             _ => enums::AttemptStatus::Pending,
         },
@@ -234,6 +267,24 @@ impl<F>
             .submit_single_payment_result
             .response
             .receipt;
+
+        let mandate_reference =
+            if item.data.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
+                let connector_mandate_id = item
+                    .response
+                    .body
+                    .submit_single_payment_response
+                    .submit_single_payment_result
+                    .response
+                    .credit_card_token;
+                Some(types::MandateReference {
+                    connector_mandate_id,
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                })
+            } else {
+                None
+            };
         // transaction approved
         if response_code == 0 {
             Ok(Self {
@@ -243,7 +294,7 @@ impl<F>
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
@@ -279,6 +330,160 @@ impl<F>
                     code,
                     message: declined_message.to_owned(),
                     reason: Some(declined_message),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            })
+        }
+    }
+}
+
+pub fn get_setup_mandate_body(req: &types::SetupMandateRouterData) -> Result<Vec<u8>, Error> {
+    let card_holder_name = req.get_billing_full_name()?;
+    let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
+    let body = match &req.request.payment_method_data {
+        domain::PaymentMethodData::Card(card) => {
+            format!(
+                r#"
+                <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                xmlns:sipp="http://www.ippayments.com.au/interface/api/sipp">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <sipp:TokeniseCreditCard>
+                        <sipp:tokeniseCreditCardXML>
+                            <![CDATA[
+                                <TokeniseCreditCard>
+                                    <CardNumber>{}</CardNumber> 
+                                    <ExpM>{}</ExpM>
+                                    <ExpY>{}</ExpY>
+                                    <CardHolderName>{}</CardHolderName>
+                                    <TokeniseAlgorithmID>2</TokeniseAlgorithmID>
+                                    <UserName>{}</UserName> 
+                                    <Password>{}</Password>
+                                </TokeniseCreditCard>
+                            ]]>
+                        </sipp:tokeniseCreditCardXML>
+                    </sipp:TokeniseCreditCard>
+                </soapenv:Body>
+                </soapenv:Envelope>
+                "#,
+                card.card_number.get_card_no(),
+                card.card_exp_month.peek(),
+                card.get_expiry_year_4_digit().peek(),
+                card_holder_name.peek(),
+                auth_details.username.peek(),
+                auth_details.password.peek(),
+            )
+        }
+        _ => {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Bambora APAC"),
+            ))?;
+        }
+    };
+
+    Ok(body.as_bytes().to_vec())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename = "Envelope")]
+#[serde(rename_all = "PascalCase")]
+pub struct BamboraapacMandateResponse {
+    body: MandateBodyResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MandateBodyResponse {
+    tokenise_credit_card_response: TokeniseCreditCardResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TokeniseCreditCardResponse {
+    tokenise_credit_card_result: TokeniseCreditCardResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TokeniseCreditCardResult {
+    tokenise_credit_card_response: MandateResponseBody,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MandateResponseBody {
+    return_value: u8,
+    token: Option<String>,
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            BamboraapacMandateResponse,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BamboraapacMandateResponse,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item
+            .response
+            .body
+            .tokenise_credit_card_response
+            .tokenise_credit_card_result
+            .tokenise_credit_card_response
+            .return_value;
+
+        let connector_mandate_id = item
+            .response
+            .body
+            .tokenise_credit_card_response
+            .tokenise_credit_card_result
+            .tokenise_credit_card_response
+            .token
+            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+
+        // transaction approved
+        if response_code == 0 {
+            Ok(Self {
+                status: enums::AttemptStatus::Charged,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: Some(types::MandateReference {
+                        connector_mandate_id: Some(connector_mandate_id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                    }),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        }
+        // transaction failed
+        else {
+            Ok(Self {
+                status: enums::AttemptStatus::Failure,
+                response: Err(types::ErrorResponse {
+                    status_code: item.http_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),

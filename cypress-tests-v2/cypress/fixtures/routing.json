@@ -1,0 +1,15 @@
+{
+  "routing_create": {
+    "name": "",
+    "description": "",
+    "algorithm": {
+      "type": "",
+      "data": {}
+    },
+    "profile_id": "{{profile_id}}"
+  },
+  "routing_activate": {
+    "routing_algorithm_id": ""
+  },
+  "default_fallback_update": []
+}

@@ -43,14 +43,12 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
-    let req_state = state.get_req_state();
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
             state.clone().into(),
             request.headers(),
-            req_state,
             request,
             payload,
             func,
@@ -144,6 +142,7 @@ where
             let link_type = (boxed_generic_link_data).data.to_string();
             match services::generic_link_response::build_generic_link_html(
                 boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {

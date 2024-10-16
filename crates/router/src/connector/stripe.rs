@@ -157,6 +157,8 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::ApplePay,
             PaymentMethodDataType::GooglePay,
             PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::BacsBankDebit,
+            PaymentMethodDataType::BecsBankDebit,
             PaymentMethodDataType::SepaBankDebit,
             PaymentMethodDataType::Sofort,
             PaymentMethodDataType::Ideal,
@@ -759,6 +761,13 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+        req.request.charges.as_ref().map(|charges| {
+            transformers::transform_headers_for_connect_platform(
+                charges.charge_type.clone(),
+                charges.transfer_account_id.clone(),
+                &mut header,
+            )
+        });
         Ok(header)
     }
 
@@ -1616,6 +1625,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+        req.request.charges.as_ref().map(|charges| {
+            transformers::transform_headers_for_connect_platform(
+                charges.charge_type.clone(),
+                charges.transfer_account_id.clone(),
+                &mut header,
+            )
+        });
         Ok(header)
     }
 

@@ -3,7 +3,10 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
-    RoutingPayloadWrapper, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
+    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, SuccessBasedRoutingConfig,
+    SuccessBasedRoutingPayloadWrapper, SuccessBasedRoutingUpdateConfigQuery,
+    ToggleSuccessBasedRoutingQuery, ToggleSuccessBasedRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -60,6 +63,47 @@ impl ApiEventMetric for RoutingConfigRequest {
 }
 
 impl ApiEventMetric for RoutingRetrieveLinkQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingLinkWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+impl ApiEventMetric for RoutingRetrieveLinkQueryWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for ToggleSuccessBasedRoutingQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for SuccessBasedRoutingConfig {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for SuccessBasedRoutingPayloadWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for ToggleSuccessBasedRoutingWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for SuccessBasedRoutingUpdateConfigQuery {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

@@ -42,9 +42,9 @@ pub struct PixPaymentValue {
 #[derive(Default, Debug, Serialize)]
 pub struct ItaubankDebtor {
     #[serde(skip_serializing_if = "Option::is_none")]
-    cpf: Option<Secret<i64>>, // CPF is a Brazilian tax identification number
+    cpf: Option<Secret<String>>, // CPF is a Brazilian tax identification number
     #[serde(skip_serializing_if = "Option::is_none")]
-    cnpj: Option<Secret<i64>>, // CNPJ is a Brazilian company tax identification number
+    cnpj: Option<Secret<String>>, // CNPJ is a Brazilian company tax identification number
     #[serde(skip_serializing_if = "Option::is_none")]
     nome: Option<Secret<String>>, // name of the debtor
 }
@@ -60,15 +60,15 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     domain::BankTransferData::Pix { pix_key, cpf, cnpj } => {
                         let nome = item.router_data.get_optional_billing_full_name();
                         // cpf and cnpj are mutually exclusive
-                        let devedor = match (cpf, cnpj) {
-                            (Some(cpf), _) => ItaubankDebtor {
-                                cpf: Some(cpf),
-                                cnpj: None,
-                                nome,
-                            },
-                            (None, Some(cnpj)) => ItaubankDebtor {
+                        let devedor = match (cnpj, cpf) {
+                            (Some(cnpj), _) => ItaubankDebtor {
                                 cpf: None,
                                 cnpj: Some(cnpj),
+                                nome,
+                            },
+                            (None, Some(cpf)) => ItaubankDebtor {
+                                cpf: Some(cpf),
+                                cnpj: None,
                                 nome,
                             },
                             _ => Err(errors::ConnectorError::MissingRequiredField {
@@ -119,7 +119,9 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::OpenBanking(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through itaubank".to_string(),
                 )
@@ -132,15 +134,30 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
 pub struct ItaubankAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
+    pub(super) certificate: Option<Secret<String>>,
+    pub(super) certificate_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                client_secret: api_key.to_owned(),
+                client_id: key1.to_owned(),
+                certificate: Some(api_secret.to_owned()),
+                certificate_key: Some(key2.to_owned()),
+            }),
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_secret: api_key.to_owned(),
                 client_id: key1.to_owned(),
+                certificate: None,
+                certificate_key: None,
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -180,10 +197,12 @@ pub struct ItaubankUpdateTokenResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ItaubankTokenErrorResponse {
     pub status: i64,
     pub title: Option<String>,
     pub detail: Option<String>,
+    pub user_message: Option<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ItaubankUpdateTokenResponse, T, types::AccessToken>>
@@ -448,4 +467,12 @@ pub struct ItaubankErrorBody {
     pub status: u16,
     pub title: Option<String>,
     pub detail: Option<String>,
+    pub violacoes: Option<Vec<Violations>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Violations {
+    pub razao: String,
+    pub propriedade: String,
+    pub valor: String,
 }

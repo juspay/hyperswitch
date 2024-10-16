@@ -190,12 +190,15 @@ pub async fn get_gsm(
     let error_code = payout_data.payout_attempt.error_code.to_owned();
     let error_message = payout_data.payout_attempt.error_message.to_owned();
     let connector_name = Some(original_connector_data.connector_name.to_string());
-    let flow = "payout_flow".to_string();
 
-    Ok(
-        payouts::helpers::get_gsm_record(state, error_code, error_message, connector_name, flow)
-            .await,
+    Ok(payouts::helpers::get_gsm_record(
+        state,
+        error_code,
+        error_message,
+        connector_name,
+        common_utils::consts::PAYOUT_FLOW_STR,
     )
+    .await)
 }
 
 #[instrument(skip_all)]
@@ -273,7 +276,7 @@ pub async fn modify_trackers(
         .attach_printable("Error updating payouts")?;
 
     let payout_attempt_id =
-        utils::get_payment_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
+        utils::get_payout_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
@@ -285,8 +288,22 @@ pub async fn modify_trackers(
         business_country: payout_data.payout_attempt.business_country.to_owned(),
         business_label: payout_data.payout_attempt.business_label.to_owned(),
         payout_token: payout_data.payout_attempt.payout_token.to_owned(),
-        profile_id: payout_data.payout_attempt.profile_id.to_string(),
-        ..Default::default()
+        profile_id: payout_data.payout_attempt.profile_id.to_owned(),
+        connector_payout_id: None,
+        status: common_enums::PayoutStatus::default(),
+        is_eligible: None,
+        error_message: None,
+        error_code: None,
+        created_at: common_utils::date_time::now(),
+        last_modified_at: common_utils::date_time::now(),
+        merchant_connector_id: None,
+        routing_info: None,
+        unified_code: None,
+        unified_message: None,
+        additional_payout_method_data: payout_data
+            .payout_attempt
+            .additional_payout_method_data
+            .to_owned(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

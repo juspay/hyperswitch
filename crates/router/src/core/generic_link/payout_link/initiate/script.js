@@ -1,6 +1,10 @@
 // @ts-check
 
 // Top level checks
+// @ts-ignore
+var payoutDetails = window.__PAYOUT_DETAILS;
+var isTestMode = payoutDetails.test_mode;
+
 var isFramed = false;
 try {
   isFramed = window.parent.location !== window.location;
@@ -12,9 +16,9 @@ try {
 }
 
 // Remove the script from DOM incase it's not iframed
-if (!isFramed) {
+if (!isTestMode && !isFramed) {
   function initializePayoutSDK() {
-    var errMsg = "You are not allowed to view this content.";
+    var errMsg = "{{i18n_not_allowed}}";
     var contentElement = document.getElementById("payout-link");
     if (contentElement instanceof HTMLDivElement) {
       contentElement.innerHTML = errMsg;
@@ -34,25 +38,25 @@ if (!isFramed) {
    **/
   function formatDate(date) {
     var months = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
+      "{{i18n_january}}",
+      "{{i18n_february}}",
+      "{{i18n_march}}",
+      "{{i18n_april}}",
+      "{{i18n_may}}",
+      "{{i18n_june}}",
+      "{{i18n_july}}",
+      "{{i18n_august}}",
+      "{{i18n_september}}",
+      "{{i18n_october}}",
+      "{{i18n_november}}",
+      "{{i18n_december}}",
     ];
 
     var hours = date.getHours();
     var minutes = date.getMinutes();
     // @ts-ignore
     minutes = minutes < 10 ? "0" + minutes : minutes;
-    var suffix = hours > 11 ? "PM" : "AM";
+    var suffix = hours > 11 ? "{{i18n_pm}}" : "{{i18n_am}}";
     hours = hours % 12;
     hours = hours ? hours : 12;
     var day = date.getDate();
@@ -127,11 +131,12 @@ if (!isFramed) {
     // @ts-ignore
     var payoutDetails = window.__PAYOUT_DETAILS;
     var clientSecret = payoutDetails.client_secret;
+    var locale = payoutDetails.locale;
     var publishableKey = payoutDetails.publishable_key;
     var appearance = {
       variables: {
         colorPrimary: payoutDetails?.theme?.primary_color || "rgb(0, 109, 249)",
-        fontFamily: "Work Sans, sans-serif",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",
         fontSizeBase: "16px",
         colorText: "rgb(51, 65, 85)",
       },
@@ -143,6 +148,7 @@ if (!isFramed) {
     widgets = hyper.widgets({
       appearance: appearance,
       clientSecret: clientSecret,
+      locale: locale,
     });
 
     // Create payment method collect widget
@@ -154,12 +160,13 @@ if (!isFramed) {
       theme: payoutDetails.theme,
       collectorName: payoutDetails.merchant_name,
       logo: payoutDetails.logo,
-      enabledPaymentMethods: payoutDetails.enabled_payment_methods,
+      enabledPaymentMethods: payoutDetails.enabled_payment_methods_with_required_fields,
       returnUrl: payoutDetails.return_url,
       sessionExpiry,
       amount: payoutDetails.amount,
       currency: payoutDetails.currency,
       flow: "PayoutLinkInitiate",
+      formLayout: payoutDetails.form_layout,
     };
     payoutWidget = widgets.create("paymentMethodCollect", payoutOptions);
 

@@ -21,7 +21,7 @@ pub enum ApiIdentifier {
     CardsInfo,
     Files,
     Cache,
-    Business,
+    Profile,
     Verification,
     ApiKeys,
     PaymentLink,
@@ -65,6 +65,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingDeleteConfig
             | Flow::DecisionManagerDeleteConfig
             | Flow::DecisionManagerRetrieveConfig
+            | Flow::ToggleDynamicRouting
+            | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -126,13 +128,16 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsStart
             | Flow::PaymentsList
             | Flow::PaymentsFilters
+            | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
             | Flow::PaymentsAuthorize
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
-            | Flow::PaymentsManualUpdate => Self::Payments,
+            | Flow::PaymentsManualUpdate
+            | Flow::SessionUpdateTaxCalculation
+            | Flow::PaymentsPostSessionTokens => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -151,6 +156,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsList
             | Flow::RefundsFilters
+            | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
 
             Flow::FrmFulfillment
@@ -167,9 +173,11 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::DisputesRetrieve
             | Flow::DisputesList
+            | Flow::DisputesFilters
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence
+            | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
             Flow::CardsInfo => Self::CardsInfo,
@@ -178,16 +186,17 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::CacheInvalidate => Self::Cache,
 
-            Flow::BusinessProfileCreate
-            | Flow::BusinessProfileUpdate
-            | Flow::BusinessProfileRetrieve
-            | Flow::BusinessProfileDelete
-            | Flow::BusinessProfileList
+            Flow::ProfileCreate
+            | Flow::ProfileUpdate
+            | Flow::ProfileRetrieve
+            | Flow::ProfileDelete
+            | Flow::ProfileList
             | Flow::ToggleExtendedCardInfo
-            | Flow::ToggleConnectorAgnosticMit => Self::Business,
+            | Flow::ToggleConnectorAgnosticMit => Self::Profile,
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
+            | Flow::PaymentSecureLinkInitiate
             | Flow::PaymentLinkList
             | Flow::PaymentLinkStatus => Self::PaymentLink,
 
@@ -210,14 +219,14 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
-            | Flow::SwitchMerchant
+            | Flow::SwitchOrg
+            | Flow::SwitchMerchantV2
+            | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
-            | Flow::UserMerchantAccountList
             | Flow::GetUserDetails
             | Flow::GetUserRoleDetails
-            | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
             | Flow::RotatePassword
@@ -242,20 +251,27 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::ListOrgForUser
+            | Flow::ListMerchantsForUserInOrg
+            | Flow::ListProfileForUserInOrgAndMerchant
+            | Flow::ListInvitationsForUser
             | Flow::AuthSelect => Self::User,
 
-            Flow::ListRoles
+            Flow::ListRolesV2
+            | Flow::ListInvitableRolesAtEntityLevel
+            | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
-            | Flow::AcceptInvitation
-            | Flow::MerchantSelect
+            | Flow::GetRolesInfo
+            | Flow::AcceptInvitationsV2
+            | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership
             | Flow::CreateRole
             | Flow::UpdateRole
-            | Flow::UserFromEmail => Self::UserRole,
+            | Flow::UserFromEmail
+            | Flow::ListUsersInLineage => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

@@ -26,11 +26,14 @@ mod coinbase;
 mod cryptopay;
 mod cybersource;
 mod datatrans;
+mod deutschebank;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
 mod ebanx;
 mod fiserv;
+mod fiservemea;
+mod fiuu;
 mod forte;
 mod globalpay;
 mod globepay;
@@ -44,12 +47,15 @@ mod mollie;
 mod multisafepay;
 mod netcetera;
 mod nexinets;
+mod nexixpay;
 mod nmi;
 mod noon;
+mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
 mod opayo;
 mod opennode;
+mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;
@@ -67,11 +73,13 @@ mod shift4;
 mod square;
 mod stax;
 mod stripe;
+mod taxjar;
 mod trustpay;
 mod tsys;
 mod utils;
 mod volt;
 mod wellsfargo;
+// mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;
 mod worldline;

@@ -1,8 +1,11 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::RequestSurchargeDetails;
+use api_models::payments::{Address, RequestSurchargeDetails};
 use common_utils::{
-    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
+    consts, errors,
+    ext_traits::OptionExt,
+    id_type, pii,
+    types::{self as common_types, MinorUnit},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -68,6 +71,17 @@ pub struct PaymentsAuthorizeData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostSessionTokensData {
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -276,6 +290,7 @@ pub struct PaymentsPreProcessingData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub metadata: Option<Secret<serde_json::Value>>,
 
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
@@ -305,6 +320,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: data.related_transaction_id,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            metadata: data.metadata.map(Secret::new),
         })
     }
 }
@@ -333,6 +349,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             related_transaction_id: None,
             redirect_response: data.redirect_response,
             enrolled_for_3ds: true,
+            metadata: data.connector_meta.map(Secret::new),
         })
     }
 }
@@ -343,6 +360,8 @@ pub struct PaymentsPostProcessingData {
     pub customer_id: Option<id_type::CustomerId>,
     pub connector_transaction_id: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+    pub header_payload: Option<api_models::payments::HeaderPayload>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
@@ -368,6 +387,8 @@ impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRes
                 .get_payment_billing()
                 .and_then(|bl| bl.address.as_ref())
                 .and_then(|address| address.country),
+            connector_meta_data: data.connector_meta_data.clone(),
+            header_payload: data.header_payload,
         })
     }
 }
@@ -414,6 +435,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
+    pub charges: Option<PaymentCharges>,
 
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
@@ -501,8 +523,6 @@ pub struct SurchargeDetails {
     pub surcharge_amount: MinorUnit,
     /// tax on surcharge amount for this payment
     pub tax_on_surcharge_amount: MinorUnit,
-    /// sum of original amount,
-    pub final_amount: MinorUnit,
 }
 
 impl SurchargeDetails {
@@ -519,6 +539,7 @@ impl SurchargeDetails {
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     From<(
         &RequestSurchargeDetails,
@@ -534,15 +555,31 @@ impl
         let surcharge_amount = request_surcharge_details.surcharge_amount;
         let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or_default();
         Self {
-            original_amount: payment_attempt.amount,
+            original_amount: payment_attempt.net_amount.get_order_amount(),
             surcharge: common_utils::types::Surcharge::Fixed(
                 request_surcharge_details.surcharge_amount,
             ),
             tax_on_surcharge: None,
             surcharge_amount,
             tax_on_surcharge_amount,
-            final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    From<(
+        &RequestSurchargeDetails,
+        &payments::payment_attempt::PaymentAttempt,
+    )> for SurchargeDetails
+{
+    fn from(
+        (request_surcharge_details, payment_attempt): (
+            &RequestSurchargeDetails,
+            &payments::payment_attempt::PaymentAttempt,
+        ),
+    ) -> Self {
+        todo!()
     }
 }
 
@@ -667,42 +704,62 @@ pub struct SubmitEvidenceRequestData {
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
+    //cancellation policy
     pub cancellation_policy: Option<Vec<u8>>,
+    pub cancellation_policy_file_type: Option<String>,
     pub cancellation_policy_provider_file_id: Option<String>,
     pub cancellation_policy_disclosure: Option<String>,
     pub cancellation_rebuttal: Option<String>,
+    //customer communication
     pub customer_communication: Option<Vec<u8>>,
+    pub customer_communication_file_type: Option<String>,
     pub customer_communication_provider_file_id: Option<String>,
     pub customer_email_address: Option<String>,
     pub customer_name: Option<String>,
     pub customer_purchase_ip: Option<String>,
+    //customer signature
     pub customer_signature: Option<Vec<u8>>,
+    pub customer_signature_file_type: Option<String>,
     pub customer_signature_provider_file_id: Option<String>,
+    //product description
     pub product_description: Option<String>,
+    //receipts
     pub receipt: Option<Vec<u8>>,
+    pub receipt_file_type: Option<String>,
     pub receipt_provider_file_id: Option<String>,
+    //refund policy
     pub refund_policy: Option<Vec<u8>>,
+    pub refund_policy_file_type: Option<String>,
     pub refund_policy_provider_file_id: Option<String>,
     pub refund_policy_disclosure: Option<String>,
     pub refund_refusal_explanation: Option<String>,
+    //service docs
     pub service_date: Option<String>,
     pub service_documentation: Option<Vec<u8>>,
+    pub service_documentation_file_type: Option<String>,
     pub service_documentation_provider_file_id: Option<String>,
+    //shipping details docs
     pub shipping_address: Option<String>,
     pub shipping_carrier: Option<String>,
     pub shipping_date: Option<String>,
     pub shipping_documentation: Option<Vec<u8>>,
+    pub shipping_documentation_file_type: Option<String>,
     pub shipping_documentation_provider_file_id: Option<String>,
     pub shipping_tracking_number: Option<String>,
+    //invoice details
     pub invoice_showing_distinct_transactions: Option<Vec<u8>>,
+    pub invoice_showing_distinct_transactions_file_type: Option<String>,
     pub invoice_showing_distinct_transactions_provider_file_id: Option<String>,
+    //subscription details
     pub recurring_transaction_agreement: Option<Vec<u8>>,
+    pub recurring_transaction_agreement_file_type: Option<String>,
     pub recurring_transaction_agreement_provider_file_id: Option<String>,
+    //uncategorized details
     pub uncategorized_file: Option<Vec<u8>>,
+    pub uncategorized_file_type: Option<String>,
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
 }
-
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {
     pub provider_file_id: String,
@@ -769,6 +826,24 @@ pub struct PaymentsSessionData {
 
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PaymentsTaxCalculationData {
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub shipping_address: Address,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SdkPaymentsSessionUpdateData {
+    pub order_tax_amount: MinorUnit,
+    pub net_amount: MinorUnit,
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

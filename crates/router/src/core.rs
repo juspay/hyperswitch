@@ -1,8 +1,10 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+#[cfg(feature = "v1")]
 pub mod apple_pay_certificates_migration;
 pub mod authentication;
+#[cfg(feature = "v1")]
 pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
@@ -21,6 +23,7 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
+#[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
@@ -33,6 +36,9 @@ pub mod payout_link;
 pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
+#[cfg(feature = "recon")]
+pub mod recon;
+#[cfg(feature = "v1")]
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_config;
@@ -45,4 +51,5 @@ pub mod utils;
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+#[cfg(feature = "v1")]
 pub mod webhooks;

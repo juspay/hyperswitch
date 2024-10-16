@@ -8,6 +8,7 @@ use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
@@ -26,6 +27,13 @@ pub struct PaymentDistributionRow {
     pub payment_method_type: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    pub profile_id: Option<String>,
+    pub card_network: Option<String>,
+    pub merchant_id: Option<String>,
+    pub card_last_4: Option<String>,
+    pub card_issuer: Option<String>,
+    pub error_reason: Option<String>,
+    pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     pub error_message: Option<String>,
@@ -47,7 +55,7 @@ where
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -69,7 +77,7 @@ where
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -81,7 +89,7 @@ where
                     .load_distribution(
                         distribution,
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
-use common_enums::AuthorizationStatus;
+use common_enums::{AuthorizationStatus, SessionUpdateStatus};
 use common_utils::{
-    ext_traits::Encode,
+    ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, MinorUnit},
 };
 use error_stack::{report, ResultExt};
@@ -14,12 +16,16 @@ use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
-use super::{Operation, PostUpdateTracker};
+use super::{Operation, OperationSessionSetters, PostUpdateTracker};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::routing::helpers::push_metrics_for_success_based_routing;
 use crate::{
     connector::utils::PaymentResponseRouterData,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
+        payment_methods::cards::create_encrypted_data,
         payments::{
             helpers::{
                 self as payments_helpers,
@@ -27,7 +33,7 @@ use crate::{
             },
             tokenization,
             types::MultipleCaptureData,
-            PaymentData,
+            PaymentData, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -41,13 +47,19 @@ use crate::{
     utils,
 };
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data"
 )]
 pub struct PaymentResponse;
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Copy)]
+pub struct PaymentResponse;
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
@@ -64,6 +76,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b,
@@ -79,12 +96,18 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
         Ok(payment_data)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -92,7 +115,26 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        todo!()
+    }
+
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -129,6 +171,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     payment_method_info,
                     state,
                     merchant_account.storage_scheme,
+                    key_store,
                 )
                 .await
                 .map_err(|e| {
@@ -168,7 +211,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id, ..
+            } = save_payment_call_future.await?;
 
             let mandate_id = mandate::mandate_procedure(
                 state,
@@ -177,20 +222,31 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
                 merchant_account.storage_scheme,
+                payment_data.payment_intent.get_id(),
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.mandate_id = mandate_id;
+
             Ok(())
         } else if is_connector_mandate {
             // The mandate is created on connector's end.
-            let (payment_method_id, _payment_method_status) = save_payment_call_future.await?;
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id,
+                mandate_reference_id,
+                ..
+            } = save_payment_call_future.await?;
+
             payment_data.payment_attempt.payment_method_id = payment_method_id;
+
+            payment_data.set_mandate_id(api_models::payments::MandateIds {
+                mandate_id: None,
+                mandate_reference_id,
+            });
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
-                payment_data.payment_attempt.payment_method_id =
-                    Some(pm_info.payment_method_id.clone());
+                payment_data.payment_attempt.payment_method_id = Some(pm_info.get_id().clone());
             };
             Ok(())
         } else {
@@ -236,12 +292,18 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
                     if let Err(err) = result {
                         logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok((payment_method_id, _pm_status)) = result {
+                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                        payment_method_id,
+                        ..
+                    }) = result
+                    {
                         let payment_attempt_update =
                             storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                                 payment_method_id,
                                 updated_by: storage_scheme.clone().to_string(),
                             };
+
+                        #[cfg(feature = "v1")]
                         let respond = state
                             .store
                             .update_payment_attempt_with_attempt_id(
@@ -250,6 +312,19 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                                 storage_scheme,
                             )
                             .await;
+
+                        #[cfg(feature = "v2")]
+                        let respond = state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                &(&state).into(),
+                                &key_store,
+                                payment_attempt,
+                                payment_attempt_update,
+                                storage_scheme,
+                            )
+                            .await;
+
                         if let Err(err) = respond {
                             logger::error!("Error updating payment attempt: {:?}", err);
                         };
@@ -262,6 +337,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAuthorizationData>
     for PaymentResponse
@@ -278,6 +354,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -290,18 +372,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                     .attach_printable("missing incremental_authorization_details in payment_data")
             })?;
         // Update payment_intent and payment_attempt 'amount' if incremental_authorization is successful
-        let (option_payment_attempt_update, option_payment_intent_update) =
-            match router_data.response.clone() {
-                Err(_) => (None, None),
-                Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
-                    status,
-                    ..
-                }) => {
-                    if status == AuthorizationStatus::Success {
-                        (
+        let (option_payment_attempt_update, option_payment_intent_update) = match router_data
+            .response
+            .clone()
+        {
+            Err(_) => (None, None),
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                status, ..
+            }) => {
+                if status == AuthorizationStatus::Success {
+                    (
                         Some(
                             storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                                amount: incremental_authorization_details.total_amount,
+                                net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                                    incremental_authorization_details.total_amount,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                ),
                                 amount_capturable: incremental_authorization_details.total_amount,
                             },
                         ),
@@ -311,24 +400,42 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                             },
                         ),
                     )
-                    } else {
-                        (None, None)
-                    }
+                } else {
+                    (None, None)
                 }
-                _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unexpected response in incremental_authorization flow")?,
-            };
+            }
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unexpected response in incremental_authorization flow")?,
+        };
         //payment_attempt update
         if let Some(payment_attempt_update) = option_payment_attempt_update {
-            payment_data.payment_attempt = state
-                .store
-                .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt.clone(),
-                    payment_attempt_update,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            #[cfg(feature = "v1")]
+            {
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            }
+
+            #[cfg(feature = "v2")]
+            {
+                payment_data.payment_attempt = state
+                    .store
+                    .update_payment_attempt_with_attempt_id(
+                        &state.into(),
+                        key_store,
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            }
         }
         // payment_intent update
         if let Some(payment_intent_update) = option_payment_intent_update {
@@ -389,7 +496,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             .store
             .find_all_authorizations_by_merchant_id_payment_id(
                 &router_data.merchant_id,
-                &payment_data.payment_intent.payment_id,
+                payment_data.payment_intent.get_id(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -399,6 +506,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -409,6 +517,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -420,6 +533,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await
     }
@@ -429,15 +547,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
         update_payment_method_status_and_ntid(
             state,
+            key_store,
             payment_data,
             resp.status,
             resp.response.clone(),
@@ -449,6 +568,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     for PaymentResponse
@@ -461,6 +581,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -472,6 +597,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -479,6 +609,188 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     }
 }
 
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpdateData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::SdkPaymentsSessionUpdateData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        let connector = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("connector not found")?;
+
+        // For PayPal, if we call TaxJar for tax calculation, we need to call the connector again to update the order amount so that we can confirm the updated amount and order details. Therefore, we will store the required changes in the database during the post_update_tracker call.
+        if payment_data.should_update_in_post_update_tracker() {
+            match router_data.response.clone() {
+                Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
+                    if status == SessionUpdateStatus::Success {
+                        let shipping_address = payment_data
+                            .tax_data
+                            .clone()
+                            .map(|tax_data| tax_data.shipping_details);
+
+                        let shipping_details = shipping_address
+                            .clone()
+                            .async_map(|shipping_details| {
+                                create_encrypted_data(db, key_store, shipping_details)
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt shipping details")?;
+
+                        let shipping_address =
+                            payments_helpers::create_or_update_address_for_payment_by_request(
+                                db,
+                                shipping_address.as_ref(),
+                                payment_data.payment_intent.shipping_address_id.as_deref(),
+                                &payment_data.payment_intent.merchant_id,
+                                payment_data.payment_intent.customer_id.as_ref(),
+                                key_store,
+                                &payment_data.payment_intent.payment_id,
+                                storage_scheme,
+                            )
+                            .await?;
+
+                        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
+                    tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
+                    shipping_address_id: shipping_address.map(|address| address.address_id),
+                    updated_by: payment_data.payment_intent.updated_by.clone(),
+                    shipping_details,
+        };
+
+                        let m_db = db.clone().store;
+                        let payment_intent = payment_data.payment_intent.clone();
+                        let key_manager_state: KeyManagerState = db.into();
+
+                        let updated_payment_intent = m_db
+                            .update_payment_intent(
+                                &key_manager_state,
+                                payment_intent,
+                                payment_intent_update,
+                                key_store,
+                                storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                        payment_data.payment_intent = updated_payment_intent;
+                    } else {
+                        router_data.response.map_err(|err| {
+                            errors::ApiErrorResponse::ExternalConnectorError {
+                                code: err.code,
+                                message: err.message,
+                                connector,
+                                status_code: err.status_code,
+                                reason: err.reason,
+                            }
+                        })?;
+                    }
+                }
+                Err(err) => {
+                    Err(errors::ApiErrorResponse::ExternalConnectorError {
+                        code: err.code,
+                        message: err.message,
+                        connector,
+                        status_code: err.status_code,
+                        reason: err.reason,
+                    })?;
+                }
+                _ => {
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unexpected response in session_update flow")?;
+                }
+            }
+        }
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTokensData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsPostSessionTokensData,
+            types::PaymentsResponseData,
+        >,
+        _key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        match router_data.response.clone() {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) => {
+                let m_db = db.clone().store;
+                let payment_attempt_update =
+                    storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
+                        updated_by: storage_scheme.clone().to_string(),
+                        connector_metadata,
+                    };
+                let updated_payment_attempt = m_db
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                payment_data.payment_attempt = updated_payment_attempt;
+            }
+            Err(err) => {
+                logger::error!("Invalid request sent to connector: {:?}", err);
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid request sent to connector".to_string(),
+                })?;
+            }
+            _ => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in PostSessionTokens flow")?;
+            }
+        }
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
@@ -491,6 +803,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -502,6 +819,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -509,6 +831,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -519,6 +842,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -530,6 +858,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -537,6 +870,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     for PaymentResponse
@@ -549,6 +883,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -560,6 +899,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -567,6 +911,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> for PaymentResponse {
     async fn update_tracker<'b>(
@@ -577,6 +922,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -588,6 +938,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -595,6 +950,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
     for PaymentResponse
@@ -611,6 +967,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -627,6 +988,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             router_data,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await?;
 
@@ -640,7 +1006,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -664,23 +1030,26 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 }
             })?;
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
-        let (payment_method_id, _payment_method_status) =
-            Box::pin(tokenization::save_payment_method(
-                state,
-                connector_name,
-                merchant_connector_id.clone(),
-                save_payment_data,
-                customer_id.clone(),
-                merchant_account,
-                resp.request.payment_method_type,
-                key_store,
-                resp.request.amount,
-                Some(resp.request.currency),
-                billing_name,
-                None,
-                business_profile,
-            ))
-            .await?;
+        let tokenization::SavePaymentMethodDataResponse {
+            payment_method_id,
+            mandate_reference_id,
+            ..
+        } = Box::pin(tokenization::save_payment_method(
+            state,
+            connector_name,
+            merchant_connector_id.clone(),
+            save_payment_data,
+            customer_id.clone(),
+            merchant_account,
+            resp.request.payment_method_type,
+            key_store,
+            resp.request.amount,
+            Some(resp.request.currency),
+            billing_name,
+            None,
+            business_profile,
+        ))
+        .await?;
 
         let mandate_id = mandate::mandate_procedure(
             state,
@@ -689,14 +1058,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_id.clone(),
             merchant_connector_id.clone(),
             merchant_account.storage_scheme,
+            payment_data.payment_intent.get_id(),
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
         payment_data.payment_attempt.mandate_id = mandate_id;
+        payment_data.set_mandate_id(api_models::payments::MandateIds {
+            mandate_id: None,
+            mandate_reference_id,
+        });
         Ok(())
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
     for PaymentResponse
@@ -709,6 +1084,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -720,6 +1100,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             response,
             key_store,
             storage_scheme,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
         ))
         .await
     }
@@ -729,15 +1114,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         state: &SessionState,
         resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
     {
         update_payment_method_status_and_ntid(
             state,
+            key_store,
             payment_data,
             resp.status,
             resp.response.clone(),
@@ -749,6 +1135,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
@@ -757,18 +1144,68 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
+    locale: &Option<String>,
+) -> RouterResult<PaymentData<F>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
+    state: &SessionState,
+    _payment_id: &api::PaymentIdType,
+    mut payment_data: PaymentData<F>,
+    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    locale: &Option<String>,
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connectors: Vec<
+        RoutableConnectorChoice,
+    >,
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
-    let additional_payment_method_data =
-        update_additional_payment_data_with_connector_response_pm_data(
-            payment_data.payment_attempt.payment_method_data.clone(),
-            router_data
-                .connector_response
-                .as_ref()
-                .and_then(|connector_response| {
-                    connector_response.additional_payment_method_data.clone()
-                }),
-        )?;
+
+    let additional_payment_method_data = match payment_data.payment_method_data.clone() {
+        Some(payment_method_data) => match payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(
+                _,
+            )
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_) => {
+                update_additional_payment_data_with_connector_response_pm_data(
+                    payment_data.payment_attempt.payment_method_data.clone(),
+                    router_data
+                        .connector_response
+                        .as_ref()
+                        .and_then(|connector_response| {
+                            connector_response.additional_payment_method_data.clone()
+                        }),
+                )?
+            }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_) => {
+                payment_data.payment_attempt.payment_method_data.clone()
+            }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                payment_data.payment_attempt.payment_method_data.clone()
+            }
+        },
+        None => None,
+    };
 
     router_data.payment_method_status.and_then(|status| {
         payment_data
@@ -822,6 +1259,34 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     )
                     .await;
 
+                    let gsm_unified_code =
+                        option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+                    let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+
+                    let (unified_code, unified_message) = if let Some((code, message)) =
+                        gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
+                    {
+                        (code.to_owned(), message.to_owned())
+                    } else {
+                        (
+                            consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                            consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                        )
+                    };
+                    let unified_translated_message = locale
+                        .as_ref()
+                        .async_and_then(|locale_str| async {
+                            payments_helpers::get_unified_translation(
+                                state,
+                                unified_code.to_owned(),
+                                unified_message.to_owned(),
+                                locale_str.to_owned(),
+                            )
+                            .await
+                        })
+                        .await
+                        .or(Some(unified_message));
+
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
                         Some(status) => status,
@@ -862,8 +1327,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .get_amount_capturable(&payment_data, status)
                                 .map(MinorUnit::new),
                             updated_by: storage_scheme.to_string(),
-                            unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
-                            unified_message: option_gsm.map(|gsm| gsm.unified_message),
+                            unified_code: Some(Some(unified_code)),
+                            unified_message: Some(unified_translated_message),
                             connector_transaction_id: err.connector_transaction_id,
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,
@@ -1125,6 +1590,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
+                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {
@@ -1280,33 +1746,45 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let flow_name = core_utils::get_flow_name::<F>()?;
     if flow_name == "PSync" || flow_name == "CompleteAuthorize" {
-        let connector_mandate_id = match router_data.response.clone() {
+        let (connector_mandate_id, mandate_metadata) = match router_data.response.clone() {
             Ok(resp) => match resp {
                 types::PaymentsResponseData::TransactionResponse {
                     ref mandate_reference,
                     ..
                 } => {
                     if let Some(mandate_ref) = mandate_reference {
-                        mandate_ref.connector_mandate_id.clone()
+                        (
+                            mandate_ref.connector_mandate_id.clone(),
+                            mandate_ref.mandate_metadata.clone(),
+                        )
                     } else {
-                        None
+                        (None, None)
                     }
                 }
-                _ => None,
+                _ => (None, None),
             },
-            Err(_) => None,
+            Err(_) => (None, None),
         };
         if let Some(payment_method) = payment_data.payment_method_info.clone() {
             let connector_mandate_details =
                 tokenization::update_connector_mandate_details_in_payment_method(
                     payment_method.clone(),
                     payment_method.payment_method_type,
-                    Some(payment_data.payment_attempt.amount.get_amount_as_i64()),
+                    Some(
+                        payment_data
+                            .payment_attempt
+                            .net_amount
+                            .get_total_amount()
+                            .get_amount_as_i64(),
+                    ),
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
+                    mandate_metadata,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
+                state,
+                key_store,
                 &*state.store,
                 payment_method.clone(),
                 connector_mandate_details,
@@ -1352,6 +1830,30 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         utils::flatten_join_error(payment_attempt_fut)
     )?;
 
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    {
+        if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
+        {
+            let state = state.clone();
+            let business_profile = business_profile.clone();
+            let payment_attempt = payment_attempt.clone();
+            tokio::spawn(
+                async move {
+                    push_metrics_for_success_based_routing(
+                        &state,
+                        &payment_attempt,
+                        routable_connectors,
+                        &business_profile,
+                        dynamic_routing_algorithm,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                    .ok();
+                }
+                .in_current_span(),
+            );
+        }
+    }
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
     router_data.payment_method_status.and_then(|status| {
@@ -1396,20 +1898,55 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
     is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+async fn update_payment_method_status_and_ntid<F: Clone>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+    payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
+    storage_scheme: enums::MerchantStorageScheme,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+) -> RouterResult<()> {
+    // If the payment_method is deleted then ignore the error related to retrieving payment method
+    // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
-        let pm = state
+        let payment_method = match state
             .store
-            .find_payment_method(id, storage_scheme)
+            .find_payment_method(&(state.into()), key_store, id, storage_scheme)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        {
+            Ok(payment_method) => payment_method,
+            Err(error) => {
+                if error.current_context().is_db_not_found() {
+                    logger::info!(
+                        "Payment Method not found in db and skipping payment method update {:?}",
+                        error
+                    );
+                    return Ok(());
+                } else {
+                    Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db in update_payment_method_status_and_ntid")?
+                }
+            }
+        };
 
         let pm_resp_network_transaction_id = payment_response
             .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
@@ -1420,7 +1957,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     })
     .ok()
     .flatten();
-
         let network_transaction_id =
             if let Some(network_transaction_id) = pm_resp_network_transaction_id {
                 if is_connector_agnostic_mit_enabled == Some(true)
@@ -1436,11 +1972,10 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                 None
             };
 
-        let pm_update = if pm.status != common_enums::PaymentMethodStatus::Active
-            && pm.status != attempt_status.into()
+        let pm_update = if payment_method.status != common_enums::PaymentMethodStatus::Active
+            && payment_method.status != attempt_status.into()
         {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
-
             payment_data
                 .payment_method_info
                 .as_mut()
@@ -1458,7 +1993,13 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(pm, pm_update, storage_scheme)
+            .update_payment_method(
+                &(state.into()),
+                key_store,
+                payment_method,
+                pm_update,
+                storage_scheme,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;

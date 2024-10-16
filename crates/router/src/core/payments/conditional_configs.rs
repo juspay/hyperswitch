@@ -12,17 +12,17 @@ use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
 
 use super::routing::make_dsl_input;
 use crate::{
-    core::{errors, errors::ConditionalConfigError as ConfigError, payments},
+    core::{errors, errors::ConditionalConfigError as ConfigError, routing as core_routing},
     routes,
 };
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
 #[instrument(skip_all)]
-pub async fn perform_decision_management<F: Clone>(
+pub async fn perform_decision_management(
     state: &routes::SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
     merchant_id: &common_utils::id_type::MerchantId,
-    payment_data: &mut payments::PaymentData<F>,
+    payment_data: &core_routing::PaymentsDslInput<'_>,
 ) -> ConditionalConfigResult<ConditionalConfigs> {
     let algorithm_id = if let Some(id) = algorithm_ref.config_algo_id {
         id

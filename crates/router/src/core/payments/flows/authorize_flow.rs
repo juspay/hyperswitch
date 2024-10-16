@@ -16,7 +16,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     services::api::ConnectorValidation,
-    types::{self, api, domain, storage, transformers::ForeignFrom},
+    types::{self, api, domain, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -37,6 +37,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<api_models::payments::HeaderPayload>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -56,6 +57,7 @@ impl
             customer,
             merchant_connector_account,
             merchant_recipient_data,
+            header_payload,
         ))
         .await
     }
@@ -70,7 +72,7 @@ impl
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         let payment_method = &self
             .payment_attempt
-            .payment_method
+            .get_payment_method()
             .get_required_value("PaymentMethod")?;
 
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
@@ -97,7 +99,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::Profile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -139,7 +141,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
-        creds_identifier: Option<&String>,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await

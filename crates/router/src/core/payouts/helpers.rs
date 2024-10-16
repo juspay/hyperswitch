@@ -1,21 +1,28 @@
-use api_models::{customers::CustomerRequestWithEmail, enums, payment_methods::Card, payouts};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::customers::CustomerRequestWithEmail;
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, generate_customer_id_of_default_length, id_type,
+    fp_utils, id_type, payout_method_utils as payout_additional, type_name,
     types::{
-        keymanager::{Identifier, KeyManagerState, ToEncryptable},
-        MinorUnit,
+        keymanager::{Identifier, KeyManagerState},
+        MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
@@ -24,20 +31,18 @@ use crate::{
             vault,
         },
         payments::{
-            customers::get_connector_customer_details_if_present, route_connector_v1, routing,
-            CustomerDetails,
+            customers::get_connector_customer_details_if_present, helpers as payment_helpers,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
     services,
     types::{
         api::{self, enums as api_enums},
-        domain::{
-            self,
-            types::{self as domain_types, AsyncLift},
-        },
+        domain::{self, types::AsyncLift},
         storage,
         transformers::ForeignFrom,
     },
@@ -190,14 +195,19 @@ pub async fn make_payout_method_data<'a>(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
     payout_data: &mut PayoutData,
+    customer_id: &id_type::CustomerId,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let payout_attempt = &payout_data.payout_attempt;
+    let payouts = &payout_data.payouts;
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
         match payout_method_data {
             payouts::PayoutMethodData::Card(card) => {
@@ -214,7 +224,7 @@ pub async fn save_payout_data_to_locker(
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
                     merchant_id: merchant_account.get_id().clone(),
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                    merchant_customer_id: customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
                         name_on_card: card.card_holder_name.to_owned(),
@@ -247,13 +257,16 @@ pub async fn save_payout_data_to_locker(
                             let secret: Secret<String> = Secret::new(v.to_string());
                             secret
                         })
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
+                        .async_lift(|inner| async {
+                            crypto_operation(
                                 &key_manager_state,
-                                inner,
+                                type_name!(storage::PaymentMethod),
+                                CryptoOperation::EncryptOptional(inner),
                                 Identifier::Merchant(key_store.merchant_id.clone()),
                                 key,
                             )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await
                 }
@@ -267,7 +280,7 @@ pub async fn save_payout_data_to_locker(
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
                     merchant_id: merchant_account.get_id().to_owned(),
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                    merchant_customer_id: customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
@@ -294,10 +307,10 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::call_to_locker_hs(
+    let stored_resp = cards::add_card_to_hs_locker(
         state,
         &locker_req,
-        &payout_attempt.customer_id,
+        customer_id,
         api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
@@ -313,7 +326,12 @@ pub async fn save_payout_data_to_locker(
 
             // Use locker ref as payment_method_id
             let existing_pm_by_pmid = db
-                .find_payment_method(&locker_ref, merchant_account.storage_scheme)
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    &locker_ref,
+                    merchant_account.storage_scheme,
+                )
                 .await;
 
             match existing_pm_by_pmid {
@@ -332,6 +350,8 @@ pub async fn save_payout_data_to_locker(
                     if err.current_context().is_db_not_found() {
                         match db
                             .find_payment_method_by_locker_id(
+                                &(state.into()),
+                                key_store,
                                 &locker_ref,
                                 merchant_account.storage_scheme,
                             )
@@ -399,7 +419,7 @@ pub async fn save_payout_data_to_locker(
                 card: card_details.clone(),
                 wallet: None,
                 metadata: None,
-                customer_id: Some(payout_attempt.customer_id.to_owned()),
+                customer_id: Some(customer_id.to_owned()),
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
@@ -486,7 +506,7 @@ pub async fn save_payout_data_to_locker(
                     card: None,
                     wallet: wallet_details,
                     metadata: None,
-                    customer_id: Some(payout_attempt.customer_id.to_owned()),
+                    customer_id: Some(customer_id.to_owned()),
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
@@ -499,11 +519,11 @@ pub async fn save_payout_data_to_locker(
 
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
-        let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+        let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         cards::create_payment_method(
             state,
             &new_payment_method,
-            &payout_attempt.customer_id,
+            customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
             merchant_account.get_id(),
@@ -515,6 +535,9 @@ pub async fn save_payout_data_to_locker(
             None,
             None,
             merchant_account.storage_scheme,
+            None,
+            None,
+            None,
             None,
             None,
         )
@@ -534,11 +557,12 @@ pub async fn save_payout_data_to_locker(
         // Delete from locker
         cards::delete_card_from_hs_locker(
             state,
-            &payout_attempt.customer_id,
+            customer_id,
             merchant_account.get_id(),
             card_reference,
         )
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to delete PMD from locker as a part of metadata update operation",
         )?;
@@ -546,10 +570,10 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::call_to_locker_hs(
+        let stored_resp = cards::add_card_to_hs_locker(
             state,
             &locker_req,
-            &payout_attempt.customer_id,
+            customer_id,
             api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await
@@ -559,6 +583,8 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
+                &(state.into()),
+                key_store,
                 merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
@@ -574,10 +600,16 @@ pub async fn save_payout_data_to_locker(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
         };
-        db.update_payment_method(existing_pm, pm_update, merchant_account.storage_scheme)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in db")?;
+        db.update_payment_method(
+            &(state.into()),
+            key_store,
+            existing_pm,
+            pm_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
     };
 
     // Store card_reference in payouts table
@@ -586,9 +618,9 @@ pub async fn save_payout_data_to_locker(
     };
     payout_data.payouts = db
         .update_payout(
-            &payout_data.payouts,
+            payouts,
             updated_payout,
-            payout_attempt,
+            &payout_data.payout_attempt,
             merchant_account.storage_scheme,
         )
         .await
@@ -598,7 +630,30 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
-pub async fn get_or_create_customer_details(
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn save_payout_data_to_locker(
+    _state: &SessionState,
+    _payout_data: &mut PayoutData,
+    _customer_id: &id_type::CustomerId,
+    _payout_method_data: &api::PayoutMethodData,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    todo!()
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub(super) async fn get_or_create_customer_details(
+    _state: &SessionState,
+    _customer_details: &CustomerDetails,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<domain::Customer>> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+pub(super) async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
@@ -626,51 +681,78 @@ pub async fn get_or_create_customer_details(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
     {
+        // Customer found
         Some(customer) => Ok(Some(customer)),
+
+        // Customer not found
+        // create only if atleast one of the fields were provided for customer creation or else throw error
         None => {
-            let encrypted_data = batch_encrypt(
-                &state.into(),
-                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                    name: customer_details.name.clone(),
-                    email: customer_details.email.clone(),
-                    phone: customer_details.phone.clone(),
-                }),
-                Identifier::Merchant(key_store.merchant_id.clone()),
-                key,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let encryptable_customer =
-                CustomerRequestWithEmail::from_encryptable(encrypted_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            let customer = domain::Customer {
-                customer_id,
-                merchant_id: merchant_id.to_owned().clone(),
-                name: encryptable_customer.name,
-                email: encryptable_customer.email,
-                phone: encryptable_customer.phone,
-                description: None,
-                phone_country_code: customer_details.phone_country_code.to_owned(),
-                metadata: None,
-                connector_customer: None,
-                created_at: common_utils::date_time::now(),
-                modified_at: common_utils::date_time::now(),
-                address_id: None,
-                default_payment_method_id: None,
-                updated_by: None,
-            };
-
-            Ok(Some(
-                db.insert_customer(
-                    customer,
-                    key_manager_state,
-                    key_store,
-                    merchant_account.storage_scheme,
+            if customer_details.name.is_some()
+                || customer_details.email.is_some()
+                || customer_details.phone.is_some()
+                || customer_details.phone_country_code.is_some()
+            {
+                let encrypted_data = crypto_operation(
+                    &state.into(),
+                    type_name!(domain::Customer),
+                    CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                        CustomerRequestWithEmail {
+                            name: customer_details.name.clone(),
+                            email: customer_details.email.clone(),
+                            phone: customer_details.phone.clone(),
+                        },
+                    )),
+                    Identifier::Merchant(key_store.merchant_id.clone()),
+                    key,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ))
+                .and_then(|val| val.try_into_batchoperation())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encrypt customer")?;
+                let encryptable_customer =
+                    CustomerRequestWithEmail::from_encryptable(encrypted_data)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to form EncryptableCustomer")?;
+
+                let customer = domain::Customer {
+                    customer_id: customer_id.clone(),
+                    merchant_id: merchant_id.to_owned().clone(),
+                    name: encryptable_customer.name,
+                    email: encryptable_customer.email,
+                    phone: encryptable_customer.phone,
+                    description: None,
+                    phone_country_code: customer_details.phone_country_code.to_owned(),
+                    metadata: None,
+                    connector_customer: None,
+                    created_at: common_utils::date_time::now(),
+                    modified_at: common_utils::date_time::now(),
+                    address_id: None,
+                    default_payment_method_id: None,
+                    updated_by: None,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
+                };
+
+                Ok(Some(
+                    db.insert_customer(
+                        customer,
+                        key_manager_state,
+                        key_store,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
+                            customer_id, merchant_id
+                        )
+                    })?,
+                ))
+            } else {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("customer for id - {:?} not found", customer_id),
+                }))
+            }
         }
     }
 }
@@ -701,6 +783,17 @@ pub async fn decide_payout_connector(
         return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 
+    // Validate and get the business_profile from payout_attempt
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.store.as_ref(),
+        &(state).into(),
+        key_store,
+        Some(&payout_attempt.profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")?;
+
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
         let (mut connectors, check_eligibility) =
@@ -713,9 +806,9 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
-                Some(payout_attempt.profile_id.clone()),
+                &business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -761,9 +854,9 @@ pub async fn decide_payout_connector(
                 state,
                 key_store,
                 connectors,
-                &TransactionData::<()>::Payout(payout_data),
+                &TransactionData::Payout(payout_data),
                 eligible_connectors,
-                Some(payout_attempt.profile_id.clone()),
+                &business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -799,15 +892,14 @@ pub async fn decide_payout_connector(
     }
 
     // 4. Route connector
-    route_connector_v1(
+    route_connector_v1_for_payouts(
         state,
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        TransactionData::<()>::Payout(payout_data),
+        payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }
@@ -823,10 +915,10 @@ pub async fn get_default_payout_connector(
 }
 
 pub fn should_call_payout_connector_create_customer<'a>(
-    state: &SessionState,
-    connector: &api::ConnectorData,
+    state: &'a SessionState,
+    connector: &'a api::ConnectorData,
     customer: &'a Option<domain::Customer>,
-    connector_label: &str,
+    connector_label: &'a str,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     match enums::PayoutConnectors::try_from(connector.connector_name) {
@@ -856,12 +948,13 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,
-    flow: String,
+    flow: &str,
 ) -> Option<storage::gsm::GatewayStatusMap> {
+    let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
-                connector_name.clone().unwrap_or_default(),
-                flow.clone(),
+                connector_name.clone(),
+                flow.to_string(),
                 "sub_flow".to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
@@ -871,7 +964,7 @@ pub async fn get_gsm_record(
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
                         "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
-                        connector_name.unwrap_or_default(),
+                        connector_name,
                         flow,
                         error_code,
                         error_message
@@ -886,10 +979,9 @@ pub async fn get_gsm_record(
     };
     get_gsm()
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             // warn log should suffice here because we are not propagating this error
             logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
-            err
         })
         .ok()
 }
@@ -972,11 +1064,24 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn update_payouts_and_payout_attempt(
+    _payout_data: &mut PayoutData,
+    _merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutCreateRequest,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn update_payouts_and_payout_attempt(
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -990,6 +1095,56 @@ pub async fn update_payouts_and_payout_attempt(
             ),
         }));
     }
+
+    // Fetch customer details from request and create new or else use existing customer that was attached
+    let customer = get_customer_details_from_request(req);
+    let customer_id = if customer.customer_id.is_some()
+        || customer.name.is_some()
+        || customer.email.is_some()
+        || customer.phone.is_some()
+        || customer.phone_country_code.is_some()
+    {
+        payout_data.customer_details =
+            get_or_create_customer_details(state, &customer, merchant_account, merchant_key_store)
+                .await?;
+        payout_data
+            .customer_details
+            .as_ref()
+            .map(|customer| customer.customer_id.clone())
+    } else {
+        payout_data.payouts.customer_id.clone()
+    };
+
+    // We have to do this because the function that is being used to create / get address is from payments
+    // which expects a payment_id
+    let payout_id_as_payment_id_type =
+        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payout_id contains invalid data".to_string(),
+            })
+            .attach_printable("Error converting payout_id to PaymentId type")?;
+
+    // Fetch address details from request and create new or else use existing address that was attached
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+        state,
+        req.billing.as_ref(),
+        None,
+        merchant_account.get_id(),
+        customer_id.as_ref(),
+        merchant_key_store,
+        &payout_id_as_payment_id_type,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+    let address_id = if billing_address.is_some() {
+        payout_data.billing_address = billing_address;
+        payout_data
+            .billing_address
+            .as_ref()
+            .map(|address| address.address_id.clone())
+    } else {
+        payout_data.payouts.address_id.clone()
+    };
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
@@ -1022,6 +1177,8 @@ pub async fn update_payouts_and_payout_attempt(
             .payout_type
             .to_owned()
             .or(payouts.payout_type.to_owned()),
+        address_id: address_id.clone(),
+        customer_id: customer_id.clone(),
     };
     let db = &*state.store;
     payout_data.payouts = db
@@ -1050,25 +1207,172 @@ pub async fn update_payouts_and_payout_attempt(
                     .to_owned()
                     .and_then(|nl| if nl != l { Some(nl) } else { None })
             });
-    match (updated_business_country, updated_business_label) {
-        (None, None) => Ok(()),
-        (business_country, business_label) => {
-            let payout_attempt = &payout_data.payout_attempt;
-            let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
-                business_country,
-                business_label,
+    if updated_business_country.is_some()
+        || updated_business_label.is_some()
+        || customer_id.is_some()
+        || address_id.is_some()
+    {
+        let payout_attempt = &payout_data.payout_attempt;
+        let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
+            business_country: updated_business_country,
+            business_label: updated_business_label,
+            address_id,
+            customer_id,
+        };
+        payout_data.payout_attempt = db
+            .update_payout_attempt(
+                payout_attempt,
+                updated_payout_attempt,
+                &payout_data.payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating payout_attempt")?;
+    }
+    Ok(())
+}
+
+pub(super) fn get_customer_details_from_request(
+    request: &payouts::PayoutCreateRequest,
+) -> CustomerDetails {
+    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
+
+    let customer_name = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.name.clone())
+        .or(request.name.clone());
+
+    let customer_email = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.email.clone())
+        .or(request.email.clone());
+
+    let customer_phone = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone.clone())
+        .or(request.phone.clone());
+
+    let customer_phone_code = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone_country_code.clone())
+        .or(request.phone_country_code.clone());
+
+    CustomerDetails {
+        customer_id,
+        name: customer_name,
+        email: customer_email,
+        phone: customer_phone,
+        phone_country_code: customer_phone_code,
+    }
+}
+
+pub async fn get_translated_unified_code_and_message(
+    state: &SessionState,
+    unified_code: Option<&UnifiedCode>,
+    unified_message: Option<&UnifiedMessage>,
+    locale: &str,
+) -> CustomResult<Option<UnifiedMessage>, errors::ApiErrorResponse> {
+    Ok(unified_code
+        .zip(unified_message)
+        .async_and_then(|(code, message)| async {
+            payment_helpers::get_unified_translation(
+                state,
+                code.0.clone(),
+                message.0.clone(),
+                locale.to_string(),
+            )
+            .await
+            .map(UnifiedMessage::try_from)
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "unified_message",
+        })?
+        .or_else(|| unified_message.cloned()))
+}
+
+pub async fn get_additional_payout_data(
+    pm_data: &api::PayoutMethodData,
+    db: &dyn StorageInterface,
+    profile_id: &id_type::ProfileId,
+) -> Option<payout_additional::AdditionalPayoutMethodData> {
+    match pm_data {
+        api::PayoutMethodData::Card(card_data) => {
+            let card_isin = Some(card_data.card_number.get_card_isin());
+            let enable_extended_bin =db
+            .find_config_by_key_unwrap_or(
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
+             Some("false".to_string()))
+            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+
+            let card_extended_bin = match enable_extended_bin {
+                Some(config) if config.config == "true" => {
+                    Some(card_data.card_number.get_extended_card_bin())
+                }
+                _ => None,
             };
-            payout_data.payout_attempt = db
-                .update_payout_attempt(
-                    payout_attempt,
-                    updated_payout_attempt,
-                    &payout_data.payouts,
-                    merchant_account.storage_scheme,
-                )
+            let last4 = Some(card_data.card_number.get_last4());
+
+            let card_info = card_isin
+                .clone()
+                .async_and_then(|card_isin| async move {
+                    db.get_card_info(&card_isin)
+                        .await
+                        .map_err(|error| services::logger::warn!(card_info_error=?error))
+                        .ok()
+                })
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payout_attempt")?;
-            Ok(())
+                .flatten()
+                .map(|card_info| {
+                    payout_additional::AdditionalPayoutMethodData::Card(Box::new(
+                        payout_additional::CardAdditionalData {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info.card_network.clone(),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_issuing_country: card_info.card_issuing_country,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: Some(card_data.expiry_month.clone()),
+                            card_exp_year: Some(card_data.expiry_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                        },
+                    ))
+                });
+            Some(card_info.unwrap_or_else(|| {
+                payout_additional::AdditionalPayoutMethodData::Card(Box::new(
+                    payout_additional::CardAdditionalData {
+                        card_issuer: None,
+                        card_network: None,
+                        bank_code: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        last4,
+                        card_isin,
+                        card_extended_bin,
+                        card_exp_month: Some(card_data.expiry_month.clone()),
+                        card_exp_year: Some(card_data.expiry_year.clone()),
+                        card_holder_name: card_data.card_holder_name.clone(),
+                    },
+                ))
+            }))
+        }
+        api::PayoutMethodData::Bank(bank_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Bank(
+                Box::new(bank_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Wallet(wallet_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Wallet(
+                Box::new(wallet_data.to_owned().into()),
+            ))
         }
     }
 }

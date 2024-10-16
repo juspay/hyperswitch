@@ -68,12 +68,21 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
+    SessionUpdateResponse {
+        status: common_enums::SessionUpdateStatus,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct TaxCalculationResponseData {
+    pub order_tax_amount: MinorUnit,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]

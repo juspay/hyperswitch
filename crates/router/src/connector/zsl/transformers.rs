@@ -182,6 +182,8 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | domain::PaymentMethodData::OpenBanking(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message(
@@ -384,7 +386,7 @@ pub struct ZslWebhookResponse {
     pub paid_ccy: api_models::enums::Currency,
     pub paid_amt: String,
     pub consr_paid_ccy: Option<api_models::enums::Currency>,
-    pub consr_paid_amt: Option<String>,
+    pub consr_paid_amt: String,
     pub service_fee_ccy: Option<api_models::enums::Currency>,
     pub service_fee: Option<String>,
     pub txn_amt: String,
@@ -427,7 +429,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let paid_amount = item
             .response
-            .paid_amt
+            .consr_paid_amt
             .parse::<i64>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let txn_amount = item

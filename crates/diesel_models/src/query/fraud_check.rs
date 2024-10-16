@@ -40,7 +40,7 @@ impl FraudCheck {
 
     pub async fn get_with_payment_id(
         conn: &PgPooledConn,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -54,7 +54,7 @@ impl FraudCheck {
 
     pub async fn get_with_payment_id_if_present(
         conn: &PgPooledConn,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(

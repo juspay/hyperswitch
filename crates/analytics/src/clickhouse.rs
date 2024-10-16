@@ -13,7 +13,7 @@ use super::{
     health_check::HealthCheck,
     payment_intents::{filters::PaymentIntentFilterRow, metrics::PaymentIntentMetricRow},
     payments::{
-        distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
+        distribution::PaymentDistributionRow, filters::PaymentFilterRow, metrics::PaymentMetricRow,
     },
     query::{Aggregate, ToSql, Window},
     refunds::{filters::RefundFilterRow, metrics::RefundMetricRow},
@@ -130,9 +130,12 @@ impl AnalyticsDataSource for ClickhouseClient {
     fn get_table_engine(table: AnalyticsCollection) -> TableEngine {
         match table {
             AnalyticsCollection::Payment
+            | AnalyticsCollection::PaymentSessionized
             | AnalyticsCollection::Refund
+            | AnalyticsCollection::RefundSessionized
             | AnalyticsCollection::FraudCheck
             | AnalyticsCollection::PaymentIntent
+            | AnalyticsCollection::PaymentIntentSessionized
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
@@ -244,10 +247,10 @@ impl TryInto<PaymentDistributionRow> for serde_json::Value {
     }
 }
 
-impl TryInto<FilterRow> for serde_json::Value {
+impl TryInto<PaymentFilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
-    fn try_into(self) -> Result<FilterRow, Self::Error> {
+    fn try_into(self) -> Result<PaymentFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse FilterRow in clickhouse results",
         ))
@@ -415,15 +418,7 @@ impl TryInto<ActivePaymentsMetricRow> for serde_json::Value {
 
 impl ToSql<ClickhouseClient> for PrimitiveDateTime {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
-        let format =
-            time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-                .change_context(ParsingError::DateTimeParsingError)
-                .attach_printable("Failed to parse format description")?;
-        self.format(&format)
-            .change_context(ParsingError::EncodeError(
-                "failed to encode to clickhouse date-time format",
-            ))
-            .attach_printable("Failed to format date time")
+        Ok(self.assume_utc().unix_timestamp().to_string())
     }
 }
 
@@ -431,13 +426,16 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
             Self::Payment => Ok("payment_attempts".to_string()),
+            Self::PaymentSessionized => Ok("sessionizer_payment_attempts".to_string()),
             Self::Refund => Ok("refunds".to_string()),
+            Self::RefundSessionized => Ok("sessionizer_refunds".to_string()),
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
             Self::SdkEventsAnalytics => Ok("sdk_events".to_string()),
             Self::ApiEvents => Ok("api_events_audit".to_string()),
             Self::ApiEventsAnalytics => Ok("api_events".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
+            Self::PaymentIntentSessionized => Ok("sessionizer_payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::Dispute => Ok("dispute".to_string()),

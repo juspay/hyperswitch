@@ -5,7 +5,6 @@ pub const MAX_NAME_LENGTH: usize = 70;
 /// The max length of company name and merchant should be same
 /// because we are deriving the merchant name from company name
 pub const MAX_COMPANY_NAME_LENGTH: usize = MAX_ALLOWED_MERCHANT_NAME_LENGTH;
-pub const BUSINESS_EMAIL: &str = "biz@hyperswitch.io";
 
 pub const RECOVERY_CODES_COUNT: usize = 8;
 pub const RECOVERY_CODE_LENGTH: usize = 8; // This is without counting the hyphen in between
@@ -27,3 +26,10 @@ pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 15 * 60; // 15 minutes
 
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
+
+/// Email subject
+pub const EMAIL_SUBJECT_SIGNUP: &str = "Welcome to the Hyperswitch community!";
+pub const EMAIL_SUBJECT_INVITATION: &str = "You have been invited to join Hyperswitch Community!";
+pub const EMAIL_SUBJECT_MAGIC_LINK: &str = "Unlock Hyperswitch: Use Your Magic Link to Sign In";
+pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset Your Password Now";
+pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";

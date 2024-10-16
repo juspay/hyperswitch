@@ -1,7 +1,4 @@
-#![forbid(unsafe_code)]
-#![recursion_limit = "256"]
-
-#[cfg(feature = "stripe")]
+#[cfg(all(feature = "stripe", feature = "v1"))]
 pub mod compatibility;
 pub mod configs;
 pub mod connection;
@@ -11,6 +8,7 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
+pub mod locale;
 pub(crate) mod macros;
 
 pub mod routes;
@@ -43,6 +41,9 @@ use crate::{configs::settings, core::errors};
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+// Import translate fn in root
+use crate::locale::{_rust_i18n_t, _rust_i18n_try_translate};
 
 /// Header Constants
 pub mod headers {
@@ -82,6 +83,9 @@ pub mod headers {
     pub const BROWSER_NAME: &str = "x-browser-name";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
     pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
+    pub const X_APP_ID: &str = "x-app-id";
+    pub const X_REDIRECT_URI: &str = "x-redirect-uri";
+    pub const X_TENANT_ID: &str = "x-tenant-id";
 }
 
 pub mod pii {
@@ -118,16 +122,23 @@ pub fn mk_app(
         {
             // This is a more specific route as compared to `MerchantConnectorAccount`
             // so it is registered before `MerchantConnectorAccount`.
-            server_app = server_app.service(routes::BusinessProfile::server(state.clone()))
+            server_app = server_app
+                .service(routes::ProfileNew::server(state.clone()))
+                .service(routes::Profile::server(state.clone()))
         }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::Forex::server(state.clone()))
-            .service(routes::Refunds::server(state.clone()))
-            .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Mandates::server(state.clone()))
+            .service(routes::MerchantConnectorAccount::server(state.clone()));
+
+        #[cfg(feature = "v1")]
+        {
+            server_app = server_app
+                .service(routes::Refunds::server(state.clone()))
+                .service(routes::Mandates::server(state.clone()));
+        }
     }
 
     #[cfg(all(
@@ -149,18 +160,23 @@ pub fn mk_app(
             .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
-            .service(routes::Files::server(state.clone()))
-            .service(routes::Disputes::server(state.clone()))
             .service(routes::Analytics::server(state.clone()))
-            .service(routes::Routing::server(state.clone()))
-            .service(routes::Blocklist::server(state.clone()))
-            .service(routes::Gsm::server(state.clone()))
-            .service(routes::ApplePayCertificatesMigration::server(state.clone()))
-            .service(routes::PaymentLink::server(state.clone()))
-            .service(routes::User::server(state.clone()))
-            .service(routes::ConnectorOnboarding::server(state.clone()))
-            .service(routes::Verify::server(state.clone()))
-            .service(routes::WebhookEvents::server(state.clone()));
+            .service(routes::Routing::server(state.clone()));
+
+        #[cfg(feature = "v1")]
+        {
+            server_app = server_app
+                .service(routes::Files::server(state.clone()))
+                .service(routes::Disputes::server(state.clone()))
+                .service(routes::Blocklist::server(state.clone()))
+                .service(routes::Gsm::server(state.clone()))
+                .service(routes::ApplePayCertificatesMigration::server(state.clone()))
+                .service(routes::PaymentLink::server(state.clone()))
+                .service(routes::User::server(state.clone()))
+                .service(routes::ConnectorOnboarding::server(state.clone()))
+                .service(routes::Verify::server(state.clone()))
+                .service(routes::WebhookEvents::server(state.clone()));
+        }
     }
 
     #[cfg(feature = "payouts")]
@@ -179,7 +195,7 @@ pub fn mk_app(
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
 
-    #[cfg(feature = "recon")]
+    #[cfg(all(feature = "recon", feature = "v1"))]
     {
         server_app = server_app.service(routes::Recon::server(state.clone()));
     }
@@ -341,6 +357,7 @@ pub fn get_application_builder(
         .wrap(cors::cors(cors))
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::AddAcceptLanguageHeader)
         .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

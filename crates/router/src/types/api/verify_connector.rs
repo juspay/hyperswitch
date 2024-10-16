@@ -97,9 +97,9 @@ impl VerifyConnectorData {
             payment_method_status: None,
             connector_request_reference_id: attempt_id,
             address: types::PaymentAddress::new(None, None, None, None),
-            payment_id: common_utils::generate_id_with_default_len(
-                consts::VERIFY_CONNECTOR_ID_PREFIX,
-            ),
+            payment_id: common_utils::id_type::PaymentId::default()
+                .get_string_repr()
+                .to_owned(),
             #[cfg(feature = "payouts")]
             payout_method_data: None,
             #[cfg(feature = "payouts")]
@@ -113,6 +113,8 @@ impl VerifyConnectorData {
             dispute_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
         }
     }
 }

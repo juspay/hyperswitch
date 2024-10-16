@@ -19,7 +19,7 @@ pub struct PayoutListParams {
     pub currency: Option<Vec<storage_enums::Currency>>,
     pub status: Option<Vec<storage_enums::PayoutStatus>>,
     pub payout_method: Option<Vec<common_enums::PayoutType>>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,
@@ -52,8 +52,8 @@ impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints
     }
 }
 
-impl From<api_models::payments::TimeRange> for PayoutFetchConstraints {
-    fn from(value: api_models::payments::TimeRange) -> Self {
+impl From<common_utils::types::TimeRange> for PayoutFetchConstraints {
+    fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PayoutListParams {
             offset: 0,
             starting_at: Some(value.start_time),

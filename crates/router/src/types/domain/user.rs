@@ -3,14 +3,14 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::TokenPurpose;
+use common_enums::EntityType;
 use common_utils::{
-    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
+    crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
 };
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
-    organization::{self as diesel_org, Organization},
+    organization::{self as diesel_org, Organization, OrganizationBridge},
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
@@ -19,6 +19,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
+use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
@@ -27,13 +28,13 @@ use crate::{
     consts,
     core::{
         admin,
-        errors::{self, UserErrors, UserResult},
+        errors::{UserErrors, UserResult},
     },
     db::GlobalStorageInterface,
     routes::SessionState,
-    services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
+    services::{self, authentication::UserFromToken},
     types::transformers::ForeignFrom,
-    utils::{self, user::password},
+    utils::user::password,
 };
 
 pub mod dashboard_metadata;
@@ -254,7 +255,7 @@ impl NewUserOrganization {
     }
 
     pub fn get_organization_id(&self) -> id_type::OrganizationId {
-        self.0.org_id.clone()
+        self.0.get_organization_id()
     }
 }
 
@@ -300,14 +301,10 @@ impl From<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for Ne
 
 impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     fn from(value: UserMerchantCreateRequestWithToken) -> Self {
-        Self(diesel_org::OrganizationNew {
-            org_id: value.2.org_id,
-            org_name: Some(value.1.company_name),
-            organization_details: None,
-            metadata: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        })
+        Self(diesel_org::OrganizationNew::new(
+            value.2.org_id,
+            Some(value.1.company_name),
+        ))
     }
 }
 
@@ -344,7 +341,7 @@ impl MerchantId {
 impl TryFrom<MerchantId> for id_type::MerchantId {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
-        Self::from(value.0.into())
+        Self::try_from(std::borrow::Cow::from(value.0))
             .change_context(UserErrors::MerchantIdParsingError)
             .attach_printable("Could not convert user merchant_id to merchant_id type")
     }
@@ -362,7 +359,7 @@ impl TryFrom<UserCompanyName> for MerchantName {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(company_name: UserCompanyName) -> Result<Self, Self::Error> {
-        Self::new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
+        Self::try_new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
     }
 }
 
@@ -399,12 +396,12 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
         } else {
-            MerchantName::new("merchant".to_string())
+            MerchantName::try_new("merchant".to_string())
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("merchant name validation failed")
         }
@@ -418,10 +415,7 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: self.get_merchant_id(),
@@ -642,38 +636,42 @@ impl NewUser {
         created_user
     }
 
-    pub async fn insert_user_role_in_db(
+    pub fn get_no_level_user_role(
+        self,
+        role_id: String,
+        user_status: UserStatus,
+    ) -> NewUserRole<NoLevel> {
+        let now = common_utils::date_time::now();
+        let user_id = self.get_user_id();
+
+        NewUserRole {
+            status: user_status,
+            created_by: user_id.clone(),
+            last_modified_by: user_id.clone(),
+            user_id,
+            role_id,
+            created_at: now,
+            last_modified: now,
+            entity: NoLevel,
+        }
+    }
+
+    pub async fn insert_org_level_user_role_in_db(
         self,
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
     ) -> UserResult<UserRole> {
-        let now = common_utils::date_time::now();
-        let user_id = self.get_user_id();
+        let org_id = self
+            .get_new_merchant()
+            .get_new_organization()
+            .get_organization_id();
 
-        state
-            .store
-            .insert_user_role(UserRoleNew {
-                merchant_id: Some(self.get_new_merchant().get_merchant_id()),
-                status: user_status,
-                created_by: user_id.clone(),
-                last_modified_by: user_id.clone(),
-                user_id,
-                role_id,
-                created_at: now,
-                last_modified: now,
-                org_id: Some(
-                    self.get_new_merchant()
-                        .get_new_organization()
-                        .get_organization_id(),
-                ),
-                profile_id: None,
-                entity_id: None,
-                entity_type: None,
-                version: UserRoleVersion::V1,
-            })
-            .await
-            .change_context(UserErrors::InternalServerError)
+        let org_user_role = self
+            .get_no_level_user_role(role_id, user_status)
+            .add_entity(OrganizationLevel { org_id });
+
+        org_user_role.insert_in_v2(&state).await
     }
 }
 
@@ -696,7 +694,6 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             is_verified: false,
             created_at: Some(now),
             last_modified_at: Some(now),
-            preferred_merchant_id: None,
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
@@ -861,22 +858,6 @@ impl UserFromStorage {
         self.0.email.clone()
     }
 
-    pub async fn get_role_from_db(&self, state: SessionState) -> UserResult<UserRole> {
-        state
-            .store
-            .find_user_role_by_user_id(&self.0.user_id, UserRoleVersion::V1)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
-    pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
-        state
-            .store
-            .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
     #[cfg(feature = "email")]
     pub fn get_verification_days_left(&self, state: &SessionState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
@@ -924,48 +905,6 @@ impl UserFromStorage {
         Ok(days_left_for_password_rotate.whole_days() < 0)
     }
 
-    pub fn get_preferred_merchant_id(&self) -> Option<id_type::MerchantId> {
-        self.0.preferred_merchant_id.clone()
-    }
-
-    pub async fn get_role_from_db_by_merchant_id(
-        &self,
-        state: &SessionState,
-        merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        state
-            .store
-            .find_user_role_by_user_id_merchant_id(
-                self.get_user_id(),
-                merchant_id,
-                UserRoleVersion::V1,
-            )
-            .await
-    }
-
-    pub async fn get_preferred_or_active_user_role_from_db(
-        &self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
-            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
-                .await
-        } else {
-            state
-                .store
-                .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
-                .await?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
-                .ok_or(
-                    errors::StorageError::ValueNotFound(
-                        "No active role found for user".to_string(),
-                    )
-                    .into(),
-                )
-        }
-    }
-
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
         let key_manager_state = &state.into();
@@ -1005,13 +944,15 @@ impl UserFromStorage {
 
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
-                key: domain_types::encrypt(
+                key: domain_types::crypto_operation(
                     key_manager_state,
-                    key.to_vec().into(),
+                    type_name!(UserKeyStore),
+                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
@@ -1055,165 +996,17 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::decrypt_optional::<String, masking::WithType>(
+        Ok(domain_types::crypto_operation::<String, masking::WithType>(
             key_manager_state,
-            self.0.totp_secret.clone(),
+            type_name!(storage_user::User),
+            domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
             Identifier::User(user_key_store.user_id.clone()),
             user_key_store.key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_optionaloperation())
         .change_context(UserErrors::InternalServerError)?
         .map(Encryptable::into_inner))
-    }
-}
-
-impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
-    fn from(value: info::ModuleInfo) -> Self {
-        Self {
-            module: value.module.into(),
-            description: value.description,
-            permissions: value.permissions.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<info::PermissionModule> for user_role_api::PermissionModule {
-    fn from(value: info::PermissionModule) -> Self {
-        match value {
-            info::PermissionModule::Payments => Self::Payments,
-            info::PermissionModule::Refunds => Self::Refunds,
-            info::PermissionModule::MerchantAccount => Self::MerchantAccount,
-            info::PermissionModule::Connectors => Self::Connectors,
-            info::PermissionModule::Routing => Self::Routing,
-            info::PermissionModule::Analytics => Self::Analytics,
-            info::PermissionModule::Mandates => Self::Mandates,
-            info::PermissionModule::Customer => Self::Customer,
-            info::PermissionModule::Disputes => Self::Disputes,
-            info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
-            info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
-            info::PermissionModule::AccountCreate => Self::AccountCreate,
-            info::PermissionModule::Payouts => Self::Payouts,
-        }
-    }
-}
-
-pub enum SignInWithRoleStrategyType {
-    SingleRole(SignInWithSingleRoleStrategy),
-    MultipleRoles(SignInWithMultipleRolesStrategy),
-}
-
-impl SignInWithRoleStrategyType {
-    pub async fn decide_signin_strategy_by_user_roles(
-        user: UserFromStorage,
-        user_roles: Vec<UserRole>,
-    ) -> UserResult<Self> {
-        if user_roles.is_empty() {
-            return Err(UserErrors::InternalServerError.into());
-        }
-
-        if let Some(user_role) = user_roles
-            .iter()
-            .find(|role| role.status == UserStatus::Active)
-        {
-            Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
-                user,
-                user_role: Box::new(user_role.clone()),
-            }))
-        } else {
-            Ok(Self::MultipleRoles(SignInWithMultipleRolesStrategy {
-                user,
-                user_roles,
-            }))
-        }
-    }
-
-    pub async fn get_signin_response(
-        self,
-        state: &SessionState,
-    ) -> UserResult<user_api::SignInResponse> {
-        match self {
-            Self::SingleRole(strategy) => strategy.get_signin_response(state).await,
-            Self::MultipleRoles(strategy) => strategy.get_signin_response(state).await,
-        }
-    }
-}
-
-pub struct SignInWithSingleRoleStrategy {
-    pub user: UserFromStorage,
-    pub user_role: Box<UserRole>,
-}
-
-impl SignInWithSingleRoleStrategy {
-    async fn get_signin_response(
-        self,
-        state: &SessionState,
-    ) -> UserResult<user_api::SignInResponse> {
-        let token =
-            utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
-        utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
-
-        let dashboard_entry_response =
-            utils::user::get_dashboard_entry_response(state, self.user, *self.user_role, token)?;
-
-        Ok(user_api::SignInResponse::DashboardEntry(
-            dashboard_entry_response,
-        ))
-    }
-}
-
-pub struct SignInWithMultipleRolesStrategy {
-    pub user: UserFromStorage,
-    pub user_roles: Vec<UserRole>,
-}
-
-impl SignInWithMultipleRolesStrategy {
-    async fn get_signin_response(
-        self,
-        state: &SessionState,
-    ) -> UserResult<user_api::SignInResponse> {
-        let merchant_accounts = state
-            .store
-            .list_multiple_merchant_accounts(
-                &state.into(),
-                self.user_roles
-                    .iter()
-                    .map(|role| {
-                        role.merchant_id
-                            .clone()
-                            .ok_or(UserErrors::InternalServerError)
-                    })
-                    .collect::<Result<Vec<_>, _>>()?,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-
-        let roles =
-            utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
-                .await?;
-
-        let merchant_details = utils::user::get_multiple_merchant_details_with_status(
-            self.user_roles,
-            merchant_accounts,
-            roles,
-        )?;
-
-        Ok(user_api::SignInResponse::MerchantSelect(
-            user_api::MerchantSelectResponse {
-                name: self.user.get_name(),
-                email: self.user.get_email(),
-                token: auth::SinglePurposeToken::new_token(
-                    self.user.get_user_id().to_string(),
-                    TokenPurpose::AcceptInvite,
-                    Origin::SignIn,
-                    &state.conf,
-                    vec![],
-                )
-                .await?
-                .into(),
-                merchants: merchant_details,
-                verification_days_left: utils::user::get_verification_days_left(state, &self.user)?,
-            },
-        ))
     }
 }
 
@@ -1276,5 +1069,136 @@ impl RecoveryCodes {
 
     pub fn into_inner(self) -> Vec<Secret<String>> {
         self.0
+    }
+}
+
+// This is for easier construction
+#[derive(Clone)]
+pub struct NoLevel;
+
+#[derive(Clone)]
+pub struct OrganizationLevel {
+    pub org_id: id_type::OrganizationId,
+}
+
+#[derive(Clone)]
+pub struct MerchantLevel {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+}
+
+#[derive(Clone)]
+pub struct ProfileLevel {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[derive(Clone)]
+pub struct NewUserRole<E: Clone> {
+    pub user_id: String,
+    pub role_id: String,
+    pub status: UserStatus,
+    pub created_by: String,
+    pub last_modified_by: String,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
+    pub entity: E,
+}
+
+impl NewUserRole<NoLevel> {
+    pub fn add_entity<T>(self, entity: T) -> NewUserRole<T>
+    where
+        T: Clone,
+    {
+        NewUserRole {
+            entity,
+            user_id: self.user_id,
+            role_id: self.role_id,
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+        }
+    }
+}
+
+pub struct EntityInfo {
+    org_id: id_type::OrganizationId,
+    merchant_id: Option<id_type::MerchantId>,
+    profile_id: Option<id_type::ProfileId>,
+    entity_id: String,
+    entity_type: EntityType,
+}
+
+impl From<OrganizationLevel> for EntityInfo {
+    fn from(value: OrganizationLevel) -> Self {
+        Self {
+            entity_id: value.org_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Organization,
+            org_id: value.org_id,
+            merchant_id: None,
+            profile_id: None,
+        }
+    }
+}
+
+impl From<MerchantLevel> for EntityInfo {
+    fn from(value: MerchantLevel) -> Self {
+        Self {
+            entity_id: value.merchant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Merchant,
+            org_id: value.org_id,
+            profile_id: None,
+            merchant_id: Some(value.merchant_id),
+        }
+    }
+}
+
+impl From<ProfileLevel> for EntityInfo {
+    fn from(value: ProfileLevel) -> Self {
+        Self {
+            entity_id: value.profile_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Profile,
+            org_id: value.org_id,
+            merchant_id: Some(value.merchant_id),
+            profile_id: Some(value.profile_id),
+        }
+    }
+}
+
+impl<E> NewUserRole<E>
+where
+    E: Clone + Into<EntityInfo>,
+{
+    fn convert_to_new_v2_role(self, entity: EntityInfo) -> UserRoleNew {
+        UserRoleNew {
+            user_id: self.user_id,
+            role_id: self.role_id,
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+            org_id: Some(entity.org_id),
+            merchant_id: entity.merchant_id,
+            profile_id: entity.profile_id,
+            entity_id: Some(entity.entity_id),
+            entity_type: Some(entity.entity_type),
+            version: UserRoleVersion::V2,
+        }
+    }
+
+    pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
+        let entity = self.entity.clone();
+
+        let new_v2_role = self.convert_to_new_v2_role(entity.into());
+
+        state
+            .store
+            .insert_user_role(new_v2_role)
+            .await
+            .change_context(UserErrors::InternalServerError)
     }
 }

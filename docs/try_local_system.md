@@ -56,7 +56,7 @@ Check the Table Of Contents to jump to the relevant section.
    and running migrations (approximately 2 minutes), and for the
    `hyperswitch-web` container to finish compiling before proceeding further.
    You can also choose to
-   [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+   [run the scheduler and monitoring services](#running-additional-services)
    in addition to the app server, web client and control center.
 
 5. Verify that the server is up and running by hitting the health endpoint:
@@ -154,7 +154,7 @@ Once the services have been confirmed to be up and running, you can proceed with
    around 15 minutes.
 
 5. (Optional) You can also choose to
-   [start the scheduler and/or monitoring services](#run-the-scheduler-and-monitoring-services)
+   [start the scheduler and/or monitoring services](#running-additional-services)
    in addition to the payments router.
 
 6. Verify that the server is up and running by hitting the health endpoint:
@@ -378,12 +378,9 @@ You can opt to use your favorite package manager instead.
 1. Install the stable Rust toolchain using `rustup`:
 
    ```shell
-   brew install rustup-init
-   rustup-init
+   brew install rustup
+   rustup default stable
    ```
-
-   When prompted, proceed with the `default` profile, which installs the stable
-   toolchain.
 
    Optionally, verify that the Rust compiler and `cargo` are successfully
    installed:
@@ -491,7 +488,7 @@ Once you're done with setting up the dependencies, proceed with
    Export the `DATABASE_URL` env variable
 
    ```shell
-   export DATABASE_URL=$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
    ```
 
    Run the migrations

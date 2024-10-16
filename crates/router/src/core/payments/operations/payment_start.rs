@@ -26,6 +26,9 @@ use crate::{
 #[operation(operations = "all", flow = "start")]
 pub struct PaymentStart;
 
+type PaymentSessionOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
@@ -37,10 +40,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest>> {
+        _header_payload: &api::HeaderPayload,
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
+    > {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
+        let key_manager_state = &state.into();
 
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
@@ -50,7 +56,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
+                key_manager_state,
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -74,7 +80,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
@@ -140,10 +146,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = db
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let payment_data = PaymentData {
@@ -189,6 +195,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -217,10 +225,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -228,16 +233,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<F>>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         let request_merchant_id = Some(&request.merchant_id);
         helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -260,10 +264,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsStartRequest>>
-    Domain<F, api::PaymentsStartRequest> for Op
+impl<
+        F: Clone + Send,
+        Op: Send + Sync + Operation<F, api::PaymentsStartRequest, Data = PaymentData<F>>,
+    > Domain<F, api::PaymentsStartRequest, PaymentData<F>> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsStartRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsStartRequest, Data = PaymentData<F>>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -274,10 +280,7 @@ where
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsStartRequest>,
-            Option<domain::Customer>,
-        ),
+        (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -300,10 +303,10 @@ where
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest>,
-        Option<api::PaymentMethodData>,
+        PaymentSessionOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         if payment_data
@@ -313,7 +316,7 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(
+            Box::pin(helpers::make_pm_data(
                 Box::new(self),
                 state,
                 payment_data,
@@ -321,7 +324,7 @@ where
                 customer,
                 storage_scheme,
                 business_profile,
-            )
+            ))
             .await
         } else {
             Ok((Box::new(self), None, None))

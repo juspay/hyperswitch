@@ -103,7 +103,9 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)
             | domain::payments::PaymentMethodData::OpenBanking(_)
-            | domain::payments::PaymentMethodData::CardToken(_) => {
+            | domain::payments::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
                 )

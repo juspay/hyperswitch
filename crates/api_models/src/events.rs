@@ -19,6 +19,7 @@ use common_utils::{
     impl_api_event_type,
 };
 
+use crate::customers::CustomerListRequest;
 #[allow(unused_imports)]
 use crate::{
     admin::*,
@@ -31,14 +32,14 @@ use crate::{
     disputes::*,
     files::*,
     mandates::*,
-    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
+    organization::{
+        OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
+    },
     payment_methods::*,
     payments::*,
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
-
-impl ApiEventMetric for TimeRange {}
 
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -74,11 +75,11 @@ impl_api_event_type!(
         RetrievePaymentLinkRequest,
         PaymentLinkListConstraints,
         MandateId,
-        DisputeListConstraints,
+        DisputeListGetConstraints,
         RetrieveApiKeyResponse,
-        BusinessProfileResponse,
-        BusinessProfileUpdate,
-        BusinessProfileCreate,
+        ProfileResponse,
+        ProfileUpdate,
+        ProfileCreate,
         RevokeApiKeyResponse,
         ToggleKVResponse,
         ToggleKVRequest,
@@ -89,6 +90,7 @@ impl_api_event_type!(
         CardInfoResponse,
         CreateApiKeyResponse,
         CreateApiKeyRequest,
+        ListApiKeyConstraints,
         MerchantConnectorDeleteResponse,
         MerchantConnectorUpdate,
         MerchantConnectorCreate,
@@ -129,9 +131,12 @@ impl_api_event_type!(
         GetDisputeFilterRequest,
         DisputeFiltersResponse,
         GetDisputeMetricRequest,
+        SankeyResponse,
         OrganizationResponse,
-        OrganizationRequest,
-        OrganizationId
+        OrganizationCreateRequest,
+        OrganizationUpdateRequest,
+        OrganizationId,
+        CustomerListRequest
     )
 );
 
@@ -145,22 +150,44 @@ impl_api_event_type!(
     )
 );
 
-#[cfg(feature = "stripe")]
-impl_api_event_type!(
-    Miscellaneous,
-    (
-        StripeSetupIntentResponse,
-        StripeRefundResponse,
-        StripePaymentIntentListResponse,
-        StripePaymentIntentResponse,
-        CustomerDeleteResponse,
-        CustomerPaymentMethodListResponse,
-        CreateCustomerResponse
-    )
-);
-
 impl<T> ApiEventMetric for MetricsResponse<T> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+impl<T> ApiEventMetric for PaymentsMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+impl<T> ApiEventMetric for PaymentIntentsMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method: Some(self.payment_method),
+            payment_method_type: Some(self.payment_method_type),
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl ApiEventMetric for PaymentMethodIntentCreate {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodCreate)
+    }
+}
+
+impl ApiEventMetric for DisputeListFilters {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }
