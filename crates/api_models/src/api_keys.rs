@@ -29,7 +29,7 @@ pub struct CreateApiKeyRequest {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CreateApiKeyResponse {
     /// The identifier for the API Key.
-    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
+    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX", value_type = String)]
     pub key_id: common_utils::id_type::ApiKeyId,
 
     /// The identifier for the Merchant Account.
@@ -72,7 +72,7 @@ pub struct CreateApiKeyResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RetrieveApiKeyResponse {
     /// The identifier for the API Key.
-    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
+    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX", value_type = String)]
     pub key_id: common_utils::id_type::ApiKeyId,
 
     /// The identifier for the Merchant Account.
@@ -131,6 +131,7 @@ pub struct UpdateApiKeyRequest {
     pub expiration: Option<ApiKeyExpiration>,
 
     #[serde(skip_deserializing)]
+    #[schema(value_type = String)]
     pub key_id: common_utils::id_type::ApiKeyId,
 
     #[serde(skip_deserializing)]
@@ -146,7 +147,7 @@ pub struct RevokeApiKeyResponse {
     pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the API Key.
-    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
+    #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX", value_type = String)]
     pub key_id: common_utils::id_type::ApiKeyId,
     /// Indicates whether the API key was revoked or not.
     #[schema(example = "true")]
