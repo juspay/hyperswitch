@@ -222,8 +222,7 @@ pub async fn add_api_key_expiry_task(
         expiry_reminder_days: expiry_reminder_days.clone(),
     };
 
-    let process_tracker_id =
-        generate_task_id_for_api_key_expiry_workflow(api_key.key_id.get_string_repr());
+    let process_tracker_id = generate_task_id_for_api_key_expiry_workflow(&api_key.key_id);
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         API_KEY_EXPIRY_NAME,
@@ -241,8 +240,8 @@ pub async fn add_api_key_expiry_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while inserting API key expiry reminder to process_tracker: api_key_id: {}",
-                api_key.key_id.get_string_repr()
+                "Failed while inserting API key expiry reminder to process_tracker: {:?}",
+                api_key.key_id
             )
         })?;
     metrics::TASKS_ADDED_COUNT.add(
@@ -312,7 +311,7 @@ pub async fn update_api_key(
     {
         let expiry_reminder_days = state.conf.api_keys.get_inner().expiry_reminder_days.clone();
 
-        let task_id = generate_task_id_for_api_key_expiry_workflow(key_id.get_string_repr());
+        let task_id = generate_task_id_for_api_key_expiry_workflow(&key_id);
         // In order to determine how to update the existing process in the process_tracker table,
         // we need access to the current entry in the table.
         let existing_process_tracker_task = store
@@ -388,7 +387,7 @@ pub async fn update_api_key_expiry_task(
         }
     }
 
-    let task_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.get_string_repr());
+    let task_id = generate_task_id_for_api_key_expiry_workflow(&api_key.key_id);
 
     let task_ids = vec![task_id.clone()];
 
@@ -461,7 +460,7 @@ pub async fn revoke_api_key(
 
     #[cfg(feature = "email")]
     {
-        let task_id = generate_task_id_for_api_key_expiry_workflow(key_id.get_string_repr());
+        let task_id = generate_task_id_for_api_key_expiry_workflow(&key_id);
         // In order to determine how to update the existing process in the process_tracker table,
         // we need access to the current entry in the table.
         let existing_process_tracker_task = store
@@ -498,7 +497,7 @@ pub async fn revoke_api_key_expiry_task(
     store: &dyn crate::db::StorageInterface,
     key_id: &common_utils::id_type::ApiKeyId,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let task_id = generate_task_id_for_api_key_expiry_workflow(key_id.get_string_repr());
+    let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
     let task_ids = vec![task_id];
     let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
         status: storage_enums::ProcessTrackerStatus::Finish,
@@ -535,8 +534,13 @@ pub async fn list_api_keys(
 }
 
 #[cfg(feature = "email")]
-fn generate_task_id_for_api_key_expiry_workflow(key_id: &str) -> String {
-    format!("{API_KEY_EXPIRY_RUNNER}_{API_KEY_EXPIRY_NAME}_{key_id}")
+fn generate_task_id_for_api_key_expiry_workflow(
+    key_id: &common_utils::id_type::ApiKeyId,
+) -> String {
+    format!(
+        "{API_KEY_EXPIRY_RUNNER}_{API_KEY_EXPIRY_NAME}_{}",
+        key_id.get_string_repr()
+    )
 }
 
 impl From<&str> for PlaintextApiKey {
