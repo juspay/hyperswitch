@@ -412,8 +412,14 @@ pub async fn migrate_payment_method(
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
 
-    let card_bin_details =
-        populate_bin_details_for_masked_card(card_details, &*state.store).await?;
+    let skip_card_expiry_validation = req.skip_card_expiry_validation.unwrap_or(false); //here if `skip_card_expiry_validation` is not present in the request it will be set to false
+
+    let card_bin_details = populate_bin_details_for_masked_card(
+        card_details,
+        &*state.store,
+        skip_card_expiry_validation,
+    )
+    .await?;
 
     req.card = Some(api_models::payment_methods::MigrateCardDetail {
         card_issuing_country: card_bin_details.issuer_country.clone(),
@@ -434,7 +440,7 @@ pub async fn migrate_payment_method(
         .await?;
     };
 
-    let skip_card_expiry_validation = req.skip_card_expiry_validation.unwrap_or(false); //here if it is not present in the request it will be set to false
+    let should_require_connector_mandate_details = req.network_token.is_none();
 
     let resp = match card_number_validation_result {
         Ok(card_number) => {
@@ -450,8 +456,10 @@ pub async fn migrate_payment_method(
             );
 
             if skip_card_expiry_validation {
-                //will refactor using match statement
+                //skip_card_expiry_validation if true, then error will not be propogated and card will not be saved in locker,
+                // but will update the payment_method_data with bin details and migrate connector mandate details if present.
                 if validation_result.is_err() {
+                    logger::debug!("Skip storing card in locker as skip_card_expiry_validation is {} and card is expired",skip_card_expiry_validation);
                     skip_locker_call_and_migrate_payment_method(
                         state.clone(),
                         &req,
@@ -459,9 +467,11 @@ pub async fn migrate_payment_method(
                         key_store,
                         merchant_account,
                         card_bin_details.clone(),
+                        should_require_connector_mandate_details, //when there is no card and no network token, should_require_connector_mandate_details is set to true and connector mandate details are required
                     )
                     .await
                 } else {
+                    logger::debug!("Storing the card in locker and migrating the payment method");
                     get_client_secret_or_add_payment_method_for_migrate_api(
                         &state,
                         payment_method_create_request,
@@ -471,6 +481,7 @@ pub async fn migrate_payment_method(
                     .await
                 }
             } else {
+                logger::debug!("Storing the card in locker and migrating the payment method");
                 get_client_secret_or_add_payment_method_for_migrate_api(
                     &state,
                     payment_method_create_request,
@@ -489,6 +500,7 @@ pub async fn migrate_payment_method(
                 key_store,
                 merchant_account,
                 card_bin_details.clone(),
+                should_require_connector_mandate_details,
             )
             .await
         }
@@ -502,135 +514,56 @@ pub async fn migrate_payment_method(
     let pm_id = payment_method_response.payment_method_id.clone();
 
     let network_token = req.network_token.clone();
-    match network_token {
-        Some(network_token) => {
-            let network_token_data = network_token.network_token_data.clone();
+
+    let network_token_migrated = network_token.clone().map(|network_token| {
+        cards::CardNumber::from_str(network_token.network_token_data.network_token_number.peek())
+            .map_err(|_| false)
+    }); // network_token_migrated is true if network_token_number passes the validation and will be migrated to locker
+
+    let v2 = match network_token_migrated {
+        Some(Ok(network_token)) => {
+            logger::debug!("Network token to be migrated is valid, saving in locker");
+            let network_token_details = req
+                .network_token
+                .clone()
+                .get_required_value("network_token")?;
             let network_token_requestor_ref_id =
-                network_token.network_token_requestor_ref_id.clone();
-            let network_token_validation =
-                cards::CardNumber::from_str(network_token_data.network_token_number.peek());
+                network_token_details.network_token_requestor_ref_id.clone();
+            let network_token_data = network_token_details.network_token_data.clone();
 
-            match network_token_validation {
-                Ok(network_token) => {
-                    let payment_method_create_request =
-                        api::PaymentMethodCreate::get_payment_method_create_from_payment_method_migrate(
-                            network_token.clone(),
-                            &req,
-                        );
-                    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
-
-                    let network_token_details = api::CardDetail {
-                        card_number: network_token,
-                        card_exp_month: network_token_data.network_token_exp_month.clone(),
-                        card_exp_year: network_token_data.network_token_exp_year.clone(),
-                        card_holder_name: network_token_data.card_holder_name.clone(),
-                        nick_name: network_token_data.nick_name.clone(),
-                        card_issuing_country: network_token_data.card_issuing_country.clone(),
-                        card_network: network_token_data.card_network.clone(),
-                        card_issuer: network_token_data.card_issuer.clone(),
-                        card_type: network_token_data.card_type.clone(),
-                    };
-
-                    let token_resp = Box::pin(add_card_to_locker(
-                        &state,
-                        payment_method_create_request.clone(),
-                        &network_token_details,
-                        &customer_id,
-                        merchant_account,
-                        None,
-                    ))
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Add Card Failed");
-
-                    match token_resp {
-                        Ok(resp) => {
-                            let (token_pm_resp, _duplication_check) = resp;
-                            let pm_token_details = token_pm_resp.card.as_ref().map(|card| {
-                                PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
-                                    card.clone(),
-                                ))
-                            });
-                            let pm_network_token_data_encrypted = pm_token_details
-                                .async_map(|pm_card| {
-                                    create_encrypted_data(&state, key_store, pm_card)
-                                })
-                                .await
-                                .transpose()
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Unable to encrypt payment method data")?;
-
-                            let pm_update = storage::PaymentMethodUpdate::NetworkTokenDataUpdate {
-                                network_token_requestor_reference_id: Some(
-                                    network_token_requestor_ref_id,
-                                ),
-                                network_token_locker_id: Some(token_pm_resp.payment_method_id),
-                                network_token_payment_method_data: pm_network_token_data_encrypted
-                                    .map(Into::into),
-                            };
-                            let db = &*state.store;
-                            let existing_pm = db
-                                .find_payment_method(
-                                    &((&state).into()),
-                                    key_store,
-                                    &pm_id,
-                                    merchant_account.storage_scheme,
-                                )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to add payment method in db")?; //should propogate err?
-
-                            db.update_payment_method(
-                                &((&state).into()),
-                                key_store,
-                                existing_pm,
-                                pm_update,
-                                merchant_account.storage_scheme,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to add payment method in db")?;
-
-                            return Ok(services::ApplicationResponse::Json(
-                                api::PaymentMethodMigrateResponse {
-                                    payment_method_response,
-                                    card_migrated: Some(true),
-                                    network_token_migrated: Some(true),
-                                },
-                            ));
-                        }
-                        Err(_) => {
-                            return Ok(services::ApplicationResponse::Json(
-                                api::PaymentMethodMigrateResponse {
-                                    payment_method_response,
-                                    card_migrated: Some(true),
-                                    network_token_migrated: Some(false),
-                                },
-                            ))
-                        }
-                    }
-                }
-                Err(_) => {
-                    return Ok(services::ApplicationResponse::Json(
-                        api::PaymentMethodMigrateResponse {
-                            payment_method_response,
-                            card_migrated: Some(true),
-                            network_token_migrated: Some(false),
-                        },
-                    ))
-                }
-            }
+            Some(
+                save_network_token_and_update_payment_method(
+                    state,
+                    &req,
+                    key_store,
+                    merchant_account,
+                    network_token_data,
+                    network_token_requestor_ref_id,
+                    network_token,
+                    pm_id,
+                )
+                .await
+                .ok()
+                .unwrap_or(false),
+            )
+        }
+        Some(Err(_)) => {
+            logger::debug!("Network token validation failed, not saving in locker");
+            Some(false)
         }
         None => {
-            return Ok(services::ApplicationResponse::Json(
-                api::PaymentMethodMigrateResponse {
-                    payment_method_response,
-                    card_migrated: Some(true),
-                    network_token_migrated: None,
-                },
-            ))
+            logger::debug!("Network token data is not available");
+            None
         }
-    }
+    };
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodMigrateResponse {
+            payment_method_response,
+            card_migrated: Some(true),
+            network_token_migrated: v2,
+        },
+    ))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -647,8 +580,28 @@ pub async fn migrate_payment_method(
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn db::StorageInterface,
+    skip_card_expiry_validation: bool,
 ) -> errors::CustomResult<api::CardDetailFromLocker, errors::ApiErrorResponse> {
-    helpers::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
+    let validate =
+        helpers::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year);
+
+    match validate {
+        Ok(_) => (),
+        Err(_) => {
+            utils::when(!skip_card_expiry_validation, || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("Invalid card expiry",)
+                }))
+            })?
+
+            // if !skip_card_expiry_validation {
+            //     Err(errors::ApiErrorResponse::InvalidRequestData {
+            //         message: "Invalid card expiry".to_string(),
+            //     })? //use when
+            // }
+        }
+    };
+
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
@@ -850,19 +803,46 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     key_store: &domain::MerchantKeyStore,
     merchant_account: &domain::MerchantAccount,
     card: api_models::payment_methods::CardDetailFromLocker,
+    should_require_connector_mandate_details: bool,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    // In this case, since we do not have valid card details, recurring payments can only be done through connector mandate details.
-    let connector_mandate_details_req = req
-        .connector_mandate_details
-        .clone()
-        .get_required_value("connector mandate details")?;
+    // // In this case, since we do not have valid card details, recurring payments can only be done through connector mandate details.
+    // let connector_mandate_details_req = req
+    //     .connector_mandate_details
+    //     .clone()
+    //     .get_required_value("connector mandate details")?;
 
-    let connector_mandate_details = serde_json::to_value(&connector_mandate_details_req)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse connector mandate details")?;
+    // let connector_mandate_details = serde_json::to_value(&connector_mandate_details_req)
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to parse connector mandate details")?;
+
+    let connector_mandate_details = if should_require_connector_mandate_details {
+        // If `should_require_connector_mandate_details` is true, we must extract it
+        let connector_mandate_details_req = req
+            .connector_mandate_details
+            .clone()
+            .get_required_value("connector mandate details")?;
+
+        Some(
+            serde_json::to_value(&connector_mandate_details_req)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse connector mandate details")?,
+        )
+    } else {
+        // If not required, serialize only if present in the request, else handle it (e.g., return null or skip)
+        let connector_mandate_details = req
+            .connector_mandate_details
+            .clone()
+            .map(|connector_mandate_details_req| {
+                serde_json::to_value(&connector_mandate_details_req)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse connector mandate details")
+            })
+            .transpose()?;
+        connector_mandate_details
+    };
 
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
@@ -897,6 +877,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let payment_method_metadata: Option<serde_json::Value> =
         req.metadata.as_ref().map(|data| data.peek()).cloned();
 
+    let network_transaction_id = req.network_transaction_id.clone();
+
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
     let current_time = common_utils::date_time::now();
@@ -916,11 +898,11 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 scheme: req.card_network.clone().or(card.scheme.clone()),
                 metadata: payment_method_metadata.map(Secret::new),
                 payment_method_data: payment_method_data_encrypted.map(Into::into),
-                connector_mandate_details: Some(connector_mandate_details),
+                connector_mandate_details,
                 customer_acceptance: None,
                 client_secret: None,
                 status: enums::PaymentMethodStatus::Active,
-                network_transaction_id: None,
+                network_transaction_id,
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,
@@ -964,6 +946,116 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     Ok(services::api::ApplicationResponse::Json(
         api::PaymentMethodResponse::foreign_from((Some(card), response)),
     ))
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
+))]
+pub async fn save_network_token_and_update_payment_method(
+    state: routes::SessionState,
+    req: &api::PaymentMethodMigrate,
+    key_store: &domain::MerchantKeyStore,
+    merchant_account: &domain::MerchantAccount,
+    network_token_data: api_models::payment_methods::MigrateNetworkTokenData,
+    network_token_requestor_ref_id: String,
+    network_token: cards::CardNumber,
+    pm_id: String,
+) -> errors::RouterResult<bool> {
+    let payment_method_create_request =
+        api::PaymentMethodCreate::get_payment_method_create_from_payment_method_migrate(
+            network_token.clone(),
+            req,
+        );
+    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
+
+    let network_token_details = api::CardDetail {
+        card_number: network_token,
+        card_exp_month: network_token_data.network_token_exp_month.clone(),
+        card_exp_year: network_token_data.network_token_exp_year.clone(),
+        card_holder_name: network_token_data.card_holder_name.clone(),
+        nick_name: network_token_data.nick_name.clone(),
+        card_issuing_country: network_token_data.card_issuing_country.clone(),
+        card_network: network_token_data.card_network.clone(),
+        card_issuer: network_token_data.card_issuer.clone(),
+        card_type: network_token_data.card_type.clone(),
+    };
+
+    logger::debug!(
+        "Adding network token to locker for customer_id: {:?}",
+        customer_id
+    );
+
+    let token_resp = Box::pin(add_card_to_locker(
+        &state,
+        payment_method_create_request.clone(),
+        &network_token_details,
+        &customer_id,
+        merchant_account,
+        None,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Add Card Failed");
+
+    match token_resp {
+        Ok(resp) => {
+            logger::debug!("Network token added to locker");
+            let (token_pm_resp, _duplication_check) = resp;
+            let pm_token_details = token_pm_resp
+                .card
+                .as_ref()
+                .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+            let pm_network_token_data_encrypted = pm_token_details
+                .async_map(|pm_card| create_encrypted_data(&state, key_store, pm_card))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt payment method data")?;
+
+            let pm_update = storage::PaymentMethodUpdate::NetworkTokenDataUpdate {
+                network_token_requestor_reference_id: Some(network_token_requestor_ref_id),
+                network_token_locker_id: Some(token_pm_resp.payment_method_id),
+                network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
+            };
+            let db = &*state.store;
+            let existing_pm = db
+                .find_payment_method(
+                    &((&state).into()),
+                    key_store,
+                    &pm_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add payment method in db");
+            match existing_pm {
+                Ok(existing_pm) => {
+                    db.update_payment_method(
+                        &((&state).into()),
+                        key_store,
+                        existing_pm,
+                        pm_update,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add payment method in db")?;
+                    logger::debug!("Network token added to locker and payment method updated");
+                    Ok(true)
+                }
+                Err(err) => {
+                    logger::debug!("Failed to fetch existing payment method for pm_id {:?} and error: {:?}", pm_id, err);
+                    Ok(false)
+                }
+            }
+        }
+        Err(err) => {
+            logger::debug!("Network token added to locker failed {:?}", err);
+            Ok(false)
+        }
+    }
 }
 
 // need to discuss regarding the migration APIs for v2
@@ -1134,6 +1226,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
         let res = create_payment_method(
+            //return this
             state,
             &req,
             &customer_id,

@@ -4,10 +4,7 @@ use std::str::FromStr;
 
 use cards::CardNumber;
 use common_utils::{
-    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
-    crypto::OptionalEncryptableName,
-    id_type, link_utils, pii,
-    types::{MinorUnit, Percentage, Surcharge},
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, id_type, link_utils, pii, types::{MinorUnit, Percentage, Surcharge}
 };
 use masking::PeekInterface;
 use serde::de;
@@ -2137,7 +2134,7 @@ pub struct PaymentMethodRecord {
     pub card_expiry_month: masking::Secret<String>,
     pub card_expiry_year: masking::Secret<String>,
     pub card_scheme: Option<String>,
-    pub original_transaction_id: String,
+    pub original_transaction_id: Option<String>,
     pub billing_address_zip: masking::Secret<String>,
     pub billing_address_state: masking::Secret<String>,
     pub billing_address_first_name: masking::Secret<String>,
@@ -2173,6 +2170,9 @@ pub struct PaymentMethodMigrationResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub migration_error: Option<String>,
     pub card_number_masked: Option<masking::Secret<String>>,
+    pub card_migrated: Option<bool>,
+    pub network_token_migrated: Option<bool>,
+
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2202,6 +2202,8 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 migration_error: None,
                 card_number_masked: Some(record.card_number_masked),
                 line_number: record.line_number,
+                card_migrated: res.card_migrated,
+                network_token_migrated: res.network_token_migrated,
             },
             Err(e) => Self {
                 customer_id: Some(record.customer_id),
@@ -2260,22 +2262,22 @@ impl From<PaymentMethodRecord> for PaymentMethodMigrate {
                 card_number: record.raw_card_number.unwrap_or(record.card_number_masked),
                 card_exp_month: record.card_expiry_month,
                 card_exp_year: record.card_expiry_year,
-                card_holder_name: record.name,
-                card_network: None, //?
+                card_holder_name: record.name.clone(),
+                card_network: None,
                 card_type: None,
                 card_issuer: None,
                 card_issuing_country: None,
-                nick_name: Some(record.nick_name),
+                nick_name: Some(record.nick_name.clone()),
             }),
             network_token: Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
                     network_token_number: record.network_token_number.unwrap_or_default(),
                     network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
                     network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
-                    card_holder_name: None, //?
-                    nick_name: None,
+                    card_holder_name: record.name,
+                    nick_name: Some(record.nick_name),
                     card_issuing_country: None,
-                    card_network: None, //?
+                    card_network: None,
                     card_issuer: None,
                     card_type: None,
                 },
@@ -2313,7 +2315,7 @@ impl From<PaymentMethodRecord> for PaymentMethodMigrate {
             #[cfg(feature = "payouts")]
             wallet: None,
             payment_method_data: None,
-            network_transaction_id: record.original_transaction_id.into(),
+            network_transaction_id: record.original_transaction_id,
             skip_card_expiry_validation: record.skip_card_expiry_validation,
         }
     }
