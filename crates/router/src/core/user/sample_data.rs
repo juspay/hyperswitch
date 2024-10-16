@@ -74,8 +74,6 @@ pub async fn generate_sample_data_for_user(
         .insert_refunds_batch_for_sample_data(refunds)
         .await
         .switch()?;
-
-    // TODO(done): include store for disputes
     state
         .store
         .insert_disputes_batch_for_sample_data(disputes)
@@ -120,7 +118,6 @@ pub async fn delete_sample_data_for_user(
         .delete_refunds_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
-    // TODO(done): delete store for disputes
     state
         .store
         .delete_disputes_for_sample_data(&merchant_id_del)

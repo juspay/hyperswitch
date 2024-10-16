@@ -392,12 +392,10 @@ pub async fn generate_sample_data(
             None
         };
 
-        // TODO(done): add calculated numbers of random disputes
         let dispute = if disputes_count < number_of_disputes && !is_failed_payment {
             disputes_count += 1;
             Some(DisputeNew {
                 dispute_id: common_utils::generate_id_with_default_len("test"),
-                // TODO(done): need to randomize the dispute
                 amount: (amount * 100).to_string(),
                 currency: payment_intent
                     .currency
