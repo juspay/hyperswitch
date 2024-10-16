@@ -333,7 +333,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
             self.amount_converter,
-            req.request.minor_payment_amount,
+            req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
         let connector_router_data = tsys::TsysRouterData::from((amount, req));

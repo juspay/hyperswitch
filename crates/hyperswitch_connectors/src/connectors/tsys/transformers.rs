@@ -497,9 +497,7 @@ pub struct TsysRefundRequest {
 
 impl<F> TryFrom<&TsysRouterData<&RefundsRouterData<F>>> for TsysRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item_data: &TsysRouterData<&RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item_data: &TsysRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let item = item_data.router_data;
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let return_request = TsysReturnRequest {
