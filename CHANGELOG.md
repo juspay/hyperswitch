@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.16.0
+
+### Features
+
+- **core:** Add payments post_session_tokens flow ([#6202](https://github.com/juspay/hyperswitch/pull/6202)) ([`53e82c3`](https://github.com/juspay/hyperswitch/commit/53e82c3faef3ee629a38180e3882a2920332a9a8))
+- **router:** Implement post_update_tracker for SessionUpdate Flow and add support for session_update_flow for Paypal ([#6299](https://github.com/juspay/hyperswitch/pull/6299)) ([`7e90031`](https://github.com/juspay/hyperswitch/commit/7e90031c68c7b93db996ee03e11c56b56a87402b))
+
+### Documentation
+
+- **README:** Remove FAQs section ([#6297](https://github.com/juspay/hyperswitch/pull/6297)) ([`d06d19f`](https://github.com/juspay/hyperswitch/commit/d06d19fc96e1a74d20e2fe3613f86d541947e0ae))
+- **error_codes:** Add unified error codes ([#6319](https://github.com/juspay/hyperswitch/pull/6319)) ([`342529e`](https://github.com/juspay/hyperswitch/commit/342529e0565baaa02f33266c3be620a9561048c8))
+
+**Full Changelog:** [`2024.10.15.0...2024.10.16.0`](https://github.com/juspay/hyperswitch/compare/2024.10.15.0...2024.10.16.0)
+
+- - -
+
 ## 2024.10.15.0
 
 ### Features
