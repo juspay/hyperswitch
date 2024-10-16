@@ -3763,12 +3763,7 @@ pub async fn apply_filters_on_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let total_count = if constraints.connector.is_none()
-        && constraints.payment_method.is_none()
-        && constraints.payment_method_type.is_none()
-        && constraints.authentication_type.is_none()
-        && constraints.merchant_connector_id.is_none()
-    {
+    let total_count = if !constraints.has_no_attempt_filters() {
         i64::try_from(active_attempt_ids.len())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while converting from usize to i64")
