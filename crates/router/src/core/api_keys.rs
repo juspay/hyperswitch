@@ -460,7 +460,7 @@ pub async fn revoke_api_key(
 
     #[cfg(feature = "email")]
     {
-        let task_id = generate_task_id_for_api_key_expiry_workflow(&key_id);
+        let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
         // In order to determine how to update the existing process in the process_tracker table,
         // we need access to the current entry in the table.
         let existing_process_tracker_task = store
