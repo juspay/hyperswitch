@@ -205,7 +205,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 resp.request.setup_future_usage,
                 Some(enums::FutureUsage::OffSession)
             );
-        let storage_scheme = merchant_account.clone().storage_scheme;
+        let storage_scheme = merchant_account.storage_scheme.clone();
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
             let tokenization::SavePaymentMethodDataResponse {
@@ -252,7 +252,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         } else {
                             Err(error)
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Error retrieving payment method from db")?
+                                .attach_printable("Error retrieving payment method from db")
+                                .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                                .ok()
                         }
                     }
                 }
@@ -264,7 +266,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .as_ref()
                 .map(Encode::encode_to_value)
                 .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error encoding the connector mandate details")
+                .map_err(|err| logger::error!(err=?err))
+                .ok()
+                .flatten();
             payment_data.set_mandate_id(api_models::payments::MandateIds {
                 mandate_id: None,
                 mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
@@ -1008,7 +1014,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .as_ref()
             .map(Encode::encode_to_value)
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error encoding the connector mandate details")
+            .map_err(|err| logger::error!(err=?err))
+            .ok()
+            .flatten();
         payment_data.set_mandate_id(api_models::payments::MandateIds {
             mandate_id: None,
             mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
@@ -2029,7 +2039,11 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
         .as_ref()
         .map(Encode::encode_to_value)
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error encoding the connector mandate details")
+        .map_err(|err| logger::error!(err=?err))
+        .ok()
+        .flatten();
 
     payment_data.set_mandate_id(api_models::payments::MandateIds {
         mandate_id: None,

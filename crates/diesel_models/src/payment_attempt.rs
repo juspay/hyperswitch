@@ -3178,7 +3178,6 @@ mod tests {
             "user_agent": "amet irure esse"
         }
     },
-    "mandate_type": {
         "single_use": {
             "amount": 6540,
             "currency": "USD"

@@ -223,6 +223,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub id: String,
+    pub connector_mandate_detail: Option<serde_json::Value>,
 }
 
 impl PaymentAttempt {
@@ -1631,6 +1632,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
