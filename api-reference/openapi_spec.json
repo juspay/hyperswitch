@@ -16222,6 +16222,10 @@
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
+          },
+          "connector_mandate_details": {
+            "description": "Connector mandate details",
+            "nullable": true
           }
         }
       },
