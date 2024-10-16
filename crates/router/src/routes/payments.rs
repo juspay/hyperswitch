@@ -1001,12 +1001,17 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(
-                state,
-                auth.merchant_account,
-                None,
-                auth.key_store,
-                req,
+            common_utils::metrics::utils::record_operation_time(
+                payments::apply_filters_on_payments(
+                    state,
+                    auth.merchant_account,
+                    None,
+                    auth.key_store,
+                    req,
+                ),
+                &super::metrics::PAYMENT_LIST_LATENCY,
+                &super::metrics::CONTEXT,
+                &[],
             )
         },
         &auth::JWTAuth {
@@ -1033,12 +1038,17 @@ pub async fn profile_payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(
-                state,
-                auth.merchant_account,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
-                auth.key_store,
-                req,
+            common_utils::metrics::utils::record_operation_time(
+                payments::apply_filters_on_payments(
+                    state,
+                    auth.merchant_account,
+                    auth.profile_id.map(|profile_id| vec![profile_id]),
+                    auth.key_store,
+                    req,
+                ),
+                &super::metrics::PAYMENT_LIST_LATENCY,
+                &super::metrics::CONTEXT,
+                &[],
             )
         },
         &auth::JWTAuth {
