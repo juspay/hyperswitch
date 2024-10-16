@@ -396,18 +396,21 @@ pub async fn generate_sample_data(
             disputes_count += 1;
             Some(DisputeNew {
                 dispute_id: common_utils::generate_id_with_default_len("test"),
-                // TODO: need to randomize the dispute
-                amount: 100.to_string(),
-                currency: "USD".to_string(),
+                // TODO(done): need to randomize the dispute
+                amount: (amount * 100).to_string(),
+                currency: payment_intent
+                    .currency
+                    .unwrap_or(common_enums::Currency::USD)
+                    .to_string(),
                 dispute_stage: storage_enums::DisputeStage::PreArbitration,
                 dispute_status: storage_enums::DisputeStatus::DisputeOpened,
                 payment_id: payment_id.clone(),
                 attempt_id: attempt_id.clone(),
                 merchant_id: merchant_id.clone(),
-                connector_status: "open".to_string(),
+                connector_status: "Sample connector status".into(),
                 connector_dispute_id: common_utils::generate_id_with_default_len("test"),
-                connector_reason: None,
-                connector_reason_code: None,
+                connector_reason: Some("Sample Dispute".into()),
+                connector_reason_code: Some("123".into()),
                 challenge_required_by: None,
                 connector_created_at: None,
                 connector_updated_at: None,
