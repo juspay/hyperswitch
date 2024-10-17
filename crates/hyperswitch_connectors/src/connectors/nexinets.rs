@@ -1,34 +1,3 @@
-// pub mod transformers;
-
-// use std::fmt::Debug;
-
-// use common_utils::request::RequestContent;
-// use error_stack::{report, ResultExt};
-// use transformers as nexinets;
-
-// use crate::{
-//     configs::settings,
-//     connector::{
-//         utils as connector_utils,
-//         utils::{to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData},
-//     },
-//     core::errors::{self, CustomResult},
-//     events::connector_api_logs::ConnectorEvent,
-//     headers,
-//     services::{
-//         self,
-//         request::{self, Mask},
-//         ConnectorIntegration, ConnectorValidation,
-//     },
-//     types::{
-//         self,
-//         api::{self, ConnectorCommon, ConnectorCommonExt},
-//         storage::enums,
-//         ErrorResponse, Response,
-//     },
-//     utils::BytesExt,
-// };
-
 pub mod transformers;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
@@ -37,7 +6,6 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    // types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -73,7 +41,6 @@ use hyperswitch_interfaces::{
 use masking::Mask;
 use transformers as nexinets;
 
-// use self::bitpay::BitpayWebhookDetails;
 use crate::{
     constants::headers,
     types::ResponseRouterData,

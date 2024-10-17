@@ -237,7 +237,6 @@ pub enum NexinetsPaymentStatus {
     Aborted,
 }
 
-// impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for AttemptStatus {
 fn get_status(status: NexinetsPaymentStatus, method: NexinetsTransactionType) -> AttemptStatus {
     match status {
         NexinetsPaymentStatus::Success => match method {
