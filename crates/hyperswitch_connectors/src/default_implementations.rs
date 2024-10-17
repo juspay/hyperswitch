@@ -215,6 +215,7 @@ macro_rules! default_imp_for_post_session_tokens {
 default_imp_for_post_session_tokens!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Billwerk,
     connectors::Cashtocode,
     connectors::Coinbase,
     connectors::Cryptopay,

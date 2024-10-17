@@ -3064,7 +3064,6 @@ default_imp_for_post_session_tokens!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
