@@ -4093,6 +4093,10 @@ pub struct PaymentsResponse {
     #[schema(value_type = i64, example = 6540)]
     pub net_amount: MinorUnit,
 
+    /// The shipping cost for the payment.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub shipping_cost: Option<MinorUnit>,
+
     /// The maximum amount that could be captured from the payment
     #[schema(value_type = i64, minimum = 100, example = 6540)]
     pub amount_capturable: MinorUnit,
