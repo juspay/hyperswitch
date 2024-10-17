@@ -1601,7 +1601,6 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1613,7 +1612,6 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
-                profile_id_list,
                 storage_scheme,
             )
             .await
@@ -3240,6 +3238,26 @@ impl BatchSampleDataInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        batch: Vec<diesel_models::DisputeNew>,
+    ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
+    {
+        let disputes_list = self
+            .diesel_store
+            .insert_disputes_batch_for_sample_data(batch)
+            .await?;
+
+        for dispute in disputes_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_dispute(dispute, None, self.tenant_id.clone())
+                .await;
+        }
+        Ok(disputes_list)
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
         state: &KeyManagerState,
@@ -3305,6 +3323,27 @@ impl BatchSampleDataInterface for KafkaStore {
         }
 
         Ok(refunds_list)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
+    {
+        let disputes_list = self
+            .diesel_store
+            .delete_disputes_for_sample_data(merchant_id)
+            .await?;
+
+        for dispute in disputes_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_dispute_delete(dispute, self.tenant_id.clone())
+                .await;
+        }
+
+        Ok(disputes_list)
     }
 }
 

@@ -45,28 +45,20 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                 )?,
             },
             android_package_name: match item.request.client_platform {
-                api_models::enums::ClientPlatform::Android => {
-                    Some(item.request.android_package_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "android_package_name",
-                        },
-                    )?)
+                Some(api_models::enums::ClientPlatform::Android) => {
+                    item.request.android_package_name.clone()
                 }
-                api_models::enums::ClientPlatform::Ios
-                | api_models::enums::ClientPlatform::Web
-                | api_models::enums::ClientPlatform::Unknown => None,
+                Some(api_models::enums::ClientPlatform::Ios)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
             redirect_uri: match item.request.client_platform {
-                api_models::enums::ClientPlatform::Ios => {
-                    Some(item.request.redirect_uri.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "redirect_uri",
-                        },
-                    )?)
-                }
-                api_models::enums::ClientPlatform::Android
-                | api_models::enums::ClientPlatform::Web
-                | api_models::enums::ClientPlatform::Unknown => None,
+                Some(api_models::enums::ClientPlatform::Ios) => item.request.redirect_uri.clone(),
+                Some(api_models::enums::ClientPlatform::Android)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
         })
     }

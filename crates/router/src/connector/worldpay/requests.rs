@@ -21,7 +21,7 @@ pub struct Merchant {
     pub payment_facilitator: Option<PaymentFacilitator>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instruction {
     pub settlement: Option<AutoSettlement>,

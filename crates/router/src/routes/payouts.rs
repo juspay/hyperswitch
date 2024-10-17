@@ -42,7 +42,7 @@ pub async fn payouts_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_create_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -71,7 +71,7 @@ pub async fn payouts_retrieve(
         state,
         &req,
         payout_retrieve_request,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_retrieve_core(
                 state,
                 auth.merchant_account,
@@ -111,7 +111,7 @@ pub async fn payouts_update(
         state,
         &req,
         payout_update_payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_update_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -172,7 +172,7 @@ pub async fn payouts_cancel(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_cancel_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -198,7 +198,7 @@ pub async fn payouts_fulfill(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -224,7 +224,7 @@ pub async fn payouts_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_list_core(
                 state,
                 auth.merchant_account,
@@ -264,7 +264,7 @@ pub async fn payouts_list_profile(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_list_core(
                 state,
                 auth.merchant_account,
@@ -304,7 +304,7 @@ pub async fn payouts_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_filtered_list_core(
                 state,
                 auth.merchant_account,
@@ -344,7 +344,7 @@ pub async fn payouts_list_by_filter_profile(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_filtered_list_core(
                 state,
                 auth.merchant_account,
@@ -384,7 +384,7 @@ pub async fn payouts_list_available_filters_for_merchant(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_list_available_filters_core(state, auth.merchant_account, None, req, &locale)
         },
         auth::auth_type(
@@ -417,7 +417,7 @@ pub async fn payouts_list_available_filters_for_profile(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payouts_list_available_filters_core(
                 state,
                 auth.merchant_account,
