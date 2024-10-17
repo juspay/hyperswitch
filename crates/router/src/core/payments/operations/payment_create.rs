@@ -168,7 +168,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type,
@@ -176,7 +176,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_key_store,
             None,
             None,
-        )
+        ))
         .await?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
@@ -1212,6 +1212,7 @@ impl PaymentCreate {
                 profile_id,
                 shipping_cost: request.shipping_cost,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             additional_pm_data,
         ))

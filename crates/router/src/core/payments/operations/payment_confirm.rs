@@ -540,7 +540,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let mandate_details_fut = tokio::spawn(
             async move {
-                helpers::get_token_pm_type_mandate_details(
+                Box::pin(helpers::get_token_pm_type_mandate_details(
                     &m_state,
                     &m_request,
                     m_mandate_type,
@@ -548,7 +548,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &m_key_store,
                     None,
                     payment_intent_customer_id.as_ref(),
-                )
+                ))
                 .await
             }
             .in_current_span(),
@@ -612,7 +612,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } else {
             (None, payment_method_info)
         };
-
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);

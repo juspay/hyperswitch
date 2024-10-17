@@ -150,7 +150,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type.to_owned(),
@@ -158,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             key_store,
             None,
             payment_intent.customer_id.as_ref(),
-        )
+        ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
 

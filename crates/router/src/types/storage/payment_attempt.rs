@@ -220,6 +220,7 @@ mod tests {
             organization_id: Default::default(),
             shipping_cost: Default::default(),
             order_tax_amount: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
 
         let store = state
@@ -308,6 +309,7 @@ mod tests {
             organization_id: Default::default(),
             shipping_cost: Default::default(),
             order_tax_amount: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores
@@ -409,6 +411,7 @@ mod tests {
             organization_id: Default::default(),
             shipping_cost: Default::default(),
             order_tax_amount: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores
