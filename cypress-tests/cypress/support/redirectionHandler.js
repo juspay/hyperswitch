@@ -395,6 +395,19 @@ function upiRedirection(
 }
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
+  const urlParams = new URLSearchParams(redirection_url.search);
+  const paymentStatus = urlParams.get('status');
+
+  if (!paymentStatus) {
+    console.error(`Error: Payment status is undefined. This might indicate a 4xx or 5xx error.`);
+    cy.screenshot('redirection-error');
+    throw new Error(`Payment status is undefined. There may have been a client or server error (4xx/5xx). Check network logs or UI.`);
+  }
+  if (paymentStatus !== 'succeeded' && paymentStatus !== 'processing' && paymentStatus !== 'partially_captured') {
+    throw new Error(`Payment failed after redirection with status: ${paymentStatus}`);
+  }
+  
+  // Proceed with normal redirection validation
   if (forward_flow) {
     // Handling redirection
     if (redirection_url.host.endsWith(expected_url.host)) {
@@ -412,6 +425,9 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
     }
   }
 }
+
+
+
 
 async function fetchAndParseQRCode(url) {
   const response = await fetch(url, { encoding: "binary" });
