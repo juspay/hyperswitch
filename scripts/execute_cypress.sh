@@ -9,8 +9,8 @@ tmp_file=""
 # Read service arrays from environment variables
 read -r -a payments <<< "${PAYMENTS_CONNECTORS[@]:-}"
 read -r -a payouts <<< "${PAYOUTS_CONNECTORS[@]:-}"
-read -r payment_method_list <<< "${PAYMENT_METHOD_LIST:-}"
-read -r routing <<< "${ROUTING:-}"
+read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]:-}"
+read -r -a routing <<< "${ROUTING[@]:-}"
 
 # Define arrays
 connector_map=()
