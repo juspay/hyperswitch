@@ -540,7 +540,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let mandate_details_fut = tokio::spawn(
             async move {
-                helpers::get_token_pm_type_mandate_details(
+                Box::pin(helpers::get_token_pm_type_mandate_details(
                     &m_state,
                     &m_request,
                     m_mandate_type,
@@ -548,7 +548,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &m_key_store,
                     None,
                     payment_intent_customer_id.as_ref(),
-                )
+                ))
                 .await
             }
             .in_current_span(),
