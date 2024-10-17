@@ -4579,7 +4579,7 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    // success_based_routing_for_connectors
+    // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let connectors = {
         business_profile

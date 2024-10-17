@@ -266,7 +266,7 @@ pub async fn routing_update_default_config_for_profile() {}
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
-        ("status" = bool, Query, description = "Boolean value for mentioning the expected state of dynamic routing"),
+        ("enable" = SuccessBasedRoutingFeatures, Query, description = "Feature to enable for success based routing"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
@@ -281,30 +281,3 @@ pub async fn routing_update_default_config_for_profile() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn toggle_success_based_routing() {}
-
-#[cfg(feature = "v1")]
-/// Routing - Update config for success based dynamic routing
-///
-/// Update config for success based dynamic routing
-#[utoipa::path(
-    patch,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id",
-    request_body = SuccessBasedRoutingConfig,
-    params(
-        ("account_id" = String, Path, description = "Merchant id"),
-        ("profile_id" = String, Path, description = "The unique identifier for a profile"),
-        ("algorithm_id" = String, Path, description = "The unique identifier for routing algorithm"),
-    ),
-    responses(
-        (status = 200, description = "Routing Algorithm updated", body = RoutingDictionaryRecord),
-        (status = 400, description = "Request body is malformed"),
-        (status = 500, description = "Internal server error"),
-        (status = 404, description = "Resource missing"),
-        (status = 422, description = "Unprocessable request"),
-        (status = 403, description = "Forbidden"),
-    ),
-   tag = "Routing",
-   operation_id = "Update configs for success based dynamic routing algorithm",
-   security(("admin_api_key" = []))
-)]
-pub async fn success_based_routing_update_configs() {}

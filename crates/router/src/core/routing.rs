@@ -1226,7 +1226,7 @@ pub async fn toggle_success_based_routing(
                     Some(algorithm_id) => {
                         // algorithm is already present in profile
                         if algo_with_timestamp.enabled_feature == feature_to_enable {
-                            // algortihm already has the required feature
+                            // algorithm already has the required feature
                             Err(errors::ApiErrorResponse::PreconditionFailed {
                                 message: "Success based routing is already enabled".to_string(),
                             })?
