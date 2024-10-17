@@ -49,7 +49,6 @@ pub mod wellsfargo;
 pub mod wellsfargopayout;
 pub mod wise;
 pub mod worldpay;
-pub mod zen;
 pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
@@ -61,7 +60,7 @@ pub use hyperswitch_connectors::connectors::{
     nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet,
     payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz, powertranz::Powertranz, square,
     square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
-    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline,
+    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, zen, zen::Zen,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -77,5 +76,5 @@ pub use self::{
     payone::Payone, paypal::Paypal, placetopay::Placetopay, plaid::Plaid, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
     stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargo::Wellsfargo,
-    wellsfargopayout::Wellsfargopayout, wise::Wise, worldpay::Worldpay, zen::Zen, zsl::Zsl,
+    wellsfargopayout::Wellsfargopayout, wise::Wise, worldpay::Worldpay, zsl::Zsl,
 };

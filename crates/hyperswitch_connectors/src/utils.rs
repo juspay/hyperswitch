@@ -47,6 +47,15 @@ pub(crate) fn construct_not_supported_error_report(
     .into()
 }
 
+pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
 pub(crate) fn get_amount_as_string(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
@@ -195,6 +204,16 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     }
 }
 
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
 pub trait RouterData {
     fn get_billing(&self) -> Result<&Address, Error>;

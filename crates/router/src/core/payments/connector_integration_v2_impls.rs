@@ -718,7 +718,6 @@ default_imp_for_new_connector_integration_payment!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -786,7 +785,6 @@ default_imp_for_new_connector_integration_refund!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -849,7 +847,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -934,7 +931,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1001,7 +997,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1052,7 +1047,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1130,7 +1124,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1288,7 +1281,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1358,7 +1350,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1428,7 +1419,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1498,7 +1488,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1568,7 +1557,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1638,7 +1626,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1708,7 +1695,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1778,7 +1764,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -1846,7 +1831,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -2004,7 +1988,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -2074,7 +2057,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -2144,7 +2126,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -2214,7 +2195,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -2284,7 +2264,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );
@@ -2351,7 +2330,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Wellsfargo,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Plaid
 );

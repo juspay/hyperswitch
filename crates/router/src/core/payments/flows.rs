@@ -237,7 +237,6 @@ default_imp_for_complete_authorize!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 macro_rules! default_imp_for_webhook_source_verification {
@@ -314,7 +313,6 @@ default_imp_for_webhook_source_verification!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -392,7 +390,6 @@ default_imp_for_create_customer!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -629,7 +626,6 @@ default_imp_for_accept_dispute!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -728,7 +724,6 @@ default_imp_for_file_upload!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -805,7 +800,6 @@ default_imp_for_submit_evidence!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -883,7 +877,6 @@ default_imp_for_defend_dispute!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -967,7 +960,6 @@ default_imp_for_pre_processing_steps!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1030,7 +1022,6 @@ default_imp_for_post_processing_steps!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl,
     connector::Razorpay
 );
@@ -1190,7 +1181,6 @@ default_imp_for_payouts_create!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1270,7 +1260,6 @@ default_imp_for_payouts_retrieve!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1351,7 +1340,6 @@ default_imp_for_payouts_eligibility!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1424,7 +1412,6 @@ default_imp_for_payouts_fulfill!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1501,7 +1488,6 @@ default_imp_for_payouts_cancel!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1580,7 +1566,6 @@ default_imp_for_payouts_quote!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1658,7 +1643,6 @@ default_imp_for_payouts_recipient!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1741,7 +1725,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1821,7 +1804,6 @@ default_imp_for_approve!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -1901,7 +1883,6 @@ default_imp_for_reject!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2070,7 +2051,6 @@ default_imp_for_frm_sale!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2150,7 +2130,6 @@ default_imp_for_frm_checkout!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2230,7 +2209,6 @@ default_imp_for_frm_transaction!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2310,7 +2288,6 @@ default_imp_for_frm_fulfillment!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2390,7 +2367,6 @@ default_imp_for_frm_record_return!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2468,7 +2444,6 @@ default_imp_for_incremental_authorization!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2542,7 +2517,6 @@ default_imp_for_revoking_mandates!(
     connector::Trustpay,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2781,7 +2755,6 @@ default_imp_for_authorize_session_token!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2859,7 +2832,6 @@ default_imp_for_calculate_tax!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2937,6 +2909,5 @@ default_imp_for_session_update!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
