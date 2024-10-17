@@ -67,7 +67,11 @@ impl ExtractedPayload {
         let key_id = headers
             .get(HEADER_KEY_ID)
             .and_then(|value| value.to_str().ok())
-            .and_then(|key_id| ApiKeyId::try_from(Cow::from(key_id.to_string())).ok());
+            .map(|key_id| ApiKeyId::try_from(Cow::from(key_id.to_string())))
+            .transpose()
+            .change_context(ApiErrorResponse::InvalidRequestData {
+                message: format!("`{}` header is invalid or not present", HEADER_KEY_ID),
+            })?;
 
         Ok(Self {
             payload_type: auth_type,
