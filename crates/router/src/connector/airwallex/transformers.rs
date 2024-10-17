@@ -1,3 +1,4 @@
+use common_utils::types::{FloatMajorUnit, MinorUnit, StringMajorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
@@ -36,58 +37,44 @@ impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: String,
+    amount: StringMajorUnit,
     currency: enums::Currency,
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
 }
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsPreProcessingRouterData>>
+    for AirwallexIntentRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsPreProcessingRouterData>,
+    ) -> Result<Self, Self::Error> {
         // amount and currency will always be Some since PaymentsPreProcessingData is constructed using PaymentsAuthorizeData
-        let amount = item
-            .request
-            .amount
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?;
-        let currency =
-            item.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let currency = item.router_data.request.currency.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            },
+        )?;
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: utils::to_currency_base_unit(amount, currency)?,
+            amount: item.amount.clone(),
             currency,
-            merchant_order_id: item.connector_request_reference_id.clone(),
+            merchant_order_id: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
-
 #[derive(Debug, Serialize)]
 pub struct AirwallexRouterData<T> {
-    pub amount: String,
-    pub router_data: T,
+    amount: StringMajorUnit,
+    router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AirwallexRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for AirwallexRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data,
-        })
+            router_data: item,
+        }
     }
 }
 
@@ -345,18 +332,19 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
 pub struct AirwallexPaymentsCaptureRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsCaptureRouterData>>
+    for AirwallexPaymentsCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(utils::to_currency_base_unit(
-                item.request.amount_to_capture,
-                item.request.currency,
-            )?),
+            amount: Some(item.amount.clone()),
         })
     }
 }
@@ -448,7 +436,7 @@ pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
-    amount: Option<f32>,
+    amount: Option<FloatMajorUnit>,
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
@@ -459,7 +447,7 @@ pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
-    amount: Option<f32>,
+    amount: Option<FloatMajorUnit>,
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
@@ -630,7 +618,7 @@ impl
 pub struct AirwallexRefundRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
     reason: Option<String>,
     //Identifier for the PaymentIntent for which Refund is requested
     payment_intent_id: String,
@@ -676,7 +664,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     //A unique number that tags a credit or debit card transaction when it goes from the merchant's bank through to the cardholder's bank.
     acquirer_reference_number: Option<String>,
-    amount: f32,
+    amount: FloatMajorUnit,
     //Unique identifier for the Refund
     id: String,
     status: RefundStatus,
@@ -826,7 +814,7 @@ pub struct AirwallexObjectData {
 #[derive(Debug, Deserialize)]
 pub struct AirwallexDisputeObject {
     pub payment_intent_id: String,
-    pub dispute_amount: i64,
+    pub dispute_amount: MinorUnit,
     pub dispute_currency: String,
     pub stage: AirwallexDisputeStage,
     pub dispute_id: String,
