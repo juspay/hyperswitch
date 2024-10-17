@@ -160,7 +160,6 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
-    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -209,6 +208,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Datatrans,
     Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
@@ -226,6 +226,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
@@ -403,25 +404,25 @@ pub enum AuthorizationStatus {
     Unresolved,
 }
 
-// #[derive(
-//     Clone,
-//     Debug,
-//     Eq,
-//     PartialEq,
-//     serde::Deserialize,
-//     serde::Serialize,
-//     strum::Display,
-//     strum::EnumString,
-//     ToSchema,
-//     Hash,
-// )]
-// #[router_derive::diesel_enum(storage_type = "text")]
-// #[serde(rename_all = "snake_case")]
-// #[strum(serialize_all = "snake_case")]
-// pub enum SessionUpdateStatus {
-//     Success,
-//     Failure,
-// }
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SessionUpdateStatus {
+    Success,
+    Failure,
+}
 
 #[derive(
     Clone,
@@ -1508,6 +1509,16 @@ pub enum PaymentExperience {
     DisplayWaitScreen,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
+#[serde(rename_all = "lowercase")]
+pub enum SamsungPayCardBrand {
+    Visa,
+    MasterCard,
+    Amex,
+    Discover,
+    Unknown,
+}
+
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,
@@ -1592,6 +1603,7 @@ pub enum PaymentMethodType {
     OpenBankingUk,
     PayBright,
     Paypal,
+    Paze,
     Pix,
     PaySafeCard,
     Przelewy24,

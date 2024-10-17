@@ -6,8 +6,8 @@ use api_models::analytics::{
         MetricsBucketResponse, PaymentDimensions, PaymentDistributions, PaymentMetrics,
         PaymentMetricsBucketIdentifier,
     },
-    AnalyticsMetadata, FilterValue, GetPaymentFiltersRequest, GetPaymentMetricRequest,
-    MetricsResponse, PaymentFiltersResponse,
+    FilterValue, GetPaymentFiltersRequest, GetPaymentMetricRequest, PaymentFiltersResponse,
+    PaymentsAnalyticsMetadata, PaymentsMetricsResponse,
 };
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
@@ -48,7 +48,7 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: GetPaymentMetricRequest,
-) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
+) -> AnalyticsResult<PaymentsMetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
         PaymentMetricsBucketIdentifier,
         PaymentMetricsAccumulator,
@@ -137,30 +137,45 @@ pub async fn get_metrics(
                     logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
                     let metrics_builder = metrics_accumulator.entry(id).or_default();
                     match metric {
-                        PaymentMetrics::PaymentSuccessRate => metrics_builder
+                        PaymentMetrics::PaymentSuccessRate
+                        | PaymentMetrics::SessionizedPaymentSuccessRate => metrics_builder
                             .payment_success_rate
                             .add_metrics_bucket(&value),
-                        PaymentMetrics::PaymentCount => {
+                        PaymentMetrics::PaymentCount | PaymentMetrics::SessionizedPaymentCount => {
                             metrics_builder.payment_count.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::PaymentSuccessCount => {
+                        PaymentMetrics::PaymentSuccessCount
+                        | PaymentMetrics::SessionizedPaymentSuccessCount => {
                             metrics_builder.payment_success.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::PaymentProcessedAmount => {
+                        PaymentMetrics::PaymentProcessedAmount
+                        | PaymentMetrics::SessionizedPaymentProcessedAmount => {
                             metrics_builder.processed_amount.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::AvgTicketSize => {
+                        PaymentMetrics::AvgTicketSize
+                        | PaymentMetrics::SessionizedAvgTicketSize => {
                             metrics_builder.avg_ticket_size.add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::RetriesCount => {
+                        PaymentMetrics::RetriesCount | PaymentMetrics::SessionizedRetriesCount => {
                             metrics_builder.retries_count.add_metrics_bucket(&value);
                             metrics_builder
                                 .retries_amount_processed
                                 .add_metrics_bucket(&value)
                         }
-                        PaymentMetrics::ConnectorSuccessRate => {
+                        PaymentMetrics::ConnectorSuccessRate
+                        | PaymentMetrics::SessionizedConnectorSuccessRate => {
                             metrics_builder
                                 .connector_success_rate
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::PaymentsDistribution => {
+                            metrics_builder
+                                .payments_distribution
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::FailureReasons => {
+                            metrics_builder
+                                .failure_reasons_distribution
                                 .add_metrics_bucket(&value);
                         }
                     }
@@ -203,19 +218,56 @@ pub async fn get_metrics(
             }
         }
     }
-
+    let mut total_payment_processed_amount = 0;
+    let mut total_payment_processed_count = 0;
+    let mut total_payment_processed_amount_without_smart_retries = 0;
+    let mut total_payment_processed_count_without_smart_retries = 0;
+    let mut total_failure_reasons_count = 0;
+    let mut total_failure_reasons_count_without_smart_retries = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
-        .map(|(id, val)| MetricsBucketResponse {
-            values: val.collect(),
-            dimensions: id,
+        .map(|(id, val)| {
+            let collected_values = val.collect();
+            if let Some(amount) = collected_values.payment_processed_amount {
+                total_payment_processed_amount += amount;
+            }
+            if let Some(count) = collected_values.payment_processed_count {
+                total_payment_processed_count += count;
+            }
+            if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
+                total_payment_processed_amount_without_smart_retries += amount;
+            }
+            if let Some(count) = collected_values.payment_processed_count_without_smart_retries {
+                total_payment_processed_count_without_smart_retries += count;
+            }
+            if let Some(count) = collected_values.failure_reason_count {
+                total_failure_reasons_count += count;
+            }
+            if let Some(count) = collected_values.failure_reason_count_without_smart_retries {
+                total_failure_reasons_count_without_smart_retries += count;
+            }
+            MetricsBucketResponse {
+                values: collected_values,
+                dimensions: id,
+            }
         })
         .collect();
 
-    Ok(MetricsResponse {
+    Ok(PaymentsMetricsResponse {
         query_data,
-        meta_data: [AnalyticsMetadata {
-            current_time_range: req.time_range,
+        meta_data: [PaymentsAnalyticsMetadata {
+            total_payment_processed_amount: Some(total_payment_processed_amount),
+            total_payment_processed_amount_without_smart_retries: Some(
+                total_payment_processed_amount_without_smart_retries,
+            ),
+            total_payment_processed_count: Some(total_payment_processed_count),
+            total_payment_processed_count_without_smart_retries: Some(
+                total_payment_processed_count_without_smart_retries,
+            ),
+            total_failure_reasons_count: Some(total_failure_reasons_count),
+            total_failure_reasons_count_without_smart_retries: Some(
+                total_failure_reasons_count_without_smart_retries,
+            ),
         }],
     })
 }
@@ -297,6 +349,10 @@ pub async fn get_filters(
             PaymentDimensions::ClientVersion => fil.client_version,
             PaymentDimensions::ProfileId => fil.profile_id,
             PaymentDimensions::CardNetwork => fil.card_network,
+            PaymentDimensions::MerchantId => fil.merchant_id,
+            PaymentDimensions::CardLast4 => fil.card_last_4,
+            PaymentDimensions::CardIssuer => fil.card_issuer,
+            PaymentDimensions::ErrorReason => fil.error_reason,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

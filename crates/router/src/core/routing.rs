@@ -1,10 +1,12 @@
 pub mod helpers;
 pub mod transformers;
+use std::collections::HashSet;
 
 use api_models::{
     enums, mandates as mandates_api, routing,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
+use async_trait::async_trait;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{mandates, payment_address};
@@ -17,22 +19,27 @@ use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
+use super::{
+    errors::RouterResult,
+    payments::{
+        routing::{self as payments_routing},
+        OperationSessionGetters,
+    },
+};
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
-use crate::{
-    core::{admin, errors::RouterResult},
-    db::StorageInterface,
-};
+use crate::{core::admin, utils::ValueExt};
 use crate::{
     core::{
-        errors::{self, RouterResponse, StorageErrorExt},
+        errors::{self, CustomResult, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
     },
+    db::StorageInterface,
     routes::SessionState,
     services::api as service_api,
     types::{
-        domain,
+        api, domain,
         storage::{self, enums as storage_enums},
         transformers::{ForeignInto, ForeignTryFrom},
     },
@@ -1382,4 +1389,142 @@ pub async fn success_based_routing_update_configs(
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
     Ok(service_api::ApplicationResponse::Json(new_record))
+}
+
+#[async_trait]
+pub trait GetRoutableConnectorsForChoice {
+    async fn get_routable_connectors(
+        &self,
+        db: &dyn StorageInterface,
+        business_profile: &domain::Profile,
+    ) -> RouterResult<RoutableConnectors>;
+}
+
+pub struct StraightThroughAlgorithmTypeSingle(pub serde_json::Value);
+
+#[async_trait]
+impl GetRoutableConnectorsForChoice for StraightThroughAlgorithmTypeSingle {
+    async fn get_routable_connectors(
+        &self,
+        _db: &dyn StorageInterface,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<RoutableConnectors> {
+        let straight_through_routing_algorithm = self
+            .0
+            .clone()
+            .parse_value::<api::routing::StraightThroughAlgorithm>("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse the straight through routing algorithm")?;
+        let routable_connector = match straight_through_routing_algorithm {
+            api::routing::StraightThroughAlgorithm::Single(connector) => {
+                vec![*connector]
+            }
+
+            api::routing::StraightThroughAlgorithm::Priority(_)
+            | api::routing::StraightThroughAlgorithm::VolumeSplit(_) => {
+                Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Unsupported algorithm received as a result of static routing",
+                    )?
+            }
+        };
+        Ok(RoutableConnectors(routable_connector))
+    }
+}
+
+pub struct DecideConnector;
+
+#[async_trait]
+impl GetRoutableConnectorsForChoice for DecideConnector {
+    async fn get_routable_connectors(
+        &self,
+        db: &dyn StorageInterface,
+        business_profile: &domain::Profile,
+    ) -> RouterResult<RoutableConnectors> {
+        let fallback_config = helpers::get_merchant_default_config(
+            db,
+            business_profile.get_id().get_string_repr(),
+            &common_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        Ok(RoutableConnectors(fallback_config))
+    }
+}
+
+pub struct RoutableConnectors(Vec<routing_types::RoutableConnectorChoice>);
+
+impl RoutableConnectors {
+    pub fn filter_network_transaction_id_flow_supported_connectors(
+        self,
+        nit_connectors: HashSet<String>,
+    ) -> Self {
+        let connectors = self
+            .0
+            .into_iter()
+            .filter(|routable_connector_choice| {
+                nit_connectors.contains(&routable_connector_choice.connector.to_string())
+            })
+            .collect();
+        Self(connectors)
+    }
+
+    pub async fn construct_dsl_and_perform_eligibility_analysis<F, D>(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &D,
+
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> RouterResult<Vec<api::ConnectorData>>
+    where
+        F: Send + Clone,
+        D: OperationSessionGetters<F>,
+    {
+        let payments_dsl_input = PaymentsDslInput::new(
+            payment_data.get_setup_mandate(),
+            payment_data.get_payment_attempt(),
+            payment_data.get_payment_intent(),
+            payment_data.get_payment_method_data(),
+            payment_data.get_address(),
+            payment_data.get_recurring_details(),
+            payment_data.get_currency(),
+        );
+
+        let routable_connector_choice = self.0.clone();
+
+        let backend_input = payments_routing::make_dsl_input(&payments_dsl_input)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct dsl input")?;
+
+        let connectors = payments_routing::perform_cgraph_filtering(
+            state,
+            key_store,
+            routable_connector_choice,
+            backend_input,
+            None,
+            profile_id,
+            &common_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Eligibility analysis failed for routable connectors")?;
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    conn.merchant_connector_id.clone(),
+                )
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        Ok(connector_data)
+    }
 }

@@ -125,7 +125,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type.to_owned(),
@@ -133,7 +133,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             key_store,
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
-        )
+        ))
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> = request
             .customer_acceptance
@@ -344,6 +344,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let customer_details = Some(CustomerDetails {

@@ -232,7 +232,7 @@ pub fn make_dsl_input(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payments_dsl_input.payment_intent.amount,
+        amount: payments_dsl_input.payment_attempt.get_total_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => {
@@ -397,6 +397,20 @@ pub fn perform_straight_through_routing(
                 )?,
             true,
         ),
+    })
+}
+
+pub fn perform_routing_for_single_straight_through_algorithm(
+    algorithm: &routing_types::StraightThroughAlgorithm,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    Ok(match algorithm {
+        routing_types::StraightThroughAlgorithm::Single(connector) => vec![(**connector).clone()],
+
+        routing_types::StraightThroughAlgorithm::Priority(_)
+        | routing_types::StraightThroughAlgorithm::VolumeSplit(_) => {
+            Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
+                .attach_printable("Unsupported algorithm received as a result of static routing")?
+        }
     })
 }
 
@@ -646,7 +660,7 @@ pub async fn refresh_cgraph_cache<'a>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_cgraph_filtering(
+pub async fn perform_cgraph_filtering(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
@@ -864,7 +878,7 @@ pub async fn perform_session_flow_routing(
 
     #[cfg(feature = "v1")]
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
+        amount: session_input.payment_attempt.get_total_amount(),
         currency: session_input
             .payment_intent
             .currency
@@ -1159,7 +1173,7 @@ pub fn make_dsl_input_for_surcharge(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount,
+        amount: payment_attempt.get_total_amount(),
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency

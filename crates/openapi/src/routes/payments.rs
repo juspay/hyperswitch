@@ -381,12 +381,31 @@ pub fn payments_confirm() {}
 )]
 pub fn payments_capture() {}
 
+#[cfg(feature = "v1")]
+/// Payments - Session token
+///
+/// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
+#[utoipa::path(
+  post,
+  path = "/payments/session_tokens",
+  request_body=PaymentsSessionRequest,
+  responses(
+      (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
+      (status = 400, description = "Missing mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Create Session tokens for a Payment",
+  security(("publishable_key" = []))
+)]
+pub fn payments_connector_session() {}
+
+#[cfg(feature = "v2")]
 /// Payments - Session token
 ///
 /// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
 #[utoipa::path(
     post,
-    path = "/payments/session_tokens",
+    path = "/v2/payments/{payment_id}/create_external_sdk_tokens",
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
@@ -563,6 +582,24 @@ pub fn payments_complete_authorize() {}
 )]
 
 pub fn payments_dynamic_tax_calculation() {}
+
+/// Payments - Post Session Tokens
+///
+///
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/post_session_tokens",
+    request_body=PaymentsPostSessionTokensRequest,
+    responses(
+        (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Post Session Tokens for a Payment",
+    security(("publishable_key" = []))
+)]
+
+pub fn payments_post_session_tokens() {}
 
 /// Payments - Create Intent
 ///

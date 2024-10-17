@@ -307,6 +307,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::OpenBankingPIS => {
                 Ok(dirval!(OpenBankingType = OpenBankingPIS))
             }
+            api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
         }
     }
 }

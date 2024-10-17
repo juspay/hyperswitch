@@ -131,6 +131,7 @@ impl_api_event_type!(
         GetDisputeFilterRequest,
         DisputeFiltersResponse,
         GetDisputeMetricRequest,
+        SankeyResponse,
         OrganizationResponse,
         OrganizationCreateRequest,
         OrganizationUpdateRequest,
@@ -150,6 +151,18 @@ impl_api_event_type!(
 );
 
 impl<T> ApiEventMetric for MetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+impl<T> ApiEventMetric for PaymentsMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+impl<T> ApiEventMetric for PaymentIntentsMetricsResponse<T> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
     }

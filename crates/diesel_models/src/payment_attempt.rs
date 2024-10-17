@@ -150,19 +150,6 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
 }
 
-#[cfg(feature = "v1")]
-impl PaymentAttempt {
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount.unwrap_or(
-            self.amount
-                + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-                + self.tax_amount.unwrap_or(MinorUnit::new(0))
-                + self.shipping_cost.unwrap_or(MinorUnit::new(0))
-                + self.order_tax_amount.unwrap_or(MinorUnit::new(0)),
-        )
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,
@@ -296,47 +283,6 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v1")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount (surcharge) + shipping_cost + order_tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-            + self.tax_amount.unwrap_or(MinorUnit::new(0))
-            + self.shipping_cost.unwrap_or(MinorUnit::new(0))
-    }
-
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -528,6 +474,10 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+    },
+    PostSessionTokensUpdate {
+        updated_by: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -3091,6 +3041,60 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 browser_info: None,
                 payment_token: None,
                 connector_metadata: None,
+                payment_method_data: None,
+                payment_method_type: None,
+                payment_experience: None,
+                business_sub_label: None,
+                straight_through_algorithm: None,
+                preprocessing_step_id: None,
+                capture_method: None,
+                connector_response_reference_id: None,
+                multiple_capture_count: None,
+                surcharge_amount: None,
+                tax_amount: None,
+                amount_capturable: None,
+                merchant_connector_id: None,
+                authentication_data: None,
+                encoded_data: None,
+                external_three_ds_authentication_attempted: None,
+                authentication_connector: None,
+                authentication_id: None,
+                fingerprint_id: None,
+                payment_method_billing_address_id: None,
+                charge_id: None,
+                client_source: None,
+                client_version: None,
+                customer_acceptance: None,
+                card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
+            },
+            PaymentAttemptUpdate::PostSessionTokensUpdate {
+                updated_by,
+                connector_metadata,
+            } => Self {
+                status: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                error_message: None,
+                error_reason: None,
+                updated_by,
+                unified_code: None,
+                unified_message: None,
+                amount: None,
+                net_amount: None,
+                currency: None,
+                connector_transaction_id: None,
+                amount_to_capture: None,
+                connector: None,
+                authentication_type: None,
+                payment_method: None,
+                payment_method_id: None,
+                cancellation_reason: None,
+                mandate_id: None,
+                browser_info: None,
+                payment_token: None,
+                connector_metadata,
                 payment_method_data: None,
                 payment_method_type: None,
                 payment_experience: None,
