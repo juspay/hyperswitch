@@ -19,6 +19,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
     pub version: Option<enums::UserRoleVersion>,
+    pub limit: Option<u32>,
 }
 
 pub struct ListUserRolesByUserIdPayload<'a> {
@@ -193,6 +194,7 @@ impl UserRoleInterface for Store {
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
             payload.version,
+            payload.limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
