@@ -2,7 +2,7 @@ pub mod transformers;
 
 #[cfg(feature = "frm")]
 use base64::Engine;
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector,StringMajorUnit};
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 #[cfg(feature = "frm")]
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 #[cfg(feature = "frm")]
@@ -42,13 +42,12 @@ pub struct Riskified {
 }
 
 impl Riskified {
-
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
         }
     }
-    
+
     #[cfg(feature = "frm")]
     pub fn generate_authorization_signature(
         &self,
@@ -186,7 +185,11 @@ impl
         let amount = convert_amount(
             self.amount_converter,
             MinorUnit::new(req.request.amount),
-            req.request.currency.unwrap(),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
         )?;
         let req_data = riskified::RiskifiedRouterData::from((amount, req));
         let req_obj = riskified::RiskifiedPaymentsCheckoutRequest::try_from(&req_data)?;

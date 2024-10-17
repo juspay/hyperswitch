@@ -147,10 +147,13 @@ pub struct RiskifiedMetadata {
     shipping_lines: Vec<ShippingLines>,
 }
 
-impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>> for RiskifiedPaymentsCheckoutRequest {
+impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
+    for RiskifiedPaymentsCheckoutRequest
+{
     type Error = Error;
-    fn try_from(payment: &RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>) -> Result<Self, Self::Error> {
-        
+    fn try_from(
+        payment: &RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>,
+    ) -> Result<Self, Self::Error> {
         let payment_data = payment.router_data.clone();
         let metadata: RiskifiedMetadata = payment_data
             .frm_metadata
