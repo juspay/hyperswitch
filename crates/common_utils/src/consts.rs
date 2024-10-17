@@ -154,3 +154,7 @@ pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";
+
+/// The number of bytes allocated for the hashed connector transaction ID.
+/// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
+pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;

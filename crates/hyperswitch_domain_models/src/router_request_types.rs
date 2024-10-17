@@ -118,6 +118,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,

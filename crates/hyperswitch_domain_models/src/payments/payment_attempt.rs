@@ -6,7 +6,7 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        MinorUnit,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
 use diesel_models::{
@@ -1211,6 +1211,11 @@ impl behaviour::Conversion for PaymentAttempt {
             .and_then(|card| card.get("card_network"))
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
+        let (connector_transaction_id, connector_transaction_data) = self
+            .connector_transaction_id
+            .map(ConnectorTransactionId::form_id_and_data)
+            .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+            .unwrap_or((None, None));
         Ok(DieselPaymentAttempt {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
@@ -1226,7 +1231,7 @@ impl behaviour::Conversion for PaymentAttempt {
             tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
-            connector_transaction_id: self.connector_transaction_id,
+            connector_transaction_id,
             capture_method: self.capture_method,
             capture_on: self.capture_on,
             confirm: self.confirm,
@@ -1273,6 +1278,7 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
+            connector_transaction_data,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
         })
@@ -1288,6 +1294,9 @@ impl behaviour::Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
+            let connector_transaction_id = storage_model
+                .get_optional_connector_transaction_id()
+                .cloned();
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -1307,7 +1316,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 offer_amount: storage_model.offer_amount,
                 payment_method_id: storage_model.payment_method_id,
                 payment_method: storage_model.payment_method,
-                connector_transaction_id: storage_model.connector_transaction_id,
+                connector_transaction_id,
                 capture_method: storage_model.capture_method,
                 capture_on: storage_model.capture_on,
                 confirm: storage_model.confirm,
@@ -1510,6 +1519,11 @@ impl behaviour::Conversion for PaymentAttempt {
             connector,
         } = self;
 
+        let (connector_payment_id, connector_payment_data) = connector_payment_id
+            .map(ConnectorTransactionId::form_id_and_data)
+            .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+            .unwrap_or((None, None));
+
         Ok(DieselPaymentAttempt {
             payment_id,
             merchant_id,
@@ -1565,6 +1579,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_applied,
             external_reference_id,
             connector,
+            connector_payment_data,
         })
     }
 
@@ -1578,6 +1593,9 @@ impl behaviour::Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
+            let connector_payment_id = storage_model
+                .get_optional_connector_transaction_id()
+                .cloned();
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -1589,7 +1607,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 surcharge_amount: storage_model.surcharge_amount,
                 payment_method_id: storage_model.payment_method_id,
                 payment_method_type: storage_model.payment_method_type_v2,
-                connector_payment_id: storage_model.connector_payment_id,
+                connector_payment_id,
                 confirm: storage_model.confirm,
                 authentication_type: storage_model.authentication_type,
                 created_at: storage_model.created_at,

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, SessionUpdateStatus};
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{keymanager::KeyManagerState, MinorUnit},
+    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -1406,6 +1406,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         } => {
                             let connector_transaction_id = match pre_processing_id.to_owned() {
                                 types::PreprocessingResponseId::PreProcessingId(_) => None,
+
                                 types::PreprocessingResponseId::ConnectorTransactionId(
                                     connector_txn_id,
                                 ) => Some(connector_txn_id),
@@ -1452,8 +1453,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 );
                             let connector_transaction_id = match resource_id {
                                 types::ResponseId::NoResponseId => None,
-                                types::ResponseId::ConnectorTransactionId(id)
-                                | types::ResponseId::EncodedData(id) => Some(id),
+                                types::ResponseId::ConnectorTransactionId(ref id)
+                                | types::ResponseId::EncodedData(ref id) => Some(id),
                             };
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
@@ -1502,12 +1503,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .multiple_capture_data
                             {
                                 Some(multiple_capture_data) => {
+                                    let (connector_capture_id, connector_capture_data) =
+                                        match resource_id {
+                                            types::ResponseId::NoResponseId => (None, None),
+                                            types::ResponseId::ConnectorTransactionId(id)
+                                            | types::ResponseId::EncodedData(id) => {
+                                                let (txn_id, txn_data) =
+                                                    ConnectorTransactionId::form_id_and_data(id);
+                                                (Some(txn_id), txn_data)
+                                            }
+                                        };
                                     let capture_update = storage::CaptureUpdate::ResponseUpdate {
                                         status: enums::CaptureStatus::foreign_try_from(
                                             router_data.status,
                                         )?,
-                                        connector_capture_id: connector_transaction_id.clone(),
+                                        connector_capture_id: connector_capture_id.clone(),
                                         connector_response_reference_id,
+                                        connector_capture_data: connector_capture_data.clone(),
                                     };
                                     let capture_update_list = vec![(
                                         multiple_capture_data.get_latest_capture().clone(),
@@ -1525,7 +1537,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     Some(storage::PaymentAttemptUpdate::ResponseUpdate {
                                         status: updated_attempt_status,
                                         connector: None,
-                                        connector_transaction_id: connector_transaction_id.clone(),
+                                        connector_transaction_id: connector_transaction_id.cloned(),
                                         authentication_type: auth_update,
                                         amount_capturable: router_data
                                             .request
@@ -1878,7 +1890,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 &add_attributes([
                     (
                         "connector",
-                        payment_data.payment_attempt.connector.unwrap_or_default(),
+                        payment_data
+                            .payment_attempt
+                            .connector
+                            .clone()
+                            .unwrap_or_default(),
                     ),
                     (
                         "merchant_id",
@@ -1892,12 +1908,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             );
             Err(error_stack::Report::new(
                 errors::ApiErrorResponse::IntegrityCheckFailed {
+                    connector_transaction_id: payment_data
+                        .payment_attempt
+                        .get_connector_payment_id()
+                        .map(ToString::to_string),
                     reason: payment_data
                         .payment_attempt
                         .error_message
                         .unwrap_or_default(),
                     field_names: err.field_names,
-                    connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
                 },
             ))
         }
@@ -2021,7 +2040,7 @@ fn response_to_capture_update(
     let mut unmapped_captures = vec![];
     for (connector_capture_id, capture_sync_response) in response_list {
         let capture =
-            multiple_capture_data.get_capture_by_connector_capture_id(connector_capture_id);
+            multiple_capture_data.get_capture_by_connector_capture_id(&connector_capture_id);
         if let Some(capture) = capture {
             capture_update_list.push((
                 capture.clone(),
