@@ -1212,6 +1212,7 @@ impl PaymentCreate {
                 profile_id,
                 shipping_cost: request.shipping_cost,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             additional_pm_data,
         ))

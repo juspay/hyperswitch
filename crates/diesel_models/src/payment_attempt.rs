@@ -9,6 +9,16 @@ use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt;
 
+common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ConnectorMandateReferenceId {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
+}
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -72,6 +82,7 @@ pub struct PaymentAttempt {
     pub id: String,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -148,6 +159,7 @@ pub struct PaymentAttempt {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -224,6 +236,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -296,6 +309,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -451,6 +465,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -761,6 +776,7 @@ pub struct PaymentAttemptUpdateInternal {
     client_version: Option<String>,
     customer_acceptance: Option<pii::SecretSerdeValue>,
     card_network: Option<String>,
+    connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -816,6 +832,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1004,6 +1021,7 @@ impl PaymentAttemptUpdate {
             card_network,
             shipping_cost,
             order_tax_amount,
+            connector_mandate_detail,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1059,6 +1077,7 @@ impl PaymentAttemptUpdate {
             card_network: card_network.or(source.card_network),
             shipping_cost: shipping_cost.or(source.shipping_cost),
             order_tax_amount: order_tax_amount.or(source.order_tax_amount),
+            connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
             ..source
         }
     }
@@ -2053,6 +2072,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2107,6 +2127,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2191,6 +2212,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost,
                 order_tax_amount,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2246,6 +2268,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2302,6 +2325,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2358,6 +2382,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2412,6 +2437,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2434,6 +2460,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             } => Self {
                 status: Some(status),
                 connector: connector.map(Some),
@@ -2484,6 +2511,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 connector,
@@ -2548,6 +2576,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -2599,6 +2628,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -2659,6 +2689,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2720,6 +2751,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::PreprocessingUpdate {
                 status,
@@ -2779,6 +2811,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
@@ -2834,6 +2867,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -2889,6 +2923,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -2947,6 +2982,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
@@ -3001,6 +3037,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3058,6 +3095,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3118,6 +3156,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_mandate_detail: None,
             },
         }
     }
@@ -3203,7 +3242,6 @@ mod tests {
             "user_agent": "amet irure esse"
         }
     },
-    "mandate_type": {
         "single_use": {
             "amount": 6540,
             "currency": "USD"

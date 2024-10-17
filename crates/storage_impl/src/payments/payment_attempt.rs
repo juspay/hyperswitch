@@ -536,6 +536,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     profile_id: payment_attempt.profile_id.clone(),
                     shipping_cost: payment_attempt.shipping_cost,
                     order_tax_amount: payment_attempt.order_tax_amount,
+                    connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1446,6 +1447,7 @@ impl DataModelExt for PaymentAttempt {
             profile_id: self.profile_id,
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
+            connector_mandate_detail: self.connector_mandate_detail,
         }
     }
 
@@ -1517,6 +1519,7 @@ impl DataModelExt for PaymentAttempt {
             profile_id: storage_model.profile_id,
             shipping_cost: storage_model.shipping_cost,
             order_tax_amount: storage_model.order_tax_amount,
+            connector_mandate_detail: storage_model.connector_mandate_detail,
         }
     }
 }
@@ -1599,6 +1602,7 @@ impl DataModelExt for PaymentAttemptNew {
             profile_id: self.profile_id,
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
+            connector_mandate_detail: self.connector_mandate_detail,
         }
     }
 
@@ -1669,6 +1673,7 @@ impl DataModelExt for PaymentAttemptNew {
             profile_id: storage_model.profile_id,
             shipping_cost: storage_model.shipping_cost,
             order_tax_amount: storage_model.order_tax_amount,
+            connector_mandate_detail: storage_model.connector_mandate_detail,
         }
     }
 }
@@ -1857,6 +1862,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1878,6 +1884,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -2213,6 +2220,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -2234,6 +2242,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,

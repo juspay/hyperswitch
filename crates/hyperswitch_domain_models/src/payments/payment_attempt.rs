@@ -10,7 +10,8 @@ use common_utils::{
     },
 };
 use diesel_models::{
-    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+    ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
+    PaymentAttemptNew as DieselPaymentAttemptNew,
 };
 use error_stack::ResultExt;
 use masking::Secret;
@@ -222,6 +223,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub id: String,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 impl PaymentAttempt {
@@ -336,6 +338,7 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v2")]
@@ -492,6 +495,7 @@ pub struct PaymentAttemptNew {
     pub organization_id: id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v2")]
@@ -636,6 +640,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -815,6 +820,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 
@@ -892,6 +898,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 organization_id: storage_model.organization_id,
                 order_tax_amount: storage_model.order_tax_amount,
                 shipping_cost: storage_model.shipping_cost,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -973,6 +980,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }
@@ -1048,6 +1056,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost,
             order_tax_amount,
             connector,
+            connector_mandate_detail,
         } = self;
 
         Ok(DieselPaymentAttempt {
@@ -1105,6 +1114,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_applied,
             external_reference_id,
             connector,
+            connector_mandate_detail,
         })
     }
 
@@ -1173,6 +1183,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -1240,6 +1251,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
             amount_to_capture: self.amount_to_capture,
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }

@@ -456,6 +456,7 @@ where
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
+                connector_mandate_detail: None,
             };
 
             #[cfg(feature = "v1")]
@@ -647,6 +648,7 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         order_tax_amount: Default::default(),
+        connector_mandate_detail: Default::default(),
     }
 }
 

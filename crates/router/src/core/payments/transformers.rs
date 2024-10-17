@@ -1,8 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest,
-    PaymentChargeResponse, RequestSurchargeDetails,
+    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -11,7 +11,10 @@ use common_utils::{
     pii::Email,
     types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-use diesel_models::ephemeral_key;
+use diesel_models::{
+    ephemeral_key,
+    payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
@@ -2428,6 +2431,26 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
+        }
+    }
+}
+
+impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenceId {
+    fn foreign_from(value: DieselConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_id: value.payment_method_id,
+            update_history: None,
+            mandate_metadata: value.mandate_metadata,
+        }
+    }
+}
+impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenceId {
+    fn foreign_from(value: ConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_id: value.payment_method_id,
+            mandate_metadata: value.mandate_metadata,
         }
     }
 }
