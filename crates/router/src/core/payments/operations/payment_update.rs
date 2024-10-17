@@ -150,7 +150,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type.to_owned(),
@@ -158,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             key_store,
             None,
             payment_intent.customer_id.as_ref(),
-        )
+        ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
 
@@ -186,7 +186,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = request
             .amount
-            .unwrap_or_else(|| payment_attempt.amount.into());
+            .unwrap_or_else(|| payment_attempt.net_amount.get_order_amount().into());
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
@@ -348,8 +348,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     let amount = request
                         .amount
                         .map(Into::into)
-                        .unwrap_or(payment_attempt.amount);
-                    payment_attempt.amount = amount;
+                        .unwrap_or(payment_attempt.net_amount.get_order_amount());
+                    payment_attempt.net_amount.set_order_amount(amount);
                     payment_intent.amount = amount;
                     let surcharge_amount = request
                         .surcharge_details
@@ -479,6 +479,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -783,7 +784,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
-                    amount: payment_data.amount.into(),
                     currency: payment_data.currency,
                     status: get_attempt_status(),
                     authentication_type: None,
@@ -795,11 +795,17 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     business_sub_label,
                     amount_to_capture,
                     capture_method,
-                    surcharge_amount,
-                    tax_amount,
                     fingerprint_id: None,
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
+                    net_amount:
+                        hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                            payment_data.amount.into(),
+                            None,
+                            None,
+                            surcharge_amount,
+                            tax_amount,
+                        ),
                 },
                 storage_scheme,
             )
