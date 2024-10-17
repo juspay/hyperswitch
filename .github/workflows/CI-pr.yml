@@ -2,12 +2,6 @@ name: CI-pr
 
 on:
   pull_request:
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,6 +27,8 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
+  # PR originated from same repository
+  IS_PR_FROM_SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
 
 jobs:
   formatting:
@@ -40,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         id: generate_token
         uses: actions/create-github-app-token@v1
         with:
@@ -48,7 +44,7 @@ jobs:
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository with token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -56,7 +52,7 @@ jobs:
           token: ${{ steps.generate_token.outputs.token }}
 
       - name: Checkout repository for fork
-        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'false' }}
         uses: actions/checkout@v4
 
       - name: Install Rust
@@ -66,12 +62,12 @@ jobs:
           components: rustfmt
 
       - name: Check formatting for forked pull requests
-        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'false' }}
         shell: bash
         run: cargo +nightly fmt --all --check
 
       - name: Run formatter
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         shell: bash
         run: |
           cargo +nightly fmt --all
@@ -127,19 +123,19 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: sccache
           checksum: true
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
@@ -175,7 +171,7 @@ jobs:
   #       with:
   #         command: check ${{ matrix.checks }}
 
-  test:
+  check-stable:
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.runner }}
 
@@ -193,7 +189,7 @@ jobs:
 
     steps:
       - name: Generate a token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         id: generate_token
         uses: actions/create-github-app-token@v1
         with:
@@ -201,11 +197,11 @@ jobs:
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository for fork
-        if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'false' }}
         uses: actions/checkout@v4
 
       - name: Checkout repository with token
-        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -230,19 +226,19 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: sccache
           checksum: true
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
@@ -252,7 +248,7 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2.33.28
+      #   uses: taiki-e/install-action@v2.42.18
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
@@ -262,7 +258,7 @@ jobs:
         run: just clippy
 
       - name: Check Cargo.lock changed
-        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- Cargo.lock ; then
@@ -278,6 +274,102 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: just ci_hack
+
+  tests:
+    name: Run unit and documentation tests
+    runs-on: hyperswitch-runners
+
+    services:
+      redis:
+        image: "public.ecr.aws/docker/library/redis:alpine"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "public.ecr.aws/docker/library/postgres:alpine"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.42.18
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.42.18
+        with:
+          tool: cargo-nextest
+          checksum: true
+
+      - name: Install just
+        uses: taiki-e/install-action@v2.42.18
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install Diesel CLI
+        uses: baptiste0928/cargo-install@v3.1.1
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: --no-default-features
+
+      - name: Run database migrations
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: just migrate run --locked-schema
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run unit and documentation tests
+        shell: bash
+        # `cargo` does not allow us to exclude specific features from all features,
+        # so we're using `cargo metadata` to obtain all features from all workspace crates
+        # and exclude specific features from the list.
+        run: |
+          FEATURES=$(cargo metadata --all-features --format-version 1 | \
+            jq -r '
+              [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+              | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+              | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2|vergen|aws_kms|aws_s3|release|keymanager_create|keymanager_mtls|encryption_service") ) ) ) # Exclude some features from features list
+              | join(",") # Construct a comma-separated string of features for passing to `cargo`
+            ')
+          cargo nextest run --config-file .github/nextest.toml --profile ci -E 'kind(lib)' --build-jobs 4 --features "${FEATURES}"
+          cargo test --doc --features "${FEATURES}"
 
   typos:
     name: Spell check
@@ -315,10 +407,10 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.0
+        uses: Swatinem/rust-cache@v2.7.3
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true

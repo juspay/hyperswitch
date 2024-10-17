@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
   merge_group:
     types:
@@ -18,6 +12,27 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 0
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
 
 jobs:
   formatting:
@@ -76,17 +91,18 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2.42.18
         with:
-          crate: cargo-hack
+          tool: cargo-hack
+          checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
@@ -126,7 +142,7 @@ jobs:
   #       with:
   #         command: check ${{ matrix.checks }}
 
-  test:
+  check-stable:
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.runner }}
 
@@ -161,12 +177,13 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2.42.18
         with:
-          crate: cargo-hack
+          tool: cargo-hack
+          checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
@@ -175,12 +192,7 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.2.0
-      #   with:
-      #     crate: cargo-nextest
-
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -197,6 +209,101 @@ jobs:
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo check --features "release"
+
+  tests:
+    name: Run unit and documentation tests
+    runs-on: hyperswitch-runners
+
+    services:
+      redis:
+        image: "public.ecr.aws/docker/library/redis:alpine"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "public.ecr.aws/docker/library/postgres:alpine"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.42.18
+        with:
+          tool: sccache
+          checksum: true
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2.42.18
+        with:
+          tool: cargo-nextest
+          checksum: true
+
+      - name: Install just
+        uses: taiki-e/install-action@v2.42.18
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install Diesel CLI
+        uses: baptiste0928/cargo-install@v3.1.1
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: --no-default-features
+
+      - name: Run database migrations
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: just migrate run --locked-schema
+
+      - name: Run unit and documentation tests
+        shell: bash
+        # `cargo` does not allow us to exclude specific features from all features,
+        # so we're using `cargo metadata` to obtain all features from all workspace crates
+        # and exclude specific features from the list.
+        run: |
+          FEATURES=$(cargo metadata --all-features --format-version 1 | \
+            jq -r '
+              [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+              | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+              | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2|vergen|aws_kms|aws_s3|release|keymanager_create|keymanager_mtls|encryption_service") ) ) ) # Exclude some features from features list
+              | join(",") # Construct a comma-separated string of features for passing to `cargo`
+            ')
+          cargo nextest run --config-file .github/nextest.toml --profile ci -E 'kind(lib)' --build-jobs 4 --features "${FEATURES}"
+          cargo test --doc --features "${FEATURES}"
 
   typos:
     name: Spell check
