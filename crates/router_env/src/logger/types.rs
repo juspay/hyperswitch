@@ -137,6 +137,8 @@ pub enum Flow {
     PaymentMethodsRetrieve,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
+    /// Payment methods update connector_mandate_details flow.
+    PaymentMethodsUpdateConnectorMandateDetails,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
     /// Default Payment method flow.

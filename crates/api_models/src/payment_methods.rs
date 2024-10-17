@@ -355,6 +355,27 @@ impl PaymentMethodCreate {
 ))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct PaymentMethodUpdateConnectorMandateDetails {
+    /// Payment Method ID
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    pub payment_method_id: String,
+    /// Connector Mandate ID
+    #[schema(example = "pm_1PUI2eE9xxxx5AGoooZFyXSt")]
+    pub connector_mandate_id: Option<serde_json::Value>,
+    /// Merchant Connector Account ID
+    #[schema(example = "mca_xxxLcyxxxCzgYaxxxxxx")]
+    pub mca_id: String,
+    /// Unique identifier for a merchant
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
     /// Card Details
     #[schema(example = json!({
@@ -701,6 +722,9 @@ pub struct PaymentMethodResponse {
 
     /// For Client based calls
     pub client_secret: Option<String>,
+
+    /// Connector mandate details
+    pub connector_mandate_details: Option<serde_json::Value>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

@@ -22,9 +22,9 @@ pub use api_models::payment_methods::{
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
     PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
-    PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted,
-    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2,
+    PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodUpdateConnectorMandateDetails,
+    PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;
 

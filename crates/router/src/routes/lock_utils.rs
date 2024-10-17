@@ -106,6 +106,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomerPaymentMethodsList
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
+            | Flow::PaymentMethodsUpdateConnectorMandateDetails
             | Flow::PaymentMethodsDelete
             | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod

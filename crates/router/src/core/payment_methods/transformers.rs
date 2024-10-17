@@ -446,6 +446,7 @@ pub fn mk_add_bank_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        connector_mandate_details: None,
     }
 }
 
@@ -509,6 +510,7 @@ pub fn mk_add_card_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
+        connector_mandate_details: None,
     }
 }
 

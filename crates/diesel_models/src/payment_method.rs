@@ -250,7 +250,7 @@ pub enum PaymentMethodUpdate {
         network_token_payment_method_data: Option<Encryption>,
     },
     ConnectorMandateDetailsUpdate {
-        connector_mandate_details: Option<serde_json::Value>,
+        connector_mandate_details: Option<Option<serde_json::Value>>,
     },
 }
 
@@ -375,7 +375,7 @@ pub struct PaymentMethodUpdateInternal {
     locker_id: Option<String>,
     network_token_requestor_reference_id: Option<String>,
     payment_method: Option<storage_enums::PaymentMethod>,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<Option<serde_json::Value>>,
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     payment_method_issuer: Option<String>,
@@ -415,7 +415,7 @@ impl PaymentMethodUpdateInternal {
                 .map_or(source.network_transaction_id, Some),
             status: status.unwrap_or(source.status),
             connector_mandate_details: connector_mandate_details
-                .map_or(source.connector_mandate_details, Some),
+                .map_or(source.connector_mandate_details, |_| None),
             updated_by: updated_by.map_or(source.updated_by, Some),
             last_modified: common_utils::date_time::now(),
             ..source

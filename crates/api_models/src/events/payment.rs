@@ -17,7 +17,7 @@ use crate::{
         ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
         PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
         PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
-        PaymentMethodResponse, PaymentMethodUpdate,
+        PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodUpdateConnectorMandateDetails,
     },
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
@@ -178,6 +178,8 @@ impl ApiEventMetric for PaymentMethodResponse {
 }
 
 impl ApiEventMetric for PaymentMethodUpdate {}
+
+impl ApiEventMetric for PaymentMethodUpdateConnectorMandateDetails {}
 
 impl ApiEventMetric for DefaultPaymentMethod {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
