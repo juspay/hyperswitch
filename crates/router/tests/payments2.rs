@@ -207,6 +207,7 @@ async fn payments_create_core() {
         merchant_order_reference_id: None,
         order_tax_amount: None,
         connector_mandate_id: None,
+        shipping_cost: None,
     };
 
     let expected_response =
@@ -474,6 +475,7 @@ async fn payments_create_core_adyen_no_redirect() {
             merchant_order_reference_id: None,
             order_tax_amount: None,
             connector_mandate_id: None,
+            shipping_cost: None,
         },
         vec![],
     ));
