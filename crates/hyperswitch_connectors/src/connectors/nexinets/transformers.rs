@@ -264,7 +264,6 @@ fn get_status(status: NexinetsPaymentStatus, method: NexinetsTransactionType) ->
         NexinetsPaymentStatus::InProgress => AttemptStatus::Pending,
     }
 }
-// }
 
 impl TryFrom<&enums::BankNames> for NexinetsBIC {
     type Error = error_stack::Report<errors::ConnectorError>;
