@@ -92,6 +92,44 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        payment_method_type.clone(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .switch()?;
+            }
+        };
     };
 
     if let Some(time_range) = req.time_range {
@@ -214,6 +252,44 @@ pub async fn search_results(
                             })
                             .collect(),
                     )
+                    .switch()?;
+            }
+        };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        payment_method_type.clone(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
                     .switch()?;
             }
         };
