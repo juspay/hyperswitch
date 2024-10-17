@@ -15,6 +15,10 @@ describe("Card - Refund flow - No 3DS", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  afterEach(() => {
+    cy.wait(3000); // Waits for 2 seconds (2000 milliseconds)
+  });
+
   context("Card - Full Refund flow test for No-3DS", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
