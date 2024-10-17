@@ -109,17 +109,17 @@ impl ConnectorCommon for Elavon {
         connectors.elavon.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = elavon::ElavonAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
-    }
+    // fn get_auth_header(
+    //     &self,
+    //     auth_type: &ConnectorAuthType,
+    // ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    //     let auth = elavon::ElavonAuthType::try_from(auth_type)
+    //         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    //     Ok(vec![(
+    //         headers::AUTHORIZATION.to_string(),
+    //         auth.api_key.expose().into_masked(),
+    //     )])
+    // }
 
     fn build_error_response(
         &self,

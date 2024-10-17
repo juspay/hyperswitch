@@ -1,3 +1,4 @@
+// use cards::CardNumber;
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
@@ -10,6 +11,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
+use ring::agreement::PublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -73,23 +75,175 @@ impl TryFrom<&ElavonRouterData<&PaymentsAuthorizeRouterData>> for ElavonPayments
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct ElavonAuthType {
-    pub(super) api_key: Secret<String>,
+
+// enum TransactionType{
+
+// }
+
+pub struct ElavonCreditCardSaleReq {
+    pub ssl_transaction_type: String, //ccsale
+    pub ssl_account_id: i64,
+    pub ssl_user_id: String,
+    pub ssl_pin: String,
+    pub ssl_vendor_id: i64,
+    pub ssl_email: String,
+
+    pub ssl_cvv2cvc2_indicator: Option<i8>,
+    pub ssl_card_number: cards::CardNumber,
+    pub ssl_exp_date: cards::CardExpiration,
+    pub ssl_cvv2cvc2: cards::CardSecurityCode,
+    pub ssl_amount: f64,
+    pub ssl_avs_address: String,
+    pub ssl_avs_zip: String,
+    pub ssl_invoice_number: String,
+
+
+    pub ssl_first_name:Option<String>,
+    pub ssl_last_name:Option<String> ,
+    pub ssl_address2:Option<String>,
+    pub ssl_city:Option<String>,
+    pub ssl_state:Option<String>,
+    pub ssl_country:Option<String>,
+    pub ssl_phone:Option<String>,
+    pub ssl_ship_to_company:Option<String>,
+    pub ssl_ship_to_first_name:Option<String>,
+    pub ssl_ship_to_last_name: Option<String>,
+    pub ssl_ship_to_address1: Option<String>,
+    pub ssl_ship_to_address2: Option<String>,
+    pub ssl_ship_to_city: Option<String>,
+    pub ssl_ship_to_zip: Option<String>,
+    pub ssl_ship_to_country: Option<String>,
+    pub ssl_ship_to_phone: Option<String>,
+    pub ssl_customer_code: Option<String>,
+    pub ssl_salestax: f64,
+    pub ssl_merchant_txn_id: Option<String>,
+    pub ssl_description: Option<String>,
+    pub ssl_dynamic_dba: Option<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for ElavonAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
+pub struct ElavonCreditCardAuthOnlyReq {
+    pub ssl_transaction_type: String, //ccauthonly
+    pub ssl_account_id: i64,
+    pub ssl_user_id: String,
+    pub ssl_pin: String,
+    pub ssl_vendor_id: i64,
+    pub ssl_email: String,
+
+    pub ssl_cvv2cvc2_indicator: Option<i8>,
+    pub ssl_card_number: cards::CardNumber,
+    pub ssl_exp_date: cards::CardExpiration,
+    pub ssl_cvv2cvc2: cards::CardSecurityCode,
+    pub ssl_amount: f64,
+    pub ssl_invoice_number: String,
 }
+
+pub struct ElavonCreditCardCompletionReq {
+    pub ssl_transaction_type: String, //cccomplete
+    pub ssl_account_id: i64,
+    pub ssl_user_id: String,
+    pub ssl_pin: String,
+    pub ssl_vendor_id: i64,
+
+    pub ssl_txn_id: String,
+    pub ssl_amount: i64,      // not needed for full completion
+}
+
+pub struct ElavonCreditCardRefund {
+    pub ssl_transaction_type: String, //ccreturn
+    pub ssl_account_id: i64,
+    pub ssl_user_id: String,
+    pub ssl_pin: String,
+    pub ssl_vendor_id: i64,
+
+    pub ssl_txn_id: String,
+    pub ssl_amount: i64,      // not needed for full refund
+}
+
+pub struct ElavonCreditCardViod{
+    pub ssl_transaction_type: String, //ccvoid
+    pub ssl_account_id: i64,
+    pub ssl_user_id: String,
+    pub ssl_pin: String,
+    pub ssl_vendor_id: i64,
+
+    pub ssl_txn_id: String,
+}
+
+pub struct ElavonCreditCardResponse{  // sale / authOnly / Completion / void / Refund
+    pub ssl_issuer_response: i64,
+    pub ssl_last_name: String,
+    pub ssl_company: String,
+    pub ssl_phone: String,
+    pub ssl_card_number: cards::CardNumber,
+    pub ssl_departure_date: String,
+    pub ssl_oar_data: String,
+    pub ssl_result: String,
+    pub ssl_txn_id: String,
+    pub ssl_loyalty_program: String,
+    pub ssl_avs_response: String,
+    pub ssl_approval_code: String,
+    pub ssl_account_status: String,
+    pub ssl_email: String,
+    pub ssl_amount: f64,
+    pub ssl_avs_zip: String,
+    pub ssl_txn_time: String,
+    pub ssl_description: String,
+    pub ssl_vendor_id: String,
+    pub ssl_exp_date: String,
+    pub ssl_card_short_description: String,
+    pub ssl_completion_date: String,
+    pub ssl_address2: String,
+    pub ssl_get_token: String,
+    pub ssl_customer_code: String,
+    pub ssl_country: String,
+    pub ssl_card_type: String,
+    pub ssl_access_code: String,
+    pub ssl_transaction_type: String,
+    pub ssl_loyalty_account_balance: String,
+    pub ssl_salestax: String,
+    pub ssl_avs_address: String,
+    pub merchant_1: String,
+    pub ssl_account_balance: String,
+    pub ssl_ps2000_data: String,
+    pub ssl_state: String,
+    pub ssl_ship_to_zip: String,
+    pub ssl_city: String,
+    pub ssl_result_message: String,
+    pub ssl_first_name: String,
+    pub ssl_invoice_number: String,
+    pub ssl_ship_to_address1: String,
+    pub ssl_cvv2_response: String,
+    pub ssl_tender_amount: String,
+    pub ssl_partner_app_id: String,
+}
+
+
+
+
+
+
+
+
+
+
+pub struct ElavonAuthType {
+    pub(super) ssl_account_id: Secret<String>,
+    pub(super) ssl_user_id: Secret<String>,
+    pub(super) ssl_pin: Secret<String>,
+    pub(super) ssl_vendor_id: Secret<String>,
+}
+
+// impl TryFrom<&ConnectorAuthType> for ElavonAuthType {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+//         match auth_type {
+//             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+//                 api_key: api_key.to_owned(),
+//             }),
+//             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+//         }
+//     }
+// }
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
