@@ -93,6 +93,7 @@ pub enum PaymentIntentMetrics {
     SmartRetriedAmount,
     PaymentIntentCount,
     PaymentsSuccessRate,
+    PaymentProcessedAmount,
     SessionizedSuccessfulSmartRetries,
     SessionizedTotalSmartRetries,
     SessionizedSmartRetriedAmount,
