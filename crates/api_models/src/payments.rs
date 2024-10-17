@@ -4856,6 +4856,8 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
+    /// Session Id
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
