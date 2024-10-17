@@ -194,9 +194,6 @@ jobs:
 
           kill "${{ env.PID }}"
 
-          ls -la cypres-tests/cypress/reports
-          tree -a cypres-tests/cypress/reports 
-
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
