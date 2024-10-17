@@ -13446,7 +13446,7 @@
           "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
               }
             ],
             "nullable": true
@@ -13486,6 +13486,7 @@
       "PaymentsCreateIntentResponse": {
         "type": "object",
         "required": [
+          "id",
           "amount_details",
           "client_secret",
           "capture_method",
@@ -13495,9 +13496,14 @@
           "apply_mit_exemption",
           "payment_link_enabled",
           "request_incremental_authorization",
+          "expires_on",
           "request_external_three_ds_authentication"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
           "amount_details": {
             "$ref": "#/components/schemas/AmountDetails"
           },
@@ -13626,7 +13632,7 @@
           "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
               }
             ],
             "nullable": true
@@ -13634,13 +13640,10 @@
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
           },
-          "session_expiry": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config\n(900) for 15 mins",
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds"
           },
           "frm_metadata": {
             "type": "object",

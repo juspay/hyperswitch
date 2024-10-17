@@ -633,6 +633,7 @@ mod client_secret_type {
     use std::fmt;
 
     use masking::PeekInterface;
+    use router_env::logger;
 
     use super::*;
     use crate::id_type;
@@ -655,6 +656,14 @@ mod client_secret_type {
                 self.payment_id.get_string_repr(),
                 self.secret.peek()
             )
+        }
+
+        /// Create a new client secret
+        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
+            Self {
+                payment_id,
+                secret: masking::Secret::new(secret),
+            }
         }
     }
 
@@ -730,7 +739,23 @@ mod client_secret_type {
     {
         fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
             let string_repr = String::from_sql(value)?;
-            Ok(serde_json::from_str(&string_repr)?)
+            let (payment_id, secret) =
+                string_repr
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
         }
     }
 

@@ -264,6 +264,12 @@ pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
 }
 
+/// Generate a time-ordered (time-sortable) unique identifier using the current time without prefix
+#[inline]
+pub fn generate_time_ordered_id_without_prefix() -> String {
+    uuid::Uuid::now_v7().as_simple().to_string()
+}
+
 #[allow(missing_docs)]
 pub trait DbConnectionParams {
     fn get_username(&self) -> &str;
