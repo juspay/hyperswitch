@@ -1295,7 +1295,7 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
         Self {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
-            amount: payment_attempt.amount,
+            amount: payment_attempt.net_amount.get_order_amount(),
             currency: payment_attempt.currency,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_reason,
@@ -1550,7 +1550,8 @@ impl
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
             billing: billing_address,
-            amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
+            amount: payment_attempt
+                .map(|pa| api_types::Amount::from(pa.net_amount.get_order_amount())),
             email: customer
                 .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
                 .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),
