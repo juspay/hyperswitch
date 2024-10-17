@@ -90,14 +90,7 @@ function run_tests() {
   for service in "${connector_map[@]}"; do
     declare -n connectors="$service"
 
-    # Check if 'connectors' is an array
-    if [[ $(declare -p connectors 2> /dev/null) =~ "declare -a" ]]; then
-      # Connector-specific tests (e.g., payments or payouts)
-      print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
-
-      # Execute tests in parallel
-      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
-    else
+    if [[ ${#connectors[@]} -eq 0 ]]; then
       # Service-level test (e.g., payment-method-list or routing)
       [[ $service == "payment_method_list" ]] && service="payment-method-list"
 
@@ -107,6 +100,12 @@ function run_tests() {
       if ! npm run "cypress:${service}"; then
         echo "${service}" >> "${tmp_file}"
       fi
+    else
+      # Connector-specific tests (e.g., payments or payouts)
+      print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
+
+      # Execute tests in parallel
+      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
     fi
   done
 
