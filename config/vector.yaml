@@ -118,6 +118,9 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       index: "vector-{{ .topic }}"
 
@@ -142,6 +145,9 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       # Add a date suffixed index for better grouping
       index: "vector-{{ .topic }}-%Y-%m-%d"
