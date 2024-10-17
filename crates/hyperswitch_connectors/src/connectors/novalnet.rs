@@ -894,9 +894,13 @@ impl webhooks::IncomingWebhook for Novalnet {
         };
 
         if novalnet::is_refund_event(&notif.event.event_type) {
-            let parent_tid = notif.event.parent_tid.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "parent_tid",
-            })?;
+            let parent_tid =
+                notif
+                    .event
+                    .parent_tid
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "parent_tid",
+                    })?;
             Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(parent_tid.to_string()),
             ))

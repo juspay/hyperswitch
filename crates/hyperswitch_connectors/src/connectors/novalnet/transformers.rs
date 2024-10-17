@@ -290,7 +290,7 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
     fn try_from(item: &api_enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match item {
             api_enums::PaymentMethodType::Credit => Ok(Self::CREDITCARD),
-             api_enums::PaymentMethodType::Debit
+            api_enums::PaymentMethodType::Debit
             | api_enums::PaymentMethodType::Klarna
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
@@ -302,9 +302,11 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::Sofort
-            | api_enums::PaymentMethodType::Trustly => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Novalnet"),
-            ))?,
+            | api_enums::PaymentMethodType::Trustly => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Novalnet"),
+                ))?
+            }
             api_enums::PaymentMethodType::GooglePay => Ok(Self::GOOGLEPAY),
             api_enums::PaymentMethodType::AliPay
             | api_enums::PaymentMethodType::ApplePay
@@ -326,7 +328,6 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
         }
     }
 }
-
 
 impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -427,10 +428,13 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
 
                 PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                     WalletDataPaymentMethod::GooglePay(ref req_wallet) => {
-                        let novalnet_google_pay: NovalNetPaymentData = NovalNetPaymentData::GooglePay(NovalnetGooglePay {
-                            wallet_data:  Secret::new(req_wallet.tokenization_data.token.clone()),
-                        });
-    
+                        let novalnet_google_pay: NovalNetPaymentData =
+                            NovalNetPaymentData::GooglePay(NovalnetGooglePay {
+                                wallet_data: Secret::new(
+                                    req_wallet.tokenization_data.token.clone(),
+                                ),
+                            });
+
                         let transaction = NovalnetPaymentsRequestTransaction {
                             test_mode,
                             payment_type: NovalNetPaymentTypes::GOOGLEPAY,
@@ -441,10 +445,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             return_url: None,
                             error_return_url: None,
                             payment_data: Some(novalnet_google_pay),
-                            enforce_3d: None, 
+                            enforce_3d: None,
                             create_token,
                         };
-    
+
                         Ok(Self {
                             merchant,
                             transaction,
@@ -452,7 +456,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             custom,
                         })
                     }
-                    | WalletDataPaymentMethod::ApplePay(_)
+                    WalletDataPaymentMethod::ApplePay(_)
                     | WalletDataPaymentMethod::AliPayQr(_)
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
@@ -525,14 +529,14 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     token: Secret::new(connector_mandate_id),
                 });
 
-                let payment_type =  match item.router_data.request.payment_method_type {
+                let payment_type = match item.router_data.request.payment_method_type {
                     Some(pm_type) => NovalNetPaymentTypes::try_from(&pm_type)?,
                     None => NovalNetPaymentTypes::CREDITCARD,
                 };
 
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
-                    payment_type, 
+                    payment_type,
                     amount: item.amount.clone(),
                     currency: item.router_data.request.currency,
                     order_no: item.router_data.connector_request_reference_id.clone(),
@@ -1057,8 +1061,12 @@ impl NovalnetSyncResponseTransactionData {
     pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
         if let Some(data) = transaction_data {
             match &data.payment_data {
-                Some(NovalnetResponsePaymentData::Card(card_data)) => card_data.token.clone().map(|token| token.expose()),
-                Some(NovalnetResponsePaymentData::Paypal(paypal_data)) => paypal_data.token.clone().map(|token| token.expose()),
+                Some(NovalnetResponsePaymentData::Card(card_data)) => {
+                    card_data.token.clone().map(|token| token.expose())
+                }
+                Some(NovalnetResponsePaymentData::Paypal(paypal_data)) => {
+                    paypal_data.token.clone().map(|token| token.expose())
+                }
                 None => None,
             }
         } else {
