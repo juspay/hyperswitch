@@ -384,13 +384,11 @@ impl
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-        let amount =
-            req.request
-                .amount
-                .map(MinorUnit::new)
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?;
+        let amount = req.request.amount.map(MinorUnit::new).ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?;
         let amount = utils::convert_amount(self.amount_convertor, amount, currency)?;
         let connector_router_data = NetceteraRouterData::try_from((amount, req))?;
         let req_obj = netcetera::NetceteraAuthenticationRequest::try_from(&connector_router_data);
