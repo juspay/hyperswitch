@@ -262,6 +262,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
         dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
         dir::DirKeyKind::OpenBankingType => dir_enums::OpenBankingType::VARIANTS,
+        dir::DirKeyKind::MobilePaymentType => dir_enums::MobilePaymentType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector

@@ -163,6 +163,7 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
+    DigitalVirgo,
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
