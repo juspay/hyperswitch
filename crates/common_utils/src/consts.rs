@@ -118,6 +118,10 @@ pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+/// URL Safe base64 engine
+pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE;
 /// Regex for matching a domain
 /// Eg -
 /// http://www.example.com
