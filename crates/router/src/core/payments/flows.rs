@@ -3062,7 +3062,6 @@ default_imp_for_post_session_tokens!(
     connector::Adyenplatform,
     connector::Airwallex,
     connector::Authorizedotnet,
-    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bluesnap,
