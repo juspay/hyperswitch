@@ -13,6 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -52,7 +53,7 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
     event_type: enums::EventType,
     event_class: enums::EventClass,
@@ -196,7 +197,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 #[instrument(skip_all)]
 pub(crate) async fn trigger_webhook_and_raise_event(
     state: SessionState,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
@@ -236,7 +237,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
 
 async fn trigger_webhook_to_merchant(
     state: SessionState,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
@@ -517,7 +518,7 @@ async fn raise_webhooks_analytics_event(
 
 pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     db: &dyn StorageInterface,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     event: &domain::Event,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
@@ -581,7 +582,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
 }
 
 fn get_webhook_url_from_business_profile(
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> CustomResult<String, errors::WebhooksFlowError> {
     let webhook_details = business_profile
         .webhook_details
@@ -599,17 +600,23 @@ fn get_webhook_url_from_business_profile(
 pub(crate) fn get_outgoing_webhook_request(
     merchant_account: &domain::MerchantAccount,
     outgoing_webhook: api::OutgoingWebhook,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
     #[inline]
     fn get_outgoing_webhook_request_inner<WebhookType: types::OutgoingWebhookType>(
         outgoing_webhook: api::OutgoingWebhook,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
-        let mut headers = vec![(
-            reqwest::header::CONTENT_TYPE.to_string(),
-            mime::APPLICATION_JSON.essence_str().into(),
-        )];
+        let mut headers = vec![
+            (
+                reqwest::header::CONTENT_TYPE.to_string(),
+                mime::APPLICATION_JSON.essence_str().into(),
+            ),
+            (
+                reqwest::header::USER_AGENT.to_string(),
+                consts::USER_AGENT.to_string().into(),
+            ),
+        ];
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();

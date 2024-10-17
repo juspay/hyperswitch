@@ -344,7 +344,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -398,6 +399,7 @@ impl<F, T>
                                     format!("{customer_profile_id}-{payment_profile_id}")
                                 }),
                             payment_method_id: None,
+                            mandate_metadata: None,
                         },
                     ),
                     connector_metadata: None,
@@ -529,7 +531,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -589,7 +592,8 @@ impl
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_) => {
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -1109,6 +1113,7 @@ impl<F, T>
                             },
                         ),
                         payment_method_id: None,
+                        mandate_metadata: None,
                     }
                 });
 
@@ -1745,6 +1750,7 @@ fn get_wallet_data(
         | domain::WalletData::MbWayRedirect(_)
         | domain::WalletData::MobilePayRedirect(_)
         | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::Paze(_)
         | domain::WalletData::SamsungPay(_)
         | domain::WalletData::TwintRedirect {}
         | domain::WalletData::VippsRedirect {}

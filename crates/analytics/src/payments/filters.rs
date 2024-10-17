@@ -59,4 +59,9 @@ pub struct PaymentFilterRow {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub profile_id: Option<String>,
+    pub card_network: Option<String>,
+    pub merchant_id: Option<String>,
+    pub card_last_4: Option<String>,
+    pub card_issuer: Option<String>,
+    pub error_reason: Option<String>,
 }

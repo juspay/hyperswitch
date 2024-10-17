@@ -52,7 +52,8 @@
         "api-reference/payments/payments-link--retrieve",
         "api-reference/payments/payments--list",
         "api-reference/payments/payments--external-3ds-authentication",
-        "api-reference/payments/payments--complete-authorize"
+        "api-reference/payments/payments--complete-authorize",
+        "api-reference/payments/post-session-tokens"
       ]
     },
     {
@@ -137,7 +138,8 @@
         "api-reference/api-key/api-key--create",
         "api-reference/api-key/api-key--retrieve",
         "api-reference/api-key/api-key--update",
-        "api-reference/api-key/api-key--revoke"
+        "api-reference/api-key/api-key--revoke",
+        "api-reference/api-key/api-key--list"
       ]
     },
     {

@@ -85,6 +85,17 @@ where
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPost {
+    #[cfg(feature = "v2")]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: PaymentToFrmData,
+        frm_connector_details: ConnectorDetailsCore,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -577,7 +588,7 @@ where
                 updated_by: frm_data.merchant_account.storage_scheme.to_string(),
             };
 
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     payment_data.get_payment_attempt().clone(),
@@ -587,7 +598,7 @@ where
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     key_manager_state,

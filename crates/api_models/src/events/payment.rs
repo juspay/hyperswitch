@@ -23,7 +23,8 @@ use crate::{
         PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
         PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsRejectRequest,
+        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
         PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse,
         PaymentsStartRequest, RedirectionResponse,
     },
@@ -64,6 +65,22 @@ impl ApiEventMetric for PaymentsCompleteAuthorizeRequest {
 }
 
 impl ApiEventMetric for PaymentsDynamicTaxCalculationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsPostSessionTokensRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsPostSessionTokensResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

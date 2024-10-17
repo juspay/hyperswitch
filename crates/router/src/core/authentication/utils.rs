@@ -266,7 +266,7 @@ where
 pub async fn get_authentication_connector_data(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<(
     common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,

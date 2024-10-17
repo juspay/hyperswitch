@@ -146,6 +146,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::OpenBankingPIS => {
             Ok(dirval!(OpenBankingType = OpenBankingPIS))
         }
+        api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
     }
 }
 
@@ -759,6 +760,7 @@ mod tests {
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
+            connector_wallets_details: None,
         };
         #[cfg(feature = "v1")]
         let stripe_account = MerchantConnectorResponse {
@@ -818,6 +820,7 @@ mod tests {
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
+            connector_wallets_details: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {

@@ -98,10 +98,13 @@ impl
             created: Some(payout.created_at),
             connector_transaction_id: attempt.connector_transaction_id.clone(),
             priority: payout.priority,
-            attempts: Some(vec![attempt]),
             billing: address,
+            payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),
             client_secret: None,
             payout_link: None,
+            unified_code: attempt.unified_code.clone(),
+            unified_message: attempt.unified_message.clone(),
+            attempts: Some(vec![attempt]),
             email: customer
                 .as_ref()
                 .and_then(|customer| customer.email.clone()),

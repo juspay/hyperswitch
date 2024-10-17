@@ -12,24 +12,16 @@ use crate::user::{
     },
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
     ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    CreateUserAuthenticationMethodRequest, DashboardEntryResponse, ForgotPasswordRequest,
-    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
-    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, GetUserRoleDetailsResponseV2,
-    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest,
-    TokenResponse, TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    CreateUserAuthenticationMethodRequest, ForgotPasswordRequest, GetSsoAuthUrlRequest,
+    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
+    GetUserRoleDetailsResponseV2, InviteUserRequest, ReInviteUserRequest, RecoveryCodes,
+    ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest,
+    SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
+    SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
+    TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
+    UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest,
+    VerifyTotpRequest,
 };
-
-impl ApiEventMetric for DashboardEntryResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::User {
-            user_id: self.user_id.clone(),
-        })
-    }
-}
 
 #[cfg(feature = "recon")]
 impl ApiEventMetric for VerifyTokenResponse {
@@ -55,7 +47,6 @@ common_utils::impl_api_event_type!(
         SwitchProfileRequest,
         CreateInternalUserRequest,
         UserMerchantCreate,
-        ListUsersResponse,
         AuthorizeResponse,
         ConnectAccountRequest,
         ForgotPasswordRequest,
@@ -69,10 +60,10 @@ common_utils::impl_api_event_type!(
         UpdateUserAccountDetailsRequest,
         GetUserDetailsResponse,
         GetUserRoleDetailsRequest,
-        GetUserRoleDetailsResponse,
         GetUserRoleDetailsResponseV2,
         TokenResponse,
         TwoFactorAuthStatusResponse,
+        TwoFactorStatus,
         UserFromEmailRequest,
         BeginTotpResponse,
         VerifyRecoveryCodeRequest,

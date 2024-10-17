@@ -232,7 +232,7 @@ pub fn make_dsl_input(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payments_dsl_input.payment_intent.amount,
+        amount: payments_dsl_input.payment_attempt.get_total_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => {
@@ -283,7 +283,7 @@ pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: Option<&common_utils::id_type::RoutingId>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     transaction_data: &routing::TransactionData<'_>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let algorithm_id = if let Some(id) = algorithm_id {
@@ -298,7 +298,7 @@ pub async fn perform_static_routing_v1(
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
         #[cfg(feature = "v2")]
-        let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
+        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
@@ -397,6 +397,20 @@ pub fn perform_straight_through_routing(
                 )?,
             true,
         ),
+    })
+}
+
+pub fn perform_routing_for_single_straight_through_algorithm(
+    algorithm: &routing_types::StraightThroughAlgorithm,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    Ok(match algorithm {
+        routing_types::StraightThroughAlgorithm::Single(connector) => vec![(**connector).clone()],
+
+        routing_types::StraightThroughAlgorithm::Priority(_)
+        | routing_types::StraightThroughAlgorithm::VolumeSplit(_) => {
+            Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
+                .attach_printable("Unsupported algorithm received as a result of static routing")?
+        }
     })
 }
 
@@ -646,7 +660,7 @@ pub async fn refresh_cgraph_cache<'a>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_cgraph_filtering(
+pub async fn perform_cgraph_filtering(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
@@ -721,7 +735,7 @@ pub async fn perform_fallback_routing(
     key_store: &domain::MerchantKeyStore,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     #[cfg(feature = "v1")]
     let fallback_config = routing::helpers::get_merchant_default_config(
@@ -744,7 +758,7 @@ pub async fn perform_fallback_routing(
     .await
     .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
     #[cfg(feature = "v2")]
-    let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
+    let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
         .get_default_fallback_list_of_connector_under_profile()
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
     let backend_input = match transaction_data {
@@ -771,7 +785,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut final_selection = perform_eligibility_analysis(
         state,
@@ -819,12 +833,17 @@ pub async fn perform_session_flow_routing(
 {
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
+
+    #[cfg(feature = "v1")]
     let profile_id = session_input
         .payment_intent
         .profile_id
         .clone()
         .get_required_value("profile_id")
         .change_context(errors::RoutingError::ProfileIdMissing)?;
+
+    #[cfg(feature = "v2")]
+    let profile_id = session_input.payment_intent.profile_id.clone();
 
     let business_profile = session_input
         .state
@@ -859,7 +878,7 @@ pub async fn perform_session_flow_routing(
 
     #[cfg(feature = "v1")]
     let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
+        amount: session_input.payment_attempt.get_total_amount(),
         currency: session_input
             .payment_intent
             .currency
@@ -885,28 +904,7 @@ pub async fn perform_session_flow_routing(
     };
 
     #[cfg(feature = "v2")]
-    let payment_input = dsl_inputs::PaymentInput {
-        amount: session_input.payment_intent.amount,
-        currency: session_input
-            .payment_intent
-            .currency
-            .get_required_value("Currency")
-            .change_context(errors::RoutingError::DslMissingRequiredField {
-                field_name: "currency".to_string(),
-            })?,
-        authentication_type: session_input.payment_attempt.authentication_type,
-        card_bin: None,
-        capture_method: session_input
-            .payment_attempt
-            .capture_method
-            .and_then(|cm| cm.foreign_into()),
-        business_country: None,
-        business_label: None,
-        billing_country: session_input
-            .country
-            .map(storage_enums::Country::from_alpha2),
-        setup_future_usage: session_input.payment_intent.setup_future_usage,
-    };
+    let payment_input = todo!();
 
     let metadata = session_input
         .payment_intent
@@ -954,7 +952,7 @@ pub async fn perform_session_flow_routing(
         let session_pm_input = SessionRoutingPmTypeInput {
             state: session_input.state,
             key_store: session_input.key_store,
-            attempt_id: &session_input.payment_attempt.attempt_id,
+            attempt_id: session_input.payment_attempt.get_id(),
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
@@ -1000,7 +998,7 @@ pub async fn perform_session_flow_routing(
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-    _business_profile: &domain::BusinessProfile,
+    _business_profile: &domain::Profile,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
@@ -1083,13 +1081,13 @@ async fn perform_session_routing_for_pm_type(
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
 
-    let profile_wrapper = admin::BusinessProfileWrapper::new(business_profile.clone());
+    let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
     let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),
@@ -1155,9 +1153,9 @@ async fn perform_session_routing_for_pm_type(
 
 #[cfg(feature = "v2")]
 pub fn make_dsl_input_for_surcharge(
-    payment_attempt: &oss_storage::PaymentAttempt,
-    payment_intent: &oss_storage::PaymentIntent,
-    billing_address: Option<Address>,
+    _payment_attempt: &oss_storage::PaymentAttempt,
+    _payment_intent: &oss_storage::PaymentIntent,
+    _billing_address: Option<Address>,
 ) -> RoutingResult<dsl_inputs::BackendInput> {
     todo!()
 }
@@ -1175,7 +1173,7 @@ pub fn make_dsl_input_for_surcharge(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_attempt.amount,
+        amount: payment_attempt.get_total_amount(),
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency

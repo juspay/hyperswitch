@@ -150,7 +150,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type.to_owned(),
@@ -158,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             key_store,
             None,
             payment_intent.customer_id.as_ref(),
-        )
+        ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
 
@@ -186,7 +186,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = request
             .amount
-            .unwrap_or_else(|| payment_attempt.amount.into());
+            .unwrap_or_else(|| payment_attempt.net_amount.get_order_amount().into());
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
@@ -329,7 +329,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
+                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None, mandate_metadata:connector_id.mandate_metadata, },
                                 ))
                             }
                          }),
@@ -348,8 +348,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     let amount = request
                         .amount
                         .map(Into::into)
-                        .unwrap_or(payment_attempt.amount);
-                    payment_attempt.amount = amount;
+                        .unwrap_or(payment_attempt.net_amount.get_order_amount());
+                    payment_attempt.net_amount.set_order_amount(amount);
                     payment_intent.amount = amount;
                     let surcharge_amount = request
                         .surcharge_details
@@ -424,7 +424,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let business_profile = db
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -479,6 +479,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -522,7 +523,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -628,7 +629,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -749,6 +750,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     .await
             })
             .await
+            .transpose()?
+            .flatten();
+
+        let encoded_pm_data = additional_pm_data
             .as_ref()
             .map(Encode::encode_to_value)
             .transpose()
@@ -779,23 +784,28 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
-                    amount: payment_data.amount.into(),
                     currency: payment_data.currency,
                     status: get_attempt_status(),
                     authentication_type: None,
                     payment_method,
                     payment_token: payment_data.token.clone(),
-                    payment_method_data: additional_pm_data,
+                    payment_method_data: encoded_pm_data,
                     payment_experience,
                     payment_method_type,
                     business_sub_label,
                     amount_to_capture,
                     capture_method,
-                    surcharge_amount,
-                    tax_amount,
                     fingerprint_id: None,
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
+                    net_amount:
+                        hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                            payment_data.amount.into(),
+                            None,
+                            None,
+                            surcharge_amount,
+                            tax_amount,
+                        ),
                 },
                 storage_scheme,
             )

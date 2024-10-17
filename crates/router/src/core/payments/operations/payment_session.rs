@@ -163,7 +163,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let business_profile = db
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -211,6 +211,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             recurring_details: None,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -330,7 +331,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: &domain::BusinessProfile,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentSessionOperation<'b, F>,
         Option<domain::PaymentMethodData>,
@@ -490,7 +491,9 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
         match value {
             api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
             api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
+            api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
             _ => Self::Connector,
         }
     }

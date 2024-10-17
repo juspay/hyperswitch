@@ -6,7 +6,7 @@
     post,
     path = "/organization",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationCreateRequest,
         examples(
             (
                 "Create an organization with organization_name" = (
@@ -31,8 +31,8 @@ pub async fn organization_create() {}
 /// Retrieve an existing organization
 #[utoipa::path(
     get,
-    path = "/organization/{organization_id}",
-    params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
+    path = "/organization/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Organization Created", body =OrganizationResponse),
         (status = 400, description = "Invalid data")
@@ -49,9 +49,9 @@ pub async fn organization_retrieve() {}
 /// Create a new organization for .
 #[utoipa::path(
     put,
-    path = "/organization/{organization_id}",
+    path = "/organization/{id}",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationUpdateRequest,
         examples(
             (
                 "Update organization_name of the organization" = (
@@ -60,7 +60,7 @@ pub async fn organization_retrieve() {}
             ),
         )
     ),
-    params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
+    params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Organization Created", body =OrganizationResponse),
         (status = 400, description = "Invalid data")
@@ -79,7 +79,7 @@ pub async fn organization_update() {}
     post,
     path = "/v2/organization",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationCreateRequest,
         examples(
             (
                 "Create an organization with organization_name" = (
@@ -104,8 +104,8 @@ pub async fn organization_create() {}
 /// Retrieve an existing organization
 #[utoipa::path(
     get,
-    path = "/v2/organization/{organization_id}",
-    params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
+    path = "/v2/organization/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Organization Created", body =OrganizationResponse),
         (status = 400, description = "Invalid data")
@@ -122,9 +122,9 @@ pub async fn organization_retrieve() {}
 /// Create a new organization for .
 #[utoipa::path(
     put,
-    path = "/v2/organization/{organization_id}",
+    path = "/v2/organization/{id}",
     request_body(
-        content = OrganizationRequest,
+        content = OrganizationUpdateRequest,
         examples(
             (
                 "Update organization_name of the organization" = (
@@ -133,7 +133,7 @@ pub async fn organization_retrieve() {}
             ),
         )
     ),
-    params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
+    params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Organization Created", body =OrganizationResponse),
         (status = 400, description = "Invalid data")
@@ -145,13 +145,13 @@ pub async fn organization_retrieve() {}
 pub async fn organization_update() {}
 
 #[cfg(feature = "v2")]
-/// Merchant Account - List
+/// Organization - Merchant Account - List
 ///
 /// List merchant accounts for an Organization
 #[utoipa::path(
     get,
-    path = "/v2/organization/{organization_id}/merchant_accounts",
-    params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
+    path = "/v2/organization/{id}/merchant_accounts",
+    params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Merchant Account list retrieved successfully", body = Vec<MerchantAccountResponse>),
         (status = 400, description = "Invalid data")

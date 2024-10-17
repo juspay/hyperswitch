@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::{ext_traits::ConfigExt, pii::Email};
+use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -96,6 +96,7 @@ pub struct Settings<S: SecretState> {
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
+    pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -122,7 +123,8 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    pub recipient_emails: RecipientMails,
+    #[cfg(feature = "v2")]
+    pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
@@ -214,9 +216,10 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct KeyManagerConfig {
-    pub enabled: Option<bool>,
+    pub enabled: bool,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
@@ -722,6 +725,12 @@ pub struct ApplePayDecryptConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct PazeDecryptConfig {
+    pub paze_private_key: Secret<String>,
+    pub paze_private_key_passphrase: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LockerBasedRecipientConnectorList {
     #[serde(deserialize_with = "deserialize_hashset")]
@@ -855,10 +864,19 @@ impl Settings<SecuredSecret> {
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
 
+        #[cfg(feature = "v2")]
+        self.cell_information.validate()?;
         self.network_tokenization_service
             .as_ref()
             .map(|x| x.get_inner().validate())
             .transpose()?;
+
+        self.paze_decrypt_keys
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.key_manager.get_inner().validate()?;
 
         Ok(())
     }
@@ -941,9 +959,24 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct RecipientMails {
-    pub recon: Email,
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct CellInformation {
+    pub id: common_utils::id_type::CellId,
+}
+
+#[cfg(feature = "v2")]
+impl Default for CellInformation {
+    fn default() -> Self {
+        // We provide a static default cell id for constructing application settings.
+        // This will only panic at application startup if we're unable to construct the default,
+        // around the time of deserializing application settings.
+        // And a panic at application startup is considered acceptable.
+        #[allow(clippy::expect_used)]
+        let cell_id = common_utils::id_type::CellId::from_string("defid")
+            .expect("Failed to create a default for Cell Id");
+        Self { id: cell_id }
+    }
 }
 
 fn deserialize_hashmap_inner<K, V>(

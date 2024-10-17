@@ -118,7 +118,7 @@ pub trait StorageInterface:
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + RequestIdStore
-    + business_profile::BusinessProfileInterface
+    + business_profile::ProfileInterface
     + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface

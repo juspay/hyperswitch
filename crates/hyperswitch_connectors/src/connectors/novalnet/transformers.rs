@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
+    consts,
     ext_traits::OptionExt,
     pii::{Email, IpAddress},
     request::Method,
@@ -14,7 +16,9 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -28,7 +32,7 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
         RouterData as OtherRouterData,
     },
@@ -53,22 +57,22 @@ pub enum NovalNetPaymentTypes {
     CREDITCARD,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Clone)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestMerchant {
     signature: Secret<String>,
     tariff: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Clone)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestBilling {
     house_no: Secret<String>,
     street: Secret<String>,
-    city: String,
+    city: Secret<String>,
     zip: Secret<String>,
     country_code: api_enums::CountryAlpha2,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq, Clone)]
+#[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestCustomer {
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -79,7 +83,7 @@ pub struct NovalnetPaymentsRequestCustomer {
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 
-pub struct NovalNetCard {
+pub struct NovalnetCard {
     card_number: CardNumber,
     card_expiry_month: Secret<String>,
     card_expiry_year: Secret<String>,
@@ -88,9 +92,15 @@ pub struct NovalNetCard {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NovalnetMandate {
+    token: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalNetPaymentData {
-    PaymentCard(NovalNetCard),
+    PaymentCard(NovalnetCard),
+    MandatePayment(NovalnetMandate),
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -103,13 +113,14 @@ pub struct NovalnetPaymentsRequestTransaction {
     test_mode: i8,
     payment_type: NovalNetPaymentTypes,
     amount: StringMinorUnit,
-    currency: String,
+    currency: common_enums::Currency,
     order_no: String,
     payment_data: NovalNetPaymentData,
     hook_url: Option<String>,
     return_url: Option<String>,
     error_return_url: Option<String>,
     enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
+    create_token: Option<i8>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -125,77 +136,126 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
     fn try_from(
         item: &NovalnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = NovalnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
-                let merchant = NovalnetPaymentsRequestMerchant {
-                    signature: auth.product_activation_key,
-                    tariff: auth.tariff_id,
-                };
+        let merchant = NovalnetPaymentsRequestMerchant {
+            signature: auth.product_activation_key,
+            tariff: auth.tariff_id,
+        };
 
-                let novalnet_card = NovalNetPaymentData::PaymentCard(NovalNetCard {
-                    card_number: req_card.card_number,
-                    card_expiry_month: req_card.card_exp_month,
-                    card_expiry_year: req_card.card_exp_year,
-                    card_cvc: req_card.card_cvc,
-                    card_holder: item.router_data.get_billing_full_name()?,
+        let enforce_3d = match item.router_data.auth_type {
+            enums::AuthenticationType::ThreeDs => Some(1),
+            enums::AuthenticationType::NoThreeDs => None,
+        };
+        let test_mode = match item.router_data.test_mode {
+            Some(true) => 1,
+            Some(false) | None => 0,
+        };
+
+        let billing = NovalnetPaymentsRequestBilling {
+            house_no: item.router_data.get_billing_line1()?,
+            street: item.router_data.get_billing_line2()?,
+            city: Secret::new(item.router_data.get_billing_city()?),
+            zip: item.router_data.get_billing_zip()?,
+            country_code: item.router_data.get_billing_country()?,
+        };
+
+        let customer_ip = item
+            .router_data
+            .request
+            .get_browser_info()?
+            .get_ip_address()?;
+
+        let customer = NovalnetPaymentsRequestCustomer {
+            first_name: item.router_data.get_billing_first_name()?,
+            last_name: item.router_data.get_billing_last_name()?,
+            email: item.router_data.get_billing_email()?,
+            mobile: item.router_data.get_optional_billing_phone_number(),
+            billing,
+            customer_ip,
+        };
+
+        let lang = item
+            .router_data
+            .request
+            .get_optional_language_from_browser_info()
+            .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string());
+        let custom = NovalnetCustom { lang };
+        let hook_url = item.router_data.request.get_webhook_url()?;
+
+        match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_id| mandate_id.mandate_reference_id)
+        {
+            None => match item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ref req_card) => {
+                    let novalnet_card = NovalNetPaymentData::PaymentCard(NovalnetCard {
+                        card_number: req_card.card_number.clone(),
+                        card_expiry_month: req_card.card_exp_month.clone(),
+                        card_expiry_year: req_card.card_exp_year.clone(),
+                        card_cvc: req_card.card_cvc.clone(),
+                        card_holder: item.router_data.get_billing_full_name()?,
+                    });
+                    let create_token = if item.router_data.request.is_mandate_payment() {
+                        Some(1)
+                    } else {
+                        None
+                    };
+                    let return_url = item.router_data.request.get_return_url()?;
+
+                    let transaction = NovalnetPaymentsRequestTransaction {
+                        test_mode,
+                        payment_type: NovalNetPaymentTypes::CREDITCARD,
+                        amount: item.amount.clone(),
+                        currency: item.router_data.request.currency,
+                        order_no: item.router_data.connector_request_reference_id.clone(),
+                        hook_url: Some(hook_url),
+                        return_url: Some(return_url.clone()),
+                        error_return_url: Some(return_url.clone()),
+                        payment_data: novalnet_card,
+                        enforce_3d,
+                        create_token,
+                    };
+
+                    Ok(Self {
+                        merchant,
+                        transaction,
+                        customer,
+                        custom,
+                    })
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+            },
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+
+                let novalnet_mandate_data = NovalNetPaymentData::MandatePayment(NovalnetMandate {
+                    token: Secret::new(connector_mandate_id),
                 });
 
-                let enforce_3d = match item.router_data.auth_type {
-                    enums::AuthenticationType::ThreeDs => Some(1),
-                    enums::AuthenticationType::NoThreeDs => None,
-                };
-                let test_mode = match item.router_data.test_mode {
-                    Some(true) => 1,
-                    Some(false) | None => 0,
-                };
-
-                let return_url = item.router_data.request.get_return_url().ok();
-                let hook_url = item.router_data.request.get_webhook_url().ok();
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
                     amount: item.amount.clone(),
-                    currency: item.router_data.request.currency.to_string(),
+                    currency: item.router_data.request.currency,
                     order_no: item.router_data.connector_request_reference_id.clone(),
-                    hook_url,
-                    return_url: return_url.clone(),
-                    error_return_url: return_url.clone(),
-                    payment_data: novalnet_card,
+                    hook_url: Some(hook_url),
+                    return_url: None,
+                    error_return_url: None,
+                    payment_data: novalnet_mandate_data,
                     enforce_3d,
+                    create_token: None,
                 };
-
-                let billing = NovalnetPaymentsRequestBilling {
-                    house_no: item.router_data.get_billing_line1()?,
-                    street: item.router_data.get_billing_line2()?,
-                    city: item.router_data.get_billing_city()?,
-                    zip: item.router_data.get_billing_zip()?,
-                    country_code: item.router_data.get_billing_country()?,
-                };
-
-                let customer_ip = item
-                    .router_data
-                    .request
-                    .get_browser_info()?
-                    .get_ip_address()?;
-
-                let customer = NovalnetPaymentsRequestCustomer {
-                    first_name: item.router_data.get_billing_first_name()?,
-                    last_name: item.router_data.get_billing_last_name()?,
-                    email: item.router_data.get_billing_email()?,
-                    mobile: item.router_data.get_billing_phone_number().ok(),
-                    billing,
-                    customer_ip,
-                };
-
-                let lang = item
-                    .router_data
-                    .request
-                    .get_optional_language_from_browser_info()
-                    .unwrap_or("EN".to_string());
-
-                let custom = NovalnetCustom { lang };
 
                 Ok(Self {
                     merchant,
@@ -204,7 +264,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     custom,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
+            )
+            .into()),
         }
     }
 }
@@ -235,7 +298,7 @@ impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
 }
 
 // PaymentsResponse
-#[derive(Debug, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NovalnetTransactionStatus {
     Success,
@@ -243,16 +306,15 @@ pub enum NovalnetTransactionStatus {
     Confirmed,
     OnHold,
     Pending,
-    #[default]
     Deactivated,
     Progress,
 }
 
-#[derive(Debug, Copy, Display, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
+#[strum(serialize_all = "UPPERCASE")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum NovalnetAPIStatus {
     Success,
-    #[default]
     Failure,
 }
 
@@ -271,29 +333,35 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultData {
-    redirect_url: Option<Secret<url::Url>>,
-    status: NovalnetAPIStatus,
-    status_code: i32,
-    status_text: String,
-    additional_message: Option<String>,
+    pub redirect_url: Option<Secret<url::Url>>,
+    pub status: NovalnetAPIStatus,
+    pub status_code: u64,
+    pub status_text: String,
+    pub additional_message: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TransactionData {
-    payment_type: Option<String>,
-    status_code: i32,
-    txn_secret: Option<String>,
-    tid: Option<Secret<i64>>,
-    test_mode: Option<i8>,
-    status: Option<NovalnetTransactionStatus>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetPaymentsResponseTransactionData {
+    pub amount: Option<u64>,
+    pub currency: Option<common_enums::Currency>,
+    pub date: Option<String>,
+    pub order_no: Option<String>,
+    pub payment_data: Option<NovalnetResponsePaymentData>,
+    pub payment_type: Option<String>,
+    pub status_code: Option<u64>,
+    pub txn_secret: Option<Secret<String>>,
+    pub tid: Option<Secret<i64>>,
+    pub test_mode: Option<i8>,
+    pub status: Option<NovalnetTransactionStatus>,
+    pub authorization: Option<NovalnetAuthorizationResponse>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponse {
     result: ResultData,
-    transaction: Option<TransactionData>,
+    transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse {
@@ -378,43 +446,57 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseCustomer {
-    pub billing: NovalnetResponseBilling,
-    pub customer_ip: Secret<String>,
-    pub email: Secret<String>,
-    pub first_name: Secret<String>,
-    pub gender: Secret<String>,
-    pub last_name: Secret<String>,
-    pub mobile: Secret<String>,
+    pub billing: Option<NovalnetResponseBilling>,
+    pub customer_ip: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub first_name: Option<Secret<String>>,
+    pub gender: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub mobile: Option<Secret<String>>,
+    pub tel: Option<Secret<String>>,
+    pub fax: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseBilling {
     pub city: Secret<String>,
     pub country_code: Secret<String>,
-    pub house_no: Secret<String>,
+    pub house_no: Option<Secret<String>>,
     pub street: Secret<String>,
     pub zip: Secret<String>,
+    pub state: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseMerchant {
-    pub project: u32,
-    pub vendor: u32,
+    pub project: Option<Secret<i64>>,
+    pub project_name: Option<Secret<String>>,
+    pub project_url: Option<url::Url>,
+    pub vendor: Option<Secret<i64>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct NovalnetResponseTransactionData {
-    pub amount: u32,
-    pub currency: String,
+pub struct NovalnetAuthorizationResponse {
+    expiry_date: Option<String>,
+    auto_action: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct NovalnetSyncResponseTransactionData {
+    pub amount: Option<u64>,
+    pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
-    pub order_no: String,
-    pub payment_data: NovalnetResponsePaymentData,
+    pub order_no: Option<String>,
+    pub payment_data: Option<NovalnetResponsePaymentData>,
     pub payment_type: String,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u16,
+    pub status_code: u64,
     pub test_mode: u8,
-    pub tid: Secret<i64>,
-    pub txn_secret: Secret<String>,
+    pub tid: Option<Secret<i64>>,
+    pub txn_secret: Option<Secret<String>>,
+    pub authorization: Option<NovalnetAuthorizationResponse>,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -425,14 +507,14 @@ pub enum NovalnetResponsePaymentData {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseCard {
-    pub card_brand: Secret<String>,
+    pub card_brand: Option<Secret<String>>,
     pub card_expiry_month: Secret<u8>,
     pub card_expiry_year: Secret<u16>,
     pub card_holder: Secret<String>,
     pub card_number: Secret<String>,
-    pub cc_3d: Secret<u8>,
-    pub last_four: Secret<String>,
-    pub token: Option<Secret<String>>,
+    pub cc_3d: Option<Secret<u8>>,
+    pub last_four: Option<Secret<String>>,
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -440,7 +522,7 @@ pub struct NovalnetPSyncResponse {
     pub customer: Option<NovalnetResponseCustomer>,
     pub merchant: Option<NovalnetResponseMerchant>,
     pub result: ResultData,
-    pub transaction: Option<NovalnetResponseTransactionData>,
+    pub transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
@@ -492,7 +574,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
                 .router_data
                 .request
                 .get_optional_language_from_browser_info()
-                .unwrap_or("EN".to_string()),
+                .unwrap_or(consts::DEFAULT_LOCALE.to_string()),
         };
         Ok(Self {
             transaction,
@@ -527,7 +609,7 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
                 .router_data
                 .request
                 .get_optional_language_from_browser_info()
-                .unwrap_or("EN".to_string()),
+                .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string()),
         };
         Ok(Self {
             transaction,
@@ -554,28 +636,28 @@ impl From<NovalnetTransactionStatus> for enums::RefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundSyncResponse {
     result: ResultData,
-    transaction: Option<NovalnetResponseTransactionData>,
+    transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundsTransactionData {
-    amount: u32,
-    date: Option<String>,
-    currency: String,
-    order_no: String,
-    payment_type: String,
-    refund: RefundData,
-    refunded_amount: u32,
-    status: NovalnetTransactionStatus,
-    status_code: u16,
-    test_mode: u8,
-    tid: Option<Secret<i64>>,
+    pub amount: Option<u64>,
+    pub date: Option<String>,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: String,
+    pub refund: RefundData,
+    pub refunded_amount: u64,
+    pub status: NovalnetTransactionStatus,
+    pub status_code: u64,
+    pub test_mode: u8,
+    pub tid: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u32,
-    currency: String,
+    amount: u64,
+    currency: common_enums::Currency,
     payment_type: String,
     tid: Option<Secret<i64>>,
 }
@@ -601,7 +683,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                     .response
                     .transaction
                     .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()))
+                    .and_then(|data| data.refund.tid.map(|tid| tid.expose().to_string()))
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 let transaction_status = item
@@ -629,7 +711,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
     status: NovalnetTransactionStatus,
     tid: Secret<String>,
@@ -667,12 +749,26 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
         };
 
         let custom = NovalnetCustom {
-            lang: "EN".to_string(),
+            lang: consts::DEFAULT_LOCALE.to_string().to_string(),
         };
         Ok(Self {
             transaction,
             custom,
         })
+    }
+}
+
+impl NovalnetSyncResponseTransactionData {
+    pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
+        if let Some(payment_data) =
+            transaction_data.and_then(|transaction_data| transaction_data.payment_data.clone())
+        {
+            match &payment_data {
+                NovalnetResponsePaymentData::PaymentCard(card_data) => card_data.token.clone(),
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -690,12 +786,17 @@ impl<F>
                     .response
                     .transaction
                     .clone()
-                    .map(|data| data.tid.expose().to_string());
+                    .and_then(|data| data.tid)
+                    .map(|tid| tid.expose().to_string());
                 let transaction_status = item
                     .response
                     .transaction
+                    .clone()
                     .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
+                let mandate_reference_id = NovalnetSyncResponseTransactionData::get_token(
+                    item.response.transaction.as_ref(),
+                );
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -705,7 +806,13 @@ impl<F>
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                            MandateReference {
+                                connector_mandate_id: Some(id.clone()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                            }
+                        }),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -727,31 +834,31 @@ impl<F>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CaptureTransactionData {
-    amount: Option<u32>,
-    capture: CaptureData,
-    currency: Option<String>,
-    order_no: Option<String>,
-    payment_type: Option<String>,
-    status: Option<NovalnetTransactionStatus>,
-    status_code: Option<u16>,
-    test_mode: Option<u8>,
-    tid: Option<Secret<i64>>,
+pub struct NovalnetCaptureTransactionData {
+    pub amount: Option<u64>,
+    pub capture: CaptureData,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: String,
+    pub status: NovalnetTransactionStatus,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
+    pub tid: Secret<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaptureData {
-    amount: Option<u32>,
+    amount: Option<u64>,
     payment_type: Option<String>,
     status: Option<String>,
-    status_code: u16,
+    status_code: u64,
     tid: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureResponse {
     pub result: ResultData,
-    pub transaction: Option<CaptureTransactionData>,
+    pub transaction: Option<NovalnetCaptureTransactionData>,
 }
 
 impl<F>
@@ -774,11 +881,11 @@ impl<F>
                     .response
                     .transaction
                     .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
+                    .map(|data| data.tid.expose().to_string());
                 let transaction_status = item
                     .response
                     .transaction
-                    .and_then(|transaction_data| transaction_data.status)
+                    .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
 
                 Ok(Self {
@@ -832,7 +939,7 @@ impl TryFrom<&RefundSyncRouterData> for NovalnetSyncRequest {
             lang: item
                 .request
                 .get_optional_language_from_browser_info()
-                .unwrap_or("EN".to_string()),
+                .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string()),
         };
         Ok(Self {
             transaction,
@@ -854,9 +961,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                     .response
                     .transaction
                     .clone()
-                    .map(|transaction_data: NovalnetResponseTransactionData| {
-                        transaction_data.tid.expose().to_string()
-                    })
+                    .and_then(|data| data.tid)
+                    .map(|tid| tid.expose().to_string())
                     .unwrap_or("".to_string());
                 //NOTE: Mapping refund_id with "" incase we dont get any tid
 
@@ -907,7 +1013,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
             lang: item
                 .request
                 .get_optional_language_from_browser_info()
-                .unwrap_or("EN".to_string()),
+                .unwrap_or(consts::DEFAULT_LOCALE.to_string().to_string()),
         };
         Ok(Self {
             transaction,
@@ -916,10 +1022,10 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCancelResponse {
     result: ResultData,
-    transaction: Option<TransactionData>,
+    transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 impl<F>
@@ -981,10 +1087,87 @@ impl<F>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct NovalnetErrorResponse {
-    pub status_code: u16,
+    pub status_code: u64,
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Display, Debug, Serialize, Deserialize)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WebhookEventType {
+    Payment,
+    TransactionCapture,
+    TransactionCancel,
+    TransactionRefund,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NovalnetWebhookEvent {
+    pub checksum: String,
+    pub tid: i64,
+    pub parent_tid: Option<i64>,
+    #[serde(rename = "type")]
+    pub event_type: WebhookEventType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum NovalnetWebhookTransactionData {
+    SyncTransactionData(NovalnetSyncResponseTransactionData),
+    CaptureTransactionData(NovalnetCaptureTransactionData),
+    CancelTransactionData(NovalnetPaymentsResponseTransactionData),
+    RefundsTransactionData(NovalnetRefundsTransactionData),
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NovalnetWebhookNotificationResponse {
+    pub event: NovalnetWebhookEvent,
+    pub result: ResultData,
+    pub transaction: NovalnetWebhookTransactionData,
+}
+
+pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
+    matches!(event_code, WebhookEventType::TransactionRefund)
+}
+
+pub fn get_incoming_webhook_event(
+    status: WebhookEventType,
+    transaction_status: NovalnetTransactionStatus,
+) -> IncomingWebhookEvent {
+    match status {
+        WebhookEventType::Payment => match transaction_status {
+            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            NovalnetTransactionStatus::OnHold => {
+                IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+            }
+            NovalnetTransactionStatus::Pending => IncomingWebhookEvent::PaymentIntentProcessing,
+            NovalnetTransactionStatus::Progress => IncomingWebhookEvent::EventNotSupported,
+            _ => IncomingWebhookEvent::PaymentIntentFailure,
+        },
+        WebhookEventType::TransactionCapture => match transaction_status {
+            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                IncomingWebhookEvent::PaymentIntentCaptureSuccess
+            }
+            _ => IncomingWebhookEvent::PaymentIntentCaptureFailure,
+        },
+        WebhookEventType::TransactionCancel => match transaction_status {
+            NovalnetTransactionStatus::Deactivated => IncomingWebhookEvent::PaymentIntentCancelled,
+            _ => IncomingWebhookEvent::PaymentIntentCancelFailure,
+        },
+        WebhookEventType::TransactionRefund => match transaction_status {
+            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                IncomingWebhookEvent::RefundSuccess
+            }
+            _ => IncomingWebhookEvent::RefundFailure,
+        },
+    }
+}
+
+pub fn reverse_string(s: &str) -> String {
+    s.chars().rev().collect()
 }

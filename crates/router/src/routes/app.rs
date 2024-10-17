@@ -51,8 +51,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(all(feature = "oltp", feature = "v1"))]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, user,
-    user_role,
+    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
+    user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -513,26 +513,25 @@ pub struct Payments;
     any(feature = "olap", feature = "oltp"),
     feature = "v2",
     feature = "payment_methods_v2",
-    feature = "payment_v2"
 ))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/{payment_id}/saved_payment_methods")
-                .route(web::get().to(list_customer_payment_method_for_payment)),
-        );
+        route = route
+            .service(
+                web::resource("/{payment_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_for_payment)),
+            )
+            .service(
+                web::resource("/{payment_id}/create_external_sdk_tokens")
+                    .route(web::post().to(payments_connector_session)),
+            );
 
         route
     }
 }
 
-#[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2"),
-    not(feature = "payment_v2")
-))]
+#[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -582,6 +581,9 @@ impl Payments {
                     web::resource("/{payment_id}")
                         .route(web::get().to(payments_retrieve))
                         .route(web::post().to(payments_update)),
+                )
+                .service(
+                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments_post_session_tokens)),
                 )
                 .service(
                     web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
@@ -1003,6 +1005,10 @@ impl Refunds {
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
                 .service(web::resource("/aggregate").route(web::get().to(get_refunds_aggregates)))
                 .service(
+                    web::resource("/profile/aggregate")
+                        .route(web::get().to(get_refunds_aggregate_profile)),
+                )
+                .service(
                     web::resource("/v2/profile/filter")
                         .route(web::get().to(get_refunds_filters_profile)),
                 )
@@ -1083,7 +1089,13 @@ impl PaymentMethods {
             .service(
                 web::resource("/{id}/confirm-intent")
                     .route(web::post().to(confirm_payment_method_intent_api)),
-            );
+            )
+            .service(
+                web::resource("/{id}/update_saved_payment_method")
+                    .route(web::patch().to(payment_method_update_api)),
+            )
+            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
+            .service(web::resource("/{id}").route(web::delete().to(payment_method_delete_api)));
 
         route
     }
@@ -1244,8 +1256,7 @@ impl MerchantAccount {
                             .route(web::put().to(admin::update_merchant_account)),
                     )
                     .service(
-                        web::resource("/profiles")
-                            .route(web::get().to(admin::business_profiles_list)),
+                        web::resource("/profiles").route(web::get().to(profiles::profiles_list)),
                     ),
             )
     }
@@ -1497,6 +1508,11 @@ impl Disputes {
                 web::resource("/profile/list")
                     .route(web::get().to(disputes::retrieve_disputes_list_profile)),
             )
+            .service(web::resource("/filter").route(web::get().to(disputes::get_disputes_filters)))
+            .service(
+                web::resource("/profile/filter")
+                    .route(web::get().to(disputes::get_disputes_filters_profile)),
+            )
             .service(
                 web::resource("/accept/{dispute_id}")
                     .route(web::post().to(disputes::accept_dispute)),
@@ -1601,19 +1617,19 @@ impl PayoutLink {
     }
 }
 
-pub struct BusinessProfile;
+pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
-impl BusinessProfile {
+impl Profile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(admin::business_profile_create)))
+            .service(web::resource("").route(web::post().to(profiles::profile_create)))
             .service(
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::get().to(admin::business_profile_retrieve))
-                            .route(web::put().to(admin::business_profile_update)),
+                            .route(web::get().to(profiles::profile_retrieve))
+                            .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
                         web::resource("/connector_accounts")
@@ -1622,7 +1638,7 @@ impl BusinessProfile {
                     .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
-                            .route(web::post().to(routing::routing_update_default_config)),
+                            .route(web::patch().to(routing::routing_update_default_config)),
                     )
                     .service(
                         web::resource("/activate_routing_algorithm").route(web::patch().to(
@@ -1664,14 +1680,14 @@ impl BusinessProfile {
     }
 }
 #[cfg(all(feature = "olap", feature = "v1"))]
-impl BusinessProfile {
+impl Profile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("")
-                    .route(web::post().to(admin::business_profile_create))
-                    .route(web::get().to(admin::business_profiles_list)),
+                    .route(web::post().to(profiles::profile_create))
+                    .route(web::get().to(profiles::profiles_list)),
             )
             .service(
                 web::scope("/{profile_id}")
@@ -1694,32 +1710,31 @@ impl BusinessProfile {
                     )
                     .service(
                         web::resource("")
-                            .route(web::get().to(admin::business_profile_retrieve))
-                            .route(web::post().to(admin::business_profile_update))
-                            .route(web::delete().to(admin::business_profile_delete)),
+                            .route(web::get().to(profiles::profile_retrieve))
+                            .route(web::post().to(profiles::profile_update))
+                            .route(web::delete().to(profiles::profile_delete)),
                     )
                     .service(
                         web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(admin::toggle_extended_card_info)),
+                            .route(web::post().to(profiles::toggle_extended_card_info)),
                     )
                     .service(
                         web::resource("/toggle_connector_agnostic_mit")
-                            .route(web::post().to(admin::toggle_connector_agnostic_mit)),
+                            .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
                     ),
             )
     }
 }
 
-pub struct BusinessProfileNew;
+pub struct ProfileNew;
 
 #[cfg(feature = "olap")]
-impl BusinessProfileNew {
+impl ProfileNew {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/profile")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("")
-                    .route(web::get().to(admin::business_profiles_list_at_profile_level)),
+                web::resource("").route(web::get().to(profiles::profiles_list_at_profile_level)),
             )
             .service(
                 web::resource("/connectors").route(web::get().to(admin::connector_list_profile)),
@@ -1780,25 +1795,10 @@ impl User {
                 web::resource("/internal_signup").route(web::post().to(user::internal_user_signup)),
             )
             .service(
-                web::resource("/switch_merchant").route(web::post().to(user::switch_merchant_id)),
-            )
-            .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
             )
-            // TODO: Remove this endpoint once migration to /merchants/list is done
-            .service(
-                web::resource("/switch/list").route(web::get().to(user::list_merchants_for_user)),
-            )
-            .service(
-                web::resource("/merchants/list")
-                    .route(web::get().to(user::list_merchants_for_user)),
-            )
-            // The route is utilized to select an invitation from a list of merchants in an intermediate state
-            .service(
-                web::resource("/merchants_select/list")
-                    .route(web::get().to(user::list_merchants_for_user)),
-            )
+            // TODO: To be deprecated
             .service(
                 web::resource("/permission_info")
                     .route(web::get().to(user_role::get_authorization_info)),
@@ -1853,7 +1853,12 @@ impl User {
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
+                // TODO: to be deprecated
                 .service(web::resource("").route(web::get().to(user::check_two_factor_auth_status)))
+                .service(
+                    web::resource("/v2")
+                        .route(web::get().to(user::check_two_factor_auth_status_with_attempts)),
+                )
                 .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(user::totp_begin)))
@@ -1940,12 +1945,13 @@ impl User {
         // User management
         route = route.service(
             web::scope("/user")
-                .service(web::resource("").route(web::get().to(user::get_user_role_details)))
+                .service(web::resource("").route(web::post().to(user::list_user_roles_details)))
+                // TODO: To be deprecated
                 .service(web::resource("/v2").route(web::post().to(user::list_user_roles_details)))
                 .service(
-                    web::resource("/list")
-                        .route(web::get().to(user::list_users_for_merchant_account)),
+                    web::resource("/list").route(web::get().to(user_role::list_users_in_lineage)),
                 )
+                // TODO: To be deprecated
                 .service(
                     web::resource("/v2/list")
                         .route(web::get().to(user_role::list_users_in_lineage)),
@@ -1958,8 +1964,11 @@ impl User {
                     web::scope("/invite/accept")
                         .service(
                             web::resource("")
-                                .route(web::post().to(user_role::merchant_select))
-                                .route(web::put().to(user_role::accept_invitation)),
+                                .route(web::post().to(user_role::accept_invitations_v2)),
+                        )
+                        .service(
+                            web::resource("/pre_auth")
+                                .route(web::post().to(user_role::accept_invitations_pre_auth)),
                         )
                         .service(
                             web::scope("/v2")
@@ -1984,36 +1993,38 @@ impl User {
         );
 
         // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(user_role::get_role_from_token))
-                        .route(web::post().to(user_role::create_role)),
-                )
-                .service(
-                    web::resource("/v2/list").route(web::get().to(user_role::list_roles_with_info)),
-                )
-                .service(
-                    web::scope("/list")
-                        .service(web::resource("").route(web::get().to(user_role::list_all_roles)))
-                        .service(
-                            web::resource("/invite").route(
+        route =
+            route.service(
+                web::scope("/role")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(user_role::get_role_from_token))
+                            .route(web::post().to(user_role::create_role)),
+                    )
+                    // TODO: To be deprecated
+                    .service(
+                        web::resource("/v2/list")
+                            .route(web::get().to(user_role::list_roles_with_info)),
+                    )
+                    .service(
+                        web::scope("/list")
+                            .service(
+                                web::resource("")
+                                    .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),
-                            ),
-                        )
-                        .service(
-                            web::resource("/update").route(
+                            ))
+                            .service(web::resource("/update").route(
                                 web::get().to(user_role::list_updatable_roles_at_entity_level),
-                            ),
-                        ),
-                )
-                .service(
-                    web::resource("/{role_id}")
-                        .route(web::get().to(user_role::get_role))
-                        .route(web::put().to(user_role::update_role)),
-                ),
-        );
+                            )),
+                    )
+                    .service(
+                        web::resource("/{role_id}")
+                            .route(web::get().to(user_role::get_role))
+                            .route(web::put().to(user_role::update_role)),
+                    ),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {

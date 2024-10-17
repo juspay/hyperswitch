@@ -72,11 +72,14 @@ pub async fn deep_health_check_func(
 
     logger::debug!("Database health check begin");
 
-    let db_status = store.health_check_db().await.map(|_| true).map_err(|err| {
-        error_stack::report!(HealthCheckError::DbError {
-            message: err.to_string()
-        })
-    })?;
+    let db_status = store
+        .health_check_db()
+        .await
+        .map(|_| true)
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(HealthCheckError::DbError { message })
+        })?;
 
     logger::debug!("Database health check end");
 
@@ -86,10 +89,9 @@ pub async fn deep_health_check_func(
         .health_check_redis(&conf.into_inner())
         .await
         .map(|_| true)
-        .map_err(|err| {
-            error_stack::report!(HealthCheckError::RedisError {
-                message: err.to_string()
-            })
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(HealthCheckError::RedisError { message })
         })?;
 
     logger::debug!("Redis health check end");

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, AddressDetailsData, RouterData as _},
+    utils::{self, is_payment_failure, AddressDetailsData, RouterData as _},
 };
 
 const PASSWORD: &str = "password";
@@ -148,10 +148,13 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Volt"),
-            )
-            .into()),
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Volt"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -604,33 +607,4 @@ pub struct VoltErrorException {
 pub struct VoltErrorList {
     pub property: String,
     pub message: String,
-}
-
-fn is_payment_failure(status: enums::AttemptStatus) -> bool {
-    match status {
-        common_enums::AttemptStatus::AuthenticationFailed
-        | common_enums::AttemptStatus::AuthorizationFailed
-        | common_enums::AttemptStatus::CaptureFailed
-        | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure => true,
-        common_enums::AttemptStatus::Started
-        | common_enums::AttemptStatus::RouterDeclined
-        | common_enums::AttemptStatus::AuthenticationPending
-        | common_enums::AttemptStatus::AuthenticationSuccessful
-        | common_enums::AttemptStatus::Authorized
-        | common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::Authorizing
-        | common_enums::AttemptStatus::CodInitiated
-        | common_enums::AttemptStatus::Voided
-        | common_enums::AttemptStatus::VoidInitiated
-        | common_enums::AttemptStatus::CaptureInitiated
-        | common_enums::AttemptStatus::AutoRefunded
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable
-        | common_enums::AttemptStatus::Unresolved
-        | common_enums::AttemptStatus::Pending
-        | common_enums::AttemptStatus::PaymentMethodAwaited
-        | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
-    }
 }

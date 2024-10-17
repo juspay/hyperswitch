@@ -179,6 +179,27 @@ impl SecretsHandler for settings::ApplePayDecryptConfig {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::PazeDecryptConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let paze_decrypt_keys = value.get_inner();
+
+        let (paze_private_key, paze_private_key_passphrase) = tokio::try_join!(
+            secret_management_client.get_secret(paze_decrypt_keys.paze_private_key.clone()),
+            secret_management_client
+                .get_secret(paze_decrypt_keys.paze_private_key_passphrase.clone()),
+        )?;
+
+        Ok(value.transition_state(|_| Self {
+            paze_private_key,
+            paze_private_key_passphrase,
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::ApplepayMerchantConfigs {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -232,14 +253,22 @@ impl SecretsHandler for settings::KeyManagerConfig {
         let keyconfig = value.get_inner();
 
         #[cfg(feature = "keymanager_mtls")]
-        let ca = _secret_management_client
-            .get_secret(keyconfig.ca.clone())
-            .await?;
+        let ca = if keyconfig.enabled {
+            _secret_management_client
+                .get_secret(keyconfig.ca.clone())
+                .await?
+        } else {
+            keyconfig.ca.clone()
+        };
 
         #[cfg(feature = "keymanager_mtls")]
-        let cert = _secret_management_client
-            .get_secret(keyconfig.cert.clone())
-            .await?;
+        let cert = if keyconfig.enabled {
+            _secret_management_client
+                .get_secret(keyconfig.cert.clone())
+                .await?
+        } else {
+            keyconfig.ca.clone()
+        };
 
         Ok(value.transition_state(|keyconfig| Self {
             #[cfg(feature = "keymanager_mtls")]
@@ -381,6 +410,17 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt applepay decrypt configs");
 
     #[allow(clippy::expect_used)]
+    let paze_decrypt_keys = if let Some(paze_keys) = conf.paze_decrypt_keys {
+        Some(
+            settings::PazeDecryptConfig::convert_to_raw_secret(paze_keys, secret_management_client)
+                .await
+                .expect("Failed to decrypt paze decrypt configs"),
+        )
+    } else {
+        None
+    };
+
+    #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
         conf.applepay_merchant_configs,
         secret_management_client,
@@ -471,6 +511,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "payouts")]
         payouts: conf.payouts,
         applepay_decrypt_keys,
+        paze_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
@@ -498,7 +539,8 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
-        recipient_emails: conf.recipient_emails,
+        #[cfg(feature = "v2")]
+        cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
         network_tokenization_service,

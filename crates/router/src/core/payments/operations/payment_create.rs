@@ -7,13 +7,20 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::{keymanager::KeyManagerState, MinorUnit},
+    type_name,
+    types::{
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        MinorUnit,
+    },
 };
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
-    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
+    payments::{
+        payment_attempt::PaymentAttempt,
+        payment_intent::{CustomerData, PaymentAddressFromRequest},
+    },
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -133,11 +140,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 &profile_id,
             )
             .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.get_string_repr().to_owned(),
-                },
-            )?
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?
         };
         let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
@@ -341,7 +346,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+        #[cfg(feature = "v1")]
         let payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
@@ -349,7 +354,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_id: payment_id.clone(),
             })?;
 
-        #[cfg(all(feature = "v2", feature = "payment_v2"))]
+        #[cfg(feature = "v2")]
         let payment_attempt = db
             .insert_payment_attempt(
                 key_manager_state,
@@ -400,7 +405,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
                                     payment_method_id: connector_id.payment_method_id,
-                                    update_history: None
+                                    update_history: None,
+                                    mandate_metadata: None,
                                 }
                                 ))
                             }
@@ -439,6 +445,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                         ),
                                         payment_method_id: None,
                                         update_history: None,
+                                        mandate_metadata: None,
                                     },
                                 ),
                             ),
@@ -491,7 +498,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
-            });
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
         let amount = payment_attempt.get_total_amount().into();
 
@@ -552,6 +562,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -595,7 +606,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -702,7 +713,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentCreateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -794,7 +805,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_attempt
             .straight_through_algorithm
             .clone();
-        let authorized_amount = payment_data.payment_attempt.amount;
+        let authorized_amount = payment_data.payment_attempt.get_total_amount();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
         let surcharge_amount = payment_data
@@ -952,6 +963,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
             )?;
         }
 
+        if let Some(charges) = &request.charges {
+            let amount = request.amount.get_required_value("amount")?;
+            helpers::validate_platform_fees_for_marketplace(amount, charges)?;
+        };
+
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
             .routing
             .clone()
@@ -1046,7 +1062,7 @@ impl PaymentCreate {
             .and_then(|payment_method_data_request| {
                 payment_method_data_request.payment_method_data.clone()
             })
-            .async_and_then(|payment_method_data| async {
+            .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     &payment_method_data.into(),
                     &*state.store,
@@ -1054,7 +1070,9 @@ impl PaymentCreate {
                 )
                 .await
             })
-            .await;
+            .await
+            .transpose()?
+            .flatten();
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
@@ -1101,12 +1119,6 @@ impl PaymentCreate {
         } else {
             payment_id.get_attempt_id(1)
         };
-        let surcharge_amount = request
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
-        let tax_amount = request
-            .surcharge_details
-            .and_then(|surcharge_details| surcharge_details.tax_amount);
 
         if request.mandate_data.as_ref().map_or(false, |mandate_data| {
             mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
@@ -1134,7 +1146,6 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
-                amount: MinorUnit::from(amount),
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,
@@ -1151,8 +1162,6 @@ impl PaymentCreate {
                 payment_token: request.payment_token.clone(),
                 mandate_id: request.mandate_id.clone(),
                 business_sub_label: request.business_sub_label.clone(),
-                surcharge_amount,
-                tax_amount,
                 mandate_details: request
                     .mandate_data
                     .as_ref()
@@ -1160,7 +1169,10 @@ impl PaymentCreate {
                 external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
-                net_amount: MinorUnit::new(i64::default()),
+                net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
+                    request,
+                    MinorUnit::from(amount),
+                ),
                 save_to_locker: None,
                 connector: None,
                 error_message: None,
@@ -1198,8 +1210,6 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
-                shipping_cost: request.shipping_cost,
-                order_tax_amount: None,
             },
             additional_pm_data,
         ))
@@ -1275,28 +1285,6 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(Secret::new);
 
-        // Derivation of directly supplied Billing Address data in our Payment Create Request
-        // Encrypting our Billing Address Details to be stored in Payment Intent
-        let billing_details = request
-            .billing
-            .clone()
-            .async_map(|billing_details| create_encrypted_data(state, key_store, billing_details))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?;
-
-        // Derivation of directly supplied Shipping Address data in our Payment Create Request
-        // Encrypting our Shipping Address Details to be stored in Payment Intent
-        let shipping_details = request
-            .shipping
-            .clone()
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
-
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
@@ -1320,13 +1308,53 @@ impl PaymentCreate {
             },
         );
 
-        // Encrypting our Customer Details to be stored in Payment Intent
-        let customer_details = raw_customer_details
-            .async_map(|customer_details| create_encrypted_data(state, key_store, customer_details))
-            .await
+        let key = key_store.key.get_inner().peek();
+        let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+        let key_manager_state: KeyManagerState = state.into();
+
+        let shipping_details_encoded = request
+            .shipping
+            .clone()
+            .map(|shipping| Encode::encode_to_value(&shipping).map(Secret::new))
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt customer details")?;
+            .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+        let billing_details_encoded = request
+            .billing
+            .clone()
+            .map(|billing| Encode::encode_to_value(&billing).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+        let customer_details_encoded = raw_customer_details
+            .map(|customer| Encode::encode_to_value(&customer).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+        let encrypted_data = domain::types::crypto_operation(
+            &key_manager_state,
+            type_name!(storage::PaymentIntent),
+            domain::types::CryptoOperation::BatchEncrypt(
+                PaymentAddressFromRequest::to_encryptable(PaymentAddressFromRequest {
+                    shipping: shipping_details_encoded,
+                    billing: billing_details_encoded,
+                    customer_details: customer_details_encoded,
+                }),
+            ),
+            identifier.clone(),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt data")?;
+
+        let encrypted_data = PaymentAddressFromRequest::from_encryptable(encrypted_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt the payment intent data")?;
 
         let skip_external_tax_calculation = request.skip_external_tax_calculation;
 
@@ -1377,10 +1405,10 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
-            billing_details,
-            customer_details,
+            billing_details: encrypted_data.billing,
+            customer_details: encrypted_data.customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
-            shipping_details,
+            shipping_details: encrypted_data.shipping,
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
