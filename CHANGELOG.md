@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.11.0-hotfix1
+
+### Features
+
+- **core:** Add payments post_session_tokens flow ([#6346](https://github.com/juspay/hyperswitch/pull/6346)) ([`635d70f`](https://github.com/juspay/hyperswitch/commit/635d70fd89c079759428d95bf79be009ed1b2aeb))
+- **router:** Implement post_update_tracker for SessionUpdate Flow and add support for session_update_flow for Paypal ([#6350](https://github.com/juspay/hyperswitch/pull/6350)) ([`75a67f2`](https://github.com/juspay/hyperswitch/commit/75a67f2171ea64ff396fb02e8be7fe78af7496b5))
+
+### Bug Fixes
+
+- **router:** Update nick_name only if card_token.card_holder_name is non empty and populate additional card_details from payment_attempt if not present in the locker ([#6345](https://github.com/juspay/hyperswitch/pull/6345)) ([`3f29209`](https://github.com/juspay/hyperswitch/commit/3f29209bccfb6d7ca2edeaadd93fa13d4e31304b))
+
+- - -
+
 ## 2024.10.11.0
 
 ### Features
