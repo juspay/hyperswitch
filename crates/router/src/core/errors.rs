@@ -328,6 +328,16 @@ pub enum RoutingError {
     VolumeSplitFailed,
     #[error("Unable to parse metadata")]
     MetadataParsingError,
+    #[error("Unable to retrieve success based routing config")]
+    SuccessBasedRoutingConfigError,
+    #[error("Unable to calculate success based routing config from dynamic routing service")]
+    SuccessRateCalculationError,
+    #[error("Unable to convert from '{from}' to '{to}'")]
+    GenericConversionError { from: String, to: String },
+    #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
+    InvalidSuccessBasedConnectorLabel(String),
+    #[error("unable to find '{field}'")]
+    GenericNotFoundError { field: String },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
