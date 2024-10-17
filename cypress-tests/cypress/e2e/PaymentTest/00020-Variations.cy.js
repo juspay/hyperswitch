@@ -277,7 +277,6 @@ describe("Corner cases", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        65000,
         globalState
       );
 
@@ -342,7 +341,6 @@ describe("Corner cases", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        65000,
         globalState
       );
 
@@ -538,7 +536,6 @@ describe("Corner cases", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        65000,
         globalState
       );
 
@@ -722,7 +719,6 @@ describe("Corner cases", () => {
         fixtures.captureBody,
         req_data,
         res_data,
-        6500,
         globalState
       );
       if (should_continue)
