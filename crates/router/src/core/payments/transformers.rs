@@ -1262,6 +1262,7 @@ where
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
             connector_mandate_id,
+            shipping_cost: payment_intent.shipping_cost,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -1517,6 +1518,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             frm_metadata: None,
             order_tax_amount: None,
             connector_mandate_id:None,
+            shipping_cost: None,
         }
     }
 }
