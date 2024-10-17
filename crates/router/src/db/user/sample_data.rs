@@ -1,5 +1,6 @@
 use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::{
+    dispute::{Dispute, DisputeNew},
     errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
     refund::{Refund, RefundNew},
@@ -40,6 +41,12 @@ pub trait BatchSampleDataInterface {
     ) -> CustomResult<Vec<Refund>, StorageError>;
 
     #[cfg(feature = "v1")]
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<Dispute>, StorageError>;
+
+    #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
         state: &KeyManagerState,
@@ -58,6 +65,12 @@ pub trait BatchSampleDataInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError>;
+
+    #[cfg(feature = "v1")]
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Dispute>, StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -128,6 +141,19 @@ impl BatchSampleDataInterface for Store {
     }
 
     #[cfg(feature = "v1")]
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        let conn = pg_connection_write(self)
+            .await
+            .change_context(StorageError::DatabaseConnectionError)?;
+        sample_data_queries::insert_disputes(&conn, batch)
+            .await
+            .map_err(diesel_error_to_data_error)
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
         state: &KeyManagerState,
@@ -184,6 +210,19 @@ impl BatchSampleDataInterface for Store {
             .await
             .map_err(diesel_error_to_data_error)
     }
+
+    #[cfg(feature = "v1")]
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        let conn = pg_connection_write(self)
+            .await
+            .change_context(StorageError::DatabaseConnectionError)?;
+        sample_data_queries::delete_disputes(&conn, merchant_id)
+            .await
+            .map_err(diesel_error_to_data_error)
+    }
 }
 
 #[async_trait::async_trait]
@@ -215,6 +254,14 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
     }
 
     #[cfg(feature = "v1")]
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        _batch: Vec<DisputeNew>,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
         _state: &KeyManagerState,
@@ -237,6 +284,14 @@ impl BatchSampleDataInterface for storage_impl::MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v1")]
+    async fn delete_disputes_for_sample_data(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Dispute>, StorageError> {
         Err(StorageError::MockDbError)?
     }
 }
