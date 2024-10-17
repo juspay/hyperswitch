@@ -583,6 +583,9 @@ impl Payments {
                         .route(web::post().to(payments_update)),
                 )
                 .service(
+                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments_post_session_tokens)),
+                )
+                .service(
                     web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
                 )
                 .service(
@@ -1850,7 +1853,12 @@ impl User {
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
+                // TODO: to be deprecated
                 .service(web::resource("").route(web::get().to(user::check_two_factor_auth_status)))
+                .service(
+                    web::resource("/v2")
+                        .route(web::get().to(user::check_two_factor_auth_status_with_attempts)),
+                )
                 .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(user::totp_begin)))

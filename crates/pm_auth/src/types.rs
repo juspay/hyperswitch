@@ -25,7 +25,7 @@ pub struct LinkTokenRequest {
     pub country_codes: Option<Vec<String>>,
     pub language: Option<String>,
     pub user_info: Option<id_type::CustomerId>,
-    pub client_platform: api_enums::ClientPlatform,
+    pub client_platform: Option<api_enums::ClientPlatform>,
     pub android_package_name: Option<String>,
     pub redirect_uri: Option<String>,
 }

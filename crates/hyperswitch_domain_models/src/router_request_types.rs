@@ -73,6 +73,17 @@ pub struct PaymentsAuthorizeData {
     pub integrity_object: Option<AuthoriseIntegrityObject>,
 }
 
+#[derive(Debug, Clone)]
+pub struct PaymentsPostSessionTokensData {
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuthoriseIntegrityObject {
     /// Authorise amount
@@ -830,6 +841,9 @@ pub struct PaymentsTaxCalculationData {
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
     pub net_amount: MinorUnit,
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
