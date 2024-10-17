@@ -1,5 +1,5 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::{ext_traits::ValueExt, id_type, pii::Email};
+use common_utils::{ext_traits::ValueExt, id_type, pii::Email, types::MinorUnit};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,21 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+#[derive(Debug, Serialize)]
+pub struct RiskifiedRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for RiskifiedRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct RiskifiedPaymentsCheckoutRequest {
     order: CheckoutRequest,
@@ -35,8 +50,8 @@ pub struct CheckoutRequest {
     updated_at: PrimitiveDateTime,
     gateway: Option<String>,
     browser_ip: Option<std::net::IpAddr>,
-    total_price: i64,
-    total_discounts: i64,
+    total_price: MinorUnit,
+    total_discounts: MinorUnit,
     cart_token: String,
     referring_site: String,
     line_items: Vec<LineItem>,
@@ -60,13 +75,13 @@ pub struct PaymentDetails {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct ShippingLines {
-    price: i64,
+    price: MinorUnit,
     title: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct DiscountCodes {
-    amount: i64,
+    amount: MinorUnit,
     code: Option<String>,
 }
 
@@ -110,7 +125,7 @@ pub struct OrderAddress {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct LineItem {
-    price: i64,
+    price: MinorUnit,
     quantity: i32,
     title: String,
     product_type: Option<api_models::payments::ProductType>,
@@ -132,9 +147,11 @@ pub struct RiskifiedMetadata {
     shipping_lines: Vec<ShippingLines>,
 }
 
-impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutRequest {
+impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>> for RiskifiedPaymentsCheckoutRequest {
     type Error = Error;
-    fn try_from(payment_data: &frm_types::FrmCheckoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(payment: &RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>) -> Result<Self, Self::Error> {
+        
+        let payment_data = payment.router_data.clone();
         let metadata: RiskifiedMetadata = payment_data
             .frm_metadata
             .clone()
@@ -156,14 +173,14 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 created_at: common_utils::date_time::now(),
                 updated_at: common_utils::date_time::now(),
                 gateway: payment_data.request.gateway.clone(),
-                total_price: payment_data.request.amount,
+                total_price: MinorUnit::new(payment_data.request.amount),
                 cart_token: payment_data.attempt_id.clone(),
                 line_items: payment_data
                     .request
                     .get_order_details()?
                     .iter()
                     .map(|order_detail| LineItem {
-                        price: order_detail.amount,
+                        price: MinorUnit::new(order_detail.amount),
                         quantity: i32::from(order_detail.quantity),
                         title: order_detail.product_name.clone(),
                         product_type: order_detail.product_type.clone(),
@@ -176,7 +193,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                 source: Source::DesktopWeb,
                 billing_address: OrderAddress::try_from(billing_address).ok(),
                 shipping_address: OrderAddress::try_from(shipping_address).ok(),
-                total_discounts: 0,
+                total_discounts: MinorUnit::zero(),
                 currency: payment_data.request.currency,
                 referring_site: "hyperswitch.io".to_owned(),
                 discount_codes: Vec::new(),
@@ -411,7 +428,7 @@ pub struct SuccessfulTransactionData {
 pub struct TransactionDecisionData {
     external_status: TransactionStatus,
     reason: Option<String>,
-    amount: i64,
+    amount: MinorUnit,
     currency: storage_enums::Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     decided_at: PrimitiveDateTime,
@@ -438,7 +455,7 @@ impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest
                 decision: TransactionDecisionData {
                     external_status: TransactionStatus::Approved,
                     reason: None,
-                    amount: item.request.amount,
+                    amount: MinorUnit::new(item.request.amount),
                     currency: item.request.get_currency()?,
                     decided_at: common_utils::date_time::now(),
                     payment_details: [TransactionPaymentDetails {
