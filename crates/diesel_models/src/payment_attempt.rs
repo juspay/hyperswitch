@@ -3242,7 +3242,7 @@ mod tests {
             "user_agent": "amet irure esse"
         }
     },
-        "single_use": {
+    "mandate_type": {"single_use": {
             "amount": 6540,
             "currency": "USD"
         }
