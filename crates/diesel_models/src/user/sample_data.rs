@@ -12,7 +12,7 @@ use crate::schema::payment_attempt;
 use crate::schema_v2::payment_attempt;
 use crate::{
     enums::{MandateDataType, MandateDetails},
-    PaymentAttemptNew,
+    ConnectorMandateReferenceId, PaymentAttemptNew,
 };
 
 #[cfg(feature = "v2")]
@@ -204,6 +204,7 @@ pub struct PaymentAttemptBatchNew {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -282,6 +283,7 @@ impl PaymentAttemptBatchNew {
             organization_id: self.organization_id,
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
+            connector_mandate_detail: self.connector_mandate_detail,
         }
     }
 }
