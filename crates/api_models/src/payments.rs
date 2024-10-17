@@ -4573,6 +4573,17 @@ pub struct PaymentListFilterConstraints {
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
 }
+
+impl PaymentListFilterConstraints {
+    pub fn has_no_attempt_filters(&self) -> bool {
+        self.connector.is_none()
+            && self.payment_method.is_none()
+            && self.payment_method_type.is_none()
+            && self.authentication_type.is_none()
+            && self.merchant_connector_id.is_none()
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
     /// The list of available connector filters

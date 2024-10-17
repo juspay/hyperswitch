@@ -1091,7 +1091,7 @@ pub async fn profile_payments_list_by_filter(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::apply_filters_on_payments(
                 state,
-                auth.merchant_account,
+                auth.merchant_account.clone(),
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
