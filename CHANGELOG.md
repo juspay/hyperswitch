@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.04.0-prod-hotfix1
+
+### Bug Fixes
+
+- **mandates:** Handle the connector_mandate creation once and only if the payment is charged ([#6358](https://github.com/juspay/hyperswitch/pull/6358)) ([`66e8620`](https://github.com/juspay/hyperswitch/commit/66e86205856a7458ee8394d71c366ba38c4a1cae))
+
+**Full Changelog:** [`2024.10.04.0...2024.10.04.0-prod-hotfix1`](https://github.com/juspay/hyperswitch/compare/2024.10.04.0...2024.10.04.0-prod-hotfix1)
+
+
+- - -
+
 ## 2024.10.04.0
 
 ### Features
