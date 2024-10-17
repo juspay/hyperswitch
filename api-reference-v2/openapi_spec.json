@@ -10666,7 +10666,8 @@
         "required": [
           "product_name",
           "quantity",
-          "amount"
+          "amount",
+          "minor_amount"
         ],
         "properties": {
           "product_name": {
@@ -10686,6 +10687,9 @@
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "minor_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "requires_shipping": {
             "type": "boolean",
