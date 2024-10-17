@@ -1,11 +1,11 @@
 use api_models::payments::Address;
 use base64::Engine;
-use common_utils::{errors::CustomResult, ext_traits::OptionExt, types::MinorUnit};
+use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii, types::MinorUnit};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::RouterData;
-use masking::{PeekInterface, Secret};
-use serde::Serialize;
+use masking::{ExposeInterface, PeekInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
 use crate::{
@@ -45,6 +45,23 @@ impl<T>
         })
     }
 }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct WorldpayConnectorMetadataObject {
+    pub merchant_name: Option<Secret<String>>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 fn fetch_payment_instrument(
     payment_method: domain::PaymentMethodData,
     billing_address: Option<&Address>,
@@ -197,6 +214,13 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, entity_id) = req;
+        let worldpay_connector_metadata_object: WorldpayConnectorMetadataObject =
+            WorldpayConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+        let merchant_name = worldpay_connector_metadata_object.merchant_name.ok_or(
+            errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata.merchant_name",
+            },
+        )?;
         Ok(Self {
             instruction: Instruction {
                 settlement: item
@@ -221,12 +245,7 @@ impl
                     item.router_data.get_optional_billing(),
                 )?,
                 narrative: InstructionNarrative {
-                    line1: item
-                        .router_data
-                        .merchant_id
-                        .get_string_repr()
-                        .replace('_', "-"),
-                    ..Default::default()
+                    line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
                     amount: item.amount,
@@ -283,10 +302,15 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
-            PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
             PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
-            PaymentOutcome::SentForRefund => Self::AutoRefunded,
             PaymentOutcome::ThreeDsDeviceDataRequired => Self::DeviceDataCollectionPending,
+            PaymentOutcome::ThreeDsAuthenticationFailed => Self::AuthenticationFailed,
+            PaymentOutcome::ThreeDsChallenged => Self::AuthenticationPending,
+            PaymentOutcome::SentForCancellation => Self::VoidInitiated,
+            PaymentOutcome::SentForPartialRefund | PaymentOutcome::SentForRefund => {
+                Self::AutoRefunded
+            }
+            PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
         }
     }
 }

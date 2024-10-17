@@ -8,7 +8,7 @@ use crate::core::errors;
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
     pub outcome: PaymentOutcome,
-    pub transaction_reference: String,
+    pub transaction_reference: Option<String>,
     #[serde(flatten)]
     pub other_fields: WorldpayPaymentResponseFields,
 }
@@ -37,7 +37,7 @@ pub struct AuthorizedResponse {
     pub actions: Option<ActionLinks>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub risk_factors: Vec<RiskFactorsInner>,
+    pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
 }
 
@@ -105,6 +105,11 @@ pub enum PaymentOutcome {
     FraudHighRisk,
     #[serde(alias = "3dsDeviceDataRequired")]
     ThreeDsDeviceDataRequired,
+    ThreeDsChallenged,
+    SentForCancellation,
+    #[serde(alias = "3dsAuthenticationFailed")]
+    ThreeDsAuthenticationFailed,
+    SentForPartialRefund,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

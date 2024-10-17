@@ -200,8 +200,6 @@ pub enum PaymentMethod {
 #[serde(rename_all = "camelCase")]
 pub struct InstructionNarrative {
     pub line1: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub line2: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

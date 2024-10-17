@@ -253,7 +253,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                         .map(|id| id.to_string())
                 });
                 Ok(types::PaymentsCancelRouterData {
-                    status: enums::AttemptStatus::VoidInitiated,
+                    status: enums::AttemptStatus::from(response.outcome.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::foreign_try_from((
                             response,
@@ -548,6 +548,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        if req.auth_type == enums::AuthenticationType::ThreeDs {
+            return Err(errors::ConnectorError::NotImplemented(
+                "ThreeDS flow through worldpay".to_string(),
+            )
+            .into());
+        }
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
