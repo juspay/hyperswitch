@@ -13,7 +13,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::cards::create_encrypted_data,
-        payments::{self, helpers, operations, PaymentData},
+        payments::{self, helpers, operations, PaymentData, PaymentMethodChecker},
         utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
@@ -177,6 +177,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             recurring_details: None,
             poll_config: None,
             tax_data: Some(tax_data),
+            session_id: request.session_id.clone(),
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -382,54 +383,62 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        let shipping_address = payment_data
-            .tax_data
-            .clone()
-            .map(|tax_data| tax_data.shipping_details);
+        // For Google Pay and Apple Pay, we don’t need to call the connector again; we can directly confirm the payment after tax_calculation. So, we update the required fields in the database during the update_tracker call.
+        if payment_data.should_update_in_update_tracker() {
+            let shipping_address = payment_data
+                .tax_data
+                .clone()
+                .map(|tax_data| tax_data.shipping_details);
+            let key_manager_state = state.into();
 
-        let shipping_details = shipping_address
-            .clone()
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
+            let shipping_details = shipping_address
+                .clone()
+                .async_map(|shipping_details| {
+                    create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt shipping details")?;
 
-        let shipping_address = helpers::create_or_update_address_for_payment_by_request(
-            state,
-            shipping_address.as_ref(),
-            payment_data.payment_intent.shipping_address_id.as_deref(),
-            &payment_data.payment_intent.merchant_id,
-            payment_data.payment_intent.customer_id.as_ref(),
-            key_store,
-            &payment_data.payment_intent.payment_id,
-            storage_scheme,
-        )
-        .await?;
+            let shipping_address = helpers::create_or_update_address_for_payment_by_request(
+                state,
+                shipping_address.as_ref(),
+                payment_data.payment_intent.shipping_address_id.as_deref(),
+                &payment_data.payment_intent.merchant_id,
+                payment_data.payment_intent.customer_id.as_ref(),
+                key_store,
+                &payment_data.payment_intent.payment_id,
+                storage_scheme,
+            )
+            .await?;
 
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
+            let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
             updated_by: payment_data.payment_intent.updated_by.clone(),
             shipping_details,
         };
 
-        let db = &*state.store;
-        let payment_intent = payment_data.payment_intent.clone();
+            let db = &*state.store;
+            let payment_intent = payment_data.payment_intent.clone();
 
-        let updated_payment_intent = db
-            .update_payment_intent(
-                &state.into(),
-                payment_intent,
-                payment_intent_update,
-                key_store,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let updated_payment_intent = db
+                .update_payment_intent(
+                    &state.into(),
+                    payment_intent,
+                    payment_intent_update,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.payment_intent = updated_payment_intent;
-        Ok((Box::new(self), payment_data))
+            payment_data.payment_intent = updated_payment_intent;
+            Ok((Box::new(self), payment_data))
+        } else {
+            Ok((Box::new(self), payment_data))
+        }
     }
 }
 

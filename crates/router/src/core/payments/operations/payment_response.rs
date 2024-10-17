@@ -3,10 +3,10 @@ use std::collections::HashMap;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
-use common_enums::AuthorizationStatus;
+use common_enums::{AuthorizationStatus, SessionUpdateStatus};
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{keymanager::KeyManagerState, MinorUnit},
+    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -25,6 +25,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
+        payment_methods::cards::create_encrypted_data,
         payments::{
             helpers::{
                 self as payments_helpers,
@@ -32,7 +33,7 @@ use crate::{
             },
             tokenization,
             types::MultipleCaptureData,
-            PaymentData,
+            PaymentData, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -50,7 +51,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data"
 )]
 pub struct PaymentResponse;
 
@@ -615,16 +616,141 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 {
     async fn update_tracker<'b>(
         &'b self,
-        _db: &'b SessionState,
+        db: &'b SessionState,
         _payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        _router_data: types::RouterData<
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
             F,
             types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        let connector = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("connector not found")?;
+
+        let key_manager_state = db.into();
+
+        // For PayPal, if we call TaxJar for tax calculation, we need to call the connector again to update the order amount so that we can confirm the updated amount and order details. Therefore, we will store the required changes in the database during the post_update_tracker call.
+        if payment_data.should_update_in_post_update_tracker() {
+            match router_data.response.clone() {
+                Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
+                    if status == SessionUpdateStatus::Success {
+                        let shipping_address = payment_data
+                            .tax_data
+                            .clone()
+                            .map(|tax_data| tax_data.shipping_details);
+
+                        let shipping_details = shipping_address
+                            .clone()
+                            .async_map(|shipping_details| {
+                                create_encrypted_data(
+                                    &key_manager_state,
+                                    key_store,
+                                    shipping_details,
+                                )
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt shipping details")?;
+
+                        let shipping_address =
+                            payments_helpers::create_or_update_address_for_payment_by_request(
+                                db,
+                                shipping_address.as_ref(),
+                                payment_data.payment_intent.shipping_address_id.as_deref(),
+                                &payment_data.payment_intent.merchant_id,
+                                payment_data.payment_intent.customer_id.as_ref(),
+                                key_store,
+                                &payment_data.payment_intent.payment_id,
+                                storage_scheme,
+                            )
+                            .await?;
+
+                        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
+                    tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
+                    shipping_address_id: shipping_address.map(|address| address.address_id),
+                    updated_by: payment_data.payment_intent.updated_by.clone(),
+                    shipping_details,
+        };
+
+                        let m_db = db.clone().store;
+                        let payment_intent = payment_data.payment_intent.clone();
+                        let key_manager_state: KeyManagerState = db.into();
+
+                        let updated_payment_intent = m_db
+                            .update_payment_intent(
+                                &key_manager_state,
+                                payment_intent,
+                                payment_intent_update,
+                                key_store,
+                                storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                        payment_data.payment_intent = updated_payment_intent;
+                    } else {
+                        router_data.response.map_err(|err| {
+                            errors::ApiErrorResponse::ExternalConnectorError {
+                                code: err.code,
+                                message: err.message,
+                                connector,
+                                status_code: err.status_code,
+                                reason: err.reason,
+                            }
+                        })?;
+                    }
+                }
+                Err(err) => {
+                    Err(errors::ApiErrorResponse::ExternalConnectorError {
+                        code: err.code,
+                        message: err.message,
+                        connector,
+                        status_code: err.status_code,
+                        reason: err.reason,
+                    })?;
+                }
+                _ => {
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unexpected response in session_update flow")?;
+                }
+            }
+        }
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTokensData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsPostSessionTokensData,
+            types::PaymentsResponseData,
+        >,
         _key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
         _locale: &Option<String>,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
             RoutableConnectorChoice,
@@ -635,54 +761,37 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     where
         F: 'b + Send,
     {
-        // let session_update_details =
-        //     payment_data
-        //         .payment_intent
-        //         .tax_details
-        //         .clone()
-        //         .ok_or_else(|| {
-        //             report!(errors::ApiErrorResponse::InternalServerError)
-        //                 .attach_printable("missing tax_details in payment_intent")
-        //         })?;
-
-        // let pmt_amount = session_update_details
-        //     .pmt
-        //     .clone()
-        //     .map(|pmt| pmt.order_tax_amount)
-        //     .ok_or(errors::ApiErrorResponse::InternalServerError)
-        //     .attach_printable("Missing tax_details.order_tax_amount")?;
-
-        // let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
-
-        // // if connector_ call successful -> payment_intent.amount update
-        // match router_data.response.clone() {
-        //     Err(_) => (None, None),
-        //     Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
-        //         if status == SessionUpdateStatus::Success {
-        //             (
-        //                 Some(
-        //                     storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-        //                         amount: total_amount,
-        //                         amount_capturable: total_amount,
-        //                     },
-        //                 ),
-        //                 Some(
-        //                     storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-        //                         amount: pmt_amount,
-        //                     },
-        //                 ),
-        //             )
-        //         } else {
-        //             (None, None)
-        //         }
-        //     }
-        //     _ => Err(errors::ApiErrorResponse::InternalServerError)
-        //         .attach_printable("unexpected response in session_update flow")?,
-        // };
-
-        // let _shipping_address = payment_data.address.get_shipping();
-        // let _amount = payment_data.amount;
-
+        match router_data.response.clone() {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) => {
+                let m_db = db.clone().store;
+                let payment_attempt_update =
+                    storage::PaymentAttemptUpdate::PostSessionTokensUpdate {
+                        updated_by: storage_scheme.clone().to_string(),
+                        connector_metadata,
+                    };
+                let updated_payment_attempt = m_db
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                payment_data.payment_attempt = updated_payment_attempt;
+            }
+            Err(err) => {
+                logger::error!("Invalid request sent to connector: {:?}", err);
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid request sent to connector".to_string(),
+                })?;
+            }
+            _ => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in PostSessionTokens flow")?;
+            }
+        }
         Ok(payment_data)
     }
 }
@@ -1297,6 +1406,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         } => {
                             let connector_transaction_id = match pre_processing_id.to_owned() {
                                 types::PreprocessingResponseId::PreProcessingId(_) => None,
+
                                 types::PreprocessingResponseId::ConnectorTransactionId(
                                     connector_txn_id,
                                 ) => Some(connector_txn_id),
@@ -1343,8 +1453,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 );
                             let connector_transaction_id = match resource_id {
                                 types::ResponseId::NoResponseId => None,
-                                types::ResponseId::ConnectorTransactionId(id)
-                                | types::ResponseId::EncodedData(id) => Some(id),
+                                types::ResponseId::ConnectorTransactionId(ref id)
+                                | types::ResponseId::EncodedData(ref id) => Some(id),
                             };
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
@@ -1393,12 +1503,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .multiple_capture_data
                             {
                                 Some(multiple_capture_data) => {
+                                    let (connector_capture_id, connector_capture_data) =
+                                        match resource_id {
+                                            types::ResponseId::NoResponseId => (None, None),
+                                            types::ResponseId::ConnectorTransactionId(id)
+                                            | types::ResponseId::EncodedData(id) => {
+                                                let (txn_id, txn_data) =
+                                                    ConnectorTransactionId::form_id_and_data(id);
+                                                (Some(txn_id), txn_data)
+                                            }
+                                        };
                                     let capture_update = storage::CaptureUpdate::ResponseUpdate {
                                         status: enums::CaptureStatus::foreign_try_from(
                                             router_data.status,
                                         )?,
-                                        connector_capture_id: connector_transaction_id.clone(),
+                                        connector_capture_id: connector_capture_id.clone(),
                                         connector_response_reference_id,
+                                        connector_capture_data: connector_capture_data.clone(),
                                     };
                                     let capture_update_list = vec![(
                                         multiple_capture_data.get_latest_capture().clone(),
@@ -1416,7 +1537,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     Some(storage::PaymentAttemptUpdate::ResponseUpdate {
                                         status: updated_attempt_status,
                                         connector: None,
-                                        connector_transaction_id: connector_transaction_id.clone(),
+                                        connector_transaction_id: connector_transaction_id.cloned(),
                                         authentication_type: auth_update,
                                         amount_capturable: router_data
                                             .request
@@ -1487,7 +1608,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
-                        // types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
+                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {
@@ -1769,7 +1890,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 &add_attributes([
                     (
                         "connector",
-                        payment_data.payment_attempt.connector.unwrap_or_default(),
+                        payment_data
+                            .payment_attempt
+                            .connector
+                            .clone()
+                            .unwrap_or_default(),
                     ),
                     (
                         "merchant_id",
@@ -1783,12 +1908,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             );
             Err(error_stack::Report::new(
                 errors::ApiErrorResponse::IntegrityCheckFailed {
+                    connector_transaction_id: payment_data
+                        .payment_attempt
+                        .get_connector_payment_id()
+                        .map(ToString::to_string),
                     reason: payment_data
                         .payment_attempt
                         .error_message
                         .unwrap_or_default(),
                     field_names: err.field_names,
-                    connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
                 },
             ))
         }
@@ -1912,7 +2040,7 @@ fn response_to_capture_update(
     let mut unmapped_captures = vec![];
     for (connector_capture_id, capture_sync_response) in response_list {
         let capture =
-            multiple_capture_data.get_capture_by_connector_capture_id(connector_capture_id);
+            multiple_capture_data.get_capture_by_connector_capture_id(&connector_capture_id);
         if let Some(capture) = capture {
             capture_update_list.push((
                 capture.clone(),

@@ -9,31 +9,36 @@ pub use api_models::payments::{
     PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
     PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
     PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest, PaymentsRedirectRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+    PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRedirectRequest,
     PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
     PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
     PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
     UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
+#[cfg(feature = "v2")]
+pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
-    PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+    CreateConnectorCustomer, CreateIntent, IncrementalAuthorization, InitPayment, PSync,
+    PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
+    Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
-    PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization, PaymentReject,
-    PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentVoid,
-    PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
+    PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
+    PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentSync,
+    PaymentToken, PaymentVoid, PaymentsCompleteAuthorize, PaymentsPostProcessing,
+    PaymentsPreProcessing, TaxCalculation,
 };
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
-    PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2, PaymentRejectV2,
-    PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2,
-    PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
-    TaxCalculationV2,
+    PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
+    PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
+    PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+    PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
 };
 use crate::core::errors;
 

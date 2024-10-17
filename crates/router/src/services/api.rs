@@ -1249,6 +1249,12 @@ impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest
     }
 }
 
+impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
+
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
@@ -1256,6 +1262,10 @@ impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequ
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsCreateIntentRequest {}
+// #[cfg(feature = "v2")]
+// impl Authenticate for api_models::payments::PaymentsCreateIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
