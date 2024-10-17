@@ -182,6 +182,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                             "Mollie"
                                         ))?
                                     }
+                                    PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Mollie"))?
+                                    }
                                 }),
                             },
                         )))
