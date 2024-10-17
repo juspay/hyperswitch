@@ -2110,6 +2110,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
         Ok(Self {
             net_amount,
             order_tax_amount,
+            currency: payment_data.currency,
+            amount: payment_data.payment_intent.amount,
+            session_id: payment_data.session_id,
         })
     }
 }

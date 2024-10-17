@@ -841,6 +841,9 @@ pub struct PaymentsTaxCalculationData {
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
     pub net_amount: MinorUnit,
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
