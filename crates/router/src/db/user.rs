@@ -71,7 +71,7 @@ impl UserInterface for Store {
         &self,
         user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_by_user_email(&conn, user_email)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -82,7 +82,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -127,7 +127,7 @@ impl UserInterface for Store {
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
