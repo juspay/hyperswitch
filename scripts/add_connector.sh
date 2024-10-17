@@ -6,7 +6,7 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
-    connectors=(aci adyen adyenplatform airwallex applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector ebanx fiserv fiservemea fiuu forte globalpay globepay gocardless gpayments helcim iatapay itaubank klarna mifinity mollie multisafepay netcetera nexinets nexixpay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal payu placetopay plaid powertranz prophetpay rapyd razorpay shift4 square stax stripe taxjar threedsecureio thunes trustpay tsys volt wellsfargo wellsfargopayout wise worldline worldpay zsl "$1")
+    connectors=(aci adyen adyenplatform airwallex applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode checkout coinbase cryptopay cybersource datatrans deutschebank digitalvirgo dlocal dummyconnector ebanx esnekpos fiserv fiservemea fiuu forte globalpay globepay gocardless gpayments helcim iatapay itaubank klarna mifinity mollie multisafepay netcetera nexinets nexixpay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal payu placetopay plaid powertranz prophetpay rapyd razorpay shift4 square stax stripe taxjar threedsecureio thunes trustpay tsys volt wellsfargo wellsfargopayout wise worldline worldpay zsl "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
