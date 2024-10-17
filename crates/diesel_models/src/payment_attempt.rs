@@ -9,6 +9,16 @@ use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt;
 
+common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ConnectorMandateReferenceId {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
+}
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -72,7 +82,7 @@ pub struct PaymentAttempt {
     pub id: String,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_mandate_detail: Option<serde_json::Value>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -149,7 +159,7 @@ pub struct PaymentAttempt {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_mandate_detail: Option<serde_json::Value>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -213,7 +223,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_mandate_detail: Option<serde_json::Value>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -286,7 +296,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_mandate_detail: Option<serde_json::Value>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -401,7 +411,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
-        connector_mandate_detail: Option<serde_json::Value>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -716,7 +726,7 @@ pub struct PaymentAttemptUpdateInternal {
     client_version: Option<String>,
     customer_acceptance: Option<pii::SecretSerdeValue>,
     card_network: Option<String>,
-    connector_mandate_detail: Option<serde_json::Value>,
+    connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -772,7 +782,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_mandate_detail: Option<serde_json::Value>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v2")]

@@ -264,14 +264,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             };
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error encoding the connector mandate details")
-                .map_err(|err| logger::error!(err=?err))
-                .ok()
-                .flatten();
+                .clone()
+                .map(ForeignFrom::foreign_from);
             payment_data.set_mandate_id(api_models::payments::MandateIds {
                 mandate_id: None,
                 mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
@@ -1114,14 +1108,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         payment_data.payment_attempt.payment_method_id = payment_method_id;
         payment_data.payment_attempt.mandate_id = mandate_id;
         payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error encoding the connector mandate details")
-            .map_err(|err| logger::error!(err=?err))
-            .ok()
-            .flatten();
+            .clone()
+            .map(ForeignFrom::foreign_from);
         payment_data.set_mandate_id(api_models::payments::MandateIds {
             mandate_id: None,
             mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
@@ -1595,24 +1583,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         if !mandate_details
                                         .as_ref()
                                         .map(|payment_mandate_reference| {
-                                            payment_mandate_reference.0.contains_key(&mca_id)
-                                                && payment_mandate_reference.0.get(&mca_id)
+
+                                                payment_mandate_reference.0.get(&mca_id)
                                                     .map(|payment_mandate_reference_record| payment_mandate_reference_record.connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active))
                                                     .unwrap_or(false)
                                         })
                                         .unwrap_or(false)
                                     {
-                                        // Parse the value stored with the successful payment attempt
-                                        let connector_mandate_reference = payment_data.payment_attempt.connector_mandate_detail.clone().map(|cmd|cmd.parse_value::<ConnectorMandateReferenceId>("ConnectorMandateReferenceId")).transpose()
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable(
-                                            "Failed to deserialize to Connector Mandate Reference ",
-                                        )? ;
-
-                                        let (connector_mandate_id, mandate_metadata) = connector_mandate_reference
-                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata))
+                                        let (connector_mandate_id, mandate_metadata) = payment_data.payment_attempt.connector_mandate_detail.clone()
+                                        .map(|connector_mandate_ref| (connector_mandate_ref.connector_mandate_id, connector_mandate_ref.mandate_metadata))
                                         .unwrap_or((None, None));
 
                                         // Update the connector mandate details with the payment attempt connector mandate id
@@ -2131,22 +2110,20 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
     mandate_metadata: Option<serde_json::Value>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {
-    let connector_mandate_reference_id = Some(ConnectorMandateReferenceId {
-        connector_mandate_id: connector_mandate_id.clone(),
-        payment_method_id: None,
-        update_history: None,
-        mandate_metadata: mandate_metadata.clone(),
-    });
+    let connector_mandate_reference_id = if connector_mandate_id.is_some() {
+        Some(ConnectorMandateReferenceId {
+            connector_mandate_id: connector_mandate_id.clone(),
+            payment_method_id: None,
+            update_history: None,
+            mandate_metadata: mandate_metadata.clone(),
+        })
+    } else {
+        None
+    };
 
     payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
-        .as_ref()
-        .map(Encode::encode_to_value)
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error encoding the connector mandate details")
-        .map_err(|err| logger::error!(err=?err))
-        .ok()
-        .flatten();
+        .clone()
+        .map(ForeignFrom::foreign_from);
 
     payment_data.set_mandate_id(api_models::payments::MandateIds {
         mandate_id: None,

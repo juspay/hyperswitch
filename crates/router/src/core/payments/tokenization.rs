@@ -680,12 +680,16 @@ where
                 None
             };
             // check if there needs to be a config if yes then remove it to a different place
-            let connector_mandate_reference_id = Some(ConnectorMandateReferenceId {
-                connector_mandate_id: connector_mandate_id.clone(),
-                payment_method_id: pm_id.clone(),
-                update_history: None,
-                mandate_metadata: mandate_metadata.clone(),
-            });
+            let connector_mandate_reference_id = if connector_mandate_id.is_some() {
+                Some(ConnectorMandateReferenceId {
+                    connector_mandate_id: connector_mandate_id.clone(),
+                    payment_method_id: None,
+                    update_history: None,
+                    mandate_metadata: mandate_metadata.clone(),
+                })
+            } else {
+                None
+            };
 
             Ok(SavePaymentMethodDataResponse {
                 payment_method_id: pm_id,
