@@ -20,9 +20,9 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
-        DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
-        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbRoutingAlgorithmStatus as RoutingAlgorithmStatus, DbTotpStatus as TotpStatus,
+        DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
+        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
@@ -73,6 +73,27 @@ pub enum EventObjectType {
     DisputeDetails,
     MandateDetails,
     PayoutDetails,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Default,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingAlgorithmStatus {
+    #[default]
+    Enabled,
+    Disabled,
 }
 
 #[derive(
