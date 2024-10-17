@@ -235,12 +235,16 @@ default_imp_for_post_session_tokens!(
     connectors::Square,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Forte,
     connectors::Helcim,
     connectors::Stax,
     connectors::Taxjar,
     connectors::Mollie,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
@@ -248,7 +252,8 @@ default_imp_for_post_session_tokens!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Deutschebank,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 use crate::connectors;

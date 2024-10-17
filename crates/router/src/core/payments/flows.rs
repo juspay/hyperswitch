@@ -2894,7 +2894,6 @@ default_imp_for_session_update!(
     connector::Paybox,
     connector::Payme,
     connector::Payone,
-    connector::Payu,
     connector::Placetopay,
     connector::Plaid,
     connector::Prophetpay,
@@ -2910,7 +2909,6 @@ default_imp_for_session_update!(
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldpay,
-    connector::Zen,
     connector::Zsl
 );
 
@@ -2955,7 +2953,6 @@ default_imp_for_post_session_tokens!(
     connector::Cybersource,
     connector::Datatrans,
     connector::Ebanx,
-    connector::Forte,
     connector::Globalpay,
     connector::Gocardless,
     connector::Gpayments,
@@ -2965,14 +2962,12 @@ default_imp_for_post_session_tokens!(
     connector::Mifinity,
     connector::Multisafepay,
     connector::Netcetera,
-    connector::Nexinets,
     connector::Nuvei,
     connector::Nmi,
     connector::Noon,
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
-    connector::Payeezy,
     connector::Payme,
     connector::Payone,
     connector::Placetopay,
