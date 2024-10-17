@@ -36,6 +36,8 @@ pub struct PaymentIntentFilters {
     pub card_issuer: Vec<String>,
     #[serde(default)]
     pub error_reason: Vec<String>,
+    #[serde(default)]
+    pub customer_id: Vec<id_type::CustomerId>,
 }
 
 #[derive(
@@ -91,6 +93,7 @@ pub enum PaymentIntentMetrics {
     SmartRetriedAmount,
     PaymentIntentCount,
     PaymentsSuccessRate,
+    PaymentProcessedAmount,
     SessionizedSuccessfulSmartRetries,
     SessionizedTotalSmartRetries,
     SessionizedSmartRetriedAmount,
