@@ -389,11 +389,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
                 .tax_data
                 .clone()
                 .map(|tax_data| tax_data.shipping_details);
+            let key_manager_state = state.into();
 
             let shipping_details = shipping_address
                 .clone()
                 .async_map(|shipping_details| {
-                    create_encrypted_data(state, key_store, shipping_details)
+                    create_encrypted_data(&key_manager_state, key_store, shipping_details)
                 })
                 .await
                 .transpose()

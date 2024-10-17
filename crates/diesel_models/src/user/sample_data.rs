@@ -2,7 +2,7 @@ use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
-use common_utils::types::MinorUnit;
+use common_utils::types::{ConnectorTransactionId, MinorUnit};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -179,7 +179,7 @@ pub struct PaymentAttemptBatchNew {
     pub mandate_details: Option<MandateDataType>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
-    pub connector_transaction_id: Option<String>,
+    pub connector_transaction_id: Option<ConnectorTransactionId>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
@@ -203,6 +203,7 @@ pub struct PaymentAttemptBatchNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
