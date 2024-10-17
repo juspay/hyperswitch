@@ -10,8 +10,9 @@ use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
-    CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
-    UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
+    CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
+    InvalidateWindowsResponse, LabelWithStatus, UpdateSuccessRateWindowConfig,
+    UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
 use tonic::transport::Channel;
 #[allow(
@@ -99,6 +100,11 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
+    /// To invalidate the configs
+    async fn invalidate_config_window(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
 }
 
 #[async_trait::async_trait]
@@ -207,6 +213,24 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             ))?
             .into_inner();
 
+        Ok(response)
+    }
+
+    async fn invalidate_config_window(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
+        let request = tonic::Request::new(InvalidateWindowsRequest { id });
+
+        let mut client = self.clone();
+
+        let response = client
+            .invalidate_windows(request)
+            .await
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
+                "Failed to invalidate the configs".to_string(),
+            ))?
+            .into_inner();
         Ok(response)
     }
 }
