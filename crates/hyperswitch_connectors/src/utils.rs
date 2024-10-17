@@ -17,11 +17,12 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -722,6 +723,31 @@ impl<Flow, Request, Response> RouterData
     }
 }
 
+pub trait ApplePayDecrypt {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        ))
+    }
+}
+
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
 pub enum CardIssuer {
     AmericanExpress,
@@ -745,6 +771,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
@@ -803,6 +830,11 @@ impl CardData for Card {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
     }
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
         self.card_exp_month
@@ -1401,6 +1433,22 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
 }
 
+pub trait PaymentsPreProcessingRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+}
+
 pub trait BrowserInformationData {
     fn get_accept_header(&self) -> Result<String, Error>;
     fn get_language(&self) -> Result<String, Error>;
@@ -1734,6 +1782,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -1813,6 +1862,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    NetworkTransactionIdAndCardDetails,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -1820,6 +1870,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
             PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                    hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -1851,6 +1902,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                  hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
                  hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                  hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
