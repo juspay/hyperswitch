@@ -404,25 +404,25 @@ pub enum AuthorizationStatus {
     Unresolved,
 }
 
-// #[derive(
-//     Clone,
-//     Debug,
-//     Eq,
-//     PartialEq,
-//     serde::Deserialize,
-//     serde::Serialize,
-//     strum::Display,
-//     strum::EnumString,
-//     ToSchema,
-//     Hash,
-// )]
-// #[router_derive::diesel_enum(storage_type = "text")]
-// #[serde(rename_all = "snake_case")]
-// #[strum(serialize_all = "snake_case")]
-// pub enum SessionUpdateStatus {
-//     Success,
-//     Failure,
-// }
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SessionUpdateStatus {
+    Success,
+    Failure,
+}
 
 #[derive(
     Clone,
@@ -1507,6 +1507,16 @@ pub enum PaymentExperience {
     InvokePaymentApp,
     /// Contains the data for displaying wait screen
     DisplayWaitScreen,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
+#[serde(rename_all = "lowercase")]
+pub enum SamsungPayCardBrand {
+    Visa,
+    MasterCard,
+    Amex,
+    Discover,
+    Unknown,
 }
 
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.

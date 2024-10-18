@@ -498,6 +498,8 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
 }
 
 ///
