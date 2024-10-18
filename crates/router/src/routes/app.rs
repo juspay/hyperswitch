@@ -528,7 +528,7 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
-                    web::resource("/create_external_sdk_tokens")
+                    web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 ),
         );

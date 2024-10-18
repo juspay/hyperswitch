@@ -367,7 +367,7 @@ impl PaymentAttempt {
 
         let now = common_utils::date_time::now();
 
-        Ok(PaymentAttempt {
+        Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
             amount_details: attempt_amount_details,
@@ -375,7 +375,7 @@ impl PaymentAttempt {
             // This will be decided by the routing algorithm and updated in update trackers
             // right before calling the connector
             connector: None,
-            authentication_type: payment_intent.authentication_type.clone(),
+            authentication_type: payment_intent.authentication_type,
             created_at: now,
             modified_at: now,
             last_synced: None,
@@ -403,7 +403,7 @@ impl PaymentAttempt {
             customer_acceptance: None,
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
-            payment_method_type: request.payment_method_type.clone(),
+            payment_method_type: request.payment_method_type,
             payment_method_id: None,
             connector_payment_id: None,
             payment_method_subtype: request.payment_method_subtype,
@@ -1911,7 +1911,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
                 connector,
                 merchant_connector_id,
-            } => diesel_models::PaymentAttemptUpdateInternal {
+            } => Self {
                 status: Some(status),
                 error_message: None,
                 modified_at: common_utils::date_time::now(),
@@ -1929,7 +1929,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 status,
                 error,
                 updated_by,
-            } => diesel_models::PaymentAttemptUpdateInternal {
+            } => Self {
                 status: Some(status),
                 error_message: Some(error.message),
                 error_code: Some(error.code),
@@ -1947,7 +1947,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 status,
                 connector_payment_id,
                 updated_by,
-            } => diesel_models::PaymentAttemptUpdateInternal {
+            } => Self {
                 status: Some(status),
                 error_message: None,
                 error_code: None,

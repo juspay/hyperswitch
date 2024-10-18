@@ -405,7 +405,7 @@ pub fn payments_connector_session() {}
 /// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
 #[utoipa::path(
     post,
-    path = "/v2/payments/{payment_id}/create_external_sdk_tokens",
+    path = "/v2/payments/{payment_id}/create-external-sdk-tokens",
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
