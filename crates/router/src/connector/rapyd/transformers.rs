@@ -163,7 +163,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             payment_method,
             capture,
             payment_method_options,
-            merchant_reference_id: item.router_data.connector_request_reference_id.clone(),
+            merchant_reference_id: Some(item.router_data.connector_request_reference_id.clone()),
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
