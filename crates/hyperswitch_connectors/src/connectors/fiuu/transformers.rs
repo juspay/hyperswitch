@@ -4,11 +4,9 @@ use api_models::payments;
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
-    crypto::GenerateDigest,
-    errors::CustomResult,
-    ext_traits::Encode,
-    request::Method,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    crypto::{self, GenerateDigest}, errors::CustomResult, ext_traits::Encode
+
+    , pii::Email, request::Method, types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector}
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -21,14 +19,14 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use url::Url;
@@ -170,6 +168,70 @@ impl TryFrom<BankNames> for FPXTxnChannel {
 }
 
 #[derive(Serialize, Debug, Clone)]
+pub struct FiuuMandateRequest{
+    #[serde(rename = "0")]
+    mandate_request : Secret<String>
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct FiuuRecurringRequest{
+    record_type : FiuuRecordType,
+    merchant_id : Secret<String>,
+    token: Secret<String>,
+    order_id: String,
+    currency: Currency,
+    amount: StringMajorUnit,
+    billing_name: Secret<String>,
+    email: Email,
+    verify_key: Secret<String>
+}
+
+
+#[derive(Serialize, Debug, Clone, strum::Display)]
+pub enum FiuuRecordType{
+    T,
+}
+
+impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuMandateRequest {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(item: &FiuuRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let auth: FiuuAuthType = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let record_type = FiuuRecordType::T;
+        let merchant_id = auth.merchant_id;
+        let order_id = item.router_data.connector_request_reference_id.clone();
+        let currency = item.router_data.request.currency;
+        let amount = item.amount.clone();
+        let billing_name = item.router_data.get_billing_full_name()?;
+        let email = item.router_data.get_billing_email()?;
+        let token = Secret::new(item.router_data.request.get_connector_mandate_id()?);
+        let verify_key = auth.verify_key;
+        let recurring_request = FiuuRecurringRequest{
+            record_type : record_type.clone(),
+            merchant_id : merchant_id.clone(),
+            token: token.clone(),
+            order_id :order_id.clone(),
+            currency,
+            amount: amount.clone(),
+            billing_name: billing_name.clone(),
+            email: email.clone(),
+            verify_key: verify_key.clone(),
+        };
+        let check_sum = calculate_check_sum(recurring_request)?; 
+        let mandate_request = format!("{}|{}||{}|{}|{}|{}|{}|{}|||{}",record_type,merchant_id.peek(),token.peek(),order_id,currency,amount.get_amount_as_string(),billing_name.peek(),email.peek(),check_sum.peek());
+        Ok(Self{
+            mandate_request : mandate_request.into(),
+        })
+    }
+}
+
+pub fn calculate_check_sum(req :FiuuRecurringRequest) -> CustomResult<Secret<String>,errors::ConnectorError> {
+    let formatted_string = format!("{}{}{}{}{}{}{}",req.record_type,req.merchant_id.peek(),req.token.peek(),req.order_id,req.currency,req.amount.get_amount_as_string(),req.verify_key.peek());
+    Ok(Secret::new(hex::encode(crypto::Md5
+    .generate_digest(formatted_string.as_bytes())
+    .change_context(errors::ConnectorError::RequestEncodingFailed)?)))
+}
+
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentRequest {
     #[serde(rename = "MerchantID")]
@@ -219,6 +281,10 @@ pub struct FiuuCardData {
     cc_cvv2: Secret<String>,
     cc_month: Secret<String>,
     cc_year: Secret<String>,
+    #[serde(rename = "mpstokenstatus")]
+    mps_token_status: Option<i32>,
+    #[serde(rename = "CustName")]
+    customer_name :Option<Secret<String>>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -278,7 +344,7 @@ pub fn calculate_signature(
 ) -> Result<Secret<String>, Report<errors::ConnectorError>> {
     let message = signature_data.as_bytes();
     let encoded_data = hex::encode(
-        common_utils::crypto::Md5
+        crypto::Md5
             .generate_digest(message)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
     );
@@ -308,7 +374,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             true => 0,
         };
         let payment_method_data = match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref card) => FiuuPaymentMethodData::try_from((card, &non_3ds)),
+            PaymentMethodData::Card(ref card) => FiuuPaymentMethodData::try_from((card, item.router_data)),
             PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
                 match *real_time_payment_data.clone() {
                     RealTimePaymentData::DuitNow {} => {
@@ -438,16 +504,27 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
     }
 }
 
-impl TryFrom<(&Card, &i32)> for FiuuPaymentMethodData {
+impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
     type Error = Report<errors::ConnectorError>;
-    fn try_from((req_card, non_3ds): (&Card, &i32)) -> Result<Self, Self::Error> {
+    fn try_from((req_card, item): (&Card, &PaymentsAuthorizeRouterData)) -> Result<Self, Self::Error> {
+        let (mps_token_status,customer_name) = if item.request.is_customer_initiated_mandate_payment() {
+            (Some(1), Some(item.request.get_customer_name()?))
+        } else {
+            (None,None)
+        };
+        let non_3ds = match item.is_three_ds() {
+            false => 1,
+            true => 0,
+        };
         Ok(Self::FiuuCardData(Box::new(FiuuCardData {
             txn_channel: TxnChannel::Creditan,
-            non_3ds: *non_3ds,
+            non_3ds,
             cc_pan: req_card.card_number.clone(),
             cc_cvv2: req_card.card_cvc.clone(),
             cc_month: req_card.card_exp_month.clone(),
             cc_year: req_card.card_exp_year.clone(),
+            mps_token_status,
+            customer_name,
         })))
     }
 }
@@ -543,6 +620,23 @@ pub enum FiuuPaymentsResponse {
     PaymentResponse(Box<PaymentsResponse>),
     QRPaymentResponse(Box<DuitNowQrCodeResponse>),
     Error(FiuuErrorResponse),
+    RecurringResponse(Box<FiuuRecurringResponse>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FiuuRecurringResponse{
+    status: FiuuRecurringStautus,
+    #[serde(rename = "orderid")]
+    order_id: String,
+    #[serde(rename = "tranID")]
+    tran_id: Option<String>,
+    reason: Option<String>
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FiuuRecurringStautus{
+    Accepted,
+    Failed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -581,8 +675,15 @@ pub struct NonThreeDSResponseData {
     #[serde(rename = "tranID")]
     pub tran_id: String,
     pub status: String,
+    #[serde(rename = "extraP")]
+    pub extra_parmeters : Option<ExtraParmeters>,
     pub error_code: Option<String>,
     pub error_desc: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtraParmeters{
+    token : Option<Secret<String>>,
 }
 
 impl<F>
@@ -652,6 +753,11 @@ impl<F>
                     })
                 }
                 RequestData::NonThreeDS(non_threeds_data) => {
+                    let mandate_reference = non_threeds_data.extra_parmeters.as_ref().and_then(|extra_p| extra_p.token.as_ref().map(|token| MandateReference{
+                        connector_mandate_id : Some(token.clone().expose()),
+                        payment_method_id : None,
+                        mandate_metadata: None,
+                    }));
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
@@ -685,7 +791,7 @@ impl<F>
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
                             redirection_data: None,
-                            mandate_reference: None,
+                            mandate_reference,
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -700,9 +806,57 @@ impl<F>
                     })
                 }
             },
+            FiuuPaymentsResponse::RecurringResponse(ref recurring_response) => {
+                let status = common_enums::AttemptStatus::from(recurring_response.status.clone());
+                let connector_transaction_id = recurring_response.tran_id.as_ref().map_or(ResponseId::NoResponseId,|tran_id| ResponseId::ConnectorTransactionId(
+                    tran_id.clone()
+                ));
+                let response = if status == common_enums::AttemptStatus::Failure {
+                    Err(ErrorResponse {
+                        code: recurring_response
+                            .reason
+                            .clone()
+                            .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
+                        message: recurring_response
+                        .reason
+                            .clone()
+                            .unwrap_or_else(|| "NO_ERROR_MESSAGE".to_string()),
+                        reason: recurring_response.reason.clone(),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: recurring_response.tran_id.clone(),
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: connector_transaction_id,
+                        redirection_data: None,
+                        mandate_reference:None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    })
+                };
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            },
         }
     }
 }
+
+impl From<FiuuRecurringStautus> for common_enums::AttemptStatus{
+    fn from(status :FiuuRecurringStautus )-> Self {
+        match status{
+            FiuuRecurringStautus::Accepted => Self::Charged,
+            FiuuRecurringStautus::Failed => Self::Failure,
+        }
+    }
+}
+
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
