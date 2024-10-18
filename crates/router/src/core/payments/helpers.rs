@@ -1698,6 +1698,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn retrieve_payment_method_with_temporary_token(
     state: &SessionState,
     token: &str,
