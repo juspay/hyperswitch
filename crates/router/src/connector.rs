@@ -1,7 +1,6 @@
 pub mod aci;
 pub mod adyen;
 pub mod adyenplatform;
-pub mod airwallex;
 pub mod authorizedotnet;
 pub mod bamboraapac;
 pub mod bankofamerica;
@@ -57,7 +56,7 @@ pub mod zen;
 pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
-    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, cashtocode, cashtocode::Cashtocode,
+    airwallex, airwallex::Airwallex, bambora, bambora::Bambora, bitpay, bitpay::Bitpay, cashtocode, cashtocode::Cashtocode,
     coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, deutschebank,
     deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
     fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay,
@@ -70,7 +69,7 @@ pub use hyperswitch_connectors::connectors::{
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform,
     authorizedotnet::Authorizedotnet, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
     billwerk::Billwerk, bluesnap::Bluesnap, boku::Boku, braintree::Braintree, checkout::Checkout,
     cybersource::Cybersource, datatrans::Datatrans, ebanx::Ebanx, forte::Forte,
