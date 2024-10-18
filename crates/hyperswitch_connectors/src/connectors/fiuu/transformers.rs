@@ -1183,10 +1183,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                             router_env::logger::warn!(
                                 "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
                                  Input: '{}', Error: {}",
-                                extra_p, 
+                                extra_p,
                                 err
                             );
-                            None 
+                            None
                         }
                     }
                 });
