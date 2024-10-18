@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -49,8 +50,18 @@ use crate::{
     utils::{self, PaymentsAuthorizeRequestData as _, PaymentsCompleteAuthorizeRequestData as _},
 };
 
-#[derive(Debug, Clone)]
-pub struct Powertranz;
+#[derive(Clone)]
+pub struct Powertranz {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Powertranz {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Powertranz {}
 impl api::PaymentSession for Powertranz {}
@@ -214,7 +225,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = powertranz::PowertranzPaymentsRequest::try_from(req)?;
+        let amount_to_capture = utils::convert_amount(
+             self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = powertranz::PowertranzRouterData::from((amount_to_capture, req));
+        let connector_req = powertranz::PowertranzPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
