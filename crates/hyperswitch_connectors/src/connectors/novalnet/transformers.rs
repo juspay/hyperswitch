@@ -523,6 +523,24 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
     }
 }
 
+impl NovalnetPaymentsResponseTransactionData {
+    pub fn get_token(transaction_data: Option<&Self>) -> Option<String> {
+        if let Some(data) = transaction_data {
+            match &data.payment_data {
+                Some(NovalnetResponsePaymentData::Card(card_data)) => {
+                    card_data.token.clone().map(|token| token.expose())
+                }
+                Some(NovalnetResponsePaymentData::Paypal(paypal_data)) => {
+                    paypal_data.token.clone().map(|token| token.expose())
+                }
+                None => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -547,13 +565,20 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     .transaction
                     .clone()
                     .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
+                
+                let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
+                    item.response.transaction.clone().as_ref(),
+                );
+
                 let transaction_status = item
                     .response
-                    .transaction
+                    .transaction.clone()
                     .and_then(|transaction_data| transaction_data.status)
                     .unwrap_or(if redirection_data.is_some() {
                         NovalnetTransactionStatus::Progress
-                    } else {
+                    } else if mandate_reference_id.is_some() {
+                        NovalnetTransactionStatus::OnHold
+                    }else {
                         NovalnetTransactionStatus::Pending
                     });
                 // NOTE: if result.status is success, we should always get a redirection url for 3DS flow
@@ -568,7 +593,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
                         redirection_data,
-                        mandate_reference: None,
+                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                            MandateReference {
+                                connector_mandate_id: Some(id.clone()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                            }
+                        }),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),

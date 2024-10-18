@@ -196,7 +196,7 @@ impl ConnectorValidation for Novalnet {
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
-            HashSet::from([PaymentMethodDataType::Card]);
+            HashSet::from([PaymentMethodDataType::Card,PaymentMethodDataType::GooglePay,PaymentMethodDataType::PaypalRedirect]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
