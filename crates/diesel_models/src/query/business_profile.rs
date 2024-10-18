@@ -1,3 +1,4 @@
+use common_utils::types::NameType;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
@@ -64,7 +65,7 @@ impl Profile {
 
     pub async fn find_by_profile_name_merchant_id(
         conn: &PgPooledConn,
-        profile_name: &str,
+        profile_name: &NameType,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
