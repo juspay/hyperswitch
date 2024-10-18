@@ -5346,6 +5346,28 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // dynamic success based connector selection
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let connectors = {
+        business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .async_map(|dynamic_routing_algorithm| {
+                routing::perform_success_based_routing(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    dynamic_routing_algorithm,
+                )
+            })
+            .await
+            .transpose()
+            .map_err(|e| logger::error!(dynamic_routing_connector_error=?e))
+            .ok()
+            .flatten()
+            .unwrap_or(connectors)
+    };
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,

@@ -3952,12 +3952,12 @@
             }
           },
           {
-            "name": "status",
+            "name": "enable",
             "in": "query",
-            "description": "Boolean value for mentioning the expected state of dynamic routing",
+            "description": "Feature to enable for success based routing",
             "required": true,
             "schema": {
-              "type": "boolean"
+              "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
             }
           }
         ],
@@ -3994,87 +3994,6 @@
           },
           {
             "jwt_key": []
-          }
-        ]
-      }
-    },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id": {
-      "patch": {
-        "tags": [
-          "Routing"
-        ],
-        "summary": "Routing - Update config for success based dynamic routing",
-        "description": "Update config for success based dynamic routing",
-        "operationId": "Update configs for success based dynamic routing algorithm",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "description": "Merchant id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profile_id",
-            "in": "path",
-            "description": "The unique identifier for a profile",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "algorithm_id",
-            "in": "path",
-            "description": "The unique identifier for routing algorithm",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Routing Algorithm updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request body is malformed"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "admin_api_key": []
           }
         ]
       }
@@ -9457,23 +9376,6 @@
           "ZMW",
           "ZWL"
         ]
-      },
-      "CurrentBlockThreshold": {
-        "type": "object",
-        "properties": {
-          "duration_in_mins": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true,
-            "minimum": 0
-          },
-          "max_total_count": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true,
-            "minimum": 0
-          }
-        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -23624,79 +23526,13 @@
           "destination"
         ]
       },
-      "SuccessBasedRoutingConfig": {
-        "type": "object",
-        "properties": {
-          "params": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SuccessBasedRoutingConfigParams"
-            },
-            "nullable": true
-          },
-          "config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
-      "SuccessBasedRoutingConfigBody": {
-        "type": "object",
-        "properties": {
-          "min_aggregates_size": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true,
-            "minimum": 0
-          },
-          "default_success_rate": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "max_aggregates_size": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true,
-            "minimum": 0
-          },
-          "current_block_threshold": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CurrentBlockThreshold"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
-      "SuccessBasedRoutingConfigParams": {
+      "SuccessBasedRoutingFeatures": {
         "type": "string",
         "enum": [
-          "PaymentMethod",
-          "PaymentMethodType",
-          "Currency",
-          "AuthenticationType"
+          "metrics",
+          "dynamic_connector_selection",
+          "none"
         ]
-      },
-      "SuccessBasedRoutingUpdateConfigQuery": {
-        "type": "object",
-        "required": [
-          "algorithm_id",
-          "profile_id"
-        ],
-        "properties": {
-          "algorithm_id": {
-            "type": "string"
-          },
-          "profile_id": {
-            "type": "string"
-          }
-        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
@@ -23961,11 +23797,11 @@
       "ToggleSuccessBasedRoutingQuery": {
         "type": "object",
         "required": [
-          "status"
+          "enable"
         ],
         "properties": {
-          "status": {
-            "type": "boolean"
+          "enable": {
+            "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
           }
         }
       },

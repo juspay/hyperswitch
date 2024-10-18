@@ -12,10 +12,14 @@ use api_models::routing as routing_types;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
+#[cfg(feature = "v1")]
+use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
-#[cfg(feature = "dynamic_routing")]
-use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::api::ApplicationResponse;
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, metrics::add_attributes, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
@@ -29,8 +33,8 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::{core::metrics as core_metrics, routes::metrics};
+#[cfg(feature = "v1")]
+use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -607,6 +611,7 @@ pub async fn fetch_success_based_routing_configs(
             message: "success_based_algorithm not found in dynamic_routing_algorithm_ref"
                 .to_string(),
         })?
+        .algorithm_id_with_timestamp
         .algorithm_id
         // error can be possible when the feature is toggled off.
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
@@ -874,4 +879,60 @@ fn get_success_based_metrics_outcome_for_payment(
         }
         _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
     }
+}
+
+/// default config setup for success_based_routing
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn default_success_based_routing_setup(
+    state: &SessionState,
+    key_store: domain::MerchantKeyStore,
+    business_profile: domain::Profile,
+    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    merchant_id: id_type::MerchantId,
+    mut success_based_dynamic_routing_algo: routing_types::DynamicRoutingAlgorithmRef,
+) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let profile_id = business_profile.get_id().to_owned();
+    let default_success_based_routing_config = routing_types::SuccessBasedRoutingConfig::default();
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+    let algo = routing_algorithm::RoutingAlgorithm {
+        algorithm_id: algorithm_id.clone(),
+        profile_id: profile_id.clone(),
+        merchant_id,
+        name: "Dynamic routing algorithm".to_string(),
+        description: None,
+        kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+        algorithm_data: serde_json::json!(default_success_based_routing_config),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: common_enums::TransactionType::Payment,
+    };
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    success_based_dynamic_routing_algo.update_algorithm_id(algorithm_id, feature_to_enable);
+    update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        key_manager_state,
+        &key_store,
+        business_profile,
+        success_based_dynamic_routing_algo,
+    )
+    .await?;
+
+    let new_record = record.foreign_into();
+
+    core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
+    );
+    Ok(ApplicationResponse::Json(new_record))
 }
