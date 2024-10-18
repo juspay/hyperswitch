@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
@@ -492,8 +490,16 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
+            req.request.minor_amount.ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                }
+            })?,
+            req.request
+                .currency
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
         )?;
         let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
         let connector_req = shift4::Shift4PaymentsRequest::try_from(&connector_router_data)?;
