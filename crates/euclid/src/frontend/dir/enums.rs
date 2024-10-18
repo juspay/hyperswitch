@@ -270,6 +270,25 @@ pub enum CardRedirectType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum MobilePaymentType {
+    DirectCarrierBilling,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CryptoType {
     CryptoCurrency,
 }
@@ -372,3 +391,4 @@ collect_variants!(GiftCardType);
 collect_variants!(BankTransferType);
 collect_variants!(CardRedirectType);
 collect_variants!(OpenBankingType);
+collect_variants!(MobilePaymentType);

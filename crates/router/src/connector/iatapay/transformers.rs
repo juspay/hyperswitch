@@ -203,6 +203,7 @@ impl
                 | domain::PaymentMethodData::Crypto(_)
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::MobilePayment(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::CardToken(_)

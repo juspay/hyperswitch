@@ -135,6 +135,7 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for Payeez
             | diesel_models::enums::PaymentMethod::BankDebit
             | diesel_models::enums::PaymentMethod::Reward
             | diesel_models::enums::PaymentMethod::RealTimePayment
+            | diesel_models::enums::PaymentMethod::MobilePayment
             | diesel_models::enums::PaymentMethod::Upi
             | diesel_models::enums::PaymentMethod::Voucher
             | diesel_models::enums::PaymentMethod::OpenBanking
@@ -257,6 +258,7 @@ fn get_payment_method_data(
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::Reward
         | domain::PaymentMethodData::RealTimePayment(_)
+        | domain::PaymentMethodData::MobilePayment(_)
         | domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::Voucher(_)
         | domain::PaymentMethodData::GiftCard(_)

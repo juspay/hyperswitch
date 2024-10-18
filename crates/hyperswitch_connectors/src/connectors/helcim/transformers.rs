@@ -178,6 +178,7 @@ impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
@@ -274,6 +275,7 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)

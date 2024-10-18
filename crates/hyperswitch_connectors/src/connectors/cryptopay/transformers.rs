@@ -82,6 +82,7 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::Reward {}
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)

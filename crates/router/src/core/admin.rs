@@ -1335,11 +1335,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // Template code for future usage
-            // api_enums::Connector::Digitalvirgo => {
-            //     digitalvirgo::transformers::DigitalvirgoAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Digitalvirgo => {
+                digitalvirgo::transformers::DigitalvirgoAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())

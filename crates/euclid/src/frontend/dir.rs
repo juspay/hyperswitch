@@ -278,6 +278,13 @@ pub enum DirKeyKind {
         props(Category = "Payment Method Types")
     )]
     OpenBankingType,
+    #[serde(rename = "mobile_payment")]
+    #[strum(
+        serialize = "mobile_payment",
+        detailed_message = "Supported types of mobile payment method",
+        props(Category = "Payment Method Types")
+    )]
+    MobilePaymentType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -327,6 +334,7 @@ impl DirKeyKind {
             Self::CardRedirectType => types::DataType::EnumVariant,
             Self::RealTimePaymentType => types::DataType::EnumVariant,
             Self::OpenBankingType => types::DataType::EnumVariant,
+            Self::MobilePaymentType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -459,6 +467,11 @@ impl DirKeyKind {
                     .map(DirValue::OpenBankingType)
                     .collect(),
             ),
+            Self::MobilePaymentType => Some(
+                enums::MobilePaymentType::iter()
+                    .map(DirValue::MobilePaymentType)
+                    .collect(),
+            ),
         }
     }
 }
@@ -528,6 +541,8 @@ pub enum DirValue {
     RealTimePaymentType(enums::RealTimePaymentType),
     #[serde(rename = "open_banking")]
     OpenBankingType(enums::OpenBankingType),
+    #[serde(rename = "mobile_payment")]
+    MobilePaymentType(enums::MobilePaymentType),
 }
 
 impl DirValue {
@@ -563,6 +578,7 @@ impl DirValue {
             Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
             Self::RealTimePaymentType(_) => (DirKeyKind::RealTimePaymentType, None),
             Self::OpenBankingType(_) => (DirKeyKind::OpenBankingType, None),
+            Self::MobilePaymentType(_) => (DirKeyKind::MobilePaymentType, None),
         };
 
         DirKey::new(kind, data)
@@ -599,6 +615,7 @@ impl DirValue {
             Self::CardRedirectType(_) => None,
             Self::RealTimePaymentType(_) => None,
             Self::OpenBankingType(_) => None,
+            Self::MobilePaymentType(_) => None,
         }
     }
 
