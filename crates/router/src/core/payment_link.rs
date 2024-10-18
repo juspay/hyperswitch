@@ -63,6 +63,19 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
+pub async fn form_payment_link_data(
+    state: &SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    merchant_id: common_utils::id_type::MerchantId,
+    payment_id: common_utils::id_type::PaymentId,
+    locale: Option<String>,
+) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn form_payment_link_data(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
@@ -127,7 +140,7 @@ pub async fn form_payment_link_data(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -642,6 +655,19 @@ fn check_payment_link_invalid_conditions(
     not_allowed_statuses.contains(intent_status)
 }
 
+#[cfg(feature = "v2")]
+pub async fn get_payment_link_status(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_id: common_utils::id_type::MerchantId,
+    _payment_id: common_utils::id_type::PaymentId,
+    _request_headers: &header::HeaderMap,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn get_payment_link_status(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -736,7 +762,7 @@ pub async fn get_payment_link_status(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 

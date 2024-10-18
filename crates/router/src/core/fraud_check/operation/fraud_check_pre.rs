@@ -71,6 +71,18 @@ where
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPre {
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: PaymentToFrmData,
+        frm_connector_details: ConnectorDetailsCore,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -86,7 +98,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
 
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.payment_id.clone(),
+                payment_data.payment_intent.get_id().to_owned(),
                 payment_data.merchant_account.get_id().clone(),
             )
             .await
@@ -97,7 +109,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             _ => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: Uuid::new_v4().simple().to_string(),
-                    payment_id: payment_data.payment_intent.payment_id.clone(),
+                    payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),

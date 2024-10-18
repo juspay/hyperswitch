@@ -280,6 +280,7 @@ impl<F>
                 Some(types::MandateReference {
                     connector_mandate_id,
                     payment_method_id: None,
+                    mandate_metadata: None,
                 })
             } else {
                 None
@@ -463,6 +464,7 @@ impl<F>
                     mandate_reference: Some(types::MandateReference {
                         connector_mandate_id: Some(connector_mandate_id),
                         payment_method_id: None,
+                        mandate_metadata: None,
                     }),
                     connector_metadata: None,
                     network_txn_id: None,

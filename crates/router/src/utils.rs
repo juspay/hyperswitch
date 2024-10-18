@@ -46,6 +46,8 @@ use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::core::webhooks as webhooks_core;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::types::storage;
 use crate::{
@@ -53,7 +55,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments as payments_core, webhooks as webhooks_core,
+        payments as payments_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -165,6 +167,7 @@ pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i
     format!("{payout_id}_{attempt_count}")
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_payment_id_type(
     state: &SessionState,
     payment_id_type: payments::PaymentIdType,
@@ -228,6 +231,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_refund_id_type(
     state: &SessionState,
     refund_id_type: webhooks::RefundIdType,
@@ -274,6 +278,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_mandate_id_type(
     state: &SessionState,
     mandate_id_type: webhooks::MandateIdType,
@@ -313,6 +318,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_mca_from_authentication_id_type(
     state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
@@ -364,6 +370,7 @@ pub async fn find_mca_from_authentication_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_payment_intent(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -372,6 +379,9 @@ pub async fn get_mca_from_payment_intent(
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(feature = "v1")]
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
@@ -380,7 +390,19 @@ pub async fn get_mca_from_payment_intent(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(feature = "v2")]
+    let payment_attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            key_manager_state,
+            key_store,
+            &payment_intent.active_attempt.get_id(),
+            merchant_account.get_id(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
@@ -528,6 +550,7 @@ pub async fn get_mca_from_payout_attempt(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -1051,10 +1074,30 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
         .unwrap_or(true)
 }
 
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: D,
+    customer: Option<domain::Customer>,
+    state: &SessionState,
+    operation: Op,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn trigger_payments_webhook<F, Op, D>(
+    merchant_account: domain::MerchantAccount,
+    business_profile: domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1067,7 +1110,8 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
-    let payment_id = payment_data.get_payment_intent().payment_id.clone();
+    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+
     let captures = payment_data
         .get_multiple_capture_data()
         .map(|multiple_capture_data| {

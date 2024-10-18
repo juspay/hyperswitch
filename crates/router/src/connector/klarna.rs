@@ -71,6 +71,7 @@ impl ConnectorCommon for Klarna {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        print!("$$klarna error response {:?}", res.response);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -122,6 +123,7 @@ impl api::PaymentCapture for Klarna {}
 impl api::PaymentSession for Klarna {}
 impl api::ConnectorAccessToken for Klarna {}
 impl api::PaymentToken for Klarna {}
+impl api::PaymentSessionUpdate for Klarna {}
 
 impl
     services::ConnectorIntegration<
@@ -224,6 +226,10 @@ impl
 
         let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$klarna session req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -267,6 +273,117 @@ impl
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    services::ConnectorIntegration<
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
+        types::PaymentsResponseData,
+    > for Klarna
+{
+    fn get_headers(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+
+        let session_id =
+            req.request
+                .session_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "session_id",
+                })?;
+
+        Ok(format!("{endpoint}payments/v1/sessions/{session_id}"))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::SdkSessionUpdateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::SdkSessionUpdateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::SdkSessionUpdateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SdkSessionUpdateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = klarna::KlarnaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.net_amount.get_amount_as_i64(),
+            req,
+        ))?;
+
+        let connector_req = klarna::KlarnaSessionUpdateRequest::try_from(&connector_router_data)?;
+        // encode only for for urlencoded things.
+
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$klarna session update req {:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SdkSessionUpdateRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::SdkSessionUpdateRouterData, errors::ConnectorError> {
+        logger::debug!("Expected zero bytes response, skipped parsing of the response");
+        // https://docs.klarna.com/api/payments/#operation/updateCreditSession
+        // If 204 status code, then the session was updated successfully.
+        let status = if res.status_code == 204 {
+            enums::SessionUpdateStatus::Success
+        } else {
+            enums::SessionUpdateStatus::Failure
+        };
+        Ok(types::SdkSessionUpdateRouterData {
+            response: Ok(types::PaymentsResponseData::SessionUpdateResponse { status }),
+            ..data.clone()
+        })
     }
 
     fn get_error_response(
@@ -675,6 +792,10 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$klarna auth req {:?}", printrequest);
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

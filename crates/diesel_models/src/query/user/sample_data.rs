@@ -3,11 +3,11 @@ use diesel::{associations::HasTable, debug_query, ExpressionMethods, TextExpress
 use error_stack::ResultExt;
 use router_env::logger;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::{
     payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
 };
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::{
     payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
 };
@@ -61,6 +61,7 @@ pub async fn insert_refunds(
         .attach_printable("Error while inserting refunds")
 }
 
+#[cfg(feature = "v1")]
 pub async fn delete_payment_intents(
     conn: &PgPooledConn,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -68,6 +69,33 @@ pub async fn delete_payment_intents(
     let query = diesel::delete(<PaymentIntent>::table())
         .filter(payment_intent_dsl::merchant_id.eq(merchant_id.to_owned()))
         .filter(payment_intent_dsl::payment_id.like("test_%"));
+
+    logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+    query
+        .get_results_async(conn)
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error while deleting payment intents")
+        .and_then(|result| match result.len() {
+            n if n > 0 => {
+                logger::debug!("{n} records deleted");
+                Ok(result)
+            }
+            0 => Err(error_stack::report!(errors::DatabaseError::NotFound)
+                .attach_printable("No records deleted")),
+            _ => Ok(result),
+        })
+}
+
+#[cfg(feature = "v2")]
+pub async fn delete_payment_intents(
+    conn: &PgPooledConn,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> StorageResult<Vec<PaymentIntent>> {
+    let query = diesel::delete(<PaymentIntent>::table())
+        .filter(payment_intent_dsl::merchant_id.eq(merchant_id.to_owned()))
+        .filter(payment_intent_dsl::merchant_reference_id.like("test_%"));
 
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 

@@ -66,8 +66,8 @@ use hyperswitch_interfaces::{
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
             PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
-            PaymentTaxCalculation, PaymentsCompleteAuthorize, PaymentsPostProcessing,
-            PaymentsPreProcessing,
+            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
+            TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -91,7 +91,12 @@ macro_rules! default_imp_for_authorize_session_token {
 default_imp_for_authorize_session_token!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -100,8 +105,10 @@ default_imp_for_authorize_session_token!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
     connectors::Taxjar,
+    connectors::Volt,
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline
@@ -109,7 +116,7 @@ default_imp_for_authorize_session_token!(
 
 macro_rules! default_imp_for_calculate_tax {
     ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentTaxCalculation for $path::$connector {}
+        $( impl TaxCalculation for $path::$connector {}
             impl
             ConnectorIntegration<
                 CalculateTax,
@@ -124,11 +131,18 @@ macro_rules! default_imp_for_calculate_tax {
 default_imp_for_calculate_tax!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Square,
     connectors::Novalnet,
+    connectors::Mollie,
     connectors::Nexixpay,
     connectors::Fiuu,
     connectors::Globepay,
@@ -136,6 +150,7 @@ default_imp_for_calculate_tax!(
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
+    connectors::Volt,
     connectors::Deutschebank
 );
 
@@ -156,11 +171,18 @@ macro_rules! default_imp_for_session_update {
 default_imp_for_session_update!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
+    connectors::Mollie,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Fiuu,
@@ -169,7 +191,8 @@ default_imp_for_session_update!(
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Deutschebank
+    connectors::Deutschebank,
+    connectors::Volt
 );
 
 use crate::connectors;
@@ -190,19 +213,24 @@ macro_rules! default_imp_for_complete_authorize {
 
 default_imp_for_complete_authorize!(
     connectors::Bitpay,
-    connectors::Deutschebank,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
-    connectors::Nexixpay,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -223,7 +251,12 @@ macro_rules! default_imp_for_incremental_authorization {
 default_imp_for_incremental_authorization!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -232,11 +265,14 @@ default_imp_for_incremental_authorization!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -257,19 +293,27 @@ macro_rules! default_imp_for_create_customer {
 default_imp_for_create_customer!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Mollie,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -291,7 +335,12 @@ macro_rules! default_imp_for_connector_redirect_response {
 
 default_imp_for_connector_redirect_response!(
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -300,10 +349,12 @@ default_imp_for_connector_redirect_response!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_pre_processing_steps{
@@ -324,20 +375,27 @@ macro_rules! default_imp_for_pre_processing_steps{
 default_imp_for_pre_processing_steps!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
-    connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_post_processing_steps{
@@ -358,7 +416,12 @@ macro_rules! default_imp_for_post_processing_steps{
 default_imp_for_post_processing_steps!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -367,11 +430,14 @@ default_imp_for_post_processing_steps!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_approve {
@@ -392,7 +458,12 @@ macro_rules! default_imp_for_approve {
 default_imp_for_approve!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -401,11 +472,14 @@ default_imp_for_approve!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_reject {
@@ -426,7 +500,12 @@ macro_rules! default_imp_for_reject {
 default_imp_for_reject!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -435,11 +514,14 @@ default_imp_for_reject!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_webhook_source_verification {
@@ -460,7 +542,12 @@ macro_rules! default_imp_for_webhook_source_verification {
 default_imp_for_webhook_source_verification!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -469,11 +556,14 @@ default_imp_for_webhook_source_verification!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -495,7 +585,12 @@ macro_rules! default_imp_for_accept_dispute {
 default_imp_for_accept_dispute!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -504,11 +599,14 @@ default_imp_for_accept_dispute!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -529,7 +627,12 @@ macro_rules! default_imp_for_submit_evidence {
 default_imp_for_submit_evidence!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -538,11 +641,14 @@ default_imp_for_submit_evidence!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -563,7 +669,12 @@ macro_rules! default_imp_for_defend_dispute {
 default_imp_for_defend_dispute!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -572,11 +683,14 @@ default_imp_for_defend_dispute!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -606,7 +720,12 @@ macro_rules! default_imp_for_file_upload {
 default_imp_for_file_upload!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -615,11 +734,14 @@ default_imp_for_file_upload!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -642,7 +764,12 @@ macro_rules! default_imp_for_payouts_create {
 default_imp_for_payouts_create!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -651,11 +778,14 @@ default_imp_for_payouts_create!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -678,7 +808,12 @@ macro_rules! default_imp_for_payouts_retrieve {
 default_imp_for_payouts_retrieve!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -687,11 +822,14 @@ default_imp_for_payouts_retrieve!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -714,7 +852,12 @@ macro_rules! default_imp_for_payouts_eligibility {
 default_imp_for_payouts_eligibility!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -723,11 +866,14 @@ default_imp_for_payouts_eligibility!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -750,7 +896,12 @@ macro_rules! default_imp_for_payouts_fulfill {
 default_imp_for_payouts_fulfill!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -759,11 +910,14 @@ default_imp_for_payouts_fulfill!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -786,7 +940,12 @@ macro_rules! default_imp_for_payouts_cancel {
 default_imp_for_payouts_cancel!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -795,11 +954,14 @@ default_imp_for_payouts_cancel!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -822,7 +984,12 @@ macro_rules! default_imp_for_payouts_quote {
 default_imp_for_payouts_quote!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -831,11 +998,14 @@ default_imp_for_payouts_quote!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -858,7 +1028,12 @@ macro_rules! default_imp_for_payouts_recipient {
 default_imp_for_payouts_recipient!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -867,11 +1042,14 @@ default_imp_for_payouts_recipient!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "payouts")]
@@ -894,7 +1072,12 @@ macro_rules! default_imp_for_payouts_recipient_account {
 default_imp_for_payouts_recipient_account!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -903,11 +1086,14 @@ default_imp_for_payouts_recipient_account!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -930,7 +1116,12 @@ macro_rules! default_imp_for_frm_sale {
 default_imp_for_frm_sale!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -939,11 +1130,14 @@ default_imp_for_frm_sale!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -966,7 +1160,12 @@ macro_rules! default_imp_for_frm_checkout {
 default_imp_for_frm_checkout!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -975,11 +1174,14 @@ default_imp_for_frm_checkout!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -1002,7 +1204,12 @@ macro_rules! default_imp_for_frm_transaction {
 default_imp_for_frm_transaction!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1011,11 +1218,14 @@ default_imp_for_frm_transaction!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -1038,7 +1248,12 @@ macro_rules! default_imp_for_frm_fulfillment {
 default_imp_for_frm_fulfillment!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1047,11 +1262,14 @@ default_imp_for_frm_fulfillment!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 #[cfg(feature = "frm")]
@@ -1074,7 +1292,12 @@ macro_rules! default_imp_for_frm_record_return {
 default_imp_for_frm_record_return!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1083,11 +1306,14 @@ default_imp_for_frm_record_return!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -1107,7 +1333,12 @@ macro_rules! default_imp_for_revoking_mandates {
 default_imp_for_revoking_mandates!(
     connectors::Bambora,
     connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
     connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1116,9 +1347,12 @@ default_imp_for_revoking_mandates!(
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
+    connectors::Mollie,
     connectors::Stax,
+    connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Volt
 );

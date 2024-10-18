@@ -46,7 +46,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -94,7 +93,8 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Datatrans,
-    // Deutschebank,
+    Deutschebank,
+    // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
     Fiserv,
@@ -114,6 +114,7 @@ pub enum Connector {
     Multisafepay,
     Netcetera,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
@@ -187,6 +188,7 @@ impl Connector {
         matches!(
             (self, payment_method),
             (Self::Airwallex, _)
+                | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
@@ -214,7 +216,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Nexixpay
 			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
@@ -231,7 +232,7 @@ impl Connector {
             | Self::Cashtocode
             | Self::Coinbase
             | Self::Cryptopay
-			// | Self::Deutschebank
+			| Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
@@ -250,6 +251,7 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Nexixpay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -506,6 +508,7 @@ pub enum FieldType {
     UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
+    UserBankAccountNumber,
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,

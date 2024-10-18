@@ -629,6 +629,7 @@ impl AddressData for api::Address {
 }
 
 pub trait PaymentsPreProcessingData {
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
@@ -696,6 +697,17 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
     }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
@@ -703,7 +715,9 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 }
@@ -845,7 +859,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 
@@ -856,7 +872,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     Some(network_transaction_id.clone())
                 }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
             })
     }
 
@@ -2994,4 +3012,22 @@ pub fn get_refund_integrity_object<T>(
         currency: currency_enum,
         refund_amount: refund_amount_in_minor_unit,
     })
+}
+pub trait NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
+}
+
+impl NetworkTokenData for domain::NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.token_number.peek())
+    }
+
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
 }

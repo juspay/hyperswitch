@@ -13,7 +13,6 @@ kv_store = []
 v1 = []
 v2 = []
 customer_v2 = []
-payment_v2 = []
 payment_methods_v2 = []
 
 [dependencies]

@@ -31,7 +31,8 @@ pub struct ConnectorAuthentication {
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub datatrans: Option<HeaderKey>,
-    pub deutschebank: Option<HeaderKey>,
+    pub deutschebank: Option<SignatureKey>,
+    pub digitalvirgo: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,

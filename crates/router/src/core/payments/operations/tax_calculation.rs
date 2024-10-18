@@ -16,6 +16,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
         utils as core_utils,
     },
+    db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -123,7 +124,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         let business_profile = db
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -176,7 +177,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             recurring_details: None,
             poll_config: None,
             tax_data: Some(tax_data),
+            session_id: request.session_id.clone(),
         };
+
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: None,
@@ -215,14 +218,17 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        business_profile: &domain::BusinessProfile,
+        business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-        if business_profile.is_tax_connector_enabled {
-            *should_continue_confirm_transaction = false;
+        let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+        let skip_external_tax_calculation = payment_data
+            .payment_intent
+            .skip_external_tax_calculation
+            .unwrap_or(false);
+        if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
             let key_manager_state: &KeyManagerState = &state.into();
 
@@ -285,7 +291,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                 None,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .to_payment_failed_response()
             .attach_printable("Tax connector Response Failed")?;
 
             let tax_response = response.response.map_err(|err| {
@@ -326,7 +332,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -378,54 +384,74 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        let shipping_address = payment_data
-            .tax_data
+        let apple_or_google_pay = payment_data
+            .payment_intent
+            .tax_details
             .clone()
-            .map(|tax_data| tax_data.shipping_details);
+            .and_then(|tax_details| {
+                tax_details
+                    .payment_method_type
+                    .map(|payment_method_type| payment_method_type.pmt)
+            })
+            .map_or(false, |pmt| {
+                pmt == storage_enums::PaymentMethodType::ApplePay
+                    || pmt == storage_enums::PaymentMethodType::GooglePay
+            });
 
-        let shipping_details = shipping_address
-            .clone()
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
+        if apple_or_google_pay {
+            let shipping_address = payment_data
+                .tax_data
+                .clone()
+                .map(|tax_data| tax_data.shipping_details);
 
-        let shipping_address = helpers::create_or_update_address_for_payment_by_request(
-            state,
-            shipping_address.as_ref(),
-            payment_data.payment_intent.shipping_address_id.as_deref(),
-            &payment_data.payment_intent.merchant_id,
-            payment_data.payment_intent.customer_id.as_ref(),
-            key_store,
-            &payment_data.payment_intent.payment_id,
-            storage_scheme,
-        )
-        .await?;
+            let shipping_details = shipping_address
+                .clone()
+                .async_map(|shipping_details| {
+                    create_encrypted_data(state, key_store, shipping_details)
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt shipping details")?;
 
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
+            let shipping_address = helpers::create_or_update_address_for_payment_by_request(
+                state,
+                shipping_address.as_ref(),
+                payment_data.payment_intent.shipping_address_id.as_deref(),
+                &payment_data.payment_intent.merchant_id,
+                payment_data.payment_intent.customer_id.as_ref(),
+                key_store,
+                &payment_data.payment_intent.payment_id,
+                storage_scheme,
+            )
+            .await?;
+
+            let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
             updated_by: payment_data.payment_intent.updated_by.clone(),
             shipping_details,
         };
 
-        let db = &*state.store;
-        let payment_intent = payment_data.payment_intent.clone();
+            let db = &*state.store;
+            let payment_intent = payment_data.payment_intent.clone();
 
-        let updated_payment_intent = db
-            .update_payment_intent(
-                &state.into(),
-                payment_intent,
-                payment_intent_update,
-                key_store,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let updated_payment_intent = db
+                .update_payment_intent(
+                    &state.into(),
+                    payment_intent,
+                    payment_intent_update,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.payment_intent = updated_payment_intent;
-        Ok((Box::new(self), payment_data))
+            payment_data.payment_intent = updated_payment_intent;
+            Ok((Box::new(self), payment_data))
+        } else {
+            Ok((Box::new(self), payment_data))
+        }
     }
 }
 

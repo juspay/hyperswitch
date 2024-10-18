@@ -1,7 +1,11 @@
 //! Contains new types with restrictions
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH, pii::UpiVpaMaskingStrategy};
+use crate::{
+    consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH,
+    pii::{Email, UpiVpaMaskingStrategy},
+    transformers::ForeignFrom,
+};
 
 #[nutype::nutype(
     derive(Clone, Serialize, Deserialize, Debug),
@@ -131,6 +135,21 @@ impl From<Secret<String>> for MaskedIban {
     }
 }
 
+/// Masked IBAN
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedBic(Secret<String>);
+impl From<String> for MaskedBic {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 3, 2);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedBic {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
 /// Masked UPI ID
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MaskedUpiVpaId(Secret<String>);
@@ -155,6 +174,64 @@ impl From<String> for MaskedUpiVpaId {
 }
 impl From<Secret<String, UpiVpaMaskingStrategy>> for MaskedUpiVpaId {
     fn from(secret: Secret<String, UpiVpaMaskingStrategy>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked Email
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedEmail(Secret<String>);
+impl From<String> for MaskedEmail {
+    fn from(src: String) -> Self {
+        let unmasked_char_count = 2;
+        let masked_value = if let Some((user_identifier, domain)) = src.split_once('@') {
+            let masked_user_identifier = user_identifier
+                .to_string()
+                .chars()
+                .take(unmasked_char_count)
+                .collect::<String>()
+                + &"*".repeat(user_identifier.len() - unmasked_char_count);
+            format!("{}@{}", masked_user_identifier, domain)
+        } else {
+            let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
+            masked_value
+        };
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedEmail {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+impl ForeignFrom<Email> for MaskedEmail {
+    fn foreign_from(email: Email) -> Self {
+        let email_value: String = email.expose().peek().to_owned();
+        Self::from(email_value)
+    }
+}
+
+/// Masked Phone Number
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedPhoneNumber(Secret<String>);
+impl From<String> for MaskedPhoneNumber {
+    fn from(src: String) -> Self {
+        let unmasked_char_count = 2;
+        let masked_value = if unmasked_char_count <= src.len() {
+            let len = src.len();
+            // mask every character except the last 2
+            "*".repeat(len - unmasked_char_count).to_string()
+                + src
+                    .get(len.saturating_sub(unmasked_char_count)..)
+                    .unwrap_or("")
+        } else {
+            src
+        };
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedPhoneNumber {
+    fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }
 }

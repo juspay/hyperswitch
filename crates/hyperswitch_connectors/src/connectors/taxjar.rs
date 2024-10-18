@@ -65,7 +65,7 @@ impl api::Refund for Taxjar {}
 impl api::RefundExecute for Taxjar {}
 impl api::RefundSync for Taxjar {}
 impl api::PaymentToken for Taxjar {}
-impl api::PaymentTaxCalculation for Taxjar {}
+impl api::TaxCalculation for Taxjar {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Taxjar
@@ -136,7 +136,7 @@ impl ConnectorCommon for Taxjar {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.clone(),
+            code: response.error.clone(),
             message: response.detail.clone(),
             reason: Some(response.detail),
             attempt_status: None,
@@ -226,6 +226,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsTaxCalculationRouterData, errors::ConnectorError> {
+        println!("$$$taxjarresponse{:?}", res.response);
         let response: taxjar::TaxjarPaymentsResponse = res
             .response
             .parse_struct("Taxjar PaymentsResponse")

@@ -759,6 +759,7 @@ mod tests {
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
+            connector_wallets_details: None,
         };
         #[cfg(feature = "v1")]
         let stripe_account = MerchantConnectorResponse {
@@ -818,6 +819,7 @@ mod tests {
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
+            connector_wallets_details: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {

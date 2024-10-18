@@ -1,8 +1,6 @@
 pub use common_enums::PermissionGroup;
 use common_enums::{EntityType, RoleScope};
 
-use super::Permission;
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateRoleRequest {
     pub role_name: String,
@@ -17,22 +15,16 @@ pub struct UpdateRoleRequest {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct ListRolesResponse(pub Vec<RoleInfoWithGroupsResponse>);
-
-#[derive(Debug, serde::Serialize)]
-pub struct RoleInfoWithPermissionsResponse {
-    pub role_id: String,
-    pub permissions: Vec<Permission>,
-    pub role_name: String,
-    pub role_scope: RoleScope,
-}
-
-#[derive(Debug, serde::Serialize)]
 pub struct RoleInfoWithGroupsResponse {
     pub role_id: String,
     pub groups: Vec<PermissionGroup>,
     pub role_name: String,
     pub role_scope: RoleScope,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListRolesRequest {
+    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -63,5 +55,5 @@ pub enum RoleCheckType {
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct MinimalRoleInfo {
     pub role_id: String,
-    pub role_name: Option<String>,
+    pub role_name: String,
 }

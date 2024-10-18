@@ -270,14 +270,20 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenTransferResponse>>
         item: types::PayoutsResponseRouterData<F, AdyenTransferResponse>,
     ) -> Result<Self, Self::Error> {
         let response: AdyenTransferResponse = item.response;
+        let status = enums::PayoutStatus::from(response.status);
+
+        let error_code = match status {
+            enums::PayoutStatus::Ineligible => Some(response.reason),
+            _ => None,
+        };
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(enums::PayoutStatus::from(response.status)),
+                status: Some(status),
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
-                error_code: None,
+                error_code,
                 error_message: None,
             }),
             ..item.data
@@ -361,7 +367,8 @@ pub struct AdyenplatformIncomingWebhookData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformInstantStatus {
-    status: InstantPriorityStatus,
+    status: Option<InstantPriorityStatus>,
+    estimated_arrival_time: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -410,20 +417,14 @@ impl
     ) -> Self {
         match (event_type, status, instant_status) {
             (AdyenplatformWebhookEventType::PayoutCreated, _, _) => Self::PayoutCreated,
-            (
-                AdyenplatformWebhookEventType::PayoutUpdated,
-                _,
-                Some(AdyenplatformInstantStatus {
-                    status: InstantPriorityStatus::Credited,
-                }),
-            ) => Self::PayoutSuccess,
-            (
-                AdyenplatformWebhookEventType::PayoutUpdated,
-                _,
-                Some(AdyenplatformInstantStatus {
-                    status: InstantPriorityStatus::Pending,
-                }),
-            ) => Self::PayoutProcessing,
+            (AdyenplatformWebhookEventType::PayoutUpdated, _, Some(instant_status)) => {
+                match (instant_status.status, instant_status.estimated_arrival_time) {
+                    (Some(InstantPriorityStatus::Credited), _) | (None, Some(_)) => {
+                        Self::PayoutSuccess
+                    }
+                    _ => Self::PayoutProcessing,
+                }
+            }
             (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
                 AdyenplatformWebhookStatus::Authorised
                 | AdyenplatformWebhookStatus::Booked
