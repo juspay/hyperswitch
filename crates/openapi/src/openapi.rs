@@ -582,7 +582,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::SuccessBasedRoutingConfigBody,
         api_models::routing::CurrentBlockThreshold,
         api_models::routing::SuccessBasedRoutingUpdateConfigQuery,
-        api_models::routing::ToggleSuccessBasedRoutingPath,
         api_models::routing::ast::RoutableChoiceKind,
         api_models::enums::RoutableConnectors,
         api_models::routing::ast::ProgramConnectorSelection,
