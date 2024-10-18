@@ -5,6 +5,8 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -162,7 +164,7 @@ pub struct PaymentsCreateIntentRequest {
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -203,8 +205,8 @@ pub struct PaymentsCreateIntentRequest {
     pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
-    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = Option<RequestIncrementalAuthorization>)]
@@ -225,16 +227,81 @@ pub struct PaymentsCreateIntentRequest {
         Option<common_enums::External3dsAuthenticationRequest>,
 }
 
+#[cfg(feature = "v2")]
+impl PaymentsCreateIntentRequest {
+    pub fn get_feature_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(self
+            .feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()?
+            .map(Secret::new))
+    }
+
+    pub fn get_connector_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(self
+            .connector_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()?
+            .map(Secret::new))
+    }
+
+    pub fn get_allowed_payment_method_types_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<pii::SecretSerdeValue>,
+        common_utils::errors::ParsingError,
+    > {
+        Ok(self
+            .allowed_payment_method_types
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()?
+            .map(Secret::new))
+    }
+
+    pub fn get_order_details_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<Vec<pii::SecretSerdeValue>>,
+        common_utils::errors::ParsingError,
+    > {
+        self.order_details
+            .as_ref()
+            .map(|od| {
+                od.iter()
+                    .map(|order| order.encode_to_value().map(Secret::new))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()
+    }
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsCreateIntentResponse {
+    /// Global Payment Id for the payment
+    #[schema(value_type = String)]
+    pub id: GlobalPaymentId,
+
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
     /// It's a token used for client side verification.
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Secret<String>,
+    pub client_secret: common_utils::types::ClientSecret,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -257,9 +324,11 @@ pub struct PaymentsCreateIntentResponse {
     pub authentication_type: api_enums::AuthenticationType,
 
     /// The billing details of the payment. This address will be used for invoicing.
+    #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
 
     /// The shipping address for the payment
+    #[schema(value_type = Option<Address>)]
     pub shipping: Option<Address>,
 
     /// The identifier for the customer
@@ -276,7 +345,7 @@ pub struct PaymentsCreateIntentResponse {
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     #[schema(value_type = FutureUsage, example = "off_session")]
     pub setup_future_usage: api_enums::FutureUsage,
@@ -300,34 +369,35 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
-    pub connector_metadata: Option<ConnectorMetadata>,
+    #[schema(value_type = Option<ConnectorMetadata>)]
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
-    pub feature_metadata: Option<FeatureMetadata>,
+    #[schema(value_type = Option<FeatureMetadata>)]
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]
     pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentCreatePaymentLinkConfig>)]
-    pub payment_link_config: Option<PaymentCreatePaymentLinkConfig>,
+    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
     #[schema(value_type = RequestIncrementalAuthorization)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
-    ///(900) for 15 mins
-    #[schema(example = 900)]
-    pub session_expiry: Option<u32>,
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expires_on: PrimitiveDateTime,
 
     /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
@@ -364,6 +434,58 @@ pub struct AmountDetails {
     surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     tax_on_surcharge: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+pub struct AmountDetailsSetter {
+    pub order_amount: Amount,
+    pub currency: common_enums::Currency,
+    pub shipping_cost: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+impl AmountDetails {
+    pub fn new(amount_details_setter: AmountDetailsSetter) -> Self {
+        Self {
+            order_amount: amount_details_setter.order_amount,
+            currency: amount_details_setter.currency,
+            shipping_cost: amount_details_setter.shipping_cost,
+            order_tax_amount: amount_details_setter.order_tax_amount,
+            skip_external_tax_calculation: amount_details_setter.skip_external_tax_calculation,
+            skip_surcharge_calculation: amount_details_setter.skip_surcharge_calculation,
+            surcharge_amount: amount_details_setter.surcharge_amount,
+            tax_on_surcharge: amount_details_setter.tax_on_surcharge,
+        }
+    }
+    pub fn order_amount(&self) -> Amount {
+        self.order_amount
+    }
+    pub fn currency(&self) -> common_enums::Currency {
+        self.currency
+    }
+    pub fn shipping_cost(&self) -> Option<MinorUnit> {
+        self.shipping_cost
+    }
+    pub fn order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+    pub fn skip_external_tax_calculation(&self) -> common_enums::TaxCalculationOverride {
+        self.skip_external_tax_calculation.clone()
+    }
+    pub fn skip_surcharge_calculation(&self) -> common_enums::SurchargeCalculationOverride {
+        self.skip_surcharge_calculation.clone()
+    }
+    pub fn surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+    }
+    pub fn tax_on_surcharge(&self) -> Option<MinorUnit> {
+        self.tax_on_surcharge
+    }
 }
 
 #[derive(
@@ -3489,6 +3611,8 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
+impl masking::SerializableSecret for Address {}
+
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
     pub fn unify_address(self, other: Option<&Self>) -> Self {
@@ -4449,6 +4573,17 @@ pub struct PaymentListFilterConstraints {
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
 }
+
+impl PaymentListFilterConstraints {
+    pub fn has_no_attempt_filters(&self) -> bool {
+        self.connector.is_none()
+            && self.payment_method.is_none()
+            && self.payment_method_type.is_none()
+            && self.authentication_type.is_none()
+            && self.merchant_connector_id.is_none()
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
     /// The list of available connector filters
@@ -4807,6 +4942,8 @@ pub struct OrderDetailsWithAmount {
     /// The tax code for the product
     pub product_tax_code: Option<String>,
 }
+
+impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]

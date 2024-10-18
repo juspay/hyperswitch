@@ -74,6 +74,7 @@ pub mod headers {
     pub const X_DATE: &str = "X-Date";
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
     pub const X_REQUEST_ID: &str = "X-Request-Id";
+    pub const X_PROFILE_ID: &str = "X-Profile-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
     pub const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
     pub const X_CLIENT_VERSION: &str = "X-Client-Version";
