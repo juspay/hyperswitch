@@ -19,8 +19,9 @@ pub enum ApiEventsType {
     Payment {
         payment_id: id_type::PaymentId,
     },
+    // TODO: try to use the same name here
     #[cfg(feature = "v2")]
-    Payment {
+    PaymentV2 {
         payment_id: id_type::GlobalPaymentId,
     },
     Refund {
@@ -91,6 +92,15 @@ impl ApiEventMetric for () {}
 impl ApiEventMetric for id_type::PaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for id_type::GlobalPaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentV2 {
             payment_id: self.clone(),
         })
     }

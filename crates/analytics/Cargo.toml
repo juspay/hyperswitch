@@ -7,8 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1"]
-v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "common_utils/v2"]
 
 [dependencies]
 # First party crates

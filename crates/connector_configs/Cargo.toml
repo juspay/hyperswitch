@@ -17,8 +17,8 @@ v1 = ["api_models/v1"]
 
 [dependencies]
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", package = "api_models"}
-common_utils = { version = "0.1.0", path = "../common_utils" }
+api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["v1"] }
 
 # Third party crates
 serde = { version = "1.0.197", features = ["derive"] }
