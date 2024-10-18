@@ -653,7 +653,7 @@ pub enum FiuuPaymentsResponse {
     PaymentResponse(Box<PaymentsResponse>),
     QRPaymentResponse(Box<DuitNowQrCodeResponse>),
     Error(FiuuErrorResponse),
-    RecurringResponse(Box<FiuuRecurringResponse>),
+    RecurringResponse(Vec<Box<FiuuRecurringResponse>>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -845,46 +845,70 @@ impl<F>
                     })
                 }
             },
-            FiuuPaymentsResponse::RecurringResponse(ref recurring_response) => {
-                let status = common_enums::AttemptStatus::from(recurring_response.status.clone());
-                let connector_transaction_id = recurring_response
-                    .tran_id
-                    .as_ref()
-                    .map_or(ResponseId::NoResponseId, |tran_id| {
-                        ResponseId::ConnectorTransactionId(tran_id.clone())
-                    });
-                let response = if status == common_enums::AttemptStatus::Failure {
-                    Err(ErrorResponse {
-                        code: recurring_response
-                            .reason
-                            .clone()
-                            .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
-                        message: recurring_response
-                            .reason
-                            .clone()
-                            .unwrap_or_else(|| "NO_ERROR_MESSAGE".to_string()),
-                        reason: recurring_response.reason.clone(),
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: recurring_response.tran_id.clone(),
-                    })
-                } else {
-                    Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: connector_transaction_id,
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charge_id: None,
-                    })
+            FiuuPaymentsResponse::RecurringResponse(ref recurring_response_vec) => {
+                let recurring_response_item = recurring_response_vec.first();
+                let router_data_response = match recurring_response_item {
+                    Some(recurring_response) => {
+                        let status =
+                            common_enums::AttemptStatus::from(recurring_response.status.clone());
+                        let connector_transaction_id = recurring_response
+                            .tran_id
+                            .as_ref()
+                            .map_or(ResponseId::NoResponseId, |tran_id| {
+                                ResponseId::ConnectorTransactionId(tran_id.clone())
+                            });
+                        let response = if status == common_enums::AttemptStatus::Failure {
+                            Err(ErrorResponse {
+                                code: recurring_response
+                                    .reason
+                                    .clone()
+                                    .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
+                                message: recurring_response
+                                    .reason
+                                    .clone()
+                                    .unwrap_or_else(|| "NO_ERROR_MESSAGE".to_string()),
+                                reason: recurring_response.reason.clone(),
+                                status_code: item.http_code,
+                                attempt_status: None,
+                                connector_transaction_id: recurring_response.tran_id.clone(),
+                            })
+                        } else {
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: connector_transaction_id,
+                                redirection_data: None,
+                                mandate_reference: None,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charge_id: None,
+                            })
+                        };
+                        Self {
+                            status,
+                            response,
+                            ..item.data
+                        }
+                    }
+                    None => {
+                        // It is not expected to get empty response from the connnector, if we get we are not updating the payment response since we don't have any info in the authorize response.
+                        let response = Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::NoResponseId,
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        });
+                        Self {
+                            response,
+                            ..item.data
+                        }
+                    }
                 };
-                Ok(Self {
-                    status,
-                    response,
-                    ..item.data
-                })
+                Ok(router_data_response)
             }
         }
     }
