@@ -32,6 +32,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 
+use crate::types::RefreshTokenRouterData;
+
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub(crate) fn construct_not_supported_error_report(
@@ -722,6 +724,18 @@ impl<Flow, Request, Response> RouterData
     }
 }
 
+pub trait AccessTokenRequestInfo {
+    fn get_request_id(&self) -> Result<Secret<String>, Error>;
+}
+
+impl AccessTokenRequestInfo for RefreshTokenRouterData {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
+        self.request
+            .id
+            .clone()
+            .ok_or_else(missing_field_err("request.id"))
+    }
+}
 pub trait ApplePayDecrypt {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
