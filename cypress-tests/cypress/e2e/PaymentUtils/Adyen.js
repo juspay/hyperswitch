@@ -67,6 +67,8 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
+        amount: 6500,
+        authentication_type: "no_three_ds",
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "off_session",
@@ -91,7 +93,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },
@@ -364,6 +366,36 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -391,6 +423,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
