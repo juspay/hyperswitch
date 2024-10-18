@@ -39,10 +39,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
@@ -844,14 +841,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let raw_customer_details = customer
             .map(|customer| CustomerData::foreign_try_from(customer.clone()))
             .transpose()?;
-        let session_state = state.session_state();
-
+        let key_manager_state = state.into();
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
         let customer_details = raw_customer_details
             .clone()
             .async_map(|customer_details| {
-                create_encrypted_data(&session_state, key_store, customer_details)
+                create_encrypted_data(&key_manager_state, key_store, customer_details)
             })
             .await
             .transpose()
@@ -1210,8 +1206,10 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
+                connector_mandate_detail: None,
             },
             additional_pm_data,
+
         ))
     }
 

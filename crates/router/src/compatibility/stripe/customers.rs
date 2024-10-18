@@ -54,7 +54,7 @@ pub async fn customer_create(
         state.into_inner(),
         &req,
         create_cust_req,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -92,7 +92,7 @@ pub async fn customer_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -142,7 +142,7 @@ pub async fn customer_update(
         state.into_inner(),
         &req,
         cust_update_req,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::update_customer(
                 state,
                 auth.merchant_account,
@@ -225,7 +225,7 @@ pub async fn list_customer_payment_method_api(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,

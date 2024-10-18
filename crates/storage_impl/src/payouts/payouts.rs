@@ -134,7 +134,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     },
                 };
 
-                match kv_wrapper::<DieselPayouts, _, _>(
+                match Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                     self,
                     KvOperation::<DieselPayouts>::HSetNx(
                         &field,
@@ -142,7 +142,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -208,11 +208,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     },
                 };
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPayouts>::Hset((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
@@ -255,11 +255,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayouts, _, _>(
+                        Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -312,11 +312,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayouts, _, _>(
+                        Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                         .map(Some)

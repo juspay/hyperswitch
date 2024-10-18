@@ -2,7 +2,10 @@ use api_models::{
     enums::Connector::{DummyConnector4, DummyConnector7},
     user::sample_data::SampleDataRequest,
 };
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{
+    id_type,
+    types::{ConnectorTransactionId, MinorUnit},
+};
 use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
@@ -253,10 +256,12 @@ pub async fn generate_sample_data(
             tax_details: None,
             skip_external_tax_calculation: None,
         };
+        let (connector_transaction_id, connector_transaction_data) =
+            ConnectorTransactionId::form_id_and_data(attempt_id.clone());
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
             payment_id: payment_id.clone(),
-            connector_transaction_id: Some(attempt_id.clone()),
+            connector_transaction_id: Some(connector_transaction_id),
             merchant_id: merchant_id.clone(),
             status: match is_failed_payment {
                 true => common_enums::AttemptStatus::Failure,
@@ -333,18 +338,22 @@ pub async fn generate_sample_data(
             organization_id: org_id.clone(),
             shipping_cost: None,
             order_tax_amount: None,
+            connector_transaction_data,
+            connector_mandate_detail: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
             refunds_count += 1;
+            let (connector_transaction_id, connector_transaction_data) =
+                ConnectorTransactionId::form_id_and_data(attempt_id.clone());
             Some(RefundNew {
                 refund_id: common_utils::generate_id_with_default_len("test"),
                 internal_reference_id: common_utils::generate_id_with_default_len("test"),
                 external_reference_id: None,
                 payment_id: payment_id.clone(),
-                attempt_id: attempt_id.clone(),
+                attempt_id,
                 merchant_id: merchant_id.clone(),
-                connector_transaction_id: attempt_id.clone(),
+                connector_transaction_id,
                 connector_refund_id: None,
                 description: Some("This is a sample refund".to_string()),
                 created_at,
@@ -369,6 +378,8 @@ pub async fn generate_sample_data(
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 charges: None,
                 organization_id: org_id.clone(),
+                connector_refund_data: None,
+                connector_transaction_data,
             })
         } else {
             None

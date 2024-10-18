@@ -248,6 +248,8 @@ diesel::table! {
         capture_sequence -> Int2,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        #[max_length = 512]
+        connector_capture_data -> Nullable<Varchar>,
     }
 }
 
@@ -846,6 +848,9 @@ diesel::table! {
         card_network -> Nullable<Varchar>,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        #[max_length = 512]
+        connector_transaction_data -> Nullable<Varchar>,
+        connector_mandate_detail -> Nullable<Jsonb>,
     }
 }
 
@@ -1183,6 +1188,10 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
+        #[max_length = 512]
+        connector_refund_data -> Nullable<Varchar>,
+        #[max_length = 512]
+        connector_transaction_data -> Nullable<Varchar>,
     }
 }
 
