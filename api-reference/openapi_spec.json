@@ -22960,7 +22960,6 @@
         "type": "object",
         "required": [
           "name",
-          "url",
           "country_code"
         ],
         "properties": {
@@ -22970,7 +22969,8 @@
           },
           "url": {
             "type": "string",
-            "description": "Merchant domain that process payments"
+            "description": "Merchant domain that process payments, required for web payments",
+            "nullable": true
           },
           "country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
