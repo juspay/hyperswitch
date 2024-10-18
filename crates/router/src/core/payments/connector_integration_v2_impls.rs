@@ -693,7 +693,6 @@ default_imp_for_new_connector_integration_payment!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -766,7 +765,6 @@ default_imp_for_new_connector_integration_refund!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -833,7 +831,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -922,7 +919,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -993,7 +989,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1048,7 +1043,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1130,7 +1124,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1292,7 +1285,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1366,7 +1358,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1440,7 +1431,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1514,7 +1504,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1588,7 +1577,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1662,7 +1650,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1736,7 +1723,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1810,7 +1796,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -1882,7 +1867,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -2044,7 +2028,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -2118,7 +2101,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -2192,7 +2174,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -2266,7 +2247,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -2340,7 +2320,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
@@ -2411,7 +2390,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,

@@ -1,10 +1,16 @@
 use common_enums::enums;
-use common_utils::{
-    errors::ParsingError, request::Method
-};
+use common_utils::{errors::ParsingError, request::Method};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData, WalletData}, router_data::{AccessToken, ConnectorAuthType, RouterData}, router_flow_types::{refunds::{Execute, RSync}, PSync}, router_request_types::{PaymentsSyncData, ResponseId}, router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData}, types
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        PSync,
+    },
+    router_request_types::{PaymentsSyncData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
 };
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -15,9 +21,7 @@ use uuid::Uuid;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        self, CardData as _,
-    },
+    utils::{self, CardData as _},
 };
 
 pub struct AirwallexAuthType {
@@ -472,9 +476,7 @@ pub struct AirwallexPaymentsSyncResponse {
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
-fn get_redirection_form(
-    response_url_data: AirwallexPaymentsNextAction,
-) -> Option<RedirectForm> {
+fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Option<RedirectForm> {
     Some(RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
@@ -516,18 +518,12 @@ fn get_redirection_form(
     })
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            AirwallexPaymentsResponse,
-            T,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, redirection_data) = item.response.next_action.clone().map_or(
             // If no next action is there, map the status and set redirection form as None
@@ -707,9 +703,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>>
-    for types::RefundsRouterData<RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<ParsingError>;
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
