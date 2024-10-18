@@ -71,6 +71,8 @@ pub struct PaymentsAuthorizeData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub order_tax_rate: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -837,6 +839,8 @@ pub struct SdkPaymentsSessionUpdateData {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub session_id: Option<String>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_tax_rate: Option<f64>,
 }
 
 #[derive(Debug, Clone)]

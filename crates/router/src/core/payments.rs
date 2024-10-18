@@ -5866,7 +5866,7 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
 
         matches!(
             payment_method_type,
-            Some(storage_enums::PaymentMethodType::Paypal)
+            Some(storage_enums::PaymentMethodType::Paypal) | Some(storage_enums::PaymentMethodType::Klarna)
         )
     }
 

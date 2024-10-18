@@ -143,6 +143,7 @@ pub struct TaxjarPaymentsResponse {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Tax {
     amount_to_collect: FloatMajorUnit, //calculated_tax_amount
+    rate: f64,                         //Overall sales tax rate of the order
 }
 
 impl<F>
@@ -175,6 +176,7 @@ impl<F>
         Ok(Self {
             response: Ok(TaxCalculationResponseData {
                 order_tax_amount: calculated_tax,
+                order_tax_rate: item.response.tax.rate,
             }),
             ..item.data
         })
