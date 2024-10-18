@@ -4,7 +4,6 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest, PaymentsCreateIntentResponse,
 };
-
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
