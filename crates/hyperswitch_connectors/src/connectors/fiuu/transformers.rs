@@ -709,14 +709,14 @@ pub struct NonThreeDSResponseData {
     pub tran_id: String,
     pub status: String,
     #[serde(rename = "extraP")]
-    pub extra_parmeters: Option<ExtraParmeters>,
+    pub extra_parameters : Option<ExtraParameters>,
     pub error_code: Option<String>,
     pub error_desc: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ExtraParmeters {
-    token: Option<Secret<String>>,
+pub struct ExtraParameters{
+    token : Option<Secret<String>>,
 }
 
 impl<F>
@@ -786,17 +786,11 @@ impl<F>
                     })
                 }
                 RequestData::NonThreeDS(non_threeds_data) => {
-                    let mandate_reference =
-                        non_threeds_data
-                            .extra_parmeters
-                            .as_ref()
-                            .and_then(|extra_p| {
-                                extra_p.token.as_ref().map(|token| MandateReference {
-                                    connector_mandate_id: Some(token.clone().expose()),
-                                    payment_method_id: None,
-                                    mandate_metadata: None,
-                                })
-                            });
+                    let mandate_reference = non_threeds_data.extra_parameters.as_ref().and_then(|extra_p| extra_p.token.as_ref().map(|token| MandateReference{
+                        connector_mandate_id : Some(token.clone().expose()),
+                        payment_method_id : None,
+                        mandate_metadata: None,
+                    }));
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
