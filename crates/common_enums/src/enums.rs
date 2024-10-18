@@ -3339,6 +3339,16 @@ pub enum PresenceOfCustomerDuringPayment {
     Absent,
 }
 
+impl From<ConnectorType> for TransactionType {
+    fn from(connector_type: ConnectorType) -> Self {
+        match connector_type {
+            #[cfg(feature = "payouts")]
+            ConnectorType::PayoutProcessor => Self::Payout,
+            _ => Self::Payment,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
