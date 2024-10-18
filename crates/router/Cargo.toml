@@ -115,6 +115,7 @@ tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.11.0"
 unidecode = "0.3.0"
 url = { version = "2.5.0", features = ["serde"] }
+urlencoding = "2.1.3"
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
 uuid = { version = "1.8.0", features = ["v4"] }
 validator = "0.17.0"
