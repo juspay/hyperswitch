@@ -89,7 +89,7 @@ pub struct AuthenticationDataWithUser {
 pub enum AuthenticationType {
     ApiKey {
         merchant_id: id_type::MerchantId,
-        key_id: String,
+        key_id: id_type::ApiKeyId,
     },
     AdminApiKey,
     AdminApiAuthWithMerchantId {
