@@ -200,6 +200,39 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Nmi is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
