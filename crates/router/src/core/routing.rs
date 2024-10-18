@@ -1268,7 +1268,7 @@ pub async fn toggle_success_based_routing(
                         helpers::default_success_based_routing_setup(
                             &state,
                             key_store,
-                            business_profile.clone(),
+                            business_profile,
                             feature_to_enable,
                             merchant_account.get_id().to_owned(),
                             success_based_dynamic_routing_algo_ref,
@@ -1281,7 +1281,7 @@ pub async fn toggle_success_based_routing(
                 helpers::default_success_based_routing_setup(
                     &state,
                     key_store,
-                    business_profile.clone(),
+                    business_profile,
                     feature_to_enable,
                     merchant_account.get_id().to_owned(),
                     success_based_dynamic_routing_algo_ref,

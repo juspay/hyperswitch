@@ -322,12 +322,16 @@ pub enum RoutingError {
     SuccessBasedRoutingConfigError,
     #[error("Unable to calculate success based routing config from dynamic routing service")]
     SuccessRateCalculationError,
+    #[error("Success rate client from dynamic routing gRPC service not initialized")]
+    SuccessRateClientInitializationError,
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
     InvalidSuccessBasedConnectorLabel(String),
     #[error("unable to find '{field}'")]
     GenericNotFoundError { field: String },
+    #[error("Unable to deserialize from '{from}' to '{to}'")]
+    DeserializationError { from: String, to: String },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

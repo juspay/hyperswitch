@@ -4585,18 +4585,19 @@ where
         business_profile
             .dynamic_routing_algorithm
             .clone()
-            .async_map(|dynamic_routing_algorithm| async {
+            .async_map(|dynamic_routing_algorithm| {
                 routing::perform_success_based_routing(
                     state,
                     connectors.clone(),
                     business_profile,
                     dynamic_routing_algorithm,
                 )
-                .await
-                .map_err(|e| logger::error!(dynamic_routing_connector_error=?e))
-                .unwrap_or(connectors.clone())
             })
             .await
+            .transpose()
+            .map_err(|e| logger::error!(dynamic_routing_connector_error=?e))
+            .ok()
+            .flatten()
             .unwrap_or(connectors)
     };
 

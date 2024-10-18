@@ -1223,11 +1223,12 @@ pub async fn perform_success_based_routing(
             .clone()
             .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
             .transpose()
-            .change_context(errors::RoutingError::GenericNotFoundError {
-                field: "dynamic_routing_algorithm".to_string(),
+            .change_context(errors::RoutingError::DeserializationError {
+                from: "dynamic_routing_algorithm".to_string(),
+                to: "DynamicRoutingAlgorithmRef".to_string(),
             })
             .attach_printable(
-                "unable to deserialize dynamic_routing_algorithm from business profile to dynamic_routing_algorithm_ref",
+                "unable to deserialize dynamic_routing_algorithm from business profile to DynamicRoutingAlgorithmRef",
             )?
             .unwrap_or_default();
 
@@ -1246,9 +1247,7 @@ pub async fn perform_success_based_routing(
             .dynamic_routing
             .success_rate_client
             .as_ref()
-            .ok_or(errors::RoutingError::GenericNotFoundError {
-                field: "success_rate gRPC client".to_string(),
-            })
+            .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
         let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
@@ -1268,9 +1267,9 @@ pub async fn perform_success_based_routing(
 
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(
-                tenant_business_profile_id.clone(),
-                success_based_routing_configs.clone(),
-                routable_connectors.clone(),
+                tenant_business_profile_id,
+                success_based_routing_configs,
+                routable_connectors,
             )
             .await
             .change_context(errors::RoutingError::SuccessRateCalculationError)
