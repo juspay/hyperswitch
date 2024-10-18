@@ -22,6 +22,11 @@ impl SearchFilters {
             && self.status.is_none()
             && self.customer_email.is_none()
             && self.search_tags.is_none()
+            && self.connector.is_none()
+            && self.payment_method_type.is_none()
+            && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.payment_id.is_none()
     }
 }
 

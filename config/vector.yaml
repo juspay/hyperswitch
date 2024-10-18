@@ -159,6 +159,9 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       index: "{{ .topic }}"
 
