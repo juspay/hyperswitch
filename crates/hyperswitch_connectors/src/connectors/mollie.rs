@@ -1,12 +1,11 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -43,10 +42,20 @@ use masking::{Mask, PeekInterface};
 use transformers as mollie;
 
 // use self::mollie::{webhook_headers, VoltWebhookBodyEventType};
-use crate::{constants::headers, types::ResponseRouterData};
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
-#[derive(Debug, Clone)]
-pub struct Mollie;
+#[derive(Clone)]
+pub struct Mollie {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Mollie {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Mollie {}
 impl api::PaymentSession for Mollie {}
@@ -254,12 +263,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let router_obj = mollie::MollieRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let router_obj = mollie::MollieRouterData::from((amount, req));
         let connector_req = mollie::MolliePaymentsRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -448,12 +458,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mollie 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let router_obj = mollie::MollieRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let router_obj = mollie::MollieRouterData::from((amount, req));
         let connector_req = mollie::MollieRefundRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
