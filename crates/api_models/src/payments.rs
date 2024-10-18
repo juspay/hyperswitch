@@ -5500,8 +5500,8 @@ pub enum SamsungPayProtocolType {
 pub struct SamsungPayMerchantPaymentInformation {
     /// Merchant name, this will be displayed on the Samsung Pay screen
     pub name: String,
-    /// Merchant domain that process payments
-    pub url: String,
+    /// Merchant domain that process payments, required for web payments
+    pub url: Option<String>,
     /// Merchant country code
     #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
