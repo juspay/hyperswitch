@@ -5,14 +5,6 @@ import getConnectorDetails from "../PaymentUtils/Utils";
 let globalState;
 
 describe("Migrate payment methods in batch", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
