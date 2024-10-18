@@ -9,6 +9,11 @@ pub struct SearchFilters {
     pub status: Option<Vec<String>>,
     pub customer_email: Option<Vec<HashedString<common_utils::pii::EmailStrategy>>>,
     pub search_tags: Option<Vec<HashedString<WithType>>>,
+    pub connector: Option<Vec<String>>,
+    pub payment_method_type: Option<Vec<String>>,
+    pub card_network: Option<Vec<String>>,
+    pub card_last_4: Option<Vec<String>>,
+    pub payment_id: Option<Vec<String>>,
 }
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
@@ -17,6 +22,11 @@ impl SearchFilters {
             && self.status.is_none()
             && self.customer_email.is_none()
             && self.search_tags.is_none()
+            && self.connector.is_none()
+            && self.payment_method_type.is_none()
+            && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.payment_id.is_none()
     }
 }
 
@@ -58,6 +68,10 @@ pub enum SearchIndex {
     PaymentIntents,
     Refunds,
     Disputes,
+    SessionizerPaymentAttempts,
+    SessionizerPaymentIntents,
+    SessionizerRefunds,
+    SessionizerDisputes,
 }
 
 #[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize, Copy)]
