@@ -51,6 +51,7 @@ where
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
+
         query_builder
             .add_select_column(Aggregate::Count {
                 field: None,
@@ -63,18 +64,21 @@ where
             .switch()?;
 
         query_builder.add_select_column("currency").switch()?;
+
         query_builder
             .add_select_column(Aggregate::Sum {
                 field: "amount",
                 alias: Some("total"),
             })
             .switch()?;
+
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
                 alias: Some("start_bucket"),
             })
             .switch()?;
+
         query_builder
             .add_select_column(Aggregate::Max {
                 field: "created_at",
