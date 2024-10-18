@@ -913,6 +913,54 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 });
 
 Cypress.Commands.add(
+  "migratePaymentMethodsInBatch",
+  (filePath, globalState) => {
+    const url = `${globalState.get("baseUrl")}/payment_methods/migrate-batch`;
+    const api_key = globalState.get("adminApiKey");
+
+    cy.fixture(filePath, "utf8").then((fileContent) => {
+      const blob = Cypress.Blob.binaryStringToBlob(fileContent, "text/csv");
+      const formData = new FormData();
+      formData.set("file", blob, filePath.split("/").pop());
+
+      cy.request({
+        method: "POST",
+        url: url,
+        headers: {
+          "api-key": api_key,
+          "Content-Type": "multipart/form-data",
+        },
+        body: formData,
+        encoding: "binary",
+        failOnStatusCode: false,
+      }).then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        const response_body = Cypress.Blob.arrayBufferToBinaryString(
+          response.body
+        );
+
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          expect(response_body, "response_body").to.be.an("array").and.not
+            .empty;
+          for (const key in response_body) {
+            expect(response_body[key].customer_id, "customer_id").to.not.be
+              .empty;
+            expect(response_body[key].migration_status, "migration_status").to
+              .not.be.null;
+            globalState.set("customerId", response_body[key].customer_id);
+          }
+        } else {
+          throw new Error(
+            `Migration in batch with status_code: "${response.status}" and message: ${response_body}`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "createPaymentMethodTest",
   (globalState, req_data, res_data) => {
     req_data.customer_id = globalState.get("customerId");
@@ -1992,10 +2040,10 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
-  const customerId = globalState.get("customerId");
+  const customer_id = globalState.get("customerId");
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/customers/${customerId}/payment_methods`,
+    url: `${globalState.get("baseUrl")}/customers/${customer_id}/payment_methods`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -2003,15 +2051,27 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.headers["content-type"]).to.include("application/json");
-    if (response.body.customer_payment_methods[0]?.payment_token) {
-      const paymentToken =
-        response.body.customer_payment_methods[0].payment_token;
+    const payment_methods = response.body.customer_payment_methods;
+    if (payment_methods[0]?.payment_token) {
+      const paymentToken = payment_methods[0].payment_token;
       globalState.set("paymentToken", paymentToken); // Set paymentToken in globalState
+
+      for (const key in payment_methods) {
+        expect(payment_methods[key].customer_id).to.equal(customer_id);
+        expect(payment_methods[key].payment_method).to.include("pm_").to.not.be
+          .empty;
+        expect(payment_methods[key].token).to.include("token_").and.to.not.be
+          .empty;
+        expect(payment_methods[key].recurring).to.be.a("boolean");
+      }
     } else {
       // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
       expect(response.body)
         .to.have.property("customer_payment_methods")
         .to.be.an("array").and.empty;
+      throw new Error(
+        `Customer payment methods are empty and this is unexpected.`
+      );
     }
   });
 });
