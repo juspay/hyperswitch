@@ -42,7 +42,7 @@ describe("Auto Retries & Step Up 3DS", () => {
   context("Auto Retries", () => {
     context("[Config: enable] Auto retries", () => {
       it("Enable auto retries", () => {
-        cy.updateConfig('autoRetry', fixtures.configs.gsm, globalState, "true");
+        cy.updateConfig("autoRetry", fixtures.configs.gsm, globalState, "true");
       });
 
       context("Max auto retries", () => {
@@ -99,7 +99,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 2;
             it("Update max auto retries", () => {
               cy.updateConfig(
-                'maxRetries',
+                "maxRetries",
                 fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
@@ -154,7 +154,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 1;
             it("Update max auto retries", () => {
               cy.updateConfig(
-                'maxRetries',
+                "maxRetries",
                 fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
@@ -208,7 +208,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 0;
             it("Update max auto retries", () => {
               cy.updateConfig(
-                'maxRetries',
+                "maxRetries",
                 fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
@@ -313,7 +313,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 2;
             it("Update max auto retries", () => {
               cy.updateConfig(
-                'maxRetries',
+                "maxRetries",
                 fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
@@ -368,7 +368,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 1;
             it("Update max auto retries", () => {
               cy.updateConfig(
-                'maxRetries',
+                "maxRetries",
                 fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
@@ -423,7 +423,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 0;
             it("Update max auto retries", () => {
               cy.updateConfig(
-                'maxRetries',
+                "maxRetries",
                 fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
@@ -483,7 +483,12 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("[Config: enable] Step up for Stripe", () => {
-            cy.updateConfig('stepUp',fixtures.configs.step_up, globalState, '["stripe"]');
+            cy.updateConfig(
+              "stepUp",
+              fixtures.configs.step_up,
+              globalState,
+              '["stripe"]'
+            );
           });
         });
 
@@ -491,7 +496,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           const max_auto_retries = 1;
           it("Update max auto retries", () => {
             cy.updateConfig(
-              'maxRetries',
+              "maxRetries",
               fixtures.configs.max_auto_retries,
               globalState,
               `${max_auto_retries}`
@@ -540,8 +545,13 @@ describe("Auto Retries & Step Up 3DS", () => {
 
     context("[Config: disable] Auto retries", () => {
       it("[Config: disable] Auto retries", () => {
-        cy.updateConfig('autoRetry', fixtures.configs.gsm, globalState, "false");
-      });      
+        cy.updateConfig(
+          "autoRetry",
+          fixtures.configs.gsm,
+          globalState,
+          "false"
+        );
+      });
 
       it("[Config: disable] Step up GSM", () => {
         cy.updateGsmConfig(fixtures.gsmBody.gsm_update, globalState, false);
