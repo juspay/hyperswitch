@@ -548,12 +548,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        if req.auth_type == enums::AuthenticationType::ThreeDs {
-            return Err(errors::ConnectorError::NotImplemented(
-                "ThreeDS flow through worldpay".to_string(),
-            )
-            .into());
-        }
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -861,7 +855,7 @@ impl api::IncomingWebhook for Worldpay {
             .parse_struct("WorldpayWebhookTransactionId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api::PaymentIdType::ConnectorTransactionId(body.event_details.transaction_reference),
+            api::PaymentIdType::PaymentAttemptId(body.event_details.transaction_reference),
         ))
     }
 
@@ -877,13 +871,14 @@ impl api::IncomingWebhook for Worldpay {
             EventType::Authorized => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
             }
-            EventType::SentForSettlement => Ok(api::IncomingWebhookEvent::PaymentIntentProcessing),
             EventType::Settled => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
+            EventType::SentForSettlement | EventType::SentForAuthorization => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
+            }
             EventType::Error | EventType::Expired | EventType::SettlementFailed => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
             EventType::Unknown
-            | EventType::SentForAuthorization
             | EventType::Cancelled
             | EventType::Refused
             | EventType::Refunded

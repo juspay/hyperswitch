@@ -65,40 +65,49 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject
 fn fetch_payment_instrument(
     payment_method: domain::PaymentMethodData,
     billing_address: Option<&Address>,
+    auth_type: enums::AuthenticationType,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
-            payment_type: PaymentType::Plain,
-            expiry_date: ExpiryDate {
-                month: utils::CardData::get_expiry_month_as_i8(&card)?,
-                year: utils::CardData::get_expiry_year_as_i32(&card)?,
-            },
-            card_number: card.card_number,
-            cvc: card.card_cvc,
-            card_holder_name: card.nick_name,
-            billing_address: if let Some(address) =
-                billing_address.and_then(|addr| addr.address.clone())
-            {
-                Some(BillingAddress {
-                    address1: address.line1,
-                    address2: address.line2,
-                    address3: address.line3,
-                    city: address.city,
-                    state: address.state,
-                    postal_code: address.zip.get_required_value("zip").change_context(
-                        errors::ConnectorError::MissingRequiredField { field_name: "zip" },
-                    )?,
-                    country_code: address
-                        .country
-                        .get_required_value("country_code")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
-                        })?,
-                })
-            } else {
-                None
-            },
-        })),
+        domain::PaymentMethodData::Card(card) => {
+            if auth_type == enums::AuthenticationType::ThreeDs {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "ThreeDS flow through worldpay".to_string(),
+                )
+                .into());
+            }
+            Ok(PaymentInstrument::Card(CardPayment {
+                payment_type: PaymentType::Plain,
+                expiry_date: ExpiryDate {
+                    month: utils::CardData::get_expiry_month_as_i8(&card)?,
+                    year: utils::CardData::get_expiry_year_as_i32(&card)?,
+                },
+                card_number: card.card_number,
+                cvc: card.card_cvc,
+                card_holder_name: card.nick_name,
+                billing_address: if let Some(address) =
+                    billing_address.and_then(|addr| addr.address.clone())
+                {
+                    Some(BillingAddress {
+                        address1: address.line1,
+                        address2: address.line2,
+                        address3: address.line3,
+                        city: address.city,
+                        state: address.state,
+                        postal_code: address.zip.get_required_value("zip").change_context(
+                            errors::ConnectorError::MissingRequiredField { field_name: "zip" },
+                        )?,
+                        country_code: address
+                            .country
+                            .get_required_value("country_code")
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "country_code",
+                            })?,
+                    })
+                } else {
+                    None
+                },
+            }))
+        }
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
@@ -243,6 +252,7 @@ impl
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
+                    item.router_data.auth_type.clone(),
                 )?,
                 narrative: InstructionNarrative {
                     line1: merchant_name.expose(),
