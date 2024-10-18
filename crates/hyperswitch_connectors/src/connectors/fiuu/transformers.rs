@@ -271,6 +271,8 @@ pub struct FiuuPaymentRequest {
     signature: Secret<String>,
     #[serde(rename = "ReturnURL")]
     return_url: Option<String>,
+    #[serde(rename = "NotificationURL")]
+    notification_url: Option<Url>,
     #[serde(flatten)]
     payment_method_data: FiuuPaymentMethodData,
 }
@@ -401,6 +403,10 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             false => 1,
             true => 0,
         };
+        let notification_url = Some(
+            Url::parse(&item.router_data.request.get_webhook_url()?)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        );
         let payment_method_data = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref card) => {
                 FiuuPaymentMethodData::try_from((card, item.router_data))
@@ -530,6 +536,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             return_url,
             payment_method_data,
             signature,
+            notification_url,
         })
     }
 }
@@ -714,7 +721,7 @@ pub struct NonThreeDSResponseData {
     pub error_desc: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtraParameters {
     token: Option<Secret<String>>,
 }
@@ -1162,6 +1169,27 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     capture_method: item.data.request.capture_method,
                     status: response.status,
                 })?;
+                let mandate_reference = response.extra_parameters.as_ref().and_then(|extra_p| {
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
+                    match mandate_token {
+                        Ok(token) => {
+                            token.token.as_ref().map(|token| MandateReference {
+                                connector_mandate_id: Some(token.clone().expose()),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                            })
+                        }
+                        Err(err) => {
+                            router_env::logger::warn!(
+                                "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
+                                 Input: '{}', Error: {}",
+                                extra_p, 
+                                err
+                            );
+                            None 
+                        }
+                    }
+                });
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
@@ -1183,7 +1211,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
                     resource_id: item.data.request.connector_transaction_id.clone(),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -1636,6 +1664,8 @@ pub struct FiuuWebhooksPaymentResponse {
     pub channel: String,
     pub error_desc: Option<String>,
     pub error_code: Option<String>,
+    #[serde(rename = "extraP")]
+    pub extra_parameters: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
