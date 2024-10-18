@@ -113,7 +113,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
-                match kv_wrapper::<DieselPaymentIntent, _, _>(
+                match Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
@@ -121,7 +121,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -228,11 +228,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     },
                 };
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
@@ -316,11 +316,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let field = payment_id.get_hash_key_for_kv_store();
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPaymentIntent, _, _>(
+                        Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
                             KvOperation::<DieselPaymentIntent>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -939,6 +939,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     None => query,
                 };
 
+                if let Some(card_network) = &params.card_network {
+                    query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
+                }
                 query
             }
         };

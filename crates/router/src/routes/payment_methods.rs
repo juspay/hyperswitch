@@ -14,8 +14,9 @@ use router_env::{instrument, logger, tracing, Flow};
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::core::payment_methods::{
-    create_payment_method, list_customer_payment_method_util, payment_method_intent_confirm,
-    payment_method_intent_create, retrieve_payment_method, update_payment_method,
+    create_payment_method, delete_payment_method, list_customer_payment_method_util,
+    payment_method_intent_confirm, payment_method_intent_create, retrieve_payment_method,
+    update_payment_method,
 };
 use crate::{
     core::{
@@ -232,6 +233,33 @@ pub async fn payment_method_retrieve_api(
         payload,
         |state, auth: auth::AuthenticationDataV2, pm, _| {
             retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
+pub async fn payment_method_delete_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsDelete;
+    let payload = web::Json(PaymentMethodId {
+        payment_method_id: path.into_inner(),
+    })
+    .into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationDataV2, pm, _| {
+            delete_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -796,6 +824,10 @@ pub async fn payment_method_update_api(
     .await
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,

@@ -711,6 +711,20 @@
         "summary": "Profile - Create",
         "description": "Creates a new *profile* for a merchant",
         "operationId": "Create A Profile",
+        "parameters": [
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -767,6 +781,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
+            }
           }
         ],
         "responses": {
@@ -805,6 +831,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
             }
           }
         ],
@@ -863,6 +901,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
             }
           }
         ],
@@ -6157,6 +6207,7 @@
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
         "enum": [
           "AED",
+          "AFN",
           "ALL",
           "AMD",
           "ANG",
@@ -6176,10 +6227,12 @@
           "BOB",
           "BRL",
           "BSD",
+          "BTN",
           "BWP",
           "BYN",
           "BZD",
           "CAD",
+          "CDF",
           "CHF",
           "CLP",
           "CNY",
@@ -6193,6 +6246,7 @@
           "DOP",
           "DZD",
           "EGP",
+          "ERN",
           "ETB",
           "EUR",
           "FJD",
@@ -6214,6 +6268,8 @@
           "ILS",
           "INR",
           "IQD",
+          "IRR",
+          "ISK",
           "JMD",
           "JOD",
           "JPY",
@@ -6221,6 +6277,7 @@
           "KGS",
           "KHR",
           "KMF",
+          "KPW",
           "KRW",
           "KWD",
           "KYD",
@@ -6267,6 +6324,7 @@
           "SAR",
           "SBD",
           "SCR",
+          "SDG",
           "SEK",
           "SGD",
           "SHP",
@@ -6277,8 +6335,11 @@
           "SSP",
           "STN",
           "SVC",
+          "SYP",
           "SZL",
           "THB",
+          "TJS",
+          "TMT",
           "TND",
           "TOP",
           "TRY",
@@ -6300,7 +6361,8 @@
           "XPF",
           "YER",
           "ZAR",
-          "ZMW"
+          "ZMW",
+          "ZWL"
         ]
       },
       "CustomerAcceptance": {
@@ -10384,6 +10446,7 @@
       "NextActionCall": {
         "type": "string",
         "enum": [
+          "post_session_tokens",
           "confirm",
           "sync",
           "complete_authorize"
@@ -14162,6 +14225,11 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session Id",
+            "nullable": true
           }
         }
       },
@@ -17851,6 +17919,61 @@
           "FORMAT_TOTAL_ESTIMATED_AMOUNT"
         ]
       },
+      "SamsungPayAppWalletData": {
+        "type": "object",
+        "required": [
+          "3_d_s",
+          "payment_card_brand",
+          "payment_currency_type",
+          "payment_last4_fpan"
+        ],
+        "properties": {
+          "3_d_s": {
+            "$ref": "#/components/schemas/SamsungPayTokenData"
+          },
+          "payment_card_brand": {
+            "$ref": "#/components/schemas/SamsungPayCardBrand"
+          },
+          "payment_currency_type": {
+            "type": "string",
+            "description": "Currency type of the payment"
+          },
+          "payment_last4_dpan": {
+            "type": "string",
+            "description": "Last 4 digits of the device specific card number",
+            "nullable": true
+          },
+          "payment_last4_fpan": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "merchant_ref": {
+            "type": "string",
+            "description": "Merchant reference id that was passed in the session call request",
+            "nullable": true
+          },
+          "method": {
+            "type": "string",
+            "description": "Specifies authentication method used",
+            "nullable": true
+          },
+          "recurring_payment": {
+            "type": "boolean",
+            "description": "Value if credential is enabled for recurring payment",
+            "nullable": true
+          }
+        }
+      },
+      "SamsungPayCardBrand": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard",
+          "amex",
+          "discover",
+          "unknown"
+        ]
+      },
       "SamsungPayMerchantPaymentInformation": {
         "type": "object",
         "required": [
@@ -17943,6 +18066,27 @@
         }
       },
       "SamsungPayWalletCredentials": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SamsungPayWebWalletData"
+          },
+          {
+            "$ref": "#/components/schemas/SamsungPayAppWalletData"
+          }
+        ]
+      },
+      "SamsungPayWalletData": {
+        "type": "object",
+        "required": [
+          "payment_credential"
+        ],
+        "properties": {
+          "payment_credential": {
+            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
+          }
+        }
+      },
+      "SamsungPayWebWalletData": {
         "type": "object",
         "required": [
           "card_brand",
@@ -17961,8 +18105,7 @@
             "nullable": true
           },
           "card_brand": {
-            "type": "string",
-            "description": "Brand of the payment card"
+            "$ref": "#/components/schemas/SamsungPayCardBrand"
           },
           "card_last4digits": {
             "type": "string",
@@ -17970,17 +18113,6 @@
           },
           "3_d_s": {
             "$ref": "#/components/schemas/SamsungPayTokenData"
-          }
-        }
-      },
-      "SamsungPayWalletData": {
-        "type": "object",
-        "required": [
-          "payment_credential"
-        ],
-        "properties": {
-          "payment_credential": {
-            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
           }
         }
       },
@@ -18046,6 +18178,10 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "order_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

@@ -6,11 +6,12 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        MinorUnit,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
 use diesel_models::{
-    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+    ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
+    PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use error_stack::ResultExt;
@@ -160,7 +161,6 @@ pub trait PaymentAttemptInterface {
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
@@ -294,6 +294,8 @@ pub struct PaymentAttempt {
     pub payment_method_billing_address: common_utils::crypto::OptionalEncryptableValue,
     /// The global identifier for the payment attempt
     pub id: id_type::GlobalAttemptId,
+    /// The connector mandate details which are stored temporarily
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 impl PaymentAttempt {
@@ -409,6 +411,7 @@ impl PaymentAttempt {
             external_reference_id: None,
             payment_method_billing_address: None,
             error: None,
+            connector_mandate_detail: None,
             id,
         })
     }
@@ -479,8 +482,10 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct NetAmount {
     /// The payment amount
@@ -495,6 +500,7 @@ pub struct NetAmount {
     tax_on_surcharge: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 impl NetAmount {
     pub fn new(
         order_amount: MinorUnit,
@@ -721,6 +727,7 @@ pub struct PaymentAttemptNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -829,6 +836,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -906,6 +914,10 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+    },
+    PostSessionTokensUpdate {
+        updated_by: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -1085,6 +1097,7 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1106,6 +1119,7 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1258,6 +1272,13 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
             },
+            Self::PostSessionTokensUpdate {
+                updated_by,
+                connector_metadata,
+            } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
+                updated_by,
+                connector_metadata,
+            },
         }
     }
 }
@@ -1317,6 +1338,11 @@ impl behaviour::Conversion for PaymentAttempt {
             .and_then(|card| card.get("card_network"))
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
+        let (connector_transaction_id, connector_transaction_data) = self
+            .connector_transaction_id
+            .map(ConnectorTransactionId::form_id_and_data)
+            .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+            .unwrap_or((None, None));
         Ok(DieselPaymentAttempt {
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
@@ -1332,7 +1358,7 @@ impl behaviour::Conversion for PaymentAttempt {
             tax_amount: self.net_amount.get_tax_on_surcharge(),
             payment_method_id: self.payment_method_id,
             payment_method: self.payment_method,
-            connector_transaction_id: self.connector_transaction_id,
+            connector_transaction_id,
             capture_method: self.capture_method,
             capture_on: self.capture_on,
             confirm: self.confirm,
@@ -1379,8 +1405,10 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
+            connector_transaction_data,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 
@@ -1394,6 +1422,9 @@ impl behaviour::Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
+            let connector_transaction_id = storage_model
+                .get_optional_connector_transaction_id()
+                .cloned();
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -1413,7 +1444,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 offer_amount: storage_model.offer_amount,
                 payment_method_id: storage_model.payment_method_id,
                 payment_method: storage_model.payment_method,
-                connector_transaction_id: storage_model.connector_transaction_id,
+                connector_transaction_id,
                 capture_method: storage_model.capture_method,
                 capture_on: storage_model.capture_on,
                 confirm: storage_model.confirm,
@@ -1458,6 +1489,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 customer_acceptance: storage_model.customer_acceptance,
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -1539,6 +1571,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }
@@ -1605,6 +1638,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_id,
             payment_method_billing_address,
             connector,
+            connector_mandate_detail,
         } = self;
 
         let AttemptAmountDetails {
@@ -1616,6 +1650,11 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_capturable,
             amount_to_capture,
         } = amount_details;
+
+        let (connector_payment_id, connector_payment_data) = connector_payment_id
+            .map(ConnectorTransactionId::form_id_and_data)
+            .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+            .unwrap_or((None, None));
 
         Ok(DieselPaymentAttempt {
             payment_id,
@@ -1675,6 +1714,8 @@ impl behaviour::Conversion for PaymentAttempt {
             surcharge_amount,
             tax_on_surcharge,
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
+            connector_payment_data,
+            connector_mandate_detail,
         })
     }
 
@@ -1688,6 +1729,10 @@ impl behaviour::Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
+            let connector_payment_id = storage_model
+                .get_optional_connector_transaction_id()
+                .cloned();
+
             let amount_details = AttemptAmountDetails {
                 net_amount: storage_model.net_amount,
                 tax_on_surcharge: storage_model.tax_on_surcharge,
@@ -1730,7 +1775,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 error,
                 payment_method_id: storage_model.payment_method_id,
                 payment_method_type: storage_model.payment_method_type_v2,
-                connector_payment_id: storage_model.connector_payment_id,
+                connector_payment_id,
                 authentication_type: storage_model.authentication_type,
                 created_at: storage_model.created_at,
                 modified_at: storage_model.modified_at,
@@ -1768,6 +1813,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     storage_model.payment_method_billing_address,
                 )
                 .await?,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -1851,6 +1897,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_subtype: self.payment_method_subtype,
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }

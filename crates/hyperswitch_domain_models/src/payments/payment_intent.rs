@@ -948,6 +948,7 @@ pub struct PaymentIntentListParams {
     pub ending_before_id: Option<id_type::PaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
+    pub card_network: Option<Vec<storage_enums::CardNetwork>>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -981,6 +982,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             ending_before_id: ending_before,
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
+            card_network: None,
         }))
     }
 }
@@ -1005,6 +1007,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             ending_before_id: None,
             limit: None,
             order: Default::default(),
+            card_network: None,
         }))
     }
 }
@@ -1027,6 +1030,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             authentication_type,
             merchant_connector_id,
             order,
+            card_network,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
@@ -1049,6 +1053,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 ending_before_id: None,
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
+                card_network,
             }))
         }
     }

@@ -19,6 +19,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
     pub version: Option<enums::UserRoleVersion>,
+    pub limit: Option<u32>,
 }
 
 pub struct ListUserRolesByUserIdPayload<'a> {
@@ -102,7 +103,7 @@ impl UserRoleInterface for Store {
         profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_org_id_merchant_id_profile_id(
             &conn,
             user_id.to_owned(),
@@ -193,6 +194,7 @@ impl UserRoleInterface for Store {
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
             payload.version,
+            payload.limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))

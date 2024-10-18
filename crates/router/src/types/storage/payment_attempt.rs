@@ -63,6 +63,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             capture_sequence,
             connector_capture_id: None,
             connector_response_reference_id: None,
+            connector_capture_data: None,
         })
     }
 
@@ -215,6 +216,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
 
         let store = state
@@ -298,6 +300,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores
@@ -394,6 +397,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores

@@ -19,6 +19,7 @@ pub enum ApiEventsType {
     Payment {
         payment_id: id_type::PaymentId,
     },
+    // TODO: try to use the same name here
     #[cfg(feature = "v2")]
     PaymentV2 {
         payment_id: id_type::GlobalPaymentId,

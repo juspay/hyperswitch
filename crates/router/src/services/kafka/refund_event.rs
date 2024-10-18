@@ -1,4 +1,7 @@
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{
+    id_type,
+    types::{ConnectorTransactionIdTrait, MinorUnit},
+};
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
@@ -40,9 +43,9 @@ impl<'a> KafkaRefundEvent<'a> {
             refund_id: &refund.refund_id,
             payment_id: &refund.payment_id,
             merchant_id: &refund.merchant_id,
-            connector_transaction_id: &refund.connector_transaction_id,
+            connector_transaction_id: refund.get_connector_transaction_id(),
             connector: &refund.connector,
-            connector_refund_id: refund.connector_refund_id.as_ref(),
+            connector_refund_id: refund.get_optional_connector_refund_id(),
             external_reference_id: refund.external_reference_id.as_ref(),
             refund_type: &refund.refund_type,
             total_amount: &refund.total_amount,

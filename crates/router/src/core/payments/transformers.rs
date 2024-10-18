@@ -1,17 +1,20 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest,
-    PaymentChargeResponse, RequestSurchargeDetails,
+    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
     fp_utils,
     pii::Email,
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+    types::{self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-use diesel_models::ephemeral_key;
+use diesel_models::{
+    ephemeral_key,
+    payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
@@ -420,8 +423,8 @@ where
 
     let resource_id = match payment_data
         .payment_attempt
-        .connector_transaction_id
-        .clone()
+        .get_connector_payment_id()
+        .map(ToString::to_string)
     {
         Some(id) => types::ResponseId::ConnectorTransactionId(id),
         None => types::ResponseId::NoResponseId,
@@ -880,6 +883,42 @@ where
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        let papal_sdk_next_action =
+            paypal_sdk_next_steps_check(payment_data.get_payment_attempt().clone())?;
+        let next_action = papal_sdk_next_action.map(|paypal_next_action_data| {
+            api_models::payments::NextActionData::InvokeSdkClient {
+                next_action_data: paypal_next_action_data,
+            }
+        });
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                next_action,
+                status: payment_data.get_payment_intent().status,
+            },
             vec![],
         )))
     }
@@ -1497,6 +1536,10 @@ where
                 })
         });
 
+        let connector_transaction_id = payment_attempt
+            .get_connector_payment_id()
+            .map(ToString::to_string);
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -1565,7 +1608,7 @@ where
                 connector_request_reference_id_config,
                 &merchant_id,
             ),
-            connector_transaction_id: payment_attempt.connector_transaction_id,
+            connector_transaction_id,
             frm_message,
             metadata: payment_intent.metadata,
             connector_metadata: payment_intent.connector_metadata,
@@ -1730,6 +1773,7 @@ pub fn wait_screen_next_steps_check(
 #[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
+        let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
@@ -1752,7 +1796,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             setup_future_usage: pi.setup_future_usage,
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
-            connector_transaction_id: pa.connector_transaction_id,
+            connector_transaction_id,
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
@@ -2356,6 +2400,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
+            capture_method: payment_data.get_capture_method(),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
             currency: payment_data.currency,
@@ -2483,6 +2528,48 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
         Ok(Self {
             net_amount,
             order_tax_amount,
+            currency: payment_data.currency,
+            amount: payment_data.payment_intent.amount,
+            session_id: payment_data.session_id,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSessionTokensData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data.clone();
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+        let shipping_cost = payment_data
+            .payment_intent
+            .shipping_cost
+            .unwrap_or_default();
+        // amount here would include amount, surcharge_amount and shipping_cost
+        let amount = payment_data.payment_intent.amount + shipping_cost + surcharge_amount;
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+        Ok(Self {
+            amount, //need to change after we move to connector module
+            currency: payment_data.currency,
+            merchant_order_reference_id,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }
@@ -2517,11 +2604,23 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .map(|data| data.to_owned().expose())
                     .collect()
             });
-        let amount = payment_data
+
+        let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
-            .map(|surcharge_details| surcharge_details.final_amount)
-            .unwrap_or(payment_data.amount.into());
+            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
+            .unwrap_or_default();
+
+        let amount = payment_data.payment_intent.amount_details.order_amount;
+
+        let shipping_cost = payment_data
+            .payment_intent
+            .amount_details
+            .shipping_cost
+            .unwrap_or_default();
+
+        // net_amount here would include amount, surcharge_amount and shipping_cost
+        let net_amount = amount + surcharge_amount + shipping_cost;
 
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
@@ -2566,26 +2665,20 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
+
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .unwrap_or_default();
-        #[cfg(feature = "v1")]
+
         let amount = payment_data.payment_intent.amount;
-        #[cfg(feature = "v2")]
-        let amount = payment_data.payment_intent.amount_details.order_amount;
-        #[cfg(feature = "v1")]
+
         let shipping_cost = payment_data
             .payment_intent
             .shipping_cost
             .unwrap_or_default();
-        #[cfg(feature = "v2")]
-        let shipping_cost = payment_data
-            .payment_intent
-            .amount_details
-            .shipping_cost
-            .unwrap_or_default();
+
         // net_amount here would include amount, surcharge_amount and shipping_cost
         let net_amount = amount + surcharge_amount + shipping_cost;
 
@@ -2695,14 +2788,21 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 connector_response_reference_id,
                 ..
             } => {
-                let connector_capture_id = match resource_id {
-                    types::ResponseId::ConnectorTransactionId(id) => Some(id),
-                    types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => None,
+                let (connector_capture_id, connector_capture_data) = match resource_id {
+                    types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => {
+                        (None, None)
+                    }
+                    types::ResponseId::ConnectorTransactionId(id) => {
+                        let (txn_id, txn_data) =
+                            common_utils_type::ConnectorTransactionId::form_id_and_data(id);
+                        (Some(txn_id), txn_data)
+                    }
                 };
                 Ok(Self::ResponseUpdate {
                     status: enums::CaptureStatus::foreign_try_from(status)?,
                     connector_capture_id,
                     connector_response_reference_id,
+                    connector_capture_data,
                 })
             }
             types::CaptureSyncResponse::Error {
@@ -2769,7 +2869,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             browser_info,
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data.map(From::from),
-            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
+            connector_transaction_id: payment_data
+                .payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string),
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
             complete_authorize_url,
@@ -2868,7 +2971,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             complete_authorize_url,
             browser_info,
             surcharge_details: payment_data.surcharge_details,
-            connector_transaction_id: payment_data.payment_attempt.connector_transaction_id,
+            connector_transaction_id: payment_data
+                .payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string),
             redirect_response: None,
             mandate_id: payment_data.mandate_id,
             related_transaction_id: None,
@@ -3174,6 +3280,26 @@ impl ForeignFrom<diesel_models::TransactionDetailsUiConfiguration>
             position: from.position,
             is_key_bold: from.is_key_bold,
             is_value_bold: from.is_value_bold,
+        }
+    }
+}
+
+impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenceId {
+    fn foreign_from(value: DieselConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_id: value.payment_method_id,
+            update_history: None,
+            mandate_metadata: value.mandate_metadata,
+        }
+    }
+}
+impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenceId {
+    fn foreign_from(value: ConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_id: value.payment_method_id,
+            mandate_metadata: value.mandate_metadata,
         }
     }
 }

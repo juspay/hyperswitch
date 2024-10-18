@@ -58,3 +58,6 @@ pub struct SdkSessionUpdate;
 
 #[derive(Debug, Clone)]
 pub struct CreateIntent;
+
+#[derive(Debug, Clone)]
+pub struct PostSessionTokens;

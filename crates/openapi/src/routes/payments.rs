@@ -583,6 +583,24 @@ pub fn payments_complete_authorize() {}
 
 pub fn payments_dynamic_tax_calculation() {}
 
+/// Payments - Post Session Tokens
+///
+///
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/post_session_tokens",
+    request_body=PaymentsPostSessionTokensRequest,
+    responses(
+        (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Post Session Tokens for a Payment",
+    security(("publishable_key" = []))
+)]
+
+pub fn payments_post_session_tokens() {}
+
 /// Payments - Create Intent
 ///
 /// **Creates a payment intent object when amount_details are passed.**

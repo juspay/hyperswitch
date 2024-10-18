@@ -51,6 +51,7 @@ pub async fn create_link_token(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::LinkTokenCreateRequest,
+    headers: Option<api_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     let db = &*state.store;
 
@@ -165,9 +166,13 @@ pub async fn create_link_token(
             )?]),
             language: payload.language,
             user_info: payment_intent.and_then(|pi| pi.customer_id),
-            client_platform: payload.client_platform,
-            android_package_name: payload.android_package_name,
-            redirect_uri: payload.redirect_uri,
+            client_platform: headers
+                .as_ref()
+                .and_then(|header| header.x_client_platform.clone()),
+            android_package_name: headers.as_ref().and_then(|header| header.x_app_id.clone()),
+            redirect_uri: headers
+                .as_ref()
+                .and_then(|header| header.x_redirect_uri.clone()),
         },
         response: Ok(pm_auth_types::LinkTokenResponse {
             link_token: "".to_string(),
@@ -211,6 +216,7 @@ pub async fn create_link_token(
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _payload: api_models::pm_auth::LinkTokenCreateRequest,
+    _headers: Option<api_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     todo!()
 }

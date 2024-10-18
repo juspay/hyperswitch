@@ -2087,6 +2087,12 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -2273,6 +2279,20 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
                 ))
         })
         .transpose()
+}
+pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
+    key: String,
+    headers: &HeaderMap,
+) -> RouterResult<Option<T>> {
+    get_header_value_by_key(key.clone(), headers)?
+        .map(|str_value| T::from_str(str_value))
+        .transpose()
+        .map_err(|_err| {
+            error_stack::report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: key,
+                expected_format: "Valid Id String".to_string(),
+            })
+        })
 }
 
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {

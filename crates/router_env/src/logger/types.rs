@@ -502,6 +502,8 @@ pub enum Flow {
     SessionUpdateTaxCalculation,
     /// Payments confirm intent
     PaymentsConfirmIntent,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
 }
 
 ///
