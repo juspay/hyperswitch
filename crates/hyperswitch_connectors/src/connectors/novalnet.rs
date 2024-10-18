@@ -195,8 +195,11 @@ impl ConnectorValidation for Novalnet {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
-            HashSet::from([PaymentMethodDataType::Card]);
+        let mandate_supported_pmd: HashSet<PaymentMethodDataType> = HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::PaypalRedirect,
+        ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -815,8 +818,15 @@ impl webhooks::IncomingWebhook for Novalnet {
         };
 
         if novalnet::is_refund_event(&notif.event.event_type) {
+            let parent_tid =
+                notif
+                    .event
+                    .parent_tid
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "parent_tid",
+                    })?;
             Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.event.tid.to_string()),
+                api_models::webhooks::RefundIdType::ConnectorRefundId(parent_tid.to_string()),
             ))
         } else {
             match transaction_order_no {
