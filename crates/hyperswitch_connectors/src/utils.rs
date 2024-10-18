@@ -16,7 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{ Card, PaymentMethodData},
+    payment_method_data::{Card, PaymentMethodData},
     router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
