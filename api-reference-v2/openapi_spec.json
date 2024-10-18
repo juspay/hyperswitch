@@ -663,7 +663,7 @@
         ]
       }
     },
-    "/v2/payments/{payment_id}/create_external_sdk_tokens": {
+    "/v2/payments/{payment_id}/create-external-sdk-tokens": {
       "post": {
         "tags": [
           "Payments"
