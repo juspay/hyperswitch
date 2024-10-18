@@ -252,7 +252,7 @@ impl
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
-                    item.router_data.auth_type.clone(),
+                    item.router_data.auth_type,
                 )?,
                 narrative: InstructionNarrative {
                     line1: merchant_name.expose(),
