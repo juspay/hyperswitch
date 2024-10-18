@@ -58,7 +58,7 @@ pub async fn setup_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
