@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -34,7 +34,7 @@ use crate::{
     utils::{
         self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
-        RouterData as OtherRouterData, WalletData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -48,152 +48,6 @@ impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
         Self {
             amount,
             router_data: item,
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-#[serde(tag = "method")]
-#[derive(serde::Deserialize)]
-pub enum NovalnetTokenRequest {
-    Googlepay(CheckoutGooglePayData),
-    Applepay(CheckoutApplePayData),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CheckoutGooglePayData {
-    protocol_version: Secret<String>,
-    signature: Secret<String>,
-    signed_message: Secret<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CheckoutApplePayData {
-    version: Secret<String>,
-    data: Secret<String>,
-    signature: Secret<String>,
-    header: CheckoutApplePayHeader,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CheckoutApplePayHeader {
-    ephemeral_public_key: Secret<String>,
-    public_key_hash: Secret<String>,
-    transaction_id: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct NovalnetTokenResponse {
-    token: Option<Secret<String>>,
-    error: Option<String>,
-}
-
-impl TryFrom<&TokenizationRouterData> for NovalnetTokenRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
-                WalletDataPaymentMethod::GooglePay(_data) => {
-                    let json_wallet_data: CheckoutGooglePayData =
-                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?;
-                    Ok(Self::Googlepay(json_wallet_data))
-                }
-                WalletDataPaymentMethod::ApplePay(_data) => {
-                    let json_wallet_data: CheckoutApplePayData =
-                        wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
-                    Ok(Self::Applepay(json_wallet_data))
-                }
-                WalletDataPaymentMethod::AliPayQr(_)
-                | WalletDataPaymentMethod::AliPayRedirect(_)
-                | WalletDataPaymentMethod::AliPayHkRedirect(_)
-                | WalletDataPaymentMethod::MomoRedirect(_)
-                | WalletDataPaymentMethod::KakaoPayRedirect(_)
-                | WalletDataPaymentMethod::GoPayRedirect(_)
-                | WalletDataPaymentMethod::GcashRedirect(_)
-                | WalletDataPaymentMethod::ApplePayRedirect(_)
-                | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
-                | WalletDataPaymentMethod::DanaRedirect {}
-                | WalletDataPaymentMethod::GooglePayRedirect(_)
-                | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
-                | WalletDataPaymentMethod::MbWayRedirect(_)
-                | WalletDataPaymentMethod::MobilePayRedirect(_)
-                | WalletDataPaymentMethod::PaypalRedirect(_)
-                | WalletDataPaymentMethod::PaypalSdk(_)
-                | WalletDataPaymentMethod::SamsungPay(_)
-                | WalletDataPaymentMethod::TwintRedirect {}
-                | WalletDataPaymentMethod::VippsRedirect {}
-                | WalletDataPaymentMethod::TouchNGoRedirect(_)
-                | WalletDataPaymentMethod::WeChatPayRedirect(_)
-                | WalletDataPaymentMethod::CashappQr(_)
-                | WalletDataPaymentMethod::SwishQr(_)
-                | WalletDataPaymentMethod::WeChatPayQr(_)
-                | WalletDataPaymentMethod::Mifinity(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                    )
-                    .into())
-                }
-            },
-            PaymentMethodData::Card(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("novalnet"),
-            )
-            .into()),
-        }
-    }
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, NovalnetTokenResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, NovalnetTokenResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let token = item.response.token.clone();
-        match token {
-            Some(token) => Ok(Self {
-                response: Ok(PaymentsResponseData::TokenizationResponse {
-                    token: token.expose(),
-                }),
-                ..item.data
-            }),
-            None => {
-                let error_reason = item
-                    .response
-                    .error
-                    .unwrap_or("Tokenization failed".to_string());
-                let http_code = item.http_code;
-                let response = Err(ErrorResponse {
-                    code: http_code.clone().to_string(),
-                    message: error_reason.clone(),
-                    reason: Some(error_reason),
-                    status_code: http_code.clone(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                });
-                Ok(Self {
-                    response,
-                    ..item.data
-                })
-            }
         }
     }
 }
