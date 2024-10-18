@@ -3997,6 +3997,7 @@ dependencies = [
  "hyperswitch_interfaces",
  "image",
  "masking",
+ "mime",
  "once_cell",
  "qrcode",
  "rand",
