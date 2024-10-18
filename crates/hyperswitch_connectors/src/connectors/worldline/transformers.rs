@@ -1,6 +1,6 @@
 use api_models::payments;
 use common_enums::enums::{AttemptStatus, BankNames, CaptureMethod, CountryAlpha2, Currency};
-use common_utils::{pii::Email, request::Method,types::MinorUnit};
+use common_utils::{pii::Email, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
@@ -196,9 +196,7 @@ pub struct WorldlineRouterData<T> {
 }
 impl<T> TryFrom<(MinorUnit, T)> for WorldlineRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (MinorUnit, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
