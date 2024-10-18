@@ -565,20 +565,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     .transaction
                     .clone()
                     .and_then(|data| data.tid.map(|tid| tid.expose().to_string()));
-                
+
                 let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
                     item.response.transaction.clone().as_ref(),
                 );
 
                 let transaction_status = item
                     .response
-                    .transaction.clone()
+                    .transaction
+                    .clone()
                     .and_then(|transaction_data| transaction_data.status)
                     .unwrap_or(if redirection_data.is_some() {
                         NovalnetTransactionStatus::Progress
                     } else if mandate_reference_id.is_some() {
                         NovalnetTransactionStatus::OnHold
-                    }else {
+                    } else {
                         NovalnetTransactionStatus::Pending
                     });
                 // NOTE: if result.status is success, we should always get a redirection url for 3DS flow
@@ -1291,7 +1292,6 @@ pub enum WebhookEventType {
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
-    Chargeback,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1354,7 +1354,6 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
-        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
     }
 }
 
