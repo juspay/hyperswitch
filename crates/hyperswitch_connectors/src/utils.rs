@@ -16,7 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{ApplePayWalletData, Card, PaymentMethodData},
+    payment_method_data::{ Card, PaymentMethodData},
     router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
@@ -917,12 +917,41 @@ pub trait AccessTokenRequestInfo {
     fn get_request_id(&self) -> Result<Secret<String>, Error>;
 }
 
-impl AccessTokenRequestInfo for RefreshTokenRouterData {
-    fn get_request_id(&self) -> Result<Secret<String>, Error> {
-        self.request
-            .id
-            .clone()
-            .ok_or_else(missing_field_err("request.id"))
+impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
+        match self {
+            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
+            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
+            _ => Err(errors::ConnectorError::InvalidWallet.into()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
+            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
+    }
+}
+
+pub trait ApplePay {
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePay for ApplePayWalletData {
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let token = Secret::new(
+            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
+                errors::ConnectorError::InvalidWalletToken {
+                    wallet_name: "Apple Pay".to_string(),
+                },
+            )?)
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })?,
+        );
+        Ok(token)
     }
 }
 
