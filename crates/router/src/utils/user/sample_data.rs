@@ -368,7 +368,7 @@ pub async fn generate_sample_data(
                 internal_reference_id: common_utils::generate_id_with_default_len("test"),
                 external_reference_id: None,
                 payment_id: payment_id.clone(),
-                attempt_id,
+                attempt_id: attempt_id.clone(),
                 merchant_id: merchant_id.clone(),
                 connector_transaction_id,
                 connector_refund_id: None,
