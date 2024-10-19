@@ -349,8 +349,7 @@ impl PaymentAttempt {
         cell_id: id_type::CellId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
-    ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
-    {
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
 
@@ -360,7 +359,7 @@ impl PaymentAttempt {
             amount_to_capture: None,
             surcharge_amount: None,
             tax_on_surcharge: None,
-            amount_capturable: common_utils::types::MinorUnit::new(0),
+            amount_capturable: MinorUnit::new(0),
             shipping_cost: None,
             order_tax_amount: None,
         };
