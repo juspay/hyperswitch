@@ -4318,6 +4318,10 @@ where
             }
         };
 
+    // Set the eligible connector in the attempt
+    payment_data
+        .set_connector_in_payment_attempt(Some(eligible_connector_data.connector_name.to_string()));
+
     // Set `NetworkMandateId` as the MandateId
     payment_data.set_mandate_id(payments_api::MandateIds {
         mandate_id: None,

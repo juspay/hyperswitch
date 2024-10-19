@@ -10,7 +10,8 @@ use common_utils::{
     },
 };
 use diesel_models::{
-    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+    ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
+    PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use error_stack::ResultExt;
@@ -222,6 +223,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub id: String,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 impl PaymentAttempt {
@@ -331,6 +333,7 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -624,6 +627,7 @@ pub struct PaymentAttemptNew {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -732,6 +736,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -992,6 +997,7 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1013,6 +1019,7 @@ impl PaymentAttemptUpdate {
                 unified_message,
                 payment_method_data,
                 charge_id,
+                connector_mandate_detail,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1281,6 +1288,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_transaction_data,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 
@@ -1361,6 +1369,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 customer_acceptance: storage_model.customer_acceptance,
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -1442,6 +1451,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }
@@ -1517,6 +1527,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost,
             order_tax_amount,
             connector,
+            connector_mandate_detail,
         } = self;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -1580,6 +1591,7 @@ impl behaviour::Conversion for PaymentAttempt {
             external_reference_id,
             connector,
             connector_payment_data,
+            connector_mandate_detail,
         })
     }
 
@@ -1651,6 +1663,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
+                connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
         .await
@@ -1718,6 +1731,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.order_tax_amount,
             shipping_cost: self.shipping_cost,
             amount_to_capture: self.amount_to_capture,
+            connector_mandate_detail: self.connector_mandate_detail,
         })
     }
 }
