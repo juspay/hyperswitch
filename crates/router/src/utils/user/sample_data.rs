@@ -127,6 +127,8 @@ pub async fn generate_sample_data(
 
     let mut refunds_count = 0;
 
+    // 2 disputes if generated data size is between 50 and 100, 1 dispute if it is less than 50.
+    // Original Requirement: https://github.com/juspay/hyperswitch/issues/6117
     let number_of_disputes: usize = if sample_data_size >= 50 { 2 } else { 1 };
 
     let mut disputes_count = 0;
@@ -403,7 +405,13 @@ pub async fn generate_sample_data(
             None
         };
 
-        let dispute = if disputes_count < number_of_disputes && !is_failed_payment {
+        let is_refunded = if let Some(refund) = &refund {
+            refund.refund_status == common_enums::RefundStatus::Success
+        } else {
+            false
+        };
+
+        let dispute = if disputes_count < number_of_disputes && !is_failed_payment && !is_refunded {
             disputes_count += 1;
             Some(DisputeNew {
                 dispute_id: common_utils::generate_id_with_default_len("test"),
@@ -412,7 +420,7 @@ pub async fn generate_sample_data(
                     .currency
                     .unwrap_or(common_enums::Currency::USD)
                     .to_string(),
-                dispute_stage: storage_enums::DisputeStage::PreArbitration,
+                dispute_stage: storage_enums::DisputeStage::Dispute,
                 dispute_status: storage_enums::DisputeStatus::DisputeOpened,
                 payment_id: payment_id.clone(),
                 attempt_id: attempt_id.clone(),
