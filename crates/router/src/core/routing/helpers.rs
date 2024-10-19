@@ -598,29 +598,8 @@ pub async fn refresh_success_based_routing_cache(
 pub async fn fetch_success_based_routing_configs(
     state: &SessionState,
     business_profile: &domain::Profile,
-    dynamic_routing_algorithm: serde_json::Value,
+    success_based_routing_id: id_type::RoutingId,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
-    let dynamic_routing_algorithm_ref = dynamic_routing_algorithm
-        .parse_value::<routing_types::DynamicRoutingAlgorithmRef>("DynamicRoutingAlgorithmRef")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse dynamic_routing_algorithm_ref")?;
-
-    let success_based_routing_id = dynamic_routing_algorithm_ref
-        .success_based_algorithm
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "success_based_algorithm not found in dynamic_routing_algorithm_ref"
-                .to_string(),
-        })?
-        .algorithm_id_with_timestamp
-        .algorithm_id
-        // error can be possible when the feature is toggled off.
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!(
-                "unable to find algorithm_id in success based algorithm config as the feature is disabled for profile_id: {}",
-                business_profile.get_id().get_string_repr()
-            ),
-        })?;
-
     let key = format!(
         "{}_{}",
         business_profile.get_id().get_string_repr(),
@@ -662,8 +641,22 @@ pub async fn push_metrics_for_success_based_routing(
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    dynamic_routing_algorithm: serde_json::Value,
 ) -> RouterResult<()> {
+    let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
+        business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("to deserialize DynamicRoutingAlgorithmRef from JSON")?
+            .unwrap_or_default();
+
+    let success_based_algo_ref = success_based_dynamic_routing_algo_ref
+        .success_based_algorithm
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("success_based_algorithm not found in dynamic_routing_algorithm from business_profile table")?;
+
     let client = state
         .grpc_client
         .dynamic_routing
@@ -679,16 +672,22 @@ pub async fn push_metrics_for_success_based_routing(
         },
     )?;
 
-    let success_based_routing_configs =
-        fetch_success_based_routing_configs(state, business_profile, dynamic_routing_algorithm)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+    let success_based_routing_configs = fetch_success_based_routing_configs(
+        state,
+        business_profile,
+        success_based_algo_ref
+            .algorithm_id_with_timestamp
+            .algorithm_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("success_based_routing_algorithm_id not found in business_profile")?,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
-    let tenant_business_profile_id = format!(
-        "{}:{}",
-        state.tenant.redis_key_prefix,
-        business_profile.get_id().get_string_repr()
+    let tenant_business_profile_id = generate_tenant_business_profile_id(
+        &state.tenant.redis_key_prefix,
+        business_profile.get_id().get_string_repr(),
     );
 
     let success_based_connectors = client
@@ -879,6 +878,14 @@ fn get_success_based_metrics_outcome_for_payment(
         }
         _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
     }
+}
+
+/// generates cache key with tenant's redis key prefix and profile_id
+pub fn generate_tenant_business_profile_id(
+    redis_key_prefix: &str,
+    business_profile_id: &str,
+) -> String {
+    format!("{}:{}", redis_key_prefix, business_profile_id)
 }
 
 /// default config setup for success_based_routing

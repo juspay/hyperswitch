@@ -1215,7 +1215,6 @@ pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    dynamic_routing_algorithm: serde_json::Value,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
@@ -1224,12 +1223,10 @@ pub async fn perform_success_based_routing(
             .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
             .transpose()
             .change_context(errors::RoutingError::DeserializationError {
-                from: "dynamic_routing_algorithm".to_string(),
+                from: "JSON".to_string(),
                 to: "DynamicRoutingAlgorithmRef".to_string(),
             })
-            .attach_printable(
-                "unable to deserialize dynamic_routing_algorithm from business profile to DynamicRoutingAlgorithmRef",
-            )?
+            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
             .unwrap_or_default();
 
     let success_based_algo_ref = success_based_dynamic_routing_algo_ref
@@ -1253,16 +1250,23 @@ pub async fn perform_success_based_routing(
         let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
             state,
             business_profile,
-            dynamic_routing_algorithm,
+            success_based_algo_ref
+                .algorithm_id_with_timestamp
+                .algorithm_id
+                .ok_or(errors::RoutingError::GenericNotFoundError {
+                    field: "success_based_routing_algorithm_id".to_string(),
+                })
+                .attach_printable(
+                    "success_based_routing_algorithm_id not found in business_profile",
+                )?,
         )
         .await
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
-        let tenant_business_profile_id = format!(
-            "{}:{}",
-            state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr()
+        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
+            &state.tenant.redis_key_prefix,
+            business_profile.get_id().get_string_repr(),
         );
 
         let success_based_connectors: CalSuccessRateResponse = client
@@ -1283,7 +1287,7 @@ pub async fn perform_success_based_routing(
                 .split_once(':')
                 .ok_or(errors::RoutingError::InvalidSuccessBasedConnectorLabel(label_with_score.label.to_string()))
                 .attach_printable(
-                    "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
+                    "unable to split connector_name and mca_id from the label obtained by the dynamic routing service",
                 )?;
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
@@ -1292,7 +1296,7 @@ pub async fn perform_success_based_routing(
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
                     })
-                    .attach_printable("unable to convert routable_connector from connector")?,
+                    .attach_printable("unable to convert String to RoutableConnectors")?,
                 merchant_connector_id: Some(
                     common_utils::id_type::MerchantConnectorAccountId::wrap(
                         merchant_connector_id.to_string(),
@@ -1305,6 +1309,7 @@ pub async fn perform_success_based_routing(
                 ),
             });
         }
+        logger::debug!(success_based_routing_connectors=?connectors);
         Ok(connectors)
     } else {
         Ok(routable_connectors)

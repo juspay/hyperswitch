@@ -1228,7 +1228,8 @@ pub async fn toggle_success_based_routing(
                         if algo_with_timestamp.enabled_feature == feature_to_enable {
                             // algorithm already has the required feature
                             Err(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Success based routing is already enabled".to_string(),
+                                message: "Success rate based routing is already enabled"
+                                    .to_string(),
                             })?
                         } else {
                             // enable the requested feature for the algorithm
@@ -1323,11 +1324,8 @@ pub async fn toggle_success_based_routing(
                             cache_entries_to_redact,
                         )
                         .await
-                        .map_err(|e| {
-                            logger::error!(
-                                "unable to publish into the redact channel for evicting the success based routing config cache {e:?}"
-                            )
-                        });
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("unable to publish into the redact channel for evicting the success based routing config cache")?;
 
                         let record = db
                             .find_routing_algorithm_by_profile_id_algorithm_id(
@@ -1363,7 +1361,7 @@ pub async fn toggle_success_based_routing(
                     }
                 }
                 None => Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Algorithm is already inactive".to_string(),
+                    message: "Success rate based routing is already disabled".to_string(),
                 })?,
             }
         }
