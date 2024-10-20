@@ -208,13 +208,13 @@ pub enum ProfileUpdate {
         dynamic_routing_algorithm: Option<serde_json::Value>,
     },
     ExtendedCardInfoUpdate {
-        is_extended_card_info_enabled: Option<bool>,
+        is_extended_card_info_enabled: bool,
     },
     ConnectorAgnosticMitUpdate {
-        is_connector_agnostic_mit_enabled: Option<bool>,
+        is_connector_agnostic_mit_enabled: bool,
     },
     NetworkTokenizationUpdate {
-        is_network_tokenization_enabled: Option<bool>,
+        is_network_tokenization_enabled: bool,
     },
 }
 
@@ -391,7 +391,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 session_expiry: None,
                 authentication_connector_details: None,
                 payout_link_config: None,
-                is_extended_card_info_enabled,
+                is_extended_card_info_enabled: Some(is_extended_card_info_enabled),
                 extended_card_info_config: None,
                 is_connector_agnostic_mit_enabled: None,
                 use_billing_as_payment_method_billing: None,
@@ -430,7 +430,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 payout_link_config: None,
                 is_extended_card_info_enabled: None,
                 extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled,
+                is_connector_agnostic_mit_enabled: Some(is_connector_agnostic_mit_enabled),
                 use_billing_as_payment_method_billing: None,
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
@@ -477,7 +477,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 dynamic_routing_algorithm: None,
-                is_network_tokenization_enabled,
+                is_network_tokenization_enabled: Some(is_network_tokenization_enabled),
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
             },
