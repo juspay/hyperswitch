@@ -128,7 +128,6 @@ pub async fn generate_sample_data(
     let mut refunds_count = 0;
 
     // 2 disputes if generated data size is between 50 and 100, 1 dispute if it is less than 50.
-    // Original Requirement: https://github.com/juspay/hyperswitch/issues/6117
     let number_of_disputes: usize = if sample_data_size >= 50 { 2 } else { 1 };
 
     let mut disputes_count = 0;
