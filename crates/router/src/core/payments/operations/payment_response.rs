@@ -1713,7 +1713,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if let Some(_) = business_profile.dynamic_routing_algorithm.clone() {
+        if business_profile.dynamic_routing_algorithm.is_some() {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
