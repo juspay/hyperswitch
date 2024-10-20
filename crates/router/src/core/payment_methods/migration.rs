@@ -1,6 +1,7 @@
 use actix_multipart::form::{bytes::Bytes, MultipartForm};
 use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord};
 use csv::Reader;
+use error_stack::ResultExt;
 use rdkafka::message::ToBytes;
 
 use crate::{
@@ -18,9 +19,22 @@ pub async fn migrate_payment_methods(
 ) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
     for record in payment_methods {
+        let req = api::PaymentMethodMigrate::try_from(record.clone())
+        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData{ message: format!("error: {:?}", err) })
+        .attach_printable("record deserialization failed");
+        match req {
+            Ok(_) => (),
+            Err(e) => {
+                result.push(PaymentMethodMigrationResponse::from((
+                    Err(e.to_string()),
+                    record,
+                )));
+                continue;
+            }
+        };
         let res = migrate_payment_method(
             state.clone(),
-            api::PaymentMethodMigrate::from(record.clone()),
+            req?,
             merchant_id,
             merchant_account,
             key_store,
