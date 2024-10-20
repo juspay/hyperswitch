@@ -92,10 +92,6 @@ pub enum AuthenticationType {
         org_id: id_type::OrganizationId,
         user_id: String,
     },
-    MerchantJwt {
-        merchant_id: id_type::MerchantId,
-        user_id: Option<String>,
-    },
     MerchantJwtWithProfileId {
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
