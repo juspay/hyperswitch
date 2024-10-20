@@ -31,6 +31,8 @@ pub struct Instruction {
     pub value: PaymentValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debt_repayment: Option<bool>,
+    #[serde(rename = "threeDS")]
+    pub three_ds: Option<ThreeDSRequest>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -187,6 +189,44 @@ pub struct AutoSettlement {
     pub auto: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSRequest {
+    #[serde(rename = "type")]
+    pub three_ds_type: String,
+    pub mode: String,
+    pub device_data: ThreeDSRequestDeviceData,
+    pub challenge: ThreeDSRequestChallenge,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSRequestDeviceData {
+    pub accept_header: String,
+    pub user_agent_header: String,
+    pub browser_language: Option<String>,
+    pub browser_screen_width: Option<u32>,
+    pub browser_screen_height: Option<u32>,
+    pub browser_color_depth: Option<String>,
+    pub time_zone: Option<String>,
+    pub browser_java_enabled: Option<bool>,
+    pub browser_javascript_enabled: Option<bool>,
+    pub channel: Option<ThreeDSRequestChannel>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThreeDSRequestChannel {
+    Browser,
+    Native,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSRequestChallenge {
+    pub return_url: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentMethod {
@@ -236,4 +276,11 @@ pub struct SubMerchant {
 pub struct WorldpayPartialRequest {
     pub value: PaymentValue,
     pub reference: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayCompleteAuthorizationRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection_reference: Option<String>,
 }
