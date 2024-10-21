@@ -1,5 +1,99 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayPaymentsRequest {
+    pub transaction_reference: String,
+    pub merchant: Merchant,
+    pub instruction: Instruction,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<Customer>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Merchant {
+    pub entity: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_facilitator: Option<PaymentFacilitator>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Instruction {
+    pub settlement: Option<AutoSettlement>,
+    pub method: PaymentMethod,
+    pub payment_instrument: PaymentInstrument,
+    pub narrative: InstructionNarrative,
+    pub value: PaymentValue,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debt_repayment: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PaymentInstrument {
+    Card(CardPayment),
+    CardToken(CardToken),
+    Googlepay(WalletPayment),
+    Applepay(WalletPayment),
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardPayment {
+    #[serde(rename = "type")]
+    pub payment_type: PaymentType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    pub card_number: cards::CardNumber,
+    pub expiry_date: ExpiryDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<BillingAddress>,
+    pub cvc: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardToken {
+    #[serde(rename = "type")]
+    pub payment_type: PaymentType,
+    pub href: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvc: Option<Secret<String>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletPayment {
+    #[serde(rename = "type")]
+    pub payment_type: PaymentType,
+    pub wallet_token: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<BillingAddress>,
+}
+
+#[derive(
+    Clone, Copy, Debug, Eq, Default, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentType {
+    #[default]
+    Plain,
+    Token,
+    Encrypted,
+    Checkout,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+pub struct ExpiryDate {
+    pub month: Secret<i8>,
+    pub year: Secret<i32>,
+}
+
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
@@ -15,17 +109,6 @@ pub struct BillingAddress {
     pub state: Option<Secret<String>>,
     pub postal_code: Secret<String>,
     pub country_code: common_enums::CountryAlpha2,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorldpayPaymentsRequest {
-    pub transaction_reference: String,
-    pub merchant: Merchant,
-    pub instruction: Instruction,
-    pub channel: Channel,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub customer: Option<Customer>,
 }
 
 #[derive(
@@ -100,105 +183,29 @@ pub struct NetworkToken {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Instruction {
-    pub request_auto_settlement: RequestAutoSettlement,
-    pub narrative: InstructionNarrative,
-    pub value: PaymentValue,
-    pub payment_instrument: PaymentInstrument,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub debt_repayment: Option<bool>,
+pub struct AutoSettlement {
+    pub auto: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RequestAutoSettlement {
-    pub enabled: bool,
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentMethod {
+    #[default]
+    Card,
+    ApplePay,
+    GooglePay,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstructionNarrative {
     pub line1: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub line2: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PaymentInstrument {
-    Card(CardPayment),
-    CardToken(CardToken),
-    Googlepay(WalletPayment),
-    Applepay(WalletPayment),
-}
-
-#[derive(
-    Clone, Copy, Debug, Eq, Default, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-pub enum PaymentType {
-    #[default]
-    #[serde(rename = "card/plain")]
-    Card,
-    #[serde(rename = "card/token")]
-    CardToken,
-    #[serde(rename = "card/wallet+googlepay")]
-    Googlepay,
-    #[serde(rename = "card/wallet+applepay")]
-    Applepay,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CardPayment {
-    #[serde(rename = "type")]
-    pub payment_type: PaymentType,
-    pub card_number: cards::CardNumber,
-    pub expiry_date: ExpiryDate,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_name: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub billing_address: Option<BillingAddress>,
-    pub cvc: Secret<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CardToken {
-    #[serde(rename = "type")]
-    pub payment_type: PaymentType,
-    pub href: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WalletPayment {
-    #[serde(rename = "type")]
-    pub payment_type: PaymentType,
-    pub wallet_token: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub billing_address: Option<BillingAddress>,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct ExpiryDate {
-    pub month: Secret<i8>,
-    pub year: Secret<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentValue {
     pub amount: i64,
     pub currency: api_models::enums::Currency,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Merchant {
-    pub entity: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcc: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_facilitator: Option<PaymentFacilitator>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
