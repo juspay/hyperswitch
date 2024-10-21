@@ -41,4 +41,5 @@ ADD COLUMN payment_method_type_v2 VARCHAR,
     ADD COLUMN routing_result JSONB,
     ADD COLUMN authentication_applied "AuthenticationType",
     ADD COLUMN external_reference_id VARCHAR(128),
-    ADD COLUMN tax_on_surcharge BIGINT;
+    ADD COLUMN tax_on_surcharge BIGINT,
+    ADD COLUMN connector_payment_data VARCHAR(512);

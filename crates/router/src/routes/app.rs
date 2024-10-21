@@ -518,6 +518,8 @@ impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
+            .service(web::resource("/create-intent").route(web::post().to(payments_create_intent)));
+        route = route
             .service(
                 web::resource("/{payment_id}/saved_payment_methods")
                     .route(web::get().to(list_customer_payment_method_for_payment)),
