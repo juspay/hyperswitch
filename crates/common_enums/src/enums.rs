@@ -227,6 +227,7 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
