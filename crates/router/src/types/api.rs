@@ -88,9 +88,6 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
             .map(ToString::to_string))
     }
 }
-
-pub trait Router {}
-
 pub trait Connector:
     Send
     + Refund

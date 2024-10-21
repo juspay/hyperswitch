@@ -9,7 +9,7 @@ license.workspace = true
 [features]
 default = ["dummy_connector", "frm", "payouts"]
 dummy_connector = []
-v1 = ["hyperswitch_domain_models/v1", "api_models/v1"]
+v1 = ["hyperswitch_domain_models/v1", "api_models/v1", "common_utils/v1"]
 payouts = ["hyperswitch_domain_models/payouts"]
 frm = ["hyperswitch_domain_models/frm"]
 

@@ -826,6 +826,16 @@ pub async fn perform_eligibility_analysis_with_fallback(
     Ok(final_selection)
 }
 
+#[cfg(feature = "v2")]
+pub async fn perform_session_flow_routing(
+    session_input: SessionFlowRoutingInput<'_>,
+    transaction_type: &api_enums::TransactionType,
+) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
     transaction_type: &api_enums::TransactionType,
@@ -958,6 +968,7 @@ pub async fn perform_session_flow_routing(
             allowed_connectors,
             profile_id: &profile_id,
         };
+
         let routable_connector_choice_option = perform_session_routing_for_pm_type(
             &session_pm_input,
             transaction_type,

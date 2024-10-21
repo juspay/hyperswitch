@@ -172,6 +172,27 @@ mod id_type {
         };
     }
 
+    /// Defines a Global Id type
+    #[cfg(feature = "v2")]
+    #[macro_export]
+    macro_rules! global_id_type {
+        ($type:ident, $doc:literal) => {
+            #[doc = $doc]
+            #[derive(
+                Debug,
+                Clone,
+                Hash,
+                PartialEq,
+                Eq,
+                serde::Serialize,
+                serde::Deserialize,
+                diesel::expression::AsExpression,
+            )]
+            #[diesel(sql_type = diesel::sql_types::Text)]
+            pub struct $type($crate::id_type::global_id::GlobalId);
+        };
+    }
+
     /// Implements common methods on the specified ID type.
     #[macro_export]
     macro_rules! impl_id_type_methods {
@@ -289,6 +310,40 @@ mod id_type {
                 { $crate::consts::MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH },
                 { $crate::consts::MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH }
             );
+        };
+    }
+
+    #[cfg(feature = "v2")]
+    /// Implements the `ToSql` and `FromSql` traits on the specified Global ID type.
+    #[macro_export]
+    macro_rules! impl_to_sql_from_sql_global_id_type {
+        ($type:ty, $diesel_type:ty) => {
+            impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
+            where
+                DB: diesel::backend::Backend,
+                $crate::id_type::global_id::GlobalId: diesel::serialize::ToSql<$diesel_type, DB>,
+            {
+                fn to_sql<'b>(
+                    &'b self,
+                    out: &mut diesel::serialize::Output<'b, '_, DB>,
+                ) -> diesel::serialize::Result {
+                    self.0.to_sql(out)
+                }
+            }
+
+            impl<DB> diesel::deserialize::FromSql<$diesel_type, DB> for $type
+            where
+                DB: diesel::backend::Backend,
+                $crate::id_type::global_id::GlobalId:
+                    diesel::deserialize::FromSql<$diesel_type, DB>,
+            {
+                fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+                    $crate::id_type::global_id::GlobalId::from_sql(value).map(Self)
+                }
+            }
+        };
+        ($type:ty) => {
+            $crate::impl_to_sql_from_sql_global_id_type!($type, diesel::sql_types::Text);
         };
     }
 

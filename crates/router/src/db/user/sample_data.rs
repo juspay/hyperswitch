@@ -1,10 +1,11 @@
 use common_utils::types::keymanager::KeyManagerState;
+#[cfg(feature = "v1")]
+use diesel_models::user::sample_data::PaymentAttemptBatchNew;
 use diesel_models::{
     dispute::{Dispute, DisputeNew},
     errors::DatabaseError,
     query::user::sample_data as sample_data_queries,
     refund::{Refund, RefundNew},
-    user::sample_data::PaymentAttemptBatchNew,
 };
 use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};
