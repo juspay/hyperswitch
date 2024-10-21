@@ -254,7 +254,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

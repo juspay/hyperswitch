@@ -1496,7 +1496,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .event(AuditEvent::new(AuditEventType::PaymentConfirm {
                 client_src,
                 client_ver,
-                frm_message,
+                frm_message: Box::new(frm_message),
             }))
             .with(payment_data.to_event())
             .emit();

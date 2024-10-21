@@ -1599,14 +1599,14 @@ where
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                     redirection_data,
-                    mandate_reference: response
+                     mandate_reference: Box::new(response
                         .payment_option
                         .and_then(|po| po.user_payment_option_id)
                         .map(|id| types::MandateReference {
                             connector_mandate_id: Some(id),
                             payment_method_id: None,
                             mandate_metadata: None,
-                        }),
+                        })),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present
                     connector_metadata: if let Some(token) = response.session_token {
                         Some(

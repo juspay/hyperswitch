@@ -307,7 +307,7 @@ impl
                         ]),
                     }),
                     mandate_reference: if item.data.request.is_mandate_payment() {
-                        Some(MandateReference {
+                        Box::new(Some(MandateReference {
                             connector_mandate_id: item.response.mandate_id,
                             payment_method_id: None,
                             mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
@@ -325,9 +325,9 @@ impl
                                 reference: Secret::from(reference.clone()),
                                 signed_on,
                             })),
-                        })
+                        }))
                     } else {
-                        None
+                        Box::new(None)
                     },
                     connector_metadata: None,
                     network_txn_id: None,
@@ -376,7 +376,7 @@ impl
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -579,7 +579,7 @@ impl
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -638,7 +638,7 @@ impl
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

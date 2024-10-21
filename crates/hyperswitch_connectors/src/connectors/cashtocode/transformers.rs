@@ -270,7 +270,7 @@ impl<F>
                             item.data.attempt_id.clone(),
                         ),
                         redirection_data: Some(redirection_data),
-                        mandate_reference: None,
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -303,7 +303,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                     item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

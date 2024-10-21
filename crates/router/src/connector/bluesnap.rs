@@ -744,7 +744,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         redirection_data: Some(services::RedirectForm::BlueSnap {
                             payment_fields_token,
                         }),
-                        mandate_reference: None,
+                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,

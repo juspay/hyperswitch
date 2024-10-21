@@ -262,7 +262,7 @@ impl<F, T>
                         redirection_data: Some(services::RedirectForm::Mifinity {
                             initialization_token,
                         }),
-                        mandate_reference: None,
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(trace_id),
@@ -277,7 +277,7 @@ impl<F, T>
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -346,7 +346,7 @@ impl<F, T>
                                     transaction_reference,
                                 ),
                                 redirection_data: None,
-                                mandate_reference: None,
+                                mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
@@ -361,7 +361,7 @@ impl<F, T>
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::NoResponseId,
                             redirection_data: None,
-                            mandate_reference: None,
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -377,7 +377,7 @@ impl<F, T>
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,

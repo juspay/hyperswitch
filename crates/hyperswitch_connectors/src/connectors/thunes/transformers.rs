@@ -130,7 +130,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ThunesPaymentsResponse, T, PaymentsResp
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

@@ -294,7 +294,7 @@ impl<F>
                         response.transaction_id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -412,7 +412,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id,
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,

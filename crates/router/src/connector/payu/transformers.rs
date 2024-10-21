@@ -203,7 +203,7 @@ impl<F, T>
                     item.response.order_id.clone(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -260,7 +260,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -344,7 +344,7 @@ impl<F, T>
                     item.response.order_id.clone(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -479,7 +479,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(order.order_id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: order

@@ -930,7 +930,7 @@ pub struct MultisafepayPaymentsResponse {
 #[serde(untagged)]
 pub enum MultisafepayAuthResponse {
     ErrorResponse(MultisafepayErrorResponse),
-    PaymentResponse(MultisafepayPaymentsResponse),
+     PaymentResponse(Box<MultisafepayPaymentsResponse>),
 }
 
 impl<F, T>
@@ -980,7 +980,7 @@ impl<F, T>
                                 payment_response.data.order_id.clone(),
                             ),
                             redirection_data,
-                            mandate_reference: payment_response
+                            mandate_reference: Box::new(payment_response
                                 .data
                                 .payment_details
                                 .and_then(|payment_details| payment_details.recurring_id)
@@ -988,7 +988,7 @@ impl<F, T>
                                     connector_mandate_id: Some(id.expose()),
                                     payment_method_id: None,
                                     mandate_metadata: None,
-                                }),
+                                })),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: Some(

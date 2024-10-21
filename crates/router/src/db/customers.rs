@@ -446,10 +446,10 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
+                            updatable: Box::new(kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
                                 orig: customer,
                                 update_data: customer_update.into(),
-                            }),
+                            })),
                         },
                     };
 
@@ -768,7 +768,7 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Customer(new_customer.clone()),
+                            insertable: Box::new(kv::Insertable::Customer(new_customer.clone())),
                         },
                     };
                     let storage_customer = new_customer.into();

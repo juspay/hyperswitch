@@ -313,7 +313,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::foreign_try_from(item.response.links)?,
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

@@ -293,7 +293,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
-                mandate_reference: None,
+                 mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
@@ -342,7 +342,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
-                mandate_reference: None,
+                 mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
@@ -411,7 +411,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                 mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
@@ -480,7 +480,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),

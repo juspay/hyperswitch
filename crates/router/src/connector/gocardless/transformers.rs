@@ -524,7 +524,7 @@ impl<F>
                 incremental_authorization_allowed: None,
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
-                mandate_reference,
+                mandate_reference: Box::new(mandate_reference),
                 network_txn_id: None,
                 charge_id: None,
             }),
@@ -675,7 +675,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
-                mandate_reference: Some(mandate_reference),
+                mandate_reference: Box::new(Some(mandate_reference)),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -711,7 +711,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
-                mandate_reference: None,
+                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

@@ -598,7 +598,7 @@ impl<F, T>
                         response.paybox_order_id,
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -658,7 +658,7 @@ impl<F>
                                 response.paybox_order_id,
                             ),
                             redirection_data: None,
-                            mandate_reference: None,
+                            mandate_reference: Box::new(None),
                             connector_metadata: Some(serde_json::json!(PayboxMeta {
                                 connector_request_id: response.transaction_number.clone()
                             })),
@@ -689,7 +689,7 @@ impl<F>
                     redirection_data: Some(RedirectForm::Html {
                         html_data: data.peek().to_string(),
                     }),
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -732,7 +732,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                         response.paybox_order_id,
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -917,7 +917,7 @@ impl<F>
                         response.paybox_order_id,
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),

@@ -876,7 +876,7 @@ impl<F, T>
                     item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),

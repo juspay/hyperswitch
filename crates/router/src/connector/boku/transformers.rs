@@ -302,7 +302,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::Payments
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

@@ -1389,7 +1389,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: order_id,
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: purchase_units
@@ -1515,7 +1515,7 @@ impl<F, T>
                     link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     services::Method::Get,
                 ))),
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: Some(
@@ -1570,7 +1570,7 @@ impl
                     link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     services::Method::Get,
                 ))),
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: Some(
@@ -1625,7 +1625,7 @@ impl
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -1663,7 +1663,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -1716,7 +1716,7 @@ impl<F>
                     link,
                     item.data.request.complete_authorize_url.clone(),
                 ))?),
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -1781,7 +1781,7 @@ impl<F, T>
                         .clone(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -2116,7 +2116,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
                     authorize_id: connector_payment_id.authorize_id,
                     capture_id: Some(item.response.id.clone()),
@@ -2174,7 +2174,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item

@@ -2491,7 +2491,7 @@ impl<F, T>
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
-                mandate_reference,
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
@@ -2698,7 +2698,7 @@ impl<F, T>
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
-                mandate_reference,
+                mandate_reference:Box::new(mandate_reference),
                 connector_metadata,
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
@@ -2777,7 +2777,7 @@ impl<F, T>
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
-                mandate_reference,
+                mandate_reference:Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
@@ -3270,7 +3270,7 @@ pub struct MitExemption {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum LatestAttempt {
-    PaymentIntentAttempt(LatestPaymentAttempt),
+    PaymentIntentAttempt(Box<LatestPaymentAttempt>),
     SetupAttempt(String),
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -3481,7 +3481,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),

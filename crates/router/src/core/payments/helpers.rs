@@ -1629,7 +1629,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             phone: Box::new(encryptable_customer.phone),
                             phone_country_code: request_customer_details.phone_country_code,
                             description: None,
-                            connector_customer: None,
+                            connector_customer: Box::new(None),
                             metadata: None,
                             address_id: None,
                         };
@@ -3588,7 +3588,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 
 #[derive(Clone)]
 pub enum MerchantConnectorAccountType {
-    DbVal(domain::MerchantConnectorAccount),
+    DbVal(Box<domain::MerchantConnectorAccount>),
     CacheVal(api_models::admin::MerchantConnectorDetails),
 }
 
@@ -3798,7 +3798,7 @@ pub async fn get_merchant_connector_account(
                         todo!()
                     }
                 };
-            mca.map(MerchantConnectorAccountType::DbVal)
+            mca.map(Box::new).map(MerchantConnectorAccountType::DbVal)
         }
     }
 }

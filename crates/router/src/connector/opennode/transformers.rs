@@ -139,7 +139,7 @@ impl<F, T>
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
                 redirection_data: Some(redirection_data),
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.data.order_id,

@@ -39,14 +39,14 @@ pub fn get_payment_body(
     let transaction_data = get_transaction_body(req)?;
     let body = format!(
         r#"
-            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
             xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
                 <soapenv:Body>
                     <dts:SubmitSinglePayment>
                         <dts:trnXML>
                             <![CDATA[
                                 {}
-                            ]]>    
+                            ]]>
                         </dts:trnXML>
                     </dts:SubmitSinglePayment>
                 </soapenv:Body>
@@ -294,7 +294,7 @@ impl<F>
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
-                    mandate_reference,
+                    mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
@@ -354,12 +354,12 @@ pub fn get_setup_mandate_body(req: &types::SetupMandateRouterData) -> Result<Vec
                         <sipp:tokeniseCreditCardXML>
                             <![CDATA[
                                 <TokeniseCreditCard>
-                                    <CardNumber>{}</CardNumber> 
+                                    <CardNumber>{}</CardNumber>
                                     <ExpM>{}</ExpM>
                                     <ExpY>{}</ExpY>
                                     <CardHolderName>{}</CardHolderName>
                                     <TokeniseAlgorithmID>2</TokeniseAlgorithmID>
-                                    <UserName>{}</UserName> 
+                                    <UserName>{}</UserName>
                                     <Password>{}</Password>
                                 </TokeniseCreditCard>
                             ]]>
@@ -461,11 +461,11 @@ impl<F>
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
                     redirection_data: None,
-                    mandate_reference: Some(types::MandateReference {
+                    mandate_reference: Box::new(Some(types::MandateReference {
                         connector_mandate_id: Some(connector_mandate_id),
                         payment_method_id: None,
                         mandate_metadata: None,
-                    }),
+                    })),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -501,7 +501,7 @@ pub fn get_capture_body(
     let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;
     let body = format!(
         r#"
-            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
             xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
                 <soapenv:Body>
                     <dts:SubmitSingleCapture>
@@ -514,8 +514,8 @@ pub fn get_capture_body(
                                                 <UserName>{}</UserName>
                                                 <Password>{}</Password>
                                         </Security>
-                                </Capture>	
-                            ]]>    
+                                </Capture>
+                            ]]>
                         </dts:trnXML>
                     </dts:SubmitSingleCapture>
                 </soapenv:Body>
@@ -611,7 +611,7 @@ impl<F>
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
@@ -663,7 +663,7 @@ pub fn get_refund_body(
     let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;
     let body = format!(
         r#"
-            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
             xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
                 <soapenv:Header/>
                 <soapenv:Body>
@@ -677,9 +677,9 @@ pub fn get_refund_body(
                                 <Security>
                                     <UserName>{}</UserName>
                                     <Password>{}</Password>
-                                </Security> 
+                                </Security>
                             </Refund>
-                            ]]>    
+                            ]]>
                         </dts:trnXML>
                     </dts:SubmitSingleRefund>
                 </soapenv:Body>
@@ -792,7 +792,7 @@ pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<
         .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
     let body = format!(
         r#"
-            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
             xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
                 <soapenv:Header/>
                 <soapenv:Body>
@@ -810,8 +810,8 @@ pub fn get_payment_sync_body(req: &types::PaymentsSyncRouterData) -> Result<Vec<
                                         <UserName>{}</UserName>
                                         <Password>{}</Password>
                                     </Security>
-                            </QueryTransaction>	
-                            ]]>    
+                            </QueryTransaction>
+                            ]]>
                         </dts:queryXML>
                     </dts:QueryTransaction>
                 </soapenv:Body>
@@ -910,7 +910,7 @@ impl<F>
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
@@ -961,7 +961,7 @@ pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>
 
     let body = format!(
         r#"
-            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
             xmlns:dts="http://www.ippayments.com.au/interface/api/dts">
                 <soapenv:Header/>
                 <soapenv:Body>
@@ -979,8 +979,8 @@ pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>
                                         <UserName>{}</UserName>
                                         <Password>{}</Password>
                                     </Security>
-                            </QueryTransaction>	
-                            ]]>    
+                            </QueryTransaction>
+                            ]]>
                         </dts:queryXML>
                     </dts:QueryTransaction>
                 </soapenv:Body>

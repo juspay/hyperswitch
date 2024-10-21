@@ -366,7 +366,7 @@ pub enum CustomerUpdate {
         description: Option<Description>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_customer: Option<pii::SecretSerdeValue>,
+        connector_customer: Box<Option<pii::SecretSerdeValue>>,
         address_id: Option<String>,
     },
     ConnectorCustomer {
@@ -397,7 +397,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
-                connector_customer,
+                connector_customer: *connector_customer,
                 modified_at: date_time::now(),
                 address_id,
                 default_payment_method_id: None,

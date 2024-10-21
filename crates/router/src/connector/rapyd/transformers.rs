@@ -475,7 +475,7 @@ impl<F, T>
                                     data.id.to_owned(),
                                 ), //transaction_id is also the field but this id is used to initiate a refund
                                 redirection_data,
-                                mandate_reference: None,
+                                mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 connector_response_reference_id: None,

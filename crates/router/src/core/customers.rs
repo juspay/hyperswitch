@@ -904,7 +904,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
             description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
             metadata: None,
-            connector_customer: None,
+            connector_customer: Box::new(None),
             address_id: None,
         };
 
@@ -1204,7 +1204,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),
-                    connector_customer: None,
+                    connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
                 },
                 key_store,

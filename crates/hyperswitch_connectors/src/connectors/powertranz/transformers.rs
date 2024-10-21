@@ -337,7 +337,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),

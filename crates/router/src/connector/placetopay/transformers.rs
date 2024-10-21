@@ -264,7 +264,7 @@ impl<F, T>
                     item.response.internal_reference.to_string(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: item
                     .response
                     .authorization

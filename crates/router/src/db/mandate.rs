@@ -274,10 +274,10 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::MandateUpdate(kv::MandateUpdateMems {
+                            updatable: Box::new(kv::Updateable::MandateUpdate(kv::MandateUpdateMems {
                                 orig: mandate,
                                 update_data: m_update,
-                            }),
+                            })),
                         },
                     };
 
@@ -346,7 +346,7 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Mandate(mandate),
+                            insertable: Box::new(kv::Insertable::Mandate(mandate)),
                         },
                     };
 

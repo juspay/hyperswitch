@@ -2560,7 +2560,7 @@ fn get_payment_response(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: None,
-                mandate_reference,
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
@@ -2658,7 +2658,7 @@ impl<F>
                             .consumer_authentication_information
                             .reference_id,
                     }),
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(
@@ -3067,7 +3067,7 @@ impl<F>
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::NoResponseId,
                             redirection_data,
-                            mandate_reference: None,
+                            mandate_reference: Box::new(None),
                             connector_metadata: Some(serde_json::json!({
                                 "three_ds_data": three_ds_data
                             })),
@@ -3312,7 +3312,7 @@ impl
                         item.response.id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference,
+                    mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: item.response.processor_information.as_ref().and_then(
                         |processor_information| {
@@ -3450,7 +3450,7 @@ impl<F>
                                 item.response.id.clone(),
                             ),
                             redirection_data: None,
-                            mandate_reference: None,
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: item
@@ -3472,7 +3472,7 @@ impl<F>
                         item.response.id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),

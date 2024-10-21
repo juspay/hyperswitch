@@ -375,7 +375,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                     gateway_resp.transaction_processing_details.transaction_id,
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
@@ -414,7 +414,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                         .clone(),
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(

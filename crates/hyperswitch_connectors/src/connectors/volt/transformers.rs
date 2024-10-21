@@ -278,7 +278,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -352,7 +352,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 payment_response.id.clone(),
                             ),
                             redirection_data: None,
-                            mandate_reference: None,
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: payment_response
@@ -393,7 +393,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 webhook_response.payment.clone(),
                             ),
                             redirection_data: None,
-                            mandate_reference: None,
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: webhook_response

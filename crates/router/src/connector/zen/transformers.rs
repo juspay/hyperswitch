@@ -948,7 +948,7 @@ fn get_zen_response(
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.id.clone()),
         redirection_data,
-        mandate_reference: None,
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -992,7 +992,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::Paym
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

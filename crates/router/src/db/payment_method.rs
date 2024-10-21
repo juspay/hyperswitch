@@ -496,7 +496,7 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::PaymentMethod(payment_method_new),
+                            insertable: Box::new(kv::Insertable::PaymentMethod(payment_method_new)),
                         },
                     };
 
@@ -588,12 +588,12 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::PaymentMethodUpdate(
+                            updatable: Box::new(kv::Updateable::PaymentMethodUpdate(
                                 kv::PaymentMethodUpdateMems {
                                     orig: payment_method,
                                     update_data: p_update,
                                 },
-                            ),
+                            )),
                         },
                     };
 

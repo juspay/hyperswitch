@@ -1167,7 +1167,7 @@ where
                             payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
                             webhooks::OutgoingWebhookContent::PaymentDetails(
-                                payments_response_json,
+                                Box::new(payments_response_json),
                             ),
                             primary_object_created_at,
                         ))

@@ -3274,7 +3274,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                     item.response.payment_psp_reference,
                 ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
@@ -3309,7 +3309,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -3375,7 +3375,7 @@ pub fn get_adyen_response(
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
-        mandate_reference,
+        mandate_reference: Box::new(mandate_reference),
         connector_metadata: None,
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
@@ -3439,7 +3439,7 @@ pub fn get_webhook_response(
                     .unwrap_or(response.transaction_id),
             ),
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
@@ -3509,7 +3509,7 @@ pub fn get_redirection_response(
             None => types::ResponseId::NoResponseId,
         },
         redirection_data,
-        mandate_reference: None,
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3567,7 +3567,7 @@ pub fn get_present_to_shopper_response(
             None => types::ResponseId::NoResponseId,
         },
         redirection_data: None,
-        mandate_reference: None,
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3624,7 +3624,7 @@ pub fn get_qr_code_response(
             None => types::ResponseId::NoResponseId,
         },
         redirection_data: None,
-        mandate_reference: None,
+         mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3667,7 +3667,7 @@ pub fn get_redirection_error_response(
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: None,
-        mandate_reference: None,
+         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -4037,7 +4037,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
