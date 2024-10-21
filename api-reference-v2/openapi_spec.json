@@ -5605,6 +5605,14 @@
           },
           "amount_capturable": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
