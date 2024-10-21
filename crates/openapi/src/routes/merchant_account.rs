@@ -51,6 +51,13 @@ pub async fn merchant_account_create() {}
 #[utoipa::path(
     post,
     path = "/v2/merchant_accounts",
+    params(
+      (
+        "X-Organization-Id" = String, Header,
+        description = "Organization ID for which the merchant account has to be created.",
+        example = json!({"X-Organization-Id": "org_abcdefghijklmnop"})
+      ),
+    ),
     request_body(
         content = MerchantAccountCreate,
         examples(
@@ -58,7 +65,6 @@ pub async fn merchant_account_create() {}
                 "Create a merchant account with minimal fields" = (
                     value = json!({
                         "merchant_name": "Cloth Store",
-                        "organization_id": "org_abcdefghijklmnop"
                     })
                 )
             ),
@@ -66,7 +72,6 @@ pub async fn merchant_account_create() {}
                 "Create a merchant account with merchant details" = (
                     value = json!({
                         "merchant_name": "Cloth Store",
-                        "organization_id": "org_abcdefghijklmnop",
                         "merchant_details": {
                                 "primary_contact_person": "John Doe",
                                 "primary_email": "example@company.com"
@@ -78,7 +83,6 @@ pub async fn merchant_account_create() {}
                 "Create a merchant account with metadata" = (
                     value = json!({
                         "merchant_name": "Cloth Store",
-                        "organization_id": "org_abcdefghijklmnop",
                         "metadata": {
                                 "key_1": "John Doe",
                                 "key_2": "Trends"
