@@ -266,3 +266,6 @@ node_modules/
 creds.json
 
 /.direnv
+
+# Nix services data
+data
