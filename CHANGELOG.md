@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.21.0
+
+### Features
+
+- **opensearch:** Add additional global search filters and create sessionizer indexes for local ([#6352](https://github.com/juspay/hyperswitch/pull/6352)) ([`2e6cd6d`](https://github.com/juspay/hyperswitch/commit/2e6cd6d31e4e3168b97427de936724de94df6415))
+
+### Bug Fixes
+
+- **router:** Make `x_merchant_domain` as required value only for session call done on web ([#6362](https://github.com/juspay/hyperswitch/pull/6362)) ([`ba6f7a8`](https://github.com/juspay/hyperswitch/commit/ba6f7a817ba3eeb8b3d6304ddd5b2baaf55733e8))
+
+### Refactors
+
+- **connector:**
+  - Added amount conversion framework for Mollie ([#6280](https://github.com/juspay/hyperswitch/pull/6280)) ([`451376e`](https://github.com/juspay/hyperswitch/commit/451376e7993839f5c93624c12833af7d47aa4e34))
+  - [Billwerk] Move connector Billwerk form Router to HyperswitchConnector Crate ([#6266](https://github.com/juspay/hyperswitch/pull/6266)) ([`3cf6210`](https://github.com/juspay/hyperswitch/commit/3cf6210176b2ecc4537b7537a28ea4c87a553794))
+  - Add amount conversion framework to opayo ([#6342](https://github.com/juspay/hyperswitch/pull/6342)) ([`91146de`](https://github.com/juspay/hyperswitch/commit/91146de2a2bc684998023535e56dee1af92fda76))
+- **core:** Populate shipping_cost in payment response ([#6351](https://github.com/juspay/hyperswitch/pull/6351)) ([`368e6b5`](https://github.com/juspay/hyperswitch/commit/368e6b53109890ca44bc352dd07ee542791e50df))
+- **users:** Update Database connection for Read only functions ([#6167](https://github.com/juspay/hyperswitch/pull/6167)) ([`fba4a02`](https://github.com/juspay/hyperswitch/commit/fba4a027dfe1c514867c54dba32079dff63609a9))
+
+### Documentation
+
+- Upload new logos ([#6368](https://github.com/juspay/hyperswitch/pull/6368)) ([`0bda934`](https://github.com/juspay/hyperswitch/commit/0bda934aca6bc53b21ab3c2be2af27219ef4f68a))
+
+**Full Changelog:** [`2024.10.18.0...2024.10.21.0`](https://github.com/juspay/hyperswitch/compare/2024.10.18.0...2024.10.21.0)
+
+- - -
+
 ## 2024.10.18.0
 
 ### Features
