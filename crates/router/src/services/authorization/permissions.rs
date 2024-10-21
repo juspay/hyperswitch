@@ -1,39 +1,75 @@
-use strum::Display;
+use common_enums::{EntityType, PermissionScope, Resource};
+use router_derive::generate_permissions;
 
-#[derive(
-    PartialEq, Display, Clone, Debug, Copy, Eq, Hash, serde::Deserialize, serde::Serialize,
-)]
-pub enum Permission {
-    PaymentRead,
-    PaymentWrite,
-    RefundRead,
-    RefundWrite,
-    ApiKeyRead,
-    ApiKeyWrite,
-    MerchantAccountRead,
-    MerchantAccountWrite,
-    MerchantConnectorAccountRead,
-    MerchantConnectorAccountWrite,
-    RoutingRead,
-    RoutingWrite,
-    DisputeRead,
-    DisputeWrite,
-    MandateRead,
-    MandateWrite,
-    CustomerRead,
-    CustomerWrite,
-    Analytics,
-    ThreeDsDecisionManagerWrite,
-    ThreeDsDecisionManagerRead,
-    SurchargeDecisionManagerWrite,
-    SurchargeDecisionManagerRead,
-    UsersRead,
-    UsersWrite,
-    MerchantAccountCreate,
-    WebhookEventRead,
-    WebhookEventWrite,
-    PayoutRead,
-    PayoutWrite,
-    GenerateReport,
-    ReconAdmin,
+generate_permissions! {
+    permissions: [
+        Payment: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
+        Refund: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
+        Dispute: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
+        Mandate: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        Customer: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        Payout: {
+            scopes: [Read],
+            entities: [Profile, Merchant]
+        },
+        ApiKey: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        Account: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant, Organization]
+        },
+        Connector: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
+        Routing: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
+        ThreeDsDecisionManager: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        SurchargeDecisionManager: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        Analytics: {
+            scopes: [Read],
+            entities: [Profile, Merchant, Organization]
+        },
+        Report: {
+            scopes: [Read],
+            entities: [Profile, Merchant, Organization]
+        },
+        User: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
+        WebhookEvent: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        Recon: {
+            scopes: [Read],
+            entities: [Merchant]
+        },
+    ]
 }
