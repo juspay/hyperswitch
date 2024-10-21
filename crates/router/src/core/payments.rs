@@ -5007,6 +5007,7 @@ where
                                         mandate_metadata: mandate_reference_record
                                             .mandate_metadata
                                             .clone(),
+                                        connector_mandate_request_reference_id:mandate_reference_record.connector_mandate_request_reference_id.clone()
                                     },
                                 ));
                             payment_data.set_recurring_mandate_payment_data(
@@ -5018,9 +5019,8 @@ where
                                     original_payment_authorized_currency: mandate_reference_record
                                         .original_payment_authorized_currency,
                                     mandate_metadata: mandate_reference_record
-                                        .mandate_metadata.clone(),
+                                        .mandate_metadata.clone()                                    
                                 });
-
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;
                         }

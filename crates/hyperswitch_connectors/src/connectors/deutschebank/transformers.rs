@@ -325,6 +325,7 @@ impl
                                 reference: Secret::from(reference.clone()),
                                 signed_on,
                             })),
+                            connector_mandate_request_reference_id: None,
                         })
                     } else {
                         None

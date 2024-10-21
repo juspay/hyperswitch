@@ -574,7 +574,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = resp
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
             .ok()
@@ -587,17 +587,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
                         )
                     })
                 } else {
                     None
                 }
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
 
         update_connector_mandate_details_for_the_flow(
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
             payment_data,
         )?;
 
@@ -1176,7 +1178,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = resp
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
             .ok()
@@ -1189,16 +1191,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
                         )
                     })
                 } else {
                     None
                 }
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
         update_connector_mandate_details_for_the_flow(
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
             payment_data,
         )?;
 
@@ -1557,7 +1561,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     None
                                 };
 
-                            if router_data.status == enums::AttemptStatus::Charged {
+                            if router_data.status == enums::AttemptStatus::Charged
+                                || router_data.status == enums::AttemptStatus::Authorized
+                            {
                                 payment_data
                                     .payment_intent
                                     .fingerprint_id
@@ -1597,10 +1603,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         })
                                         .unwrap_or(false)
                                     {
-                                        let (connector_mandate_id, mandate_metadata) = payment_data.payment_attempt.connector_mandate_detail.clone()
-                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata))
-                                        .unwrap_or((None, None));
 
+                                        let (connector_mandate_id, mandate_metadata,connector_mandate_request_reference_id) = payment_data.payment_attempt.connector_mandate_detail.clone()
+                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata,cmr.connector_mandate_request_reference_id))
+                                        .unwrap_or((None, None,None));
                                         // Update the connector mandate details with the payment attempt connector mandate id
                                         let connector_mandate_details =
                                                     tokenization::update_connector_mandate_details(
@@ -1617,6 +1623,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                         payment_data.payment_attempt.merchant_connector_id.clone(),
                                                         connector_mandate_id,
                                                         mandate_metadata,
+                                                        connector_mandate_request_reference_id
                                                     )?;
                                         // Update the payment method table with the active mandate record
                                         payment_methods::cards::update_payment_method_connector_mandate_details(
@@ -2133,6 +2140,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {
     let connector_mandate_reference_id = if connector_mandate_id.is_some() {
@@ -2140,6 +2148,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
             connector_mandate_id: connector_mandate_id.clone(),
             payment_method_id: None,
             update_history: None,
+            connector_mandate_request_reference_id: connector_mandate_request_reference_id.clone(),
             mandate_metadata: mandate_metadata.clone(),
         })
     } else {

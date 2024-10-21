@@ -122,6 +122,7 @@ pub async fn construct_webhook_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }

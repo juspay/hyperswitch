@@ -251,6 +251,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
                 connector_mandate_id: Some(buyer_key.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }),
             connector_metadata: None,
             network_txn_id: None,

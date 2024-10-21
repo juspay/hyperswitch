@@ -795,6 +795,8 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
+    fn connector_mandate_request_reference_id(&self) -> Option<String>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -975,6 +977,24 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("authentication_data"))
     }
+    fn connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids
+                        .connector_mandate_request_reference_id
+                        .clone()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.connector_mandate_request_reference_id()
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 
 pub trait ConnectorCustomerData {
@@ -1054,6 +1074,8 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn connector_mandate_request_reference_id(&self) -> Option<String>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -1093,6 +1115,24 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 .as_ref()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
+    }
+    fn connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids
+                        .connector_mandate_request_reference_id
+                        .clone()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.connector_mandate_request_reference_id()
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
 }
 

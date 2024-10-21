@@ -24,6 +24,7 @@ use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, 
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
+    consts,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -136,6 +137,9 @@ where
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+            consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+        )),
     };
     Ok(router_data)
 }
@@ -350,6 +354,9 @@ where
             )
         }),
         header_payload,
+        connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+            consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+        )),
     };
 
     Ok(router_data)
@@ -1809,6 +1816,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
+        let additional_payment_method_data = if payment_data.mandate_id.is_some() {
+            let parsed_additional_payment_data: Option<api_models::payments::AdditionalPaymentData> =
+                payment_data.payment_attempt
+                    .payment_method_data
+                    .clone()
+                    .and_then(|data| match data {
+                        serde_json::Value::Null => None, // Handle null case
+                        _ => Some(data.parse_value("AdditionalPaymentData")),
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
+            parsed_additional_payment_data
+        } else {
+            None
+        };
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)
@@ -1893,6 +1916,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
+            additional_payment_method_data,
         })
     }
 }
@@ -2862,6 +2886,7 @@ impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenc
             payment_method_id: value.payment_method_id,
             update_history: None,
             mandate_metadata: value.mandate_metadata,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
         }
     }
 }
@@ -2871,6 +2896,7 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
             connector_mandate_id: value.connector_mandate_id,
             payment_method_id: value.payment_method_id,
             mandate_metadata: value.mandate_metadata,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
         }
     }
 }

@@ -83,6 +83,7 @@ pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub mandate_metadata: Option<serde_json::Value>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
