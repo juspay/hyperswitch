@@ -1854,12 +1854,20 @@ pub fn build_redirection_form(
                         (PreEscaped(format!(
                             r#"
                                 function submitCollectionReference(collectionReference) {{
-                                    var redirectUrl = window.location.origin + window.location.pathname.replace(/payments\/redirect\/(\w+)\/(\w+)\/\w+/, "payments/$1/$2/redirect/complete/worldpay");
+                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/(\w+)\/(\w+)\/\w+/, "payments/$1/$2/redirect/complete/worldpay");
+                                    var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
                                         if (typeof collectionReference === "string" && collectionReference.length > 0) {{
-                                            var url = new URL(redirectUrl);
-                                            url.searchParams.append("collectionReference", collectionReference);
-                                            window.location.replace(url.toString());
+                                            var form = document.createElement("form");
+                                            form.action = redirectPathname;
+                                            form.method = "GET";
+                                            var input = document.createElement("input");
+                                            input.type = "hidden";
+                                            input.name = "collectionReference";
+                                            input.value = collectionReference;
+                                            form.appendChild(input);
+                                            document.body.appendChild(form);
+                                            form.submit();;
                                         }} else {{
                                             window.location.replace(redirectUrl);
                                         }}

@@ -308,8 +308,8 @@ impl Issuer {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentsResPaymentInstrument {
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub payment_instrument_type: Option<String>,
+    #[serde(rename = "type")]
+    pub payment_instrument_type: String,
     pub card_bin: Option<String>,
     pub last_four: Option<String>,
     pub expiry_date: Option<ExpiryDate>,
@@ -318,22 +318,6 @@ pub struct PaymentsResPaymentInstrument {
     pub category: Option<String>,
     pub issuer_name: Option<String>,
     pub payment_account_reference: Option<String>,
-}
-
-impl PaymentsResPaymentInstrument {
-    pub fn new() -> Self {
-        Self {
-            payment_instrument_type: None,
-            card_bin: None,
-            last_four: None,
-            category: None,
-            expiry_date: None,
-            card_brand: None,
-            funding_type: None,
-            issuer_name: None,
-            payment_account_reference: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
