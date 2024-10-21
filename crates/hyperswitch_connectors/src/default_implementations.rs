@@ -89,7 +89,8 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -106,6 +107,7 @@ default_imp_for_authorize_session_token!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Taxjar,
     connectors::Volt,
@@ -129,7 +131,8 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -143,6 +146,7 @@ default_imp_for_calculate_tax!(
     connectors::Square,
     connectors::Novalnet,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Nexixpay,
     connectors::Fiuu,
     connectors::Globepay,
@@ -169,7 +173,8 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -183,6 +188,7 @@ default_imp_for_session_update!(
     connectors::Square,
     connectors::Taxjar,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Fiuu,
@@ -210,7 +216,8 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -224,6 +231,7 @@ default_imp_for_post_session_tokens!(
     connectors::Stax,
     connectors::Taxjar,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Fiuu,
@@ -264,6 +272,7 @@ default_imp_for_complete_authorize!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Multisafepay,
     connectors::Novalnet,
     connectors::Stax,
     connectors::Square,
@@ -290,7 +299,8 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -307,6 +317,7 @@ default_imp_for_incremental_authorization!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -332,7 +343,8 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -346,6 +358,7 @@ default_imp_for_create_customer!(
     connectors::Globepay,
     connectors::Helcim,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
@@ -387,6 +400,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Multisafepay,
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
@@ -430,6 +444,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Novalnet,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -455,7 +470,8 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -472,6 +488,7 @@ default_imp_for_post_processing_steps!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -497,7 +514,8 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -514,6 +532,7 @@ default_imp_for_approve!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -539,7 +558,8 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -556,6 +576,7 @@ default_imp_for_reject!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -581,7 +602,8 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -598,6 +620,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -624,7 +647,8 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -641,6 +665,7 @@ default_imp_for_accept_dispute!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -666,7 +691,8 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -683,6 +709,7 @@ default_imp_for_submit_evidence!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -708,7 +735,8 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -725,6 +753,7 @@ default_imp_for_defend_dispute!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -759,7 +788,8 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -776,6 +806,7 @@ default_imp_for_file_upload!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -803,7 +834,8 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -820,6 +852,7 @@ default_imp_for_payouts_create!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -847,7 +880,8 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -864,6 +898,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -891,7 +926,8 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -908,6 +944,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -935,7 +972,8 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -952,6 +990,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -979,7 +1018,8 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -996,6 +1036,7 @@ default_imp_for_payouts_cancel!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1023,7 +1064,8 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1040,6 +1082,7 @@ default_imp_for_payouts_quote!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1067,7 +1110,8 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1084,6 +1128,7 @@ default_imp_for_payouts_recipient!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1111,7 +1156,8 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1128,6 +1174,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1155,7 +1202,8 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1172,6 +1220,7 @@ default_imp_for_frm_sale!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1199,7 +1248,8 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1216,6 +1266,7 @@ default_imp_for_frm_checkout!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1243,7 +1294,8 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1260,6 +1312,7 @@ default_imp_for_frm_transaction!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1287,7 +1340,8 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1304,6 +1358,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1331,7 +1386,8 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1348,6 +1404,7 @@ default_imp_for_frm_record_return!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -1372,7 +1429,8 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
-    connectors::Airwallex, connectors::Bambora,
+    connectors::Airwallex,
+    connectors::Bambora,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1389,6 +1447,7 @@ default_imp_for_revoking_mandates!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Mollie,
+    connectors::Multisafepay,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,

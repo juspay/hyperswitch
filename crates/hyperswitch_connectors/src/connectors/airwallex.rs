@@ -5,7 +5,10 @@ use std::fmt::Debug;
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
-    crypto, errors::CustomResult, ext_traits::{ByteSliceExt, BytesExt, ValueExt}, request::{Method, Request, RequestBuilder, RequestContent}
+    crypto,
+    errors::CustomResult,
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
+    request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -17,20 +20,28 @@ use hyperswitch_domain_models::{
         CompleteAuthorize, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorValidation,
-    }, configs::Connectors, disputes::DisputePayload, errors, events::connector_api_logs::ConnectorEvent, types::{
-        self, Response,
-    }, webhooks::{IncomingWebhook, IncomingWebhookRequestDetails}
+    },
+    configs::Connectors,
+    disputes::DisputePayload,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
 use router_env::logger;
@@ -135,12 +146,8 @@ impl api::Payment for Airwallex {}
 impl api::PaymentsPreProcessing for Airwallex {}
 impl api::PaymentsCompleteAuthorize for Airwallex {}
 impl api::MandateSetup for Airwallex {}
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for Airwallex
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Airwallex
 {
     fn build_request(
         &self,
@@ -156,21 +163,15 @@ impl
 
 impl api::PaymentToken for Airwallex {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Airwallex
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Airwallex
 {
     // Not Implemented (R)
 }
 
 impl api::ConnectorAccessToken for Airwallex {}
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Airwallex
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Airwallex {
     fn get_url(
         &self,
         _req: &RefreshTokenRouterData,
@@ -250,12 +251,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     }
 }
 
-impl
-    ConnectorIntegration<
-        PreProcessing,
-        PaymentsPreProcessingData,
-        PaymentsResponseData,
-    > for Airwallex
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Airwallex
 {
     fn get_headers(
         &self,
@@ -346,9 +343,7 @@ impl
 impl api::PaymentAuthorize for Airwallex {}
 
 #[async_trait::async_trait]
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Airwallex {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -444,9 +439,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 }
 
 impl api::PaymentSync for Airwallex {}
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Airwallex {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -524,12 +517,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     }
 }
 
-impl
-    ConnectorIntegration<
-        CompleteAuthorize,
-        CompleteAuthorizeData,
-        PaymentsResponseData,
-    > for Airwallex
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Airwallex
 {
     fn get_headers(
         &self,
@@ -616,9 +605,7 @@ impl
 }
 
 impl api::PaymentCapture for Airwallex {}
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Airwallex {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -706,17 +693,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
 
 impl api::PaymentSession for Airwallex {}
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Airwallex {
     //TODO: implement sessions flow
 }
 
 impl api::PaymentVoid for Airwallex {}
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Airwallex {
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
@@ -802,9 +785,7 @@ impl api::Refund for Airwallex {}
 impl api::RefundExecute for Airwallex {}
 impl api::RefundSync for Airwallex {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Airwallex {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -893,9 +874,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
-    for Airwallex
-{
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Airwallex {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
