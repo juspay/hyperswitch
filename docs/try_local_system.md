@@ -176,39 +176,9 @@ A Nix development environment simplifies the setup of required project dependenc
 
 ### Install nix
 
-Nix can be installed in numerous ways. If you're new to Nix, use the recommended approach. However, you're free to choose the way you'd like to have nix installed on your device. The aim is to have nix installed with `flakes` support.
+We recommend that you install Nix using [the DetSys nix-installer](https://nixos.asia/en/install), which automatically enables flakes.
 
-#### 1. Using nixos-unified-template [recommended]
-
-*nixos-unified-template* provides an unified Nix configuration template for managing user applications and using `flakes`.
-
-- Head to [nixos-unified-template](https://github.com/juspay/nixos-unified-template?tab=readme-ov-file#on-non-nixos) and follow the instructions.
-
-#### 2. Using nix-installer [minimal]
-
-*nix-installer* provides a quick and reliable way of installing Nix with `flakes`.
-
-- Head to [nix-installer](https://github.com/DeterminateSystems/nix-installer) and follow the instructions.
-
-#### 3. Using a standard nix installation or using NixOS
-
-Nix's standard installation does not include `flakes` by default as it's an experimental feature. You will need to enable it manually.
-
-- Install Nix via multi-user setup
-
-   ```shell
-   sh <(curl -L https://nixos.org/nix/install)
-   ```
-
-- Add below line to your `~/.config/nix/nix.conf` or `/etc/nix/nix.conf`
-
-   ```
-   experimental-features = nix-command flakes
-   ```
-
-- References
-   - Install Nix - https://nixos.org/download/
-   - Enable flakes - https://nixos.wiki/wiki/Flakes#Other_Distros.2C_without_Home-Manager
+As an **optional** next step, if you are interested in using Nix to manage your dotfiles and local packages, you can setup [nixos-unified-template](https://github.com/juspay/nixos-unified-template#on-non-nixos).
 
 ### Using external services through Nix
 
