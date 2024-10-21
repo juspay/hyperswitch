@@ -17814,6 +17814,7 @@
           "nexinets",
           "nexixpay",
           "nmi",
+          "nomupay",
           "noon",
           "novalnet",
           "nuvei",
@@ -17962,7 +17963,7 @@
           "profile_id"
         ],
         "properties": {
-          "name": {
+          "name": { 
             "type": "string"
           },
           "description": {
