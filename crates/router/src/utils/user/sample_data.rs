@@ -404,13 +404,7 @@ pub async fn generate_sample_data(
             None
         };
 
-        let is_refunded = if let Some(refund) = &refund {
-            refund.refund_status == common_enums::RefundStatus::Success
-        } else {
-            false
-        };
-
-        let dispute = if disputes_count < number_of_disputes && !is_failed_payment && !is_refunded {
+        let dispute = if disputes_count < number_of_disputes && !is_failed_payment {
             disputes_count += 1;
             Some(DisputeNew {
                 dispute_id: common_utils::generate_id_with_default_len("test"),
