@@ -352,6 +352,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         })
                     }
                     WalletDataPaymentMethod::PaypalSdk(_)
+                    | WalletDataPaymentMethod::Paze(_)
                     | WalletDataPaymentMethod::SamsungPay(_)
                     | WalletDataPaymentMethod::TwintRedirect {}
                     | WalletDataPaymentMethod::VippsRedirect {}
@@ -573,7 +574,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                 let transaction_status = item
                     .response
                     .transaction
-                    .clone()
+                    .as_ref()
                     .and_then(|transaction_data| transaction_data.status)
                     .unwrap_or(if redirection_data.is_some() {
                         NovalnetTransactionStatus::Progress
@@ -868,7 +869,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                     .response
                     .transaction
                     .clone()
-                    .and_then(|data| data.tid.map(|tid| tid.expose().to_string()))
+                    .and_then(|data| data.refund.tid.map(|tid| tid.expose().to_string()))
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 let transaction_status = item

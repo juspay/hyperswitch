@@ -1195,7 +1195,7 @@ pub fn create_authorize_url(
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &id_type::MerchantId,
-    connector_name: &String,
+    connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",

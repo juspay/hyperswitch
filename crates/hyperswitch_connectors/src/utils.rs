@@ -917,41 +917,12 @@ pub trait AccessTokenRequestInfo {
     fn get_request_id(&self) -> Result<Secret<String>, Error>;
 }
 
-impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
-    fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
-        match self {
-            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
-            Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
-            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
-            _ => Err(errors::ConnectorError::InvalidWallet.into()),
-        }
-    }
-    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
-            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
-    }
-}
-
-pub trait ApplePay {
-    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
-}
-
-impl ApplePay for ApplePayWalletData {
-    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
-        let token = Secret::new(
-            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
-                errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Apple Pay".to_string(),
-                },
-            )?)
-            .change_context(errors::ConnectorError::InvalidWalletToken {
-                wallet_name: "Apple Pay".to_string(),
-            })?,
-        );
-        Ok(token)
+impl AccessTokenRequestInfo for RefreshTokenRouterData {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
+        self.request
+            .id
+            .clone()
+            .ok_or_else(missing_field_err("request.id"))
     }
 }
 
@@ -1844,6 +1815,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -1923,6 +1895,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    NetworkTransactionIdAndCardDetails,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -1930,6 +1903,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
             PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                    hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -1961,6 +1935,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                  hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
                  hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                  hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
