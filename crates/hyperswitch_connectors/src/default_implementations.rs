@@ -347,7 +347,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
-    connectors::Elavon,
+    // connectors::Elavon,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
