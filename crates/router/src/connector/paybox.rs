@@ -60,6 +60,13 @@ impl api::PaymentsCompleteAuthorize for Paybox {}
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Paybox
 {
+    fn build_request(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("Cancel/Void flow".to_string()).into())
+    }
 }
 
 impl
