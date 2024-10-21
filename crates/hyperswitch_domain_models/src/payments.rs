@@ -187,6 +187,41 @@ impl AmountDetails {
             + self.surcharge_amount.unwrap_or(MinorUnit::zero())
             + self.tax_on_surcharge.unwrap_or(MinorUnit::zero())
     }
+
+    pub fn create_attempt_amount_details(
+        &self,
+        confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = self.calculate_net_amount();
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            TaxCalculationOverride::Skip => self.tax_details.as_ref().and_then(|tax_details| {
+                tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+            }),
+            TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

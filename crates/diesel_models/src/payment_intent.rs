@@ -192,6 +192,26 @@ pub struct TaxDetails {
     pub payment_method_type: Option<PaymentMethodTypeTax>,
 }
 
+impl TaxDetails {
+    /// Get the tax amount
+    /// If default tax is present, return the default tax amount
+    /// If default tax is not present, return the tax amount based on the payment method if it matches the provided payment method type
+    pub fn get_tax_amount(&self, payment_method: PaymentMethodType) -> Option<MinorUnit> {
+        self.payment_method_type
+            .as_ref()
+            .filter(|payment_method_type_tax| payment_method_type_tax.pmt == payment_method)
+            .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            .or_else(|| self.get_default_tax_amount())
+    }
+
+    /// Get the default tax amount
+    fn get_default_tax_amount(&self) -> Option<MinorUnit> {
+        self.default
+            .as_ref()
+            .map(|default_tax_details| default_tax_details.order_tax_amount)
+    }
+}
+
 common_utils::impl_to_sql_from_sql_json!(TaxDetails);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

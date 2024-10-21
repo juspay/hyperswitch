@@ -341,9 +341,9 @@ impl PaymentAttempt {
         self.connector_payment_id.as_deref()
     }
 
-    /// Construct the domain model from the ConfirmIntentRequest
+    /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
     #[cfg(feature = "v2")]
-    pub async fn create_domain_model_from_request(
+    pub async fn create_domain_model(
         state: &KeyManagerState,
         payment_intent: &super::PaymentIntent,
         cell_id: id_type::CellId,
@@ -353,16 +353,7 @@ impl PaymentAttempt {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
 
-        // TODO: move this to a impl function on payment attempt
-        let attempt_amount_details = AttemptAmountDetails {
-            net_amount: intent_amount_details.order_amount,
-            amount_to_capture: None,
-            surcharge_amount: None,
-            tax_on_surcharge: None,
-            amount_capturable: MinorUnit::new(0),
-            shipping_cost: None,
-            order_tax_amount: None,
-        };
+        let attempt_amount_details = intent_amount_details.create_attempt_amount_details(request);
 
         let now = common_utils::date_time::now();
 

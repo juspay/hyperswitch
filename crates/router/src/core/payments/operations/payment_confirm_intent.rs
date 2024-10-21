@@ -145,7 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_attempt_domain_model =
-            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model_from_request(
+            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
                 &state.into(),
                 &payment_intent,
                 cell_id,

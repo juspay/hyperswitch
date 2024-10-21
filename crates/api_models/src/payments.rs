@@ -448,18 +448,6 @@ pub struct AmountDetailsSetter {
 }
 
 #[cfg(feature = "v2")]
-pub struct AmountDetailsResponseSetter {
-    pub order_amount: Amount,
-    pub currency: common_enums::Currency,
-    pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
-    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
-    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
-    pub surcharge_amount: Option<MinorUnit>,
-    pub tax_on_surcharge: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct AmountDetailsResponse {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
@@ -4486,11 +4474,10 @@ pub struct PaymentsConfirmIntentRequest {
     pub return_url: Option<common_utils::types::Url>,
 
     /// The payment instrument data to be used for the payment
-    #[schema(example = "bank_transfer")]
     pub payment_method_data: PaymentMethodDataRequest,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
