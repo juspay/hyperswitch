@@ -815,7 +815,7 @@ pub async fn decide_payout_connector(
             .attach_printable("failed eligibility analysis")?;
 
             connectors = routing::perform_fallback_routing(
-                &state,
+                state,
                 key_store,
                 &TransactionData::Payout(payout_data),
                 connectors,
