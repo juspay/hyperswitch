@@ -4714,7 +4714,7 @@ pub async fn route_connector_v1_for_payouts(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let connectors = routing::perform_eligibility_analysis (
+    let connectors = routing::perform_eligibility_analysis(
         &state.clone(),
         key_store,
         connectors,

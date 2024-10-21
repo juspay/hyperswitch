@@ -771,7 +771,6 @@ pub async fn perform_fallback_routing(
     )
     .await;
 
-
     eligibility_verified_connectors.append(
         &mut filtered_fallback_list
             .unwrap_or_default()
