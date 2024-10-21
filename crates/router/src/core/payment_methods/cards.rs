@@ -3031,6 +3031,15 @@ pub async fn list_payment_methods(
                             .connector
                             .connector_name
                             .to_string()
+                        && first_routable_connector
+                            .connector
+                            .merchant_connector_id
+                            .as_ref()
+                            .map(|merchant_connector_id| {
+                                *merchant_connector_id.get_string_repr()
+                                    == intermediate.merchant_connector_id
+                            })
+                            .unwrap_or_default()
                 } else {
                     false
                 }
@@ -4068,6 +4077,7 @@ pub async fn filter_payment_methods(
                         let response_pm_type = ResponsePaymentMethodIntermediate::new(
                             payment_method_object,
                             connector.clone(),
+                            mca_id.get_string_repr().to_string(),
                             payment_method,
                         );
                         resp.push(response_pm_type);
