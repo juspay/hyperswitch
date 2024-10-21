@@ -112,18 +112,6 @@ pub fn check_permission(
         )
 }
 
-pub fn check_entity(
-    required_minimum_entity: common_enums::EntityType,
-    role_info: &roles::RoleInfo,
-) -> RouterResult<()> {
-    if required_minimum_entity > role_info.get_entity_type() {
-        Err(ApiErrorResponse::AccessForbidden {
-            resource: required_minimum_entity.to_string(),
-        })?;
-    }
-    Ok(())
-}
-
 fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
     state
         .store()

@@ -1,22 +1,8 @@
-use common_enums::PermissionGroup;
+use common_enums::{ParentGroup, PermissionGroup};
 use common_utils::pii;
 use masking::Secret;
 
 pub mod role;
-
-#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
-pub enum ParentGroup {
-    Operations,
-    Connectors,
-    Workflows,
-    Analytics,
-    Users,
-    #[serde(rename = "MerchantAccess")]
-    Merchant,
-    #[serde(rename = "OrganizationAccess")]
-    Organization,
-    Recon,
-}
 
 #[derive(Debug, serde::Serialize)]
 pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);

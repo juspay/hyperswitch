@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::blocklist as api_blocklist;
-use common_enums::EntityType;
 use router_env::Flow;
 
 use crate::{
@@ -39,7 +38,6 @@ pub async fn add_entry_to_blocklist(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -78,7 +76,6 @@ pub async fn remove_entry_from_blocklist(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -119,7 +116,6 @@ pub async fn list_blocked_payment_methods(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -160,7 +156,6 @@ pub async fn toggle_blocklist_guard(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
