@@ -1,5 +1,5 @@
 use cards::CardNumber;
-use common_utils::{ext_traits::ValueExt, pii};
+use common_utils::{ext_traits::ValueExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::digest;
@@ -19,20 +19,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct ZenRouterData<T> {
-    pub amount: String,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ZenRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for ZenRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
 
@@ -59,7 +55,7 @@ impl TryFrom<&types::ConnectorAuthType> for ZenAuthType {
 pub struct ApiRequest {
     merchant_transaction_id: String,
     payment_channel: ZenPaymentChannels,
-    amount: String,
+    amount: MinorUnit,
     currency: enums::Currency,
     payment_specific_data: ZenPaymentSpecificData,
     customer: ZenCustomerDetails,
@@ -77,7 +73,7 @@ pub enum ZenPaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutRequest {
-    amount: String,
+    amount: MinorUnit,
     currency: enums::Currency,
     custom_ipn_url: String,
     items: Vec<ZenItemObject>,
@@ -1007,7 +1003,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::Paym
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenRefundRequest {
-    amount: String,
+    amount: MinorUnit,
     transaction_id: String,
     currency: enums::Currency,
     merchant_transaction_id: String,
@@ -1123,7 +1119,7 @@ pub struct ZenWebhookBody {
     #[serde(rename = "transactionId")]
     pub id: String,
     pub merchant_transaction_id: String,
-    pub amount: String,
+    pub amount: MinorUnit,
     pub currency: String,
     pub status: ZenPaymentStatus,
 }
