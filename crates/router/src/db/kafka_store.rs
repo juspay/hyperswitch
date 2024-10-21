@@ -3525,11 +3525,12 @@ impl RoleInterface for KafkaStore {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
-            .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
+            .list_roles_for_org_by_parameters(org_id, merchant_id, profile_id, entity_type, limit)
             .await
     }
 }
