@@ -137,12 +137,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
         let key_manager_state = &state.into();
 
         let storage_scheme = merchant_account.storage_scheme;
-        let cell_id = state.conf.cell_information.id.clone();
 
         let payment_intent = db
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let cell_id = state.conf.cell_information.id.clone();
 
         let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
@@ -199,7 +200,23 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        Ok((Box::new(self), None))
+        match payment_data.payment_intent.customer_id.clone() {
+            Some(id) => {
+                let customer = state
+                    .store
+                    .find_customer_by_global_id(
+                        &state.into(),
+                        id.get_string_repr(),
+                        &payment_data.payment_intent.merchant_id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await?;
+
+                Ok((Box::new(self), Some(customer)))
+            }
+            None => Ok((Box::new(self), None)),
+        }
     }
 
     #[instrument(skip_all)]
@@ -262,6 +279,7 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             .connector
             .clone()
             .get_required_value("connector")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
         let merchant_connector_id = payment_data
@@ -269,6 +287,7 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             .merchant_connector_id
             .clone()
             .get_required_value("merchant_connector_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant connector id is none when constructing response")?;
 
         let payment_intent_update =

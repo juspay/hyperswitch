@@ -245,11 +245,12 @@ pub struct PaymentAttempt {
     /// Metadata that is returned by the connector.
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    /// The insensitive data of the payment method stored
+    /// The insensitive data of the payment method data is stored here
     // TODO: evaluate what details should be stored here. Use a domain type instead of serde_json::Value
     pub payment_method_data: Option<pii::SecretSerdeValue>,
     /// The result of the routing algorithm.
     /// This will store the list of connectors and other related information that was used to route the payment.
+    // TODO: change this to type instead of serde_json::Value
     pub routing_result: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     /// Number of captures that have happened for the payment attempt
@@ -273,6 +274,7 @@ pub struct PaymentAttempt {
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
+    // TODO: use a type here instead of value
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     /// The profile id for the payment attempt. This will be derived from payment intent.
     pub profile_id: id_type::ProfileId,
@@ -291,6 +293,7 @@ pub struct PaymentAttempt {
     /// A reference to the payment at connector side. This is returned by the connector
     pub external_reference_id: Option<String>,
     /// The billing address for the payment method
+    // TODO: use a type here instead of value
     pub payment_method_billing_address: common_utils::crypto::OptionalEncryptableValue,
     /// The global identifier for the payment attempt
     pub id: id_type::GlobalAttemptId,
@@ -399,6 +402,7 @@ impl PaymentAttempt {
             payment_method_subtype: request.payment_method_subtype,
             authentication_applied: None,
             external_reference_id: None,
+            // TODO: encrypt and store this
             payment_method_billing_address: None,
             error: None,
             connector_mandate_detail: None,
