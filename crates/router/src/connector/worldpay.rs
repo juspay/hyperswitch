@@ -16,6 +16,7 @@ use self::{requests::*, response::*};
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -248,7 +249,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 router_env::logger::info!(connector_response=?response);
                 let optional_correlation_id = res.headers.and_then(|headers| {
                     headers
-                        .get("WP-CorrelationId")
+                        .get(consts::WP_CORRELATION_ID)
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });
@@ -362,7 +363,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
         let optional_correlation_id = res.headers.and_then(|headers| {
             headers
-                .get("WP-CorrelationId")
+                .get(consts::WP_CORRELATION_ID)
                 .and_then(|header_value| header_value.to_str().ok())
                 .map(|id| id.to_string())
         });
@@ -476,7 +477,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 router_env::logger::info!(connector_response=?response);
                 let optional_correlation_id = res.headers.and_then(|headers| {
                     headers
-                        .get("WP-CorrelationId")
+                        .get(consts::WP_CORRELATION_ID)
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });
@@ -598,7 +599,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_env::logger::info!(connector_response=?response);
         let optional_correlation_id = res.headers.and_then(|headers| {
             headers
-                .get("WP-CorrelationId")
+                .get(consts::WP_CORRELATION_ID)
                 .and_then(|header_value| header_value.to_str().ok())
                 .map(|id| id.to_string())
         });
@@ -704,7 +705,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 router_env::logger::info!(connector_response=?response);
                 let optional_correlation_id = res.headers.and_then(|headers| {
                     headers
-                        .get("WP-CorrelationId")
+                        .get(consts::WP_CORRELATION_ID)
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });
