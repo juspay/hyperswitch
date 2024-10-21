@@ -6,7 +6,6 @@ pub mod helpers;
 
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
-use common_enums::EntityType;
 use error_stack::report;
 use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
@@ -93,8 +92,7 @@ pub async fn payments_create(
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth {
-                    permission: Permission::PaymentWrite,
-                    minimum_entity_level: EntityType::Profile,
+                    permission: Permission::ProfilePaymentWrite,
                 },
                 req.headers(),
             ),
@@ -286,8 +284,7 @@ pub async fn payments_retrieve(
         auth::auth_type(
             &*auth_type,
             &auth::JWTAuth {
-                permission: Permission::PaymentRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfilePaymentRead,
             },
             req.headers(),
         ),
@@ -996,8 +993,7 @@ pub async fn payments_list(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::PaymentRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantPaymentRead,
             },
             req.headers(),
         ),
@@ -1032,8 +1028,7 @@ pub async fn profile_payments_list(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::PaymentRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfilePaymentRead,
             },
             req.headers(),
         ),
@@ -1066,8 +1061,7 @@ pub async fn payments_list_by_filter(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantPaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1098,8 +1092,7 @@ pub async fn profile_payments_list_by_filter(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfilePaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1124,8 +1117,7 @@ pub async fn get_filters_for_payments(
             payments::get_filters_for_payments(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantPaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1148,8 +1140,7 @@ pub async fn get_payment_filters(
             payments::get_payment_filters(state, auth.merchant_account, None)
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantPaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1176,8 +1167,7 @@ pub async fn get_payment_filters_profile(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfilePaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1202,8 +1192,7 @@ pub async fn get_payments_aggregates(
             payments::get_aggregates_for_payments(state, auth.merchant_account, None, req)
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantPaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1263,8 +1252,7 @@ pub async fn payments_approve(
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth {
-                    permission: Permission::PaymentWrite,
-                    minimum_entity_level: EntityType::Profile,
+                    permission: Permission::ProfilePaymentWrite,
                 },
                 http_req.headers(),
             ),
@@ -1328,8 +1316,7 @@ pub async fn payments_reject(
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth {
-                    permission: Permission::PaymentWrite,
-                    minimum_entity_level: EntityType::Profile,
+                    permission: Permission::ProfilePaymentWrite,
                 },
                 http_req.headers(),
             ),
@@ -1971,8 +1958,7 @@ pub async fn get_payments_aggregates_profile(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::PaymentRead,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfilePaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))

@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, Responder};
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -44,8 +43,7 @@ pub async fn list_initial_webhook_delivery_attempts(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::WebhookEventRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantWebhookEventRead,
             },
             req.headers(),
         ),
@@ -84,8 +82,7 @@ pub async fn list_webhook_delivery_attempts(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::WebhookEventRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantWebhookEventRead,
             },
             req.headers(),
         ),
@@ -124,8 +121,7 @@ pub async fn retry_webhook_delivery_attempt(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::WebhookEventWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantWebhookEventWrite,
             },
             req.headers(),
         ),

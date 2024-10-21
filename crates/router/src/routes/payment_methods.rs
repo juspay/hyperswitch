@@ -4,7 +4,6 @@
 ))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_enums::EntityType;
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
@@ -881,15 +880,13 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
-            permission: Permission::MerchantConnectorAccountWrite,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfileConnectorWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))

@@ -1,5 +1,6 @@
 pub(crate) mod api_error;
 pub(crate) mod diesel;
+pub(crate) mod generate_permissions;
 pub(crate) mod generate_schema;
 pub(crate) mod misc;
 pub(crate) mod operation;
@@ -14,6 +15,7 @@ use syn::DeriveInput;
 pub(crate) use self::{
     api_error::api_error_derive_inner,
     diesel::{diesel_enum_derive_inner, diesel_enum_text_derive_inner},
+    generate_permissions::generate_permissions_inner,
     generate_schema::polymorphic_macro_derive_inner,
 };
 

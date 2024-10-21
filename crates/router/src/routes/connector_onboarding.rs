@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::connector_onboarding as api_types;
-use common_enums::EntityType;
 use router_env::Flow;
 
 use super::AppState;
@@ -24,7 +23,6 @@ pub async fn get_action_url(
         core::get_action_url,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -46,7 +44,6 @@ pub async fn sync_onboarding_status(
         core::sync_onboarding_status,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -68,7 +65,6 @@ pub async fn reset_tracking_id(
         core::reset_tracking_id,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
     ))
