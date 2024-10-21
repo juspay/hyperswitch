@@ -1465,7 +1465,19 @@ pub async fn list_customer_payment_method(
 ) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
-    // let key = key_store.key.get_inner().peek();
+
+    let profile_id = payment_intent
+        .as_ref()
+        .map(|payment_intent| &payment_intent.profile_id);
+
+    let profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        profile_id,
+        merchant_account.get_id(),
+    )
+    .await?;
 
     let customer = db
         .find_customer_by_merchant_reference_id_merchant_id(
@@ -1483,6 +1495,7 @@ pub async fn list_customer_payment_method(
             pm_types::SavedPMLPaymentsInfo::form_payments_info(
                 pi,
                 merchant_account,
+                profile,
                 db,
                 key_manager_state,
                 &key_store,
@@ -1902,21 +1915,11 @@ impl pm_types::SavedPMLPaymentsInfo {
     pub async fn form_payments_info(
         payment_intent: PaymentIntent,
         merchant_account: &domain::MerchantAccount,
+        profile: Option<domain::Profile>,
         db: &dyn StorageInterface,
         key_manager_state: &util_types::keymanager::KeyManagerState,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
-        let profile_id = &payment_intent.profile_id;
-
-        let profile = core_utils::validate_and_get_business_profile(
-            db,
-            key_manager_state,
-            key_store,
-            Some(profile_id),
-            merchant_account.get_id(),
-        )
-        .await?;
-
         let collect_cvv_during_payment = profile
             .as_ref()
             .map(|profile| profile.should_collect_cvv_during_payment)
