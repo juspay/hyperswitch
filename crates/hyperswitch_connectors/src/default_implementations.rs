@@ -101,10 +101,14 @@ default_imp_for_authorize_session_token!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -112,7 +116,8 @@ default_imp_for_authorize_session_token!(
     connectors::Volt,
     connectors::Thunes,
     connectors::Tsys,
-    connectors::Worldline
+    connectors::Worldline,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_calculate_tax {
@@ -140,15 +145,20 @@ default_imp_for_calculate_tax!(
     connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Forte,
     connectors::Helcim,
     connectors::Stax,
     connectors::Square,
     connectors::Novalnet,
     connectors::Mollie,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
+    connectors::Zen,
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
@@ -181,16 +191,21 @@ default_imp_for_session_update!(
     connectors::Dlocal,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Forte,
     connectors::Helcim,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
     connectors::Mollie,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
+    connectors::Zen,
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
@@ -224,12 +239,16 @@ default_imp_for_post_session_tokens!(
     connectors::Square,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Forte,
     connectors::Helcim,
     connectors::Stax,
     connectors::Taxjar,
     connectors::Mollie,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
@@ -237,7 +256,8 @@ default_imp_for_post_session_tokens!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Deutschebank,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 use crate::connectors;
@@ -267,16 +287,21 @@ default_imp_for_complete_authorize!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -307,10 +332,14 @@ default_imp_for_incremental_authorization!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -319,7 +348,8 @@ default_imp_for_incremental_authorization!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -350,18 +380,23 @@ default_imp_for_create_customer!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Mollie,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -393,9 +428,13 @@ default_imp_for_connector_redirect_response!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Stax,
     connectors::Square,
@@ -434,9 +473,13 @@ default_imp_for_pre_processing_steps!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -445,7 +488,8 @@ default_imp_for_pre_processing_steps!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_post_processing_steps{
@@ -476,10 +520,14 @@ default_imp_for_post_processing_steps!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -488,7 +536,8 @@ default_imp_for_post_processing_steps!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_approve {
@@ -519,10 +568,14 @@ default_imp_for_approve!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -531,7 +584,8 @@ default_imp_for_approve!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_reject {
@@ -562,10 +616,14 @@ default_imp_for_reject!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -574,7 +632,8 @@ default_imp_for_reject!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_webhook_source_verification {
@@ -605,10 +664,14 @@ default_imp_for_webhook_source_verification!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -617,7 +680,8 @@ default_imp_for_webhook_source_verification!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -649,10 +713,14 @@ default_imp_for_accept_dispute!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -661,7 +729,8 @@ default_imp_for_accept_dispute!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -692,10 +761,14 @@ default_imp_for_submit_evidence!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -704,7 +777,8 @@ default_imp_for_submit_evidence!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -735,10 +809,14 @@ default_imp_for_defend_dispute!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -747,7 +825,8 @@ default_imp_for_defend_dispute!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -787,10 +866,14 @@ default_imp_for_file_upload!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -799,7 +882,8 @@ default_imp_for_file_upload!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -832,10 +916,14 @@ default_imp_for_payouts_create!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -844,7 +932,8 @@ default_imp_for_payouts_create!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -877,10 +966,14 @@ default_imp_for_payouts_retrieve!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -889,7 +982,8 @@ default_imp_for_payouts_retrieve!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -922,10 +1016,14 @@ default_imp_for_payouts_eligibility!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -934,7 +1032,8 @@ default_imp_for_payouts_eligibility!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -967,10 +1066,14 @@ default_imp_for_payouts_fulfill!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -979,7 +1082,8 @@ default_imp_for_payouts_fulfill!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -1012,10 +1116,14 @@ default_imp_for_payouts_cancel!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1024,7 +1132,8 @@ default_imp_for_payouts_cancel!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -1057,10 +1166,14 @@ default_imp_for_payouts_quote!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1069,7 +1182,8 @@ default_imp_for_payouts_quote!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -1102,10 +1216,14 @@ default_imp_for_payouts_recipient!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1114,7 +1232,8 @@ default_imp_for_payouts_recipient!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -1147,10 +1266,14 @@ default_imp_for_payouts_recipient_account!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1159,7 +1282,8 @@ default_imp_for_payouts_recipient_account!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1192,10 +1316,14 @@ default_imp_for_frm_sale!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1204,7 +1332,8 @@ default_imp_for_frm_sale!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1237,10 +1366,14 @@ default_imp_for_frm_checkout!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1249,7 +1382,8 @@ default_imp_for_frm_checkout!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1282,10 +1416,14 @@ default_imp_for_frm_transaction!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1294,7 +1432,8 @@ default_imp_for_frm_transaction!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1327,10 +1466,14 @@ default_imp_for_frm_fulfillment!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1339,7 +1482,8 @@ default_imp_for_frm_fulfillment!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1372,10 +1516,14 @@ default_imp_for_frm_record_return!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1384,7 +1532,8 @@ default_imp_for_frm_record_return!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -1414,10 +1563,14 @@ default_imp_for_revoking_mandates!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Stax,
@@ -1426,5 +1579,6 @@ default_imp_for_revoking_mandates!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
