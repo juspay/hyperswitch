@@ -99,7 +99,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::DashboardMetadata::find_user_scoped_dashboard_metadata(
             &conn,
             user_id.to_owned(),
@@ -118,7 +118,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::DashboardMetadata::find_merchant_scoped_dashboard_metadata(
             &conn,
             merchant_id.to_owned(),

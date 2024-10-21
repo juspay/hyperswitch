@@ -39,7 +39,7 @@ pub async fn convert_forex(
         state.clone(),
         &req,
         (),
-        |state, _, _, _| {
+        |state, _: auth::AuthenticationData, _, _| {
             currency::convert_forex(
                 state,
                 amount.get_amount_as_i64(),
