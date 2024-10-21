@@ -2180,7 +2180,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         .attach_printable("Unable to update payment intent")?;
                     payment_data.payment_intent = updated_payment_intent;
 
-                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id: connector_payment_id, updated_by: storage_scheme.to_string() };
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string() };
                     let updated_payment_attempt = db
                         .update_payment_attempt(
                             key_manager_state,

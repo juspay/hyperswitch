@@ -863,17 +863,17 @@ where
         let error = payment_attempt
             .error
             .clone()
-            .map(|error| api_models::payments::ErrorDetails::foreign_from(error));
+            .map(api_models::payments::ErrorDetails::foreign_from);
 
         let response = Self {
             id: payment_intent.id.clone(),
-            status: payment_intent.status.clone(),
+            status: payment_intent.status,
             amount,
             connector,
             client_secret: payment_intent.client_secret.clone(),
-            created: payment_intent.created_at.clone(),
+            created: payment_intent.created_at,
             payment_method_data: None,
-            payment_method_type: Some(payment_attempt.payment_method_type.clone()),
+            payment_method_type: Some(payment_attempt.payment_method_type),
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             reference_id: None,
             merchant_connector_id,
@@ -3102,7 +3102,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
 {
     fn foreign_from(amount_details: hyperswitch_domain_models::payments::AmountDetails) -> Self {
         Self {
-            order_amount: amount_details.order_amount.into(),
+            order_amount: amount_details.order_amount,
             currency: amount_details.currency,
             shipping_cost: amount_details.shipping_cost,
             order_tax_amount: amount_details.tax_details.and_then(|tax_details| {

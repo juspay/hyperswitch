@@ -1,4 +1,4 @@
-use api_models::payments::{HeaderPayload, PaymentsConfirmIntentRequest};
+use api_models::payments::PaymentsConfirmIntentRequest;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
@@ -7,15 +7,13 @@ use api_models::{
 };
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    merchant_account::MerchantAccount,
-    merchant_key_store::MerchantKeyStore,
-    payments::{payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent},
+use hyperswitch_domain_models::payments::{
+    payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent,
 };
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
 
-use super::{Domain, GetTracker, GetTrackerResponse, Operation, UpdateTracker, ValidateRequest};
+use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         authentication,
@@ -128,12 +126,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
-        merchant_account: &MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         profile: &domain::Profile,
-        key_store: &MerchantKeyStore,
-        header_payload: &HeaderPayload,
-    ) -> RouterResult<GetTrackerResponse<'a, F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>>
-    {
+        key_store: &domain::MerchantKeyStore,
+        header_payload: &api::HeaderPayload,
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -196,7 +195,7 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        merchant_key_store: &MerchantKeyStore,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
@@ -209,7 +208,7 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         state: &'a SessionState,
         payment_data: &mut PaymentConfirmData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        key_store: &MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
     ) -> RouterResult<(
@@ -281,8 +280,8 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
-            connector: connector,
-            merchant_connector_id: merchant_connector_id,
+            connector,
+            merchant_connector_id,
         };
 
         // let connector_request_reference_id = payment_data.payment_attempt.id.get_string_repr();

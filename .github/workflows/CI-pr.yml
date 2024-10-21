@@ -325,7 +325,7 @@ jobs:
 
       - name: Run cargo clippy with v2 features enabled
         shell: bash
-        run: just clippy_v2 -- -D warnings -Aunused -Aclippy::todo -Aclippy::diverging_sub_expression
+        run: just clippy_v2
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash

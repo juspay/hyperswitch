@@ -2031,11 +2031,6 @@ pub async fn payment_confirm_intent(
 ) -> impl Responder {
     use hyperswitch_domain_models::payments::PaymentConfirmData;
 
-    use crate::{
-        routes::payments::internal_payload_types::PaymentsGenericRequestWithResourceId,
-        services::AuthFlow,
-    };
-
     let flow = Flow::PaymentsConfirmIntent;
 
     // TODO: Populate browser information into the payload
@@ -2072,18 +2067,13 @@ pub async fn payment_confirm_intent(
         state,
         &req,
         internal_payload,
-        |state,
-         auth: auth::AuthenticationDataV2,
-         req: PaymentsGenericRequestWithResourceId<
-            api_models::payments::PaymentsConfirmIntentRequest,
-        >,
-         req_state| async {
+        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
             let operation = payments::operations::PaymentsIntentConfirm;
 
-            payments::payments_core::<
+            Box::pin(payments::payments_core::<
                 api_types::Authorize,
                 api_models::payments::PaymentsConfirmIntentResponse,
                 _,
@@ -2101,7 +2091,7 @@ pub async fn payment_confirm_intent(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
-            )
+            ))
             .await
         },
         &auth::PublishableKeyAuth,
