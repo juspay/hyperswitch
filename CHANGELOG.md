@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.18.0-hotfix1
+
+### Bug Fixes
+
+- **mandates:** Allow connector_mandate_detail updation in case of 'Authorized' Payments ([#6383](https://github.com/juspay/hyperswitch/pull/6383)) ([`eb0461c`](https://github.com/juspay/hyperswitch/commit/eb0461c48ac58627969d1c466e49f96db9e7aced))
+
+- - -
+
 ## 2024.10.18.0
 
 ### Features
