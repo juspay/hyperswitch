@@ -15,6 +15,10 @@ Check the Table Of Contents to jump to the relevant section.
 - [Run hyperswitch using Docker Compose](#run-hyperswitch-using-docker-compose)
   - [Running additional services](#running-additional-services)
 - [Set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose)
+- [Set up a Nix development environment](#set-up-a-nix-development-environment)
+   - [Install Nix](#install-nix)
+   - [Using external services through Nix](#using-external-services-through-nix)
+   - [Logging into a Nix development environment (coming soon)](#logging-into-a-nix-development-environment)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
   - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
@@ -165,6 +169,46 @@ Once the services have been confirmed to be up and running, you can proceed with
 
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
+
+## Set up a Nix development environment
+
+A Nix development environment allows for easily setting up the required dependencies and external services. This is available for MacOS, Linux and WSL2 users.
+
+### Install nix
+
+Nix can be installed in numerous ways. If you're new here, and don't have Nix installed on your device, use the recommended approach. You're free to choose the way you'd like to have nix installed on your device.
+
+#### 1. Using nixos-unified-template [recommended]
+
+*nixos-unified-template* provides an unified Nix configuration template for managing user applications, and using `flakes`.
+
+- Head to [nixos-unified-template](https://github.com/juspay/nixos-unified-template?tab=readme-ov-file#on-non-nixos) and follow the instructions.
+
+#### 2. Using nix-installer [minimal]
+
+*nix-installer* provides a faster and reliable way of installing Nix along with `flakes`.
+
+- Head to [nix-installer](https://github.com/DeterminateSystems/nix-installer) and follow the instructions.
+
+#### 3. Using a standard nix installation or using NixOS
+
+Nix's standard installation does not include `flakes` by default as it's an experimental feature. Nix needs to be configured to use the experimenal feature!
+
+- Install Nix via multi-user installation
+
+   ```
+   sh <(curl -L https://nixos.org/nix/install)
+   ```
+
+- Add below line to your `~/.config/nix/nix.conf` or `/etc/nix/nix.conf`
+
+   ```
+   experimental-features = nix-command flakes
+   ```
+
+- References
+   - Install Nix - https://nixos.org/download/
+   - Enable flakes - https://nixos.wiki/wiki/Flakes#Other_Distros.2C_without_Home-Manager
 
 ## Set up a Rust environment and other dependencies
 
