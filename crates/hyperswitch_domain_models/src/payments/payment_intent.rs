@@ -1271,7 +1271,9 @@ impl behaviour::Conversion for PaymentIntent {
                 skip_surcharge_calculation: super::SurchargeCalculationOverride::from(
                     storage_model.surcharge_applicable,
                 ),
+                amount_captured: storage_model.amount_captured,
             };
+
             let billing_address = data
                 .billing
                 .map(|billing| {

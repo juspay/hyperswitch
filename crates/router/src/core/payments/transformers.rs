@@ -3010,35 +3010,8 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
     }
 }
 
-#[cfg(feature = "v2")]
-impl ForeignFrom<api_models::payments::AmountDetails>
-    for hyperswitch_domain_models::payments::AmountDetails
-{
-    fn foreign_from(amount_details: api_models::payments::AmountDetails) -> Self {
-        Self {
-            order_amount: amount_details.order_amount().into(),
-            currency: amount_details.currency(),
-            shipping_cost: amount_details.shipping_cost(),
-            tax_details: amount_details.order_tax_amount().map(|order_tax_amount| {
-                diesel_models::TaxDetails {
-                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
-                    payment_method_type: None,
-                }
-            }),
-            skip_external_tax_calculation:
-                hyperswitch_domain_models::payments::TaxCalculationOverride::foreign_from(
-                    amount_details.skip_external_tax_calculation(),
-                ),
-            skip_surcharge_calculation:
-                hyperswitch_domain_models::payments::SurchargeCalculationOverride::foreign_from(
-                    amount_details.skip_surcharge_calculation(),
-                ),
-            surcharge_amount: amount_details.surcharge_amount(),
-            tax_on_surcharge: amount_details.tax_on_surcharge(),
-        }
-    }
-}
-
+/// The response amount details in the confirm intent response will have the combined fields from
+/// intent amount details and attempt amount details.
 #[cfg(feature = "v2")]
 impl
     ForeignFrom<(
@@ -3068,6 +3041,7 @@ impl
             net_amount: attempt_amount_details.net_amount,
             amount_to_capture: attempt_amount_details.amount_to_capture,
             amount_capturable: attempt_amount_details.amount_capturable,
+            amount_captured: intent_amount_details.amount_captured,
         }
     }
 }

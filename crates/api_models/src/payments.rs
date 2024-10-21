@@ -515,6 +515,8 @@ pub struct ConfirmIntentAmountDetailsResponse {
     /// The amount that can be captured on the payment. Either in one go or through multiple captures.
     /// This is applicable in case the capture method was either `manual` or `manual_multiple`
     pub amount_capturable: MinorUnit,
+    /// The amount that was captured for this payment. This is the sum of all the captures done on this payment
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]

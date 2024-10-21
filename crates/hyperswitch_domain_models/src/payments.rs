@@ -157,6 +157,9 @@ pub struct AmountDetails {
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     pub tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
+    /// For automatic captures, this will be the same as net amount for the order
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
