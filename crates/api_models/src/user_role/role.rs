@@ -6,6 +6,7 @@ pub struct CreateRoleRequest {
     pub role_name: String,
     pub groups: Vec<PermissionGroup>,
     pub role_scope: RoleScope,
+    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -20,6 +21,7 @@ pub struct RoleInfoWithGroupsResponse {
     pub groups: Vec<PermissionGroup>,
     pub role_name: String,
     pub role_scope: RoleScope,
+    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
