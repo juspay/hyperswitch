@@ -163,7 +163,6 @@ where
     Ok(router_data)
 }
 
-// TODO: evaluate trait bounds
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -225,6 +224,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_id,
         None,
     ));
+
+    let connector_request_reference_id = payment_data
+        .payment_intent
+        .merchant_reference_id
+        .map(|id| id.get_string_repr().to_owned())
+        .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
@@ -303,6 +308,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .as_ref()
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
+        // TODO: evaluate why we need to send merchant's return url here
+        // This should be the return url of application, since application takes care of the redirection
         return_url: payment_data
             .payment_intent
             .return_url
@@ -327,11 +334,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
-        connector_request_reference_id: payment_data
-            .payment_attempt
-            .id
-            .get_string_repr()
-            .to_owned(),
+        connector_request_reference_id,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -852,12 +855,14 @@ where
             .connector
             .clone()
             .get_required_value("connector")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
         let merchant_connector_id = payment_attempt
             .merchant_connector_id
             .clone()
             .get_required_value("merchant_connector_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant connector id is none when constructing response")?;
 
         let error = payment_attempt

@@ -22,7 +22,7 @@ use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{business_profile, merchant_account};
 #[cfg(feature = "v2")]
-use crate::{errors, ApiModelToDieselModelConvertor};
+use crate::{errors, payment_method_data, ApiModelToDieselModelConvertor};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -450,5 +450,5 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
-    pub payment_method_data: Option<crate::payment_method_data::PaymentMethodData>,
+    pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
 }
