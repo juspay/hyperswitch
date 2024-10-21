@@ -13173,6 +13173,7 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
+          "payment_method_type",
           "payment_method_subtype",
           "client_secret"
         ],
@@ -13187,12 +13188,7 @@
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
           },
           "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethod"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
