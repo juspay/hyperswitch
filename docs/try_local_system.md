@@ -172,29 +172,29 @@ Once the services have been confirmed to be up and running, you can proceed with
 
 ## Set up a Nix development environment
 
-A Nix development environment allows for easily setting up the required dependencies and external services. This is available for MacOS, Linux and WSL2 users.
+A Nix development environment simplifies the setup of required project dependencies. This is available for MacOS, Linux and WSL2 users.
 
 ### Install nix
 
-Nix can be installed in numerous ways. If you're new here, and don't have Nix installed on your device, use the recommended approach. You're free to choose the way you'd like to have nix installed on your device.
+Nix can be installed in numerous ways. If you're new to Nix, use the recommended approach. However, you're free to choose the way you'd like to have nix installed on your device. The aim is to have nix installed with `flakes` support.
 
 #### 1. Using nixos-unified-template [recommended]
 
-*nixos-unified-template* provides an unified Nix configuration template for managing user applications, and using `flakes`.
+*nixos-unified-template* provides an unified Nix configuration template for managing user applications and using `flakes`.
 
 - Head to [nixos-unified-template](https://github.com/juspay/nixos-unified-template?tab=readme-ov-file#on-non-nixos) and follow the instructions.
 
 #### 2. Using nix-installer [minimal]
 
-*nix-installer* provides a faster and reliable way of installing Nix along with `flakes`.
+*nix-installer* provides a quick and reliable way of installing Nix with `flakes`.
 
 - Head to [nix-installer](https://github.com/DeterminateSystems/nix-installer) and follow the instructions.
 
 #### 3. Using a standard nix installation or using NixOS
 
-Nix's standard installation does not include `flakes` by default as it's an experimental feature. It needs to be configured to use the experimenal feature.
+Nix's standard installation does not include `flakes` by default as it's an experimental feature. You will need to enable it manually.
 
-- Install Nix via multi-user installation
+- Install Nix via multi-user setup
 
    ```shell
    sh <(curl -L https://nixos.org/nix/install)
@@ -212,7 +212,7 @@ Nix's standard installation does not include `flakes` by default as it's an expe
 
 ### Using external services through Nix
 
-Once you have Nix installed on your system, we can start the external services using flakes. More services will be added soon!
+Once Nix is installed, you can use it to manage external services via `flakes`. More services will be added soon.
 
 - Run below command in hyperswitch directory
 
@@ -220,15 +220,14 @@ Once you have Nix installed on your system, we can start the external services u
    nix run .#ext-services
    ```
 
-This will run below services using `process-compose`
-- Postgres
-   - Create DB used by the application
-   - Create an user to be used by the application
+This will start the following services using `process-compose`
+- PostgreSQL
+   - Creates database and an user to be used by the application
 - Redis
 
 ### Develop in a Nix environment (coming soon)
 
-Nix development environment ensures all the required project dependencies, including both the tools and services are available without having to install any of the dependencies manually.
+Nix development environment ensures all the required project dependencies, including both the tools and services are readily available, eliminating the need for manual setup.
 
 Run below command in hyperswitch directory
 
@@ -236,7 +235,7 @@ Run below command in hyperswitch directory
    nix develop
    ```
 
-This is a work in progress, and not all the commands might be available in this environment.
+**NOTE:** This is a work in progress, and only a selected commands are available at the moment. Look in `flake.nix` (hyperswitch-shell) for a full list of packages.
 
 ## Set up a Rust environment and other dependencies
 
