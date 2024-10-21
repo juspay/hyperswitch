@@ -3,6 +3,7 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 
 use crate::{
+    consts,
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::{FeatureFrm, FrmData},
@@ -145,6 +146,9 @@ impl
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload,
+            connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+            )),
         };
 
         Ok(router_data)

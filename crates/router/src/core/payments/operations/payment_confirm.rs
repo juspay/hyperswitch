@@ -573,6 +573,31 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_info,
         } = mandate_details;
 
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+                .and_then(|pmd| match pmd {
+                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                    _ => None,
+                });
+
+            card_detail_from_locker.map(|card_details| {
+                let additional_data = card_details.into();
+                AdditionalPaymentData::Card(Box::new(additional_data))
+            })
+        } else {
+            None
+        };
+        payment_attempt.payment_method_data = additional_pm_data_from_locker
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
         payment_attempt.payment_method_type = payment_method_type
@@ -686,6 +711,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                     payment_method_id: None,
                                     update_history: None,
                                     mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
                                 },
                             ),
                         ),
@@ -1198,31 +1224,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
 
-        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
-            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
-                .payment_method_data
-                .clone()
-                .map(|x| x.into_inner().expose())
-                .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-                .and_then(|pmd| match pmd {
-                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                    _ => None,
-                });
-
-            card_detail_from_locker.and_then(|card_details| {
-                let additional_data = card_details.into();
-                let additional_data_payment =
-                    AdditionalPaymentData::Card(Box::new(additional_data));
-                additional_data_payment
-                    .encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode additional pm data")
-                    .ok()
-            })
-        } else {
-            None
-        };
-
         let customer_details = payment_data.payment_intent.customer_details.clone();
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
@@ -1278,7 +1279,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = encoded_additional_pm_data
             .clone()
-            .or(encode_additional_pm_to_value);
+            .or(payment_data.payment_attempt.payment_method_data);
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();

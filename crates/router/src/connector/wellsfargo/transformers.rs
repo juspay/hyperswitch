@@ -1789,6 +1789,7 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1975,6 +1976,7 @@ impl
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((
             item.response

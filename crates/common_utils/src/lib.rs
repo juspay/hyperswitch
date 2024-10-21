@@ -270,6 +270,11 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
     uuid::Uuid::now_v7().as_simple().to_string()
 }
 
+/// Generate a nanoid with the specified length
+#[inline]
+pub fn generate_id_with_len(length: usize) -> String {
+    nanoid::nanoid!(length, &consts::ALPHABETS)
+}
 #[allow(missing_docs)]
 pub trait DbConnectionParams {
     fn get_username(&self) -> &str;

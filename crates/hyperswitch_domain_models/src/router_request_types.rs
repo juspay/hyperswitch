@@ -1,6 +1,6 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::{Address, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, Address, RequestSurchargeDetails};
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
@@ -71,6 +71,7 @@ pub struct PaymentsAuthorizeData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone)]

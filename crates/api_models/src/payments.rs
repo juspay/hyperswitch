@@ -1284,6 +1284,7 @@ pub struct ConnectorMandateReferenceId {
     pub payment_method_id: Option<String>,
     pub update_history: Option<Vec<UpdateHistory>>,
     pub mandate_metadata: Option<serde_json::Value>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]

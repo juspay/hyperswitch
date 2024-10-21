@@ -22,6 +22,9 @@ const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
 
+const IRRELEVANT_CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
+    "irrelevant_connector_mandate_request_reference_id_in_AUTHENTICATION_flow";
+
 #[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
     merchant_id: common_utils::id_type::MerchantId,
@@ -184,6 +187,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: Some(
+            IRRELEVANT_CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        ),
     })
 }
 

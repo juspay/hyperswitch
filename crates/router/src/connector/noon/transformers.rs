@@ -577,6 +577,7 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         Ok(Self {
             status,

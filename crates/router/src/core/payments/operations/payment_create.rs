@@ -344,7 +344,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         }
 
         #[cfg(feature = "v1")]
-        let payment_attempt = db
+        let mut payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -404,6 +404,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                     payment_method_id: connector_id.payment_method_id,
                                     update_history: None,
                                     mandate_metadata: None,
+                                    connector_mandate_request_reference_id:None
                                 }
                                 ))
                             }
@@ -443,6 +444,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                         payment_method_id: None,
                                         update_history: None,
                                         mandate_metadata: None,
+                                        connector_mandate_request_reference_id: None,
                                     },
                                 ),
                             ),
@@ -500,6 +502,30 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+                .and_then(|pmd| match pmd {
+                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                    _ => None,
+                });
+
+            card_detail_from_locker.map(|card_details| {
+                let additional_data = card_details.into();
+                api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
+            })
+        } else {
+            None
+        };
+        payment_attempt.payment_method_data = additional_pm_data_from_locker
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
         let amount = payment_attempt.get_total_amount().into();
 
         let address = PaymentAddress::new(

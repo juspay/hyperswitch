@@ -128,6 +128,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     }
 }
 
@@ -197,6 +198,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     }
 }
 

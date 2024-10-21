@@ -2450,6 +2450,7 @@ impl<F, T>
                 connector_mandate_id,
                 payment_method_id,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }
         });
 
@@ -2655,6 +2656,7 @@ impl<F, T>
                     connector_mandate_id,
                     payment_method_id: Some(payment_method_id),
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 }
             });
 
@@ -2746,6 +2748,7 @@ impl<F, T>
                 connector_mandate_id,
                 payment_method_id,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }
         });
         let status = enums::AttemptStatus::from(item.response.status);

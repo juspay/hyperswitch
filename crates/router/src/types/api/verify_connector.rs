@@ -57,6 +57,7 @@ impl VerifyConnectorData {
             charges: None,
             merchant_order_reference_id: None,
             integrity_object: None,
+            additional_payment_method_data: None,
         }
     }
 
@@ -115,6 +116,7 @@ impl VerifyConnectorData {
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload: None,
+            connector_mandate_request_reference_id: None,
         }
     }
 }

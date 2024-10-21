@@ -11,7 +11,7 @@ use super::utils::{
 };
 use crate::{
     configs::settings,
-    connector::utils,
+    connector::{utils, utils::PaymentMethodDataType},
     core::{
         errors::{self, CustomResult},
         payments,
@@ -60,6 +60,13 @@ impl api::PaymentsCompleteAuthorize for Paybox {}
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Paybox
 {
+    fn build_request(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("Cancel/Void flow".to_string()).into())
+    }
 }
 
 impl
@@ -150,6 +157,14 @@ impl ConnectorValidation for Paybox {
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

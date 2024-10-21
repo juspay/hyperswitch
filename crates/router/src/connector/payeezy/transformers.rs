@@ -420,6 +420,7 @@ impl<F, T>
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             });
         let status = enums::AttemptStatus::foreign_from((
             item.response.transaction_status,
