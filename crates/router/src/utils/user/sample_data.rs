@@ -404,40 +404,41 @@ pub async fn generate_sample_data(
             None
         };
 
-        let dispute = if disputes_count < number_of_disputes && !is_failed_payment {
-            disputes_count += 1;
-            Some(DisputeNew {
-                dispute_id: common_utils::generate_id_with_default_len("test"),
-                amount: (amount * 100).to_string(),
-                currency: payment_intent
-                    .currency
-                    .unwrap_or(common_enums::Currency::USD)
-                    .to_string(),
-                dispute_stage: storage_enums::DisputeStage::Dispute,
-                dispute_status: storage_enums::DisputeStatus::DisputeOpened,
-                payment_id: payment_id.clone(),
-                attempt_id: attempt_id.clone(),
-                merchant_id: merchant_id.clone(),
-                connector_status: "Sample connector status".into(),
-                connector_dispute_id: common_utils::generate_id_with_default_len("test"),
-                connector_reason: Some("Sample Dispute".into()),
-                connector_reason_code: Some("123".into()),
-                challenge_required_by: None,
-                connector_created_at: None,
-                connector_updated_at: None,
-                connector: payment_attempt
-                    .connector
-                    .clone()
-                    .unwrap_or(DummyConnector4.to_string()),
-                evidence: None,
-                profile_id: payment_intent.profile_id.clone(),
-                merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                dispute_amount: amount * 100,
-                organization_id: org_id.clone(),
-            })
-        } else {
-            None
-        };
+        let dispute =
+            if disputes_count < number_of_disputes && !is_failed_payment && refund.is_none() {
+                disputes_count += 1;
+                Some(DisputeNew {
+                    dispute_id: common_utils::generate_id_with_default_len("test"),
+                    amount: (amount * 100).to_string(),
+                    currency: payment_intent
+                        .currency
+                        .unwrap_or(common_enums::Currency::USD)
+                        .to_string(),
+                    dispute_stage: storage_enums::DisputeStage::Dispute,
+                    dispute_status: storage_enums::DisputeStatus::DisputeOpened,
+                    payment_id: payment_id.clone(),
+                    attempt_id: attempt_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    connector_status: "Sample connector status".into(),
+                    connector_dispute_id: common_utils::generate_id_with_default_len("test"),
+                    connector_reason: Some("Sample Dispute".into()),
+                    connector_reason_code: Some("123".into()),
+                    challenge_required_by: None,
+                    connector_created_at: None,
+                    connector_updated_at: None,
+                    connector: payment_attempt
+                        .connector
+                        .clone()
+                        .unwrap_or(DummyConnector4.to_string()),
+                    evidence: None,
+                    profile_id: payment_intent.profile_id.clone(),
+                    merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                    dispute_amount: amount * 100,
+                    organization_id: org_id.clone(),
+                })
+            } else {
+                None
+            };
 
         res.push((payment_intent, payment_attempt, refund, dispute));
     }
