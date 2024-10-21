@@ -97,7 +97,7 @@ pub enum Connector {
     // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
-    // Elavon,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -237,6 +237,7 @@ impl Connector {
 			| Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
 			| Self::Fiservemea
             | Self::Fiuu

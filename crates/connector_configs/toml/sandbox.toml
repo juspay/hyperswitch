@@ -1412,6 +1412,48 @@ merchant_secret="Source verification key"
 [ebanx_payout.connector_auth.HeaderKey]
 api_key = "Integration Key"
 
+[elavon]
+[[elavon.credit]]
+  payment_method_type = "Mastercard"
+[[elavon.credit]]
+  payment_method_type = "Visa"
+[[elavon.credit]]
+  payment_method_type = "Interac"
+[[elavon.credit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.credit]]
+  payment_method_type = "JCB"
+[[elavon.credit]]
+  payment_method_type = "DinersClub"
+[[elavon.credit]]
+  payment_method_type = "Discover"
+[[elavon.credit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.credit]]
+  payment_method_type = "UnionPay"
+[[elavon.debit]]
+  payment_method_type = "Mastercard"
+[[elavon.debit]]
+  payment_method_type = "Visa"
+[[elavon.debit]]
+  payment_method_type = "Interac"
+[[elavon.debit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.debit]]
+  payment_method_type = "JCB"
+[[elavon.debit]]
+  payment_method_type = "DinersClub"
+[[elavon.debit]]
+  payment_method_type = "Discover"
+[[elavon.debit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.debit]]
+  payment_method_type = "UnionPay"
+[elavon.connector_auth.SignatureKey]
+api_key="Product Activation Key"
+key1="Payment Access Key"
+api_secret="Tariff ID"
+
 [fiserv]
 [[fiserv.credit]]
   payment_method_type = "Mastercard"

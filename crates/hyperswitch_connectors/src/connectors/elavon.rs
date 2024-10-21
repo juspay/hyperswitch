@@ -1,10 +1,10 @@
 pub mod transformers;
-
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, XmlExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -26,27 +26,27 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation, ConnectorRedirectResponse},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking;
 use transformers as elavon;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Elavon {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Elavon {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -89,6 +89,25 @@ where
     }
 }
 
+
+impl ConnectorRedirectResponse for Elavon {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        action: enums::PaymentAction,
+    ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            enums::PaymentAction::PSync => Ok(enums::CallConnectorAction::Trigger),
+            _ => Ok(enums::CallConnectorAction::Avoid),
+        }
+    }
+}
+
+fn html_to_xml_string_conversion(res: String) -> String {
+    res.replace("&lt;", "<").replace("&gt;", ">")
+}
+
 impl ConnectorCommon for Elavon {
     fn id(&self) -> &'static str {
         "elavon"
@@ -102,7 +121,8 @@ impl ConnectorCommon for Elavon {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        // "application/json"
+        "text/xml"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -136,9 +156,9 @@ impl ConnectorCommon for Elavon {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error_code,
+            message: response.error_message,
+            reason: Some(response.error_name),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -173,9 +193,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "/VirtualMerchantDemo/processxml.do"))
+        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -190,7 +211,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = elavon::ElavonRouterData::from((amount, req));
-        let connector_req = elavon::ElavonPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = elavon::ElavonCreditCardAuthOnlyReq::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -222,10 +243,20 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: elavon::ElavonPaymentsResponse = res
-            .response
-            .parse_struct("Elavon PaymentsAuthorizeResponse")
+
+        let response_data = html_to_xml_string_conversion(
+            String::from_utf8(res.response.to_vec())
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        );
+
+        let response = response_data
+            .parse_xml::<elavon::ElavonResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // let response: elavon::ElavonResponse = res
+        //     .response
+        //     .parse_struct("Elavon PaymentsAuthorizeResponse")
+        //     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -286,7 +317,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ela
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: elavon::ElavonPaymentsResponse = res
+        let response: elavon::ElavonResponse = res
             .response
             .parse_struct("elavon PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -324,9 +355,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "/VirtualMerchantDemo/processxml.do"))
+        //Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -340,6 +372,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn build_request(
         &self,
         req: &PaymentsCaptureRouterData,
+        
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -363,10 +396,20 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: elavon::ElavonPaymentsResponse = res
-            .response
-            .parse_struct("Elavon PaymentsCaptureResponse")
+
+        let response_data = html_to_xml_string_conversion(
+            String::from_utf8(res.response.to_vec())
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        );
+        
+        let response = response_data
+            .parse_xml::<elavon::ElavonResponse>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // let response: elavon::ElavonResponse = res
+        //     .response
+        //     .parse_struct("Elavon PaymentsCaptureResponse")
+        //     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -403,9 +446,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Elavon 
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(connectors), "/VirtualMerchantDemo/processxml.do"))
+        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -487,8 +531,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Elavon {
     fn get_url(
         &self,
         _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        // Ok(format!("{}{}", self.base_url(connectors), "/VirtualMerchantDemo/processxml.do"))
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
