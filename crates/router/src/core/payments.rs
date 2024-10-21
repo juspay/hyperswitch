@@ -3831,17 +3831,29 @@ where
                 payment_data.get_currency(),
             );
 
-            connectors = routing::perform_eligibility_analysis_with_fallback(
+            connectors = routing::perform_eligibility_analysis(
                 &state.clone(),
                 key_store,
                 connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors,
+                &TransactionData::Payment(transaction_data.clone()),
+                &eligible_connectors,
                 business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+            .attach_printable("failed eligibility analysis")?;
+
+            connectors = routing::perform_fallback_routing(
+                &state.clone(),
+                key_store,
+                &TransactionData::Payment(transaction_data),
+                connectors,
+                eligible_connectors.as_ref(),
+                business_profile,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed fallback routing")?;
         }
 
         let connector_data = connectors
@@ -3889,17 +3901,29 @@ where
                 payment_data.get_currency(),
             );
 
-            connectors = routing::perform_eligibility_analysis_with_fallback(
+            connectors = routing::perform_eligibility_analysis(
                 &state,
                 key_store,
                 connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors,
+                &TransactionData::Payment(transaction_data.clone()),
+                &eligible_connectors,
                 business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+            .attach_printable("failed eligibility analysis")?;
+
+            connectors = routing::perform_fallback_routing(
+                &state,
+                key_store,
+                &TransactionData::Payment(transaction_data),
+                connectors,
+                eligible_connectors.as_ref(),
+                business_profile,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed fallback routing")?;
         }
 
         let connector_data = connectors
@@ -4579,17 +4603,17 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let connectors = routing::perform_eligibility_analysis_with_fallback(
+    let connectors = routing::perform_eligibility_analysis(
         &state.clone(),
         key_store,
         connectors,
-        &TransactionData::Payment(transaction_data),
-        eligible_connectors,
+        &TransactionData::Payment(transaction_data.clone()),
+        &eligible_connectors,
         business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("failed eligibility analysis and fallback")?;
+    .attach_printable("failed eligibility analysis")?;
 
     // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -4603,6 +4627,17 @@ where
             connectors
         }
     };
+    let connectors = routing::perform_fallback_routing(
+        state,
+        key_store,
+        &TransactionData::Payment(transaction_data),
+        connectors,
+        eligible_connectors.as_ref(),
+        business_profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed fallback routing")?;
 
     let connector_data = connectors
         .into_iter()
@@ -4678,17 +4713,30 @@ pub async fn route_connector_v1_for_payouts(
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let connectors = routing::perform_eligibility_analysis_with_fallback(
+
+    let connectors = routing::perform_eligibility_analysis (
         &state.clone(),
         key_store,
         connectors,
         &TransactionData::Payout(transaction_data),
-        eligible_connectors,
+        &eligible_connectors,
         business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("failed eligibility analysis and fallback")?;
+    .attach_printable("failed eligibility analysis")?;
+
+    let connectors = routing::perform_fallback_routing(
+        &state.clone(),
+        key_store,
+        &TransactionData::Payout(transaction_data),
+        connectors,
+        eligible_connectors.as_ref(),
+        business_profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed fallback routing")?;
 
     let first_connector_choice = connectors
         .first()
