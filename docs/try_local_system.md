@@ -18,7 +18,7 @@ Check the Table Of Contents to jump to the relevant section.
 - [Set up a Nix development environment](#set-up-a-nix-development-environment)
    - [Install Nix](#install-nix)
    - [Using external services through Nix](#using-external-services-through-nix)
-   - [Logging into a Nix development environment (coming soon)](#logging-into-a-nix-development-environment)
+   - [Develop in a Nix environment (coming soon)](#develop-in-a-nix-environment-coming-soon)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
   - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
@@ -192,11 +192,11 @@ Nix can be installed in numerous ways. If you're new here, and don't have Nix in
 
 #### 3. Using a standard nix installation or using NixOS
 
-Nix's standard installation does not include `flakes` by default as it's an experimental feature. Nix needs to be configured to use the experimenal feature!
+Nix's standard installation does not include `flakes` by default as it's an experimental feature. It needs to be configured to use the experimenal feature.
 
 - Install Nix via multi-user installation
 
-   ```
+   ```shell
    sh <(curl -L https://nixos.org/nix/install)
    ```
 
@@ -209,6 +209,34 @@ Nix's standard installation does not include `flakes` by default as it's an expe
 - References
    - Install Nix - https://nixos.org/download/
    - Enable flakes - https://nixos.wiki/wiki/Flakes#Other_Distros.2C_without_Home-Manager
+
+### Using external services through Nix
+
+Once you have Nix installed on your system, we can start the external services using flakes. More services will be added soon!
+
+- Run below command in hyperswitch directory
+
+   ```shell
+   nix run .#ext-services
+   ```
+
+This will run below services using `process-compose`
+- Postgres
+   - Create DB used by the application
+   - Create an user to be used by the application
+- Redis
+
+### Develop in a Nix environment (coming soon)
+
+Nix development environment ensures all the required project dependencies, including both the tools and services are available without having to install any of the dependencies manually.
+
+Run below command in hyperswitch directory
+
+   ```shell
+   nix develop
+   ```
+
+This is a work in progress, and not all the commands might be available in this environment.
 
 ## Set up a Rust environment and other dependencies
 
