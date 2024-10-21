@@ -696,7 +696,7 @@ async fn perform_cgraph_filtering(
     Ok(final_selection)
 }
 
-pub async fn perform_eligibility_analysis(
+pub async fn eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
@@ -726,6 +726,7 @@ pub async fn perform_fallback_routing(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     transaction_data: &routing::TransactionData<'_>,
+    mut eligibility_verified_connectors: Vec<routing_types::RoutableConnectorChoice>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -759,7 +760,7 @@ pub async fn perform_fallback_routing(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
 
-    perform_cgraph_filtering(
+    let filtered_fallback_list = perform_cgraph_filtering(
         state,
         key_store,
         fallback_config,
@@ -768,18 +769,37 @@ pub async fn perform_fallback_routing(
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
     )
-    .await
+    .await;
+
+    eligibility_verified_connectors.append(
+        &mut filtered_fallback_list
+            .unwrap_or_default()
+            .iter()
+            .filter(|&routable_connector_choice| {
+                !eligibility_verified_connectors.contains(routable_connector_choice)
+            })
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
+
+    let final_selected_connectors = eligibility_verified_connectors
+        .iter()
+        .map(|item| item.connector)
+        .collect::<Vec<_>>();
+    logger::debug!(final_selected_eligible_fallback_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing");
+
+    Ok(eligibility_verified_connectors)
 }
 
-pub async fn perform_eligibility_analysis_with_fallback(
+pub async fn perform_eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_>,
-    eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
+    eligible_connectors: &Option<Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let mut final_selection = perform_eligibility_analysis(
+    let final_selection = eligibility_analysis(
         state,
         key_store,
         chosen,
@@ -788,26 +808,6 @@ pub async fn perform_eligibility_analysis_with_fallback(
         business_profile.get_id(),
     )
     .await?;
-
-    let fallback_selection = perform_fallback_routing(
-        state,
-        key_store,
-        transaction_data,
-        eligible_connectors.as_ref(),
-        business_profile,
-    )
-    .await;
-
-    final_selection.append(
-        &mut fallback_selection
-            .unwrap_or_default()
-            .iter()
-            .filter(|&routable_connector_choice| {
-                !final_selection.contains(routable_connector_choice)
-            })
-            .cloned()
-            .collect::<Vec<_>>(),
-    );
 
     let final_selected_connectors = final_selection
         .iter()
