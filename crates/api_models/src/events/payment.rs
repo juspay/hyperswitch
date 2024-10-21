@@ -152,7 +152,7 @@ impl ApiEventMetric for PaymentsCreateIntentRequest {
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsCreateIntentResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentV2 {
+        Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
         })
     }
@@ -161,7 +161,7 @@ impl ApiEventMetric for PaymentsCreateIntentResponse {
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsConfirmIntentResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::PaymentV2 {
+        Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
         })
     }

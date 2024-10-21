@@ -18,7 +18,7 @@ time = "0.3.35"
 regex = "1.10.4"
 
 # First party crates
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["v1"] }
+common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

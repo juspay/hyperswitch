@@ -2014,7 +2014,7 @@ mod internal_payload_types {
         for PaymentsGenericRequestWithResourceId<T>
     {
         fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-            Some(common_utils::events::ApiEventsType::PaymentV2 {
+            Some(common_utils::events::ApiEventsType::Payment {
                 payment_id: self.global_payment_id.clone(),
             })
         }
