@@ -1312,14 +1312,15 @@ where
                 }
             })
             .map(|(merchant_account, key_store)| {
+                let merchant_id = merchant_account.get_id().clone();
                 (
                     AuthenticationData {
                         merchant_account,
                         key_store,
-                        profile_id,
+                        profile_id: None,
                     },
                     AuthenticationType::PublishableKey {
-                        merchant_id: auth.merchant_account.get_id().clone(),
+                        merchant_id,
                     },
                 )
             })

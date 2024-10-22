@@ -73,7 +73,7 @@ use crate::{
         unified_translations::UnifiedTranslationsInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
-    services::{authentication, kafka::KafkaProducer, Store},
+    services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
 

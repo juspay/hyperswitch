@@ -32,9 +32,11 @@ use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    types::OrderDetailsWithAmount,
-    ApiDieselConvertor, RemoteStorageObject,
+    RemoteStorageObject,
 };
+#[cfg(feature = "v2")]
+use crate::{types::OrderDetailsWithAmount, ApiDieselConvertor};
+
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
