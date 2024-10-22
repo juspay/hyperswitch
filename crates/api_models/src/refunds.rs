@@ -234,7 +234,7 @@ pub struct RefundListFilters {
     pub refund_status: Vec<enums::RefundStatus>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RefundAggregateResponse {
     /// The list of refund status with their count
     pub status_with_count: HashMap<enums::RefundStatus, i64>,
