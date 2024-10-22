@@ -470,7 +470,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let purchase = netcetera_types::Purchase {
             purchase_instal_data: None,
             merchant_risk_indicator: None,
-            purchase_amount: request.amount.map(MinorUnit::new),
+            purchase_amount: Some(item.amount),
             purchase_currency: currency.iso_4217().to_string(),
             purchase_exponent: currency.number_of_digits_after_decimal_point(),
             purchase_date: Some(
