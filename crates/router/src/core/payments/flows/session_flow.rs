@@ -550,10 +550,15 @@ fn create_samsung_pay_session_token(
             message: "Failed to convert amount to string major unit for Samsung Pay".to_string(),
         })?;
 
-    let merchant_domain = header_payload
-        .x_merchant_domain
-        .get_required_value("samsung pay domain")
-        .attach_printable("Failed to get domain for samsung pay session call")?;
+    let merchant_domain = match header_payload.x_client_platform {
+        Some(common_enums::ClientPlatform::Web) => Some(
+            header_payload
+                .x_merchant_domain
+                .get_required_value("samsung pay domain")
+                .attach_printable("Failed to get domain for samsung pay session call")?,
+        ),
+        _ => None,
+    };
 
     let samsung_pay_wallet_details = match samsung_pay_session_token_data.data {
         payment_types::SamsungPayCombinedMetadata::MerchantCredentials(

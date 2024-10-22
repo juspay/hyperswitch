@@ -59,7 +59,6 @@ Here are the components of Hyperswitch that deliver the whole solution:
 Jump in and contribute to these repositories to help improve and expand Hyperswitch!
 
 <br>
-<img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
 
 <a href="#Quick Setup">
   <h2 id="quick-setup">⚡️ Quick Setup</h2>
