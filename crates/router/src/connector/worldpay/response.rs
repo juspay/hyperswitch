@@ -1,6 +1,7 @@
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::requests::*;
 use crate::core::errors;
@@ -10,7 +11,7 @@ pub struct WorldpayPaymentsResponse {
     pub outcome: PaymentOutcome,
     pub transaction_reference: Option<String>,
     #[serde(flatten)]
-    pub other_fields: WorldpayPaymentResponseFields,
+    pub other_fields: Option<WorldpayPaymentResponseFields>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -20,13 +21,13 @@ pub enum WorldpayPaymentResponseFields {
     DDCResponse(DDCResponse),
     FraudHighRisk(FraudHighRiskResponse),
     RefusedResponse(RefusedResponse),
+    ThreeDsChallenged(ThreeDsChallengedResponse),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_instrument: Option<PaymentsResPaymentInstrument>,
+    pub payment_instrument: PaymentsResPaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issuer: Option<Issuer>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -67,6 +68,34 @@ pub struct ThreeDsResponse {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ThreeDsChallengedResponse {
+    pub authentication: AuthenticationResponse,
+    pub challenge: ThreeDsChallenge,
+    #[serde(rename = "_actions")]
+    pub actions: CompleteThreeDsActionLink,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AuthenticationResponse {
+    pub version: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ThreeDsChallenge {
+    pub reference: String,
+    pub url: Url,
+    pub jwt: Secret<String>,
+    pub payload: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CompleteThreeDsActionLink {
+    #[serde(rename = "complete3dsChallenge")]
+    pub complete_three_ds_challenge: ActionLink,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum IssuerResponse {
     Challenged,
     Frictionless,
@@ -82,16 +111,15 @@ pub struct DDCResponse {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DDCToken {
-    pub jwt: String,
-    pub url: String,
-    pub bin: String,
+    pub jwt: Secret<String>,
+    pub url: Url,
+    pub bin: Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DDCActionLink {
     #[serde(rename = "supply3dsDeviceData")]
     supply_ddc_data: ActionLink,
-    method: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -105,11 +133,32 @@ pub enum PaymentOutcome {
     FraudHighRisk,
     #[serde(alias = "3dsDeviceDataRequired")]
     ThreeDsDeviceDataRequired,
-    ThreeDsChallenged,
     SentForCancellation,
     #[serde(alias = "3dsAuthenticationFailed")]
     ThreeDsAuthenticationFailed,
     SentForPartialRefund,
+    #[serde(alias = "3dsChallenged")]
+    ThreeDsChallenged,
+    #[serde(alias = "3dsUnavailable")]
+    ThreeDsUnavailable,
+}
+
+impl std::fmt::Display for PaymentOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Authorized => write!(f, "authorized"),
+            Self::Refused => write!(f, "refused"),
+            Self::SentForSettlement => write!(f, "sentForSettlement"),
+            Self::SentForRefund => write!(f, "sentForRefund"),
+            Self::FraudHighRisk => write!(f, "fraudHighRisk"),
+            Self::ThreeDsDeviceDataRequired => write!(f, "3dsDeviceDataRequired"),
+            Self::SentForCancellation => write!(f, "sentForCancellation"),
+            Self::ThreeDsAuthenticationFailed => write!(f, "3dsAuthenticationFailed"),
+            Self::SentForPartialRefund => write!(f, "sentForPartialRefund"),
+            Self::ThreeDsChallenged => write!(f, "3dsChallenged"),
+            Self::ThreeDsUnavailable => write!(f, "3dsUnavailable"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -202,30 +251,33 @@ pub fn get_resource_id<T, F>(
 where
     F: Fn(String) -> T,
 {
-    let reference_id = match response.other_fields {
-        WorldpayPaymentResponseFields::AuthorizedResponse(res) => res
-            .links
-            .as_ref()
-            .and_then(|link| link.self_link.href.rsplit_once('/'))
-            .map(|(_, h)| urlencoding::decode(h))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?
-            .map(|s| transform_fn(s.into_owned())),
-        WorldpayPaymentResponseFields::DDCResponse(res) => res
-            .actions
-            .supply_ddc_data
-            .href
-            .split('/')
-            .rev()
-            .nth(1)
-            .map(urlencoding::decode)
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?
-            .map(|s| transform_fn(s.into_owned())),
-        WorldpayPaymentResponseFields::FraudHighRisk(_) => None,
-        WorldpayPaymentResponseFields::RefusedResponse(_) => None,
-    };
-    reference_id
+    let optional_reference_id = response
+        .other_fields
+        .as_ref()
+        .and_then(|other_fields| match other_fields {
+            WorldpayPaymentResponseFields::AuthorizedResponse(res) => res
+                .links
+                .as_ref()
+                .and_then(|link| link.self_link.href.rsplit_once('/').map(|(_, h)| h)),
+            WorldpayPaymentResponseFields::DDCResponse(res) => {
+                res.actions.supply_ddc_data.href.split('/').nth_back(1)
+            }
+            WorldpayPaymentResponseFields::ThreeDsChallenged(res) => res
+                .actions
+                .complete_three_ds_challenge
+                .href
+                .split('/')
+                .nth_back(1),
+            WorldpayPaymentResponseFields::FraudHighRisk(_)
+            | WorldpayPaymentResponseFields::RefusedResponse(_) => None,
+        })
+        .map(|href| {
+            urlencoding::decode(href)
+                .map(|s| transform_fn(s.into_owned()))
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
+        .transpose()?;
+    optional_reference_id
         .or_else(|| connector_transaction_id.map(transform_fn))
         .ok_or_else(|| {
             errors::ConnectorError::MissingRequiredField {
@@ -256,8 +308,8 @@ impl Issuer {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentsResPaymentInstrument {
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub payment_instrument_type: Option<String>,
+    #[serde(rename = "type")]
+    pub payment_instrument_type: String,
     pub card_bin: Option<String>,
     pub last_four: Option<String>,
     pub expiry_date: Option<ExpiryDate>,
@@ -266,22 +318,6 @@ pub struct PaymentsResPaymentInstrument {
     pub category: Option<String>,
     pub issuer_name: Option<String>,
     pub payment_account_reference: Option<String>,
-}
-
-impl PaymentsResPaymentInstrument {
-    pub fn new() -> Self {
-        Self {
-            payment_instrument_type: None,
-            card_bin: None,
-            last_four: None,
-            category: None,
-            expiry_date: None,
-            card_brand: None,
-            funding_type: None,
-            issuer_name: None,
-            payment_account_reference: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

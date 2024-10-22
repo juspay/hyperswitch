@@ -3,6 +3,7 @@
 
 use std::{borrow::Cow, fmt::Debug};
 
+mod api_key;
 mod customer;
 mod merchant;
 mod merchant_connector_account;
@@ -15,6 +16,7 @@ mod routing;
 #[cfg(feature = "v2")]
 mod global_id;
 
+pub use api_key::ApiKeyId;
 pub use customer::CustomerId;
 use diesel::{
     backend::Backend,
