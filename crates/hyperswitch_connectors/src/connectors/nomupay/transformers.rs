@@ -1,5 +1,5 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_enums::{enums, Currency};
+use common_utils::types::{StringMajorUnit, StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -10,7 +10,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize};
+
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -41,6 +42,7 @@ pub struct NomupayPaymentsRequest {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+
 pub struct NomupayCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
@@ -48,6 +50,209 @@ pub struct NomupayCard {
     cvc: Secret<String>,
     complete: bool,
 }
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Address {
+    pub country: String,
+    pub state_province: String,
+    pub street: String,
+    pub city: String,
+    pub postal_code: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub profile_type: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub date_of_birth: String,
+    pub gender: String,
+    pub email_address: String,
+    pub phone_number_country_code: Option<String>,
+    pub phone_number: Option<String>,
+    pub address : Address,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnboardSubAccout{    //1
+    pub account_id: String,
+    pub client_sub_account_id: String,
+    pub profile: Profile,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankAccount {
+    pub bank_id: String,
+    pub account_id: String,
+    pub account_purpose: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VirtualAccountsType{
+    pub country_code: String,
+    pub currency_code: String,
+    pub bank_id: String,
+    pub bank_account_id: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnboardTransferMethod {  //2
+    pub country_code: String,
+    pub currency_code: Currency,
+    pub typee: String,    // type giving error
+    pub display_name: String,
+    pub bank_account: BankAccount,
+    pub profile: Profile,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Payment {  //3
+    pub source_d: String,
+    pub destination_id: String,
+    pub payment_reference: String,
+    pub amount: String,
+    pub currency_code: Currency,
+    pub purpose: String,
+    pub description: String,
+    pub internal_memo:  String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Quote {  //4
+    pub source_id: String,
+    pub source_currency_code: Currency,
+    pub destination_currency_code: Currency,
+    pub amount: String,
+    pub include_fee: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Commit { //5
+    pub source_id:  String,
+    pub id:  String,
+    pub destination_id:  String,
+    pub payment_reference:  String,
+    pub amount:  String,
+    pub currency_code:  Currency,
+    pub purpose:  String,
+    pub description:  String,
+    pub internal_memo:  String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnboardSubAccoutResponse{
+    pub account_id: String,
+    pub id: String,
+    pub client_sub_account_id: String,
+    pub profile: Profile,
+    pub virtual_accounts: Vec<VirtualAccountsType>,
+    pub status: String,
+    pub created_on: String,
+    pub last_updated: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnboardTransferMethodResponse{
+    pub parent_id: String,
+    pub account_id: String,
+    pub sub_account_id: String,
+    pub id: String,
+    pub status: String,
+    pub created_on: String,
+    pub last_updated: String,
+    pub country_code: String,
+    pub currency_code: Currency,
+    pub display_name: String,
+    pub typee: String,
+    pub profile: Profile,
+    pub bank_account: BankAccount,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentResponse {
+    pub id: String,
+    pub status:  String,
+    pub created_on: String,
+    pub last_updated: String,
+    pub source_id:  String,
+    pub destination_id: String,
+    pub payment_reference: String,
+    pub amount: String,
+    pub currency_code: String,
+    pub purpose: String,
+    pub description: String,
+    pub internal_memo: String,
+    pub release_on: String,
+    pub expire_on: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeesType {
+    pub typee: String,
+    pub fees: StringMajorUnit,
+    pub currency_code: Currency,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutQuoteResponse{
+    pub source_id: String,
+    pub destination_currency_code: Currency,
+    pub amount: StringMajorUnit,
+    pub source_currency_code: Currency,
+    pub include_fee: bool,
+    pub fees: Vec<FeesType>,
+    pub payment_reference: String,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitResponse{
+    pub id: String,
+    pub status: String,
+    pub created_on: String,
+    pub last_updated: String,
+    pub source_id: String,
+    pub destination_id: String,
+    pub payment_reference: String,
+    pub amount: String,
+    pub currency_code: Currency,
+    pub purpose: String,
+    pub description: String,
+    pub internal_memo: String,
+    pub release_on: String,
+    pub expire_on: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Error {
+    pub field: String,
+    pub message: String, 
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NomupayError {
+    pub error_code: String,
+    pub error_description: Option<String>,
+    pub validation_errors: Option<Vec<Error>>
+}
+
+
+
+
+
 
 impl TryFrom<&NomupayRouterData<&PaymentsAuthorizeRouterData>> for NomupayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
