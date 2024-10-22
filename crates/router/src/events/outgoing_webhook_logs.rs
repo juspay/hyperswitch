@@ -34,8 +34,15 @@ pub enum OutgoingWebhookEventContent {
         payout_id: String,
         content: Value,
     },
+    #[cfg(feature = "v1")]
     Refund {
         payment_id: common_utils::id_type::PaymentId,
+        refund_id: String,
+        content: Value,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         refund_id: String,
         content: Value,
     },

@@ -33,7 +33,7 @@ impl ApiEventMetric for RefundResponse {
 impl ApiEventMetric for RefundResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Refund {
-            payment_id: Some(self.payment_id.clone()),
+            payment_id: self.payment_id.clone(),
             refund_id: self.id.clone(),
         })
     }
