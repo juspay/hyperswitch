@@ -18397,8 +18397,7 @@
             "minimum": 100
           },
           "currency": {
-            "type": "string",
-            "description": "The three-letter ISO currency code"
+            "$ref": "#/components/schemas/Currency"
           },
           "status": {
             "$ref": "#/components/schemas/RefundStatus"

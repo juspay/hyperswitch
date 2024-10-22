@@ -236,7 +236,8 @@ pub struct RefundResponse {
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
     /// The three-letter ISO currency code
-    pub currency: String,
+    #[schema(value_type = Currency)]
+    pub currency: common_enums::Currency,
     /// The status for refund
     pub status: RefundStatus,
     /// An arbitrary string attached to the object
