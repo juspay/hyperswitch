@@ -17,11 +17,11 @@ pub use api_models::payments::{
     UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 #[cfg(feature = "v2")]
-pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
+pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsIntentResponse};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, CreateIntent, IncrementalAuthorization, InitPayment, PSync,
+    CreateConnectorCustomer, Intent, IncrementalAuthorization, InitPayment, PSync,
     PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
     Session, SetupMandate, Void,
 };

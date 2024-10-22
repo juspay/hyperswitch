@@ -620,7 +620,7 @@ pub fn payments_post_session_tokens() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsCreateIntentResponse),
+      (status = 200, description = "Payment created", body = PaymentsIntentResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payments",

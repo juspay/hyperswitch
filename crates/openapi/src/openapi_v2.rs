@@ -322,7 +322,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
         api_models::payments::PaymentsCreateIntentRequest,
-        api_models::payments::PaymentsCreateIntentResponse,
+        api_models::payments::PaymentsIntentResponse,
         api_models::payments::PazeWalletData,
         api_models::payments::AmountDetails,
         api_models::payments::SessionToken,

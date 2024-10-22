@@ -1264,8 +1264,10 @@ impl Authenticate for api_models::payments::PaymentsStartRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::PaymentsCreateIntentRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsGetIntentRequest {}
 // #[cfg(feature = "v2")]
-// impl Authenticate for api_models::payments::PaymentsCreateIntentResponse {}
+// impl Authenticate for api_models::payments::PaymentsIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
