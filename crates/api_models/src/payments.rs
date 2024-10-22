@@ -1128,29 +1128,6 @@ impl RequestSurchargeDetails {
     }
 }
 
-// #[derive(Default, Debug, Clone)]
-// pub struct HeaderPayload {
-//     pub payment_confirm_source: Option<api_enums::PaymentSource>,
-//     pub client_source: Option<String>,
-//     pub client_version: Option<String>,
-//     pub x_hs_latency: Option<bool>,
-//     pub browser_name: Option<api_enums::BrowserName>,
-//     pub x_client_platform: Option<api_enums::ClientPlatform>,
-//     pub x_merchant_domain: Option<String>,
-//     pub locale: Option<String>,
-//     pub x_app_id: Option<String>,
-//     pub x_redirect_uri: Option<String>,
-// }
-
-// impl HeaderPayload {
-//     pub fn with_source(payment_confirm_source: api_enums::PaymentSource) -> Self {
-//         Self {
-//             payment_confirm_source: Some(payment_confirm_source),
-//             ..Default::default()
-//         }
-//     }
-// }
-
 #[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
 pub struct PaymentAttemptResponse {
     /// Unique identifier for the attempt
@@ -4494,10 +4471,6 @@ pub struct PaymentsConfirmIntentRequest {
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
-
-    /// It's a token used for client side verification.
-    #[schema(value_type = String, example = "12345_pay_01926c58bc6e77c09e809964e72af8c8_secret_01926c58bc7177c291921c0ebf9b3ef3")]
-    pub client_secret: common_utils::types::ClientSecret,
 }
 
 /// Error details for the payment

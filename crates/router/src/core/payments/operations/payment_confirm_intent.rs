@@ -38,7 +38,7 @@ use crate::{
 pub struct PaymentsIntentConfirm;
 
 impl ValidateStatusForOperation for PaymentsIntentConfirm {
-    /// Validate if the current operation can be performed on the current status
+    /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,
         intent_status: common_enums::IntentStatus,
@@ -172,6 +172,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         self.validate_status_for_operation(payment_intent.status)?;
+        let client_secret = header_payload
+            .client_secret
+            .as_ref()
+            .get_required_value("client_secret header")?;
+        payment_intent.validate_client_secret(&client_secret)?;
 
         let cell_id = state.conf.cell_information.id.clone();
 

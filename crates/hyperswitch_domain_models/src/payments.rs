@@ -340,6 +340,23 @@ impl PaymentIntent {
             })
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
+
+    /// Check if the client secret is associated with the payment and if it has been expired
+    pub fn validate_client_secret(
+        &self,
+        client_secret: &common_utils::types::ClientSecret,
+    ) -> Result<(), errors::api_error_response::ApiErrorResponse> {
+        common_utils::fp_utils::when(self.client_secret != *client_secret, || {
+            Err(errors::api_error_response::ApiErrorResponse::ClientSecretInvalid)
+        })?;
+
+        common_utils::fp_utils::when(self.session_expiry > common_utils::date_time::now(), || {
+            Err(errors::api_error_response::ApiErrorResponse::ClientSecretExpired)
+        })?;
+
+        Ok(())
+    }
+
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
         merchant_account: &merchant_account::MerchantAccount,
@@ -445,12 +462,14 @@ pub struct HeaderPayload {
     pub x_redirect_uri: Option<String>,
 }
 
+// TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
 #[derive(Default, Debug, Clone)]
 pub struct HeaderPayload {
+    /// The source with which the payment is confirmed.
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
+    // pub client_source: Option<String>,
+    // pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
     pub browser_name: Option<common_enums::BrowserName>,
     pub x_client_platform: Option<common_enums::ClientPlatform>,
@@ -458,6 +477,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub client_secret: Option<common_utils::types::ClientSecret>,
 }
 
 impl HeaderPayload {

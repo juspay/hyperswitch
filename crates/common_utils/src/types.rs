@@ -674,6 +674,30 @@ mod client_secret_type {
         }
     }
 
+    impl FromStr for ClientSecret {
+        type Err = ParsingError;
+
+        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
+            let (payment_id, secret) =
+                str_value
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
+        }
+    }
+
     impl<'de> Deserialize<'de> for ClientSecret {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
