@@ -236,7 +236,6 @@ default_imp_for_complete_authorize!(
     connector::Wise,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldpay,
     connector::Zsl
 );
 macro_rules! default_imp_for_webhook_source_verification {
