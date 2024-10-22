@@ -268,4 +268,4 @@ creds.json
 /.direnv
 
 # Nix services data
-data
+/data
