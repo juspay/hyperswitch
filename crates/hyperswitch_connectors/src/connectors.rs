@@ -1,4 +1,5 @@
 pub mod bambora;
+pub mod billwerk;
 pub mod bitpay;
 pub mod cashtocode;
 pub mod coinbase;
@@ -24,9 +25,10 @@ pub mod volt;
 pub mod worldline;
 
 pub use self::{
-    bambora::Bambora, bitpay::Bitpay, cashtocode::Cashtocode, coinbase::Coinbase,
-    cryptopay::Cryptopay, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay, helcim::Helcim,
-    mollie::Mollie, nexixpay::Nexixpay, novalnet::Novalnet, powertranz::Powertranz, square::Square,
-    stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
+    bambora::Bambora, billwerk::Billwerk, bitpay::Bitpay, cashtocode::Cashtocode,
+    coinbase::Coinbase, cryptopay::Cryptopay, deutschebank::Deutschebank,
+    digitalvirgo::Digitalvirgo, dlocal::Dlocal, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu,
+    globepay::Globepay, helcim::Helcim, mollie::Mollie, nexixpay::Nexixpay, novalnet::Novalnet,
+    powertranz::Powertranz, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    volt::Volt, worldline::Worldline,
 };

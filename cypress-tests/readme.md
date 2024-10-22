@@ -27,10 +27,16 @@ To run test cases, follow these steps:
 2. Install Cypress and its dependencies to `cypress-tests` directory by running the following command:
 
    ```shell
-   npm install
+   npm ci
    ```
 
-3. Set environment variables for cypress
+3. Insert data to `cards_info` table in `hyperswitch_db`
+
+   ```shell
+   psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+   ```
+
+4. Set environment variables for cypress
 
    ```shell
    export CYPRESS_CONNECTOR="connector_id"
@@ -40,7 +46,7 @@ To run test cases, follow these steps:
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
    ```
 
-4. Run Cypress test cases
+5. Run Cypress test cases
 
    To run the tests in interactive mode run the following command
 
@@ -71,6 +77,32 @@ To run test cases, follow these steps:
    ```shell
    npm run cypress:routing
    ```
+
+In order to run cypress tests against multiple connectors at a time:
+
+1. Set up `.env` file that exports necessary info:
+
+   ```env
+   export DEBUG=cypress:cli
+
+   export CYPRESS_ADMINAPIKEY='admin_api_key'
+   export CYPRESS_BASEURL='base_url'
+   export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
+
+   export PAYMENTS_CONNECTORS="payment_connector_1 payment_connector_2 payment_connector_3 payment_connector_4"
+   export PAYOUTS_CONNECTORS="payout_connector_1 payout_connector_2 payout_connector_3"
+   export PAYMENT_METHOD_LIST=""
+   export ROUTING=""
+   ```
+
+2. In terminal, execute:
+
+   ```shell
+   source .env
+   scripts/execute_cypress.sh
+   ```
+
+   Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
 
 > [!NOTE]
 > To learn about how creds file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
@@ -157,10 +189,7 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     if (xRequestId) {
       cy.task("cli_log", "x-request-id ->> " + xRequestId);
     } else {
-      cy.task(
-        "cli_log",
-        "x-request-id is not available in the response headers"
-      );
+      cy.task("cli_log", "x-request-id is not available in the response headers");
     }
     expect(response.headers["content-type"]).to.include("application/json");
     console.log(response.body);
