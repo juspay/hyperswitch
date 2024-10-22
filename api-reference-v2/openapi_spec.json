@@ -18092,22 +18092,6 @@
           }
         }
       },
-      "RefundAggregateResponse": {
-        "type": "object",
-        "required": [
-          "status_with_count"
-        ],
-        "properties": {
-          "status_with_count": {
-            "type": "object",
-            "description": "The list of refund status with their count",
-            "additionalProperties": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        }
-      },
       "RefundListRequest": {
         "allOf": [
           {
