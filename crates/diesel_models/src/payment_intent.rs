@@ -9,6 +9,8 @@ use crate::enums as storage_enums;
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
+#[cfg(feature = "v2")]
+use crate::types::OrderDetailsWithAmount;
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -32,8 +34,8 @@ pub struct PaymentIntent {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: Option<String>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<pii::SecretSerdeValue>,

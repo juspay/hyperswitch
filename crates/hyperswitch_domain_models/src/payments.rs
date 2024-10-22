@@ -3,8 +3,6 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::Address;
-#[cfg(feature = "v2")]
-use api_models::payments::OrderDetailsWithAmount;
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -20,7 +18,7 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{business_profile, merchant_account};
+use crate::{business_profile, merchant_account, types::OrderDetailsWithAmount};
 #[cfg(feature = "v2")]
 use crate::{errors, ApiModelToDieselModelConvertor};
 
@@ -219,7 +217,7 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
-    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<Vec<Secret<common_enums::PaymentMethodType>>>,
     /// This metadata contains details about
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<pii::SecretSerdeValue>,
@@ -303,10 +301,6 @@ impl PaymentIntent {
         shipping_address: Option<Encryptable<Secret<Address>>>,
     ) -> common_utils::errors::CustomResult<Self, errors::api_error_response::ApiErrorResponse>
     {
-        let allowed_payment_method_types = request
-            .get_allowed_payment_method_types_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting allowed payment method types as value")?;
         let connector_metadata = request
             .get_connector_metadata_as_value()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
@@ -317,6 +311,16 @@ impl PaymentIntent {
             .attach_printable("Error getting feature metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
+        let allowed_payment_method_types =
+            request
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .into_iter()
+                        .map(Secret::new)
+                        .collect()
+                });
+
         let session_expiry =
             common_utils::date_time::now().saturating_add(time::Duration::seconds(
                 request.session_expiry.map(i64::from).unwrap_or(
@@ -326,9 +330,12 @@ impl PaymentIntent {
                 ),
             ));
         let client_secret = payment_id.generate_client_secret();
-        let order_details = request
-            .order_details
-            .map(|order_details| order_details.into_iter().map(Secret::new).collect());
+        let order_details = request.order_details.map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| Secret::new(OrderDetailsWithAmount::from(order_detail)))
+                .collect()
+        });
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),

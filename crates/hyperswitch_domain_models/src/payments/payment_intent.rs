@@ -32,7 +32,8 @@ use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    RemoteStorageObject,
+    types::OrderDetailsWithAmount,
+    ApiDieselConvertor, RemoteStorageObject,
 };
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
@@ -1531,18 +1532,22 @@ impl behaviour::Conversion for PaymentIntent {
             setup_future_usage: Some(setup_future_usage),
             client_secret,
             active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
-            order_details: order_details
-                .map(|order_details| {
-                    order_details
-                        .into_iter()
-                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                        .collect::<Result<Vec<_>, _>>()
+            order_details: order_details.map(|order_details| {
+                order_details
+                    .into_iter()
+                    .map(|order_detail| Secret::new(order_detail.expose().to_diesel()))
+                    .collect::<Vec<_>>()
+            }),
+            allowed_payment_method_types: allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize allowed_payment_method_types".to_string(),
+                        })
                 })
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "invalid value found for order_details".to_string(),
-                })?,
-            allowed_payment_method_types,
+                .transpose()?
+                .map(Secret::new),
             connector_metadata,
             feature_metadata,
             attempt_count,
@@ -1639,7 +1644,13 @@ impl behaviour::Conversion for PaymentIntent {
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Address")?;
-
+            let allowed_payment_method_types = storage_model
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types.parse_value("Vec<PaymentMethodType>")
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: storage_model.merchant_id,
                 status: storage_model.status,
@@ -1658,19 +1669,15 @@ impl behaviour::Conversion for PaymentIntent {
                 active_attempt: storage_model
                     .active_attempt_id
                     .map(RemoteStorageObject::ForeignID),
-                order_details: storage_model
-                    .order_details
-                    .map(|order_details| {
-                        order_details
-                            .into_iter()
-                            .map(|order_detail| {
-                                order_detail.expose().parse_value("OrderDetailsWithAmount")
-                            })
-                            .collect::<Result<Vec<_>, _>>()
-                    })
-                    .transpose()
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
-                allowed_payment_method_types: storage_model.allowed_payment_method_types,
+                order_details: storage_model.order_details.map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| {
+                            Secret::new(OrderDetailsWithAmount::from_diesel(order_detail.expose()))
+                        })
+                        .collect::<Vec<_>>()
+                }),
+                allowed_payment_method_types,
                 connector_metadata: storage_model.connector_metadata,
                 feature_metadata: storage_model.feature_metadata,
                 attempt_count: storage_model.attempt_count,
@@ -1750,7 +1757,17 @@ impl behaviour::Conversion for PaymentIntent {
                 .change_context(ValidationError::InvalidValue {
                     message: "Invalid value found for ".to_string(),
                 })?,
-            allowed_payment_method_types: self.allowed_payment_method_types,
+            allowed_payment_method_types: self
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize allowed_payment_method_types".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,

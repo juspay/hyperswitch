@@ -30,6 +30,8 @@ pub trait PayoutAttemptInterface {}
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutsInterface {}
 
+pub use crate::types::OrderDetailsWithAmount as DomainOrderDetailsWithAmount;
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
     ForeignID(String),
@@ -60,6 +62,13 @@ use std::fmt::Debug;
 pub trait ApiModelToDieselModelConvertor<F> {
     /// Convert from a foreign type to the current type
     fn convert_from(from: F) -> Self;
+}
+
+pub trait ApiDieselConvertor<Api, Diesel> {
+    fn from_api(api_model: Api) -> Self;
+    fn to_api(&self) -> Api;
+    fn from_diesel(diesel_model: Diesel) -> Self;
+    fn to_diesel(&self) -> Diesel;
 }
 
 #[cfg(feature = "v2")]

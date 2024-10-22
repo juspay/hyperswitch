@@ -5,6 +5,7 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
+use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
@@ -4948,18 +4949,6 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
-
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ProductType {
-    #[default]
-    Physical,
-    Digital,
-    Travel,
-    Ride,
-    Event,
-    Accommodation,
-}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
