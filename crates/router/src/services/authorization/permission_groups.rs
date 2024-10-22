@@ -34,20 +34,12 @@ impl PermissionGroupExt for PermissionGroup {
 
     fn parent(&self) -> ParentGroup {
         match self {
-            Self::OperationsView | Self::OperationsManage => {
-                ParentGroup::Operations
-            }
-            Self::ConnectorsView | Self::ConnectorsManage => {
-                ParentGroup::Connectors
-            }
-            Self::WorkflowsView | Self::WorkflowsManage => {
-                ParentGroup::Workflows
-            }
+            Self::OperationsView | Self::OperationsManage => ParentGroup::Operations,
+            Self::ConnectorsView | Self::ConnectorsManage => ParentGroup::Connectors,
+            Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::MerchantDetailsView | Self::MerchantDetailsManage => {
-                ParentGroup::Merchant
-            }
+            Self::MerchantDetailsView | Self::MerchantDetailsManage => ParentGroup::Merchant,
             Self::OrganizationManage => ParentGroup::Organization,
             Self::ReconOps => ParentGroup::Recon,
         }
@@ -69,22 +61,13 @@ impl PermissionGroupExt for PermissionGroup {
     fn accessible_groups(&self) -> Vec<Self> {
         match self {
             Self::OperationsView => vec![Self::OperationsView],
-            Self::OperationsManage => vec![
-                Self::OperationsView,
-                Self::OperationsManage,
-            ],
+            Self::OperationsManage => vec![Self::OperationsView, Self::OperationsManage],
 
             Self::ConnectorsView => vec![Self::ConnectorsView],
-            Self::ConnectorsManage => vec![
-                Self::ConnectorsView,
-                Self::ConnectorsManage,
-            ],
+            Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
 
             Self::WorkflowsView => vec![Self::WorkflowsView],
-            Self::WorkflowsManage => vec![
-                Self::WorkflowsView,
-                Self::WorkflowsManage,
-            ],
+            Self::WorkflowsManage => vec![Self::WorkflowsView, Self::WorkflowsManage],
 
             Self::AnalyticsView => vec![Self::AnalyticsView],
 
@@ -96,10 +79,9 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconOps => vec![Self::ReconOps],
 
             Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
-            Self::MerchantDetailsManage => vec![
-                Self::MerchantDetailsView,
-                Self::MerchantDetailsManage,
-            ],
+            Self::MerchantDetailsManage => {
+                vec![Self::MerchantDetailsView, Self::MerchantDetailsManage]
+            }
 
             Self::OrganizationManage => vec![Self::OrganizationManage],
         }
