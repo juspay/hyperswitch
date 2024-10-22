@@ -1319,9 +1319,7 @@ where
                         key_store,
                         profile_id: None,
                     },
-                    AuthenticationType::PublishableKey {
-                        merchant_id,
-                    },
+                    AuthenticationType::PublishableKey { merchant_id },
                 )
             })
     }

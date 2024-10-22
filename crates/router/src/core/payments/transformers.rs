@@ -16,9 +16,9 @@ use diesel_models::{
     payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    payments::payment_intent::CustomerData, router_request_types,
-};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::ApiDieselConvertor;
+use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
@@ -44,8 +44,6 @@ use crate::{
     },
     utils::{OptionExt, ValueExt},
 };
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::ApiDieselConvertor;
 
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
