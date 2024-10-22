@@ -15,41 +15,41 @@ pub trait PermissionGroupExt {
 impl PermissionGroupExt for PermissionGroup {
     fn scope(&self) -> PermissionScope {
         match self {
-            PermissionGroup::OperationsView
-            | PermissionGroup::ConnectorsView
-            | PermissionGroup::WorkflowsView
-            | PermissionGroup::AnalyticsView
-            | PermissionGroup::UsersView
-            | PermissionGroup::MerchantDetailsView
-            | PermissionGroup::ReconOps => PermissionScope::Read,
+            Self::OperationsView
+            | Self::ConnectorsView
+            | Self::WorkflowsView
+            | Self::AnalyticsView
+            | Self::UsersView
+            | Self::MerchantDetailsView
+            | Self::ReconOps => PermissionScope::Read,
 
-            PermissionGroup::OperationsManage
-            | PermissionGroup::ConnectorsManage
-            | PermissionGroup::WorkflowsManage
-            | PermissionGroup::UsersManage
-            | PermissionGroup::MerchantDetailsManage
-            | PermissionGroup::OrganizationManage => PermissionScope::Write,
+            Self::OperationsManage
+            | Self::ConnectorsManage
+            | Self::WorkflowsManage
+            | Self::UsersManage
+            | Self::MerchantDetailsManage
+            | Self::OrganizationManage => PermissionScope::Write,
         }
     }
 
     fn parent(&self) -> ParentGroup {
         match self {
-            PermissionGroup::OperationsView | PermissionGroup::OperationsManage => {
+            Self::OperationsView | Self::OperationsManage => {
                 ParentGroup::Operations
             }
-            PermissionGroup::ConnectorsView | PermissionGroup::ConnectorsManage => {
+            Self::ConnectorsView | Self::ConnectorsManage => {
                 ParentGroup::Connectors
             }
-            PermissionGroup::WorkflowsView | PermissionGroup::WorkflowsManage => {
+            Self::WorkflowsView | Self::WorkflowsManage => {
                 ParentGroup::Workflows
             }
-            PermissionGroup::AnalyticsView => ParentGroup::Analytics,
-            PermissionGroup::UsersView | PermissionGroup::UsersManage => ParentGroup::Users,
-            PermissionGroup::MerchantDetailsView | PermissionGroup::MerchantDetailsManage => {
+            Self::AnalyticsView => ParentGroup::Analytics,
+            Self::UsersView | Self::UsersManage => ParentGroup::Users,
+            Self::MerchantDetailsView | Self::MerchantDetailsManage => {
                 ParentGroup::Merchant
             }
-            PermissionGroup::OrganizationManage => ParentGroup::Organization,
-            PermissionGroup::ReconOps => ParentGroup::Recon,
+            Self::OrganizationManage => ParentGroup::Organization,
+            Self::ReconOps => ParentGroup::Recon,
         }
     }
 
@@ -66,42 +66,42 @@ impl PermissionGroupExt for PermissionGroup {
         self.parent().resources()
     }
 
-    fn accessible_groups(&self) -> Vec<PermissionGroup> {
+    fn accessible_groups(&self) -> Vec<Self> {
         match self {
-            PermissionGroup::OperationsView => vec![PermissionGroup::OperationsView],
-            PermissionGroup::OperationsManage => vec![
-                PermissionGroup::OperationsView,
-                PermissionGroup::OperationsManage,
+            Self::OperationsView => vec![Self::OperationsView],
+            Self::OperationsManage => vec![
+                Self::OperationsView,
+                Self::OperationsManage,
             ],
 
-            PermissionGroup::ConnectorsView => vec![PermissionGroup::ConnectorsView],
-            PermissionGroup::ConnectorsManage => vec![
-                PermissionGroup::ConnectorsView,
-                PermissionGroup::ConnectorsManage,
+            Self::ConnectorsView => vec![Self::ConnectorsView],
+            Self::ConnectorsManage => vec![
+                Self::ConnectorsView,
+                Self::ConnectorsManage,
             ],
 
-            PermissionGroup::WorkflowsView => vec![PermissionGroup::WorkflowsView],
-            PermissionGroup::WorkflowsManage => vec![
-                PermissionGroup::WorkflowsView,
-                PermissionGroup::WorkflowsManage,
+            Self::WorkflowsView => vec![Self::WorkflowsView],
+            Self::WorkflowsManage => vec![
+                Self::WorkflowsView,
+                Self::WorkflowsManage,
             ],
 
-            PermissionGroup::AnalyticsView => vec![PermissionGroup::AnalyticsView],
+            Self::AnalyticsView => vec![Self::AnalyticsView],
 
-            PermissionGroup::UsersView => vec![PermissionGroup::UsersView],
-            PermissionGroup::UsersManage => {
-                vec![PermissionGroup::UsersView, PermissionGroup::UsersManage]
+            Self::UsersView => vec![Self::UsersView],
+            Self::UsersManage => {
+                vec![Self::UsersView, Self::UsersManage]
             }
 
-            PermissionGroup::ReconOps => vec![PermissionGroup::ReconOps],
+            Self::ReconOps => vec![Self::ReconOps],
 
-            PermissionGroup::MerchantDetailsView => vec![PermissionGroup::MerchantDetailsView],
-            PermissionGroup::MerchantDetailsManage => vec![
-                PermissionGroup::MerchantDetailsView,
-                PermissionGroup::MerchantDetailsManage,
+            Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
+            Self::MerchantDetailsManage => vec![
+                Self::MerchantDetailsView,
+                Self::MerchantDetailsManage,
             ],
 
-            PermissionGroup::OrganizationManage => vec![PermissionGroup::OrganizationManage],
+            Self::OrganizationManage => vec![Self::OrganizationManage],
         }
     }
 }
@@ -113,13 +113,13 @@ pub trait ParentGroupExt {
 impl ParentGroupExt for ParentGroup {
     fn resources(&self) -> Vec<Resource> {
         match self {
-            ParentGroup::Operations => OPERATIONS.to_vec(),
-            ParentGroup::Connectors => CONNECTORS.to_vec(),
-            ParentGroup::Workflows => WORKFLOWS.to_vec(),
-            ParentGroup::Analytics => ANALYTICS.to_vec(),
-            ParentGroup::Users => USERS.to_vec(),
-            ParentGroup::Merchant | ParentGroup::Organization => ACCOUNT.to_vec(),
-            ParentGroup::Recon => RECON.to_vec(),
+            Self::Operations => OPERATIONS.to_vec(),
+            Self::Connectors => CONNECTORS.to_vec(),
+            Self::Workflows => WORKFLOWS.to_vec(),
+            Self::Analytics => ANALYTICS.to_vec(),
+            Self::Users => USERS.to_vec(),
+            Self::Merchant | Self::Organization => ACCOUNT.to_vec(),
+            Self::Recon => RECON.to_vec(),
         }
     }
 }

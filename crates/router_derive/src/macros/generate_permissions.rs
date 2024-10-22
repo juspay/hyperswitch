@@ -21,9 +21,9 @@ struct Input {
 
 impl Parse for Input {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let (_permission_label, permissions) = parse_label_with_punctuated_data(&input)?;
+        let (_permission_label, permissions) = parse_label_with_punctuated_data(input)?;
 
-        Ok(Input { permissions })
+        Ok(Self { permissions })
     }
 }
 
@@ -40,7 +40,7 @@ impl Parse for ResourceInput {
 
         let (_entities_label, entities) = parse_label_with_punctuated_data(&content)?;
 
-        Ok(ResourceInput {
+        Ok(Self {
             resource_name,
             scopes,
             entities,
