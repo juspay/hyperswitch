@@ -1166,9 +1166,9 @@ where
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(
-                                Box::new(payments_response_json),
-                            ),
+                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
+                                payments_response_json,
+                            )),
                             primary_object_created_at,
                         ))
                         .await

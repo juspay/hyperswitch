@@ -1793,8 +1793,8 @@ fn get_payment_response(
 
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
-                redirection_data: None,
-                mandate_reference:Box::new(mandate_reference),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
@@ -2005,7 +2005,7 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
                     ),
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: item.response.processor_information.as_ref().and_then(
@@ -2143,7 +2143,7 @@ impl<F>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),
                             ),
-                            redirection_data: None,
+                            redirection_data: Box::new(None),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
@@ -2165,7 +2165,7 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
                     ),
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,

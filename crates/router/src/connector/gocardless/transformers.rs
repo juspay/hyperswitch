@@ -523,7 +523,7 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 resource_id: ResponseId::NoResponseId,
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 network_txn_id: None,
                 charge_id: None,
@@ -674,7 +674,7 @@ impl<F>
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(Some(mandate_reference)),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -710,8 +710,8 @@ impl<F>
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
-                redirection_data: None,
-                 mandate_reference: Box::new(None),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

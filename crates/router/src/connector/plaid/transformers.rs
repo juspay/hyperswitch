@@ -308,7 +308,7 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.payment_id.clone(),
                     ),
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
@@ -394,7 +394,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.payment_id.clone(),
                     ),
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,

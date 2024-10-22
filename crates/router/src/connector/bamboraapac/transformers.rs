@@ -293,7 +293,7 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
                     ),
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: None,
@@ -460,7 +460,7 @@ impl<F>
                 status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(Some(types::MandateReference {
                         connector_mandate_id: Some(connector_mandate_id),
                         payment_method_id: None,
@@ -610,8 +610,8 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
                     ),
-                    redirection_data: None,
-                     mandate_reference: Box::new(None),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
@@ -909,7 +909,7 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
                     ),
-                    redirection_data: None,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,

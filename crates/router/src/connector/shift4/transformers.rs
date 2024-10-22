@@ -747,7 +747,8 @@ impl TryFrom<types::PaymentsPreprocessingResponseRouterData<Shift4ThreeDsRespons
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data,
+                redirection_data: Box::new(redirection_data),
+
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(
                     serde_json::to_value(Shift4CardToken {
@@ -790,12 +791,13 @@ impl<T, F>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data: item
-                    .response
-                    .flow
-                    .and_then(|flow| flow.redirect)
-                    .and_then(|redirect| redirect.redirect_url)
-                    .map(|url| services::RedirectForm::from((url, services::Method::Get))),
+                redirection_data: Box::new(
+                    item.response
+                        .flow
+                        .and_then(|flow| flow.redirect)
+                        .and_then(|redirect| redirect.redirect_url)
+                        .map(|url| services::RedirectForm::from((url, services::Method::Get))),
+                ),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

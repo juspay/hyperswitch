@@ -146,7 +146,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
         let response_data = timeline.context.map_or(
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id.clone(),
-                redirection_data: Some(redirection_data),
+                redirection_data: Box::new(Some(redirection_data)),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

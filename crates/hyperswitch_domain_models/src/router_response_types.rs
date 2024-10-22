@@ -17,8 +17,8 @@ pub struct RefundsResponseData {
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
-        redirection_data: Option<RedirectForm>,
-        mandate_reference:  Box<Option<MandateReference>>,
+        redirection_data: Box<Option<RedirectForm>>,
+        mandate_reference: Box<Option<MandateReference>>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,

@@ -138,7 +138,7 @@ impl<F, T>
         let response_data = if attempt_status != OpennodePaymentStatus::Underpaid {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data: Some(redirection_data),
+                redirection_data: Box::new(Some(redirection_data)),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

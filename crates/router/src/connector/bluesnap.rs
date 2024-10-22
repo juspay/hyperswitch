@@ -741,10 +741,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: Some(services::RedirectForm::BlueSnap {
+                        redirection_data: Box::new(Some(services::RedirectForm::BlueSnap {
                             payment_fields_token,
-                        }),
-                         mandate_reference: Box::new(None),
+                        })),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,

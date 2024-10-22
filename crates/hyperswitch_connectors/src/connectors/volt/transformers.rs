@@ -277,7 +277,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
+                redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -351,7 +351,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             resource_id: ResponseId::ConnectorTransactionId(
                                 payment_response.id.clone(),
                             ),
-                            redirection_data: None,
+                            redirection_data: Box::new(None),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
@@ -392,7 +392,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             resource_id: ResponseId::ConnectorTransactionId(
                                 webhook_response.payment.clone(),
                             ),
-                            redirection_data: None,
+                            redirection_data: Box::new(None),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,

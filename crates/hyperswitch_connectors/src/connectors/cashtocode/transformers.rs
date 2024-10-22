@@ -269,7 +269,7 @@ impl<F>
                         resource_id: ResponseId::ConnectorTransactionId(
                             item.data.attempt_id.clone(),
                         ),
-                        redirection_data: Some(redirection_data),
+                        redirection_data: Box::new(Some(redirection_data)),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
@@ -302,7 +302,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
                 ),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

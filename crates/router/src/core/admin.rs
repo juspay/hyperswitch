@@ -2291,19 +2291,21 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             connector_name: None,
             merchant_connector_id: None,
             connector_label: self.connector_label.clone(),
-             connector_account_details: Box::new(encrypted_data.connector_account_details),
+            connector_account_details: Box::new(encrypted_data.connector_account_details),
             test_mode: self.test_mode,
             disabled,
             payment_methods_enabled,
             metadata: self.metadata,
             frm_configs,
             connector_webhook_details: match &self.connector_webhook_details {
-                 Some(connector_webhook_details) => Box::new(connector_webhook_details
-                    .encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(Some)?
-                    .map(Secret::new)),
-                 None => Box::new(None),
+                Some(connector_webhook_details) => Box::new(
+                    connector_webhook_details
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .map(Some)?
+                        .map(Secret::new),
+                ),
+                None => Box::new(None),
             },
             applepay_verified_domains: None,
             pm_auth_config: Box::new(self.pm_auth_config),

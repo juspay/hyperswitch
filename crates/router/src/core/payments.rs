@@ -2910,9 +2910,9 @@ where
                 let should_continue = matches!(
                     router_data.response,
                     Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        redirection_data: None,
+                        ref redirection_data,
                         ..
-                    })
+                    }) if redirection_data.is_none()
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)

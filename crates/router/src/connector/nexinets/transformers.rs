@@ -367,7 +367,8 @@ impl<F, T>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data,
+                redirection_data: Box::new(redirection_data),
+
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
@@ -451,7 +452,7 @@ impl<F, T>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,

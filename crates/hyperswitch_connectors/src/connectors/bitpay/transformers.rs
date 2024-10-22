@@ -159,7 +159,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResp
             status: enums::AttemptStatus::from(attempt_status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data,
+                redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

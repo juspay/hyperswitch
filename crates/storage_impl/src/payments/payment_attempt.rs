@@ -538,9 +538,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::PaymentAttempt(
-                             Box::new(payment_attempt.to_storage_model()),
-                        )),
+                        insertable: Box::new(kv::Insertable::PaymentAttempt(Box::new(
+                            payment_attempt.to_storage_model(),
+                        ))),
                     },
                 };
 

@@ -202,7 +202,7 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.order_id.clone(),
                 ),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -259,7 +259,7 @@ impl<F, T>
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -343,7 +343,7 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.order_id.clone(),
                 ),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -478,7 +478,7 @@ impl<F, T>
             status: enums::AttemptStatus::from(order.status.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(order.order_id.clone()),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

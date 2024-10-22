@@ -947,7 +947,8 @@ fn get_zen_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.id.clone()),
-        redirection_data,
+        redirection_data: Box::new(redirection_data),
+
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
@@ -991,7 +992,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::Paym
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data,
+                redirection_data: Box::new(redirection_data),
+
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

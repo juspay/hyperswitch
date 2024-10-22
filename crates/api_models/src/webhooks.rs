@@ -238,7 +238,7 @@ pub enum OutgoingWebhookContent {
     MandateDetails(Box<mandates::MandateResponse>),
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
-     PayoutDetails(Box<payouts::PayoutCreateResponse>),
+    PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize)]

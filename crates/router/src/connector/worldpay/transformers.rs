@@ -481,8 +481,9 @@ impl<F, T>
                     router_data.response,
                     optional_correlation_id.clone(),
                 ))?,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),

@@ -298,14 +298,14 @@ impl
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
-                    redirection_data: Some(RedirectForm::Form {
+                    redirection_data: Box::new(Some(RedirectForm::Form {
                         endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
                         form_fields: HashMap::from([
                             ("reference".to_string(), reference.clone()),
                             ("signed_on".to_string(), signed_on.clone()),
                         ]),
-                    }),
+                    })),
                     mandate_reference: if item.data.request.is_mandate_payment() {
                         Box::new(Some(MandateReference {
                             connector_mandate_id: item.response.mandate_id,
@@ -375,7 +375,7 @@ impl
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -578,7 +578,7 @@ impl
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -637,7 +637,7 @@ impl
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
