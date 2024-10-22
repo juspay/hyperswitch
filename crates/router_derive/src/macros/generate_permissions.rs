@@ -1,9 +1,13 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::parse::{Parse, ParseBuffer, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::{braced, bracketed, parse_macro_input, Ident, Token};
+use syn::{
+    braced, bracketed,
+    parse::{Parse, ParseBuffer, ParseStream},
+    parse_macro_input,
+    punctuated::Punctuated,
+    token::Comma,
+    Ident, Token,
+};
 
 struct ResourceInput {
     resource_name: Ident,

@@ -1,7 +1,8 @@
-use super::permissions::Permission;
-use super::permissions::ResourceExt;
-use common_enums::{ParentGroup, PermissionGroup, PermissionScope, Resource};
 use std::collections::HashSet;
+
+use common_enums::{ParentGroup, PermissionGroup, PermissionScope, Resource};
+
+use super::permissions::{Permission, ResourceExt};
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
