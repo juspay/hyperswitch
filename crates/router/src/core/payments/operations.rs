@@ -31,6 +31,9 @@ pub mod tax_calculation;
 #[cfg(feature = "v2")]
 pub mod payment_create_intent;
 
+#[cfg(feature = "v2")]
+pub mod payment_get_intent;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -38,8 +41,6 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "v2")]
-pub use self::payment_create_intent::PaymentCreateIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
@@ -51,6 +52,8 @@ pub use self::{
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
+#[cfg(feature = "v2")]
+pub use self::{payment_create_intent::PaymentCreateIntent, payment_get_intent::PaymentGetIntent};
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},

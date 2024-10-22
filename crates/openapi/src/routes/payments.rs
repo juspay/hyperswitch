@@ -620,7 +620,7 @@ pub fn payments_post_session_tokens() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsCreateIntentResponse),
+      (status = 200, description = "Payment created", body = PaymentsIntentResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payments",
@@ -629,3 +629,23 @@ pub fn payments_post_session_tokens() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payments_create_intent() {}
+
+/// Payments - Get Intent
+///
+/// **Get a payment intent object when id is passed in path**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
+#[utoipa::path(
+  get,
+  path = "/v2/payments/{id}/get-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent")),
+  responses(
+      (status = 200, description = "Payment Intent", body = PaymentsIntentResponse),
+      (status = 404, description = "Payment ID not found")
+  ),
+  tag = "Payments",
+  operation_id = "Get the Payment Intent details",
+  security(("api_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_get_intent() {}
