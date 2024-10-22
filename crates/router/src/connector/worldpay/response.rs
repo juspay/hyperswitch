@@ -53,8 +53,8 @@ pub struct FraudHighRiskResponse {
 pub struct RefusedResponse {
     pub refusal_description: String,
     pub refusal_code: String,
-    pub risk_factors: Vec<RiskFactorsInner>,
-    pub fraud: Fraud,
+    pub risk_factors: Option<Vec<RiskFactorsInner>>,
+    pub fraud: Option<Fraud>,
     #[serde(rename = "threeDS")]
     pub three_ds: Option<ThreeDsResponse>,
 }
