@@ -148,9 +148,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.amount,
-                        total_amount: MinorUnit::new(
-                            i64::from(data.quantity) * (data.amount.get_amount_as_i64()),
-                        ),
+                        total_amount: MinorUnit::new(i64::from(data.quantity)) * (data.amount),
                     })
                     .collect(),
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -203,9 +201,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.amount,
-                        total_amount: MinorUnit::new(
-                            i64::from(data.quantity) * (data.amount.get_amount_as_i64()),
-                        ),
+                        total_amount: MinorUnit::new(i64::from(data.quantity)) * (data.amount),
                     })
                     .collect(),
                 merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),

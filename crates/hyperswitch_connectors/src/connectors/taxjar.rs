@@ -190,7 +190,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
 
         let shipping = utils::convert_amount(
             self.amount_converter,
-            req.request.shipping_cost.unwrap_or(MinorUnit::new(0)),
+            req.request.shipping_cost.unwrap_or(MinorUnit::zero()),
             req.request.currency,
         )?;
 
@@ -200,7 +200,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
                 .order_details
                 .as_ref()
                 .and_then(|details| details.first().map(|item| item.amount))
-                .unwrap_or(MinorUnit::new(0)),
+                .unwrap_or(MinorUnit::zero()),
             req.request.currency,
         )?;
 
