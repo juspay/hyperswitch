@@ -147,9 +147,9 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
-                        unit_price: data.minor_amount,
+                        unit_price: data.amount,
                         total_amount: MinorUnit::new(
-                            i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64()),
+                            i64::from(data.quantity) * (data.amount.get_amount_as_i64()),
                         ),
                     })
                     .collect(),
@@ -202,9 +202,9 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     .map(|data| OrderLines {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
-                        unit_price: data.minor_amount,
+                        unit_price: data.amount,
                         total_amount: MinorUnit::new(
-                            i64::from(data.quantity) * (data.minor_amount.get_amount_as_i64()),
+                            i64::from(data.quantity) * (data.amount.get_amount_as_i64()),
                         ),
                     })
                     .collect(),

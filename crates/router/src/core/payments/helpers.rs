@@ -5452,7 +5452,7 @@ pub fn validate_order_details_amount(
     if should_validate {
         let total_order_details_amount: i64 = order_details
             .iter()
-            .map(|order| order.amount * i64::from(order.quantity))
+            .map(|order| order.amount.get_amount_as_i64() * i64::from(order.quantity))
             .sum();
 
         if total_order_details_amount != amount {
