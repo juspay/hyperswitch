@@ -39,7 +39,6 @@ use hyperswitch_interfaces::{
 };
 use transformers as tsys;
 
-// use super::utils::convert_amount;
 use crate::{constants::headers, types::ResponseRouterData, utils};
 #[derive(Clone)]
 pub struct Tsys {
