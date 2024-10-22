@@ -18174,6 +18174,21 @@
           }
         }
       },
+      "RefundErrorDetails": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -18370,8 +18385,11 @@
           "amount",
           "currency",
           "status",
+          "created_at",
+          "updated_at",
           "connector",
-          "profile_id"
+          "profile_id",
+          "merchant_connector_id"
         ],
         "properties": {
           "id": {
@@ -18412,27 +18430,23 @@
             "description": "Metadata is useful for storing additional, unstructured information on an object",
             "nullable": true
           },
-          "error_code": {
-            "type": "string",
-            "description": "The code for the error",
-            "nullable": true
-          },
-          "error_message": {
-            "type": "string",
-            "description": "The error message",
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundErrorDetails"
+              }
+            ],
             "nullable": true
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The timestamp at which refund is created",
-            "nullable": true
+            "description": "The timestamp at which refund is created"
           },
           "updated_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The timestamp at which refund is updated",
-            "nullable": true
+            "description": "The timestamp at which refund is updated"
           },
           "connector": {
             "$ref": "#/components/schemas/Connector"
@@ -18443,7 +18457,11 @@
           },
           "merchant_connector_id": {
             "type": "string",
-            "description": "The merchant_connector_id of the processor through which this payment went through",
+            "description": "The merchant_connector_id of the processor through which this payment went through"
+          },
+          "connector_refund_reference_id": {
+            "type": "string",
+            "description": "The reference id of the connector for the refund",
             "nullable": true
           }
         }
@@ -18487,8 +18505,7 @@
       "RefundsCreateRequest": {
         "type": "object",
         "required": [
-          "payment_id",
-          "merchant_reference_id"
+          "payment_id"
         ],
         "properties": {
           "payment_id": {
@@ -18502,6 +18519,7 @@
             "type": "string",
             "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.",
             "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
