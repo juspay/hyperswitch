@@ -240,7 +240,6 @@ default_imp_for_complete_authorize!(
     connector::Wise,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldpay,
     connector::Zen,
     connector::Zsl
 );
@@ -472,7 +471,6 @@ default_imp_for_connector_redirect_response!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldpay,
     connector::Zsl
 );
 

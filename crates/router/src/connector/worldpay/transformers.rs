@@ -1,17 +1,20 @@
+use std::collections::HashMap;
+
 use api_models::payments::Address;
 use base64::Engine;
-use common_utils::{errors::CustomResult, ext_traits::OptionExt, types::MinorUnit};
+use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii, types::MinorUnit};
 use diesel_models::enums;
 use error_stack::ResultExt;
-use hyperswitch_connectors::utils::RouterData;
-use masking::{PeekInterface, Secret};
-use serde::Serialize;
+use hyperswitch_connectors::utils::{PaymentsAuthorizeRequestData, RouterData};
+use masking::{ExposeInterface, PeekInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
 use crate::{
-    connector::utils,
+    connector::utils::{self, AddressData},
     consts,
     core::errors,
+    services,
     types::{
         self, domain, transformers::ForeignTryFrom, PaymentsAuthorizeData, PaymentsResponseData,
     },
@@ -45,20 +48,37 @@ impl<T>
         })
     }
 }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct WorldpayConnectorMetadataObject {
+    pub merchant_name: Option<Secret<String>>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 fn fetch_payment_instrument(
     payment_method: domain::PaymentMethodData,
     billing_address: Option<&Address>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
-            payment_type: PaymentType::Card,
+            payment_type: PaymentType::Plain,
             expiry_date: ExpiryDate {
                 month: utils::CardData::get_expiry_month_as_i8(&card)?,
                 year: utils::CardData::get_expiry_year_as_i32(&card)?,
             },
             card_number: card.card_number,
             cvc: card.card_cvc,
-            card_holder_name: card.nick_name,
+            card_holder_name: billing_address.and_then(|address| address.get_optional_full_name()),
             billing_address: if let Some(address) =
                 billing_address.and_then(|addr| addr.address.clone())
             {
@@ -85,13 +105,13 @@ fn fetch_payment_instrument(
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
-                    payment_type: PaymentType::Googlepay,
+                    payment_type: PaymentType::Encrypted,
                     wallet_token: Secret::new(data.tokenization_data.token),
                     ..WalletPayment::default()
                 }))
             }
             domain::WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
-                payment_type: PaymentType::Applepay,
+                payment_type: PaymentType::Encrypted,
                 wallet_token: Secret::new(data.payment_data),
                 ..WalletPayment::default()
             })),
@@ -149,6 +169,27 @@ fn fetch_payment_instrument(
     }
 }
 
+impl TryFrom<(enums::PaymentMethod, enums::PaymentMethodType)> for PaymentMethod {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        src: (enums::PaymentMethod, enums::PaymentMethodType),
+    ) -> Result<Self, Self::Error> {
+        match (src.0, src.1) {
+            (enums::PaymentMethod::Card, _) => Ok(Self::Card),
+            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::ApplePay) => {
+                Ok(Self::ApplePay)
+            }
+            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::GooglePay) => {
+                Ok(Self::GooglePay)
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into()),
+        }
+    }
+}
+
 impl
     TryFrom<(
         &WorldpayRouterData<
@@ -176,36 +217,98 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, entity_id) = req;
+        let worldpay_connector_metadata_object: WorldpayConnectorMetadataObject =
+            WorldpayConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+        let merchant_name = worldpay_connector_metadata_object.merchant_name.ok_or(
+            errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata.merchant_name",
+            },
+        )?;
+        let three_ds = match item.router_data.auth_type {
+            enums::AuthenticationType::ThreeDs => {
+                let browser_info = item
+                    .router_data
+                    .request
+                    .browser_info
+                    .clone()
+                    .get_required_value("browser_info")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info",
+                    })?;
+                let accept_header = browser_info
+                    .accept_header
+                    .get_required_value("accept_header")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "accept_header",
+                    })?;
+                let user_agent_header = browser_info
+                    .user_agent
+                    .get_required_value("user_agent")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "user_agent",
+                    })?;
+                Some(ThreeDSRequest {
+                    three_ds_type: "integrated".to_string(),
+                    mode: "always".to_string(),
+                    device_data: ThreeDSRequestDeviceData {
+                        accept_header,
+                        user_agent_header,
+                        browser_language: browser_info.language.clone(),
+                        browser_screen_width: browser_info.screen_width,
+                        browser_screen_height: browser_info.screen_height,
+                        browser_color_depth: browser_info
+                            .color_depth
+                            .map(|depth| depth.to_string()),
+                        time_zone: browser_info.time_zone.map(|tz| tz.to_string()),
+                        browser_java_enabled: browser_info.java_enabled,
+                        browser_javascript_enabled: browser_info.java_script_enabled,
+                        channel: Some(ThreeDSRequestChannel::Browser),
+                    },
+                    challenge: ThreeDSRequestChallenge {
+                        return_url: item.router_data.request.get_complete_authorize_url()?,
+                    },
+                })
+            }
+            _ => None,
+        };
         Ok(Self {
             instruction: Instruction {
-                request_auto_settlement: RequestAutoSettlement {
-                    enabled: item.router_data.request.capture_method
-                        == Some(enums::CaptureMethod::Automatic),
+                settlement: item
+                    .router_data
+                    .request
+                    .capture_method
+                    .map(|capture_method| AutoSettlement {
+                        auto: capture_method == enums::CaptureMethod::Automatic,
+                    }),
+                method: item
+                    .router_data
+                    .request
+                    .payment_method_type
+                    .map(|pmt| PaymentMethod::try_from((item.router_data.payment_method, pmt)))
+                    .transpose()?
+                    .get_required_value("payment_method")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_method",
+                    })?,
+                payment_instrument: fetch_payment_instrument(
+                    item.router_data.request.payment_method_data.clone(),
+                    item.router_data.get_optional_billing(),
+                )?,
+                narrative: InstructionNarrative {
+                    line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
                     amount: item.amount,
                     currency: item.router_data.request.currency,
                 },
-                narrative: InstructionNarrative {
-                    line1: item
-                        .router_data
-                        .merchant_id
-                        .get_string_repr()
-                        .replace('_', "-"),
-                    ..Default::default()
-                },
-                payment_instrument: fetch_payment_instrument(
-                    item.router_data.request.payment_method_data.clone(),
-                    item.router_data.get_optional_billing(),
-                )?,
                 debt_repayment: None,
+                three_ds,
             },
             merchant: Merchant {
                 entity: entity_id.clone(),
                 ..Default::default()
             },
             transaction_reference: item.router_data.connector_request_reference_id.clone(),
-            channel: Channel::Ecom,
             customer: None,
         })
     }
@@ -250,9 +353,16 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
-            PaymentOutcome::Refused => Self::Failure,
             PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
-            PaymentOutcome::SentForRefund => Self::AutoRefunded,
+            PaymentOutcome::ThreeDsDeviceDataRequired => Self::DeviceDataCollectionPending,
+            PaymentOutcome::ThreeDsAuthenticationFailed => Self::AuthenticationFailed,
+            PaymentOutcome::ThreeDsChallenged => Self::AuthenticationPending,
+            PaymentOutcome::SentForCancellation => Self::VoidInitiated,
+            PaymentOutcome::SentForPartialRefund | PaymentOutcome::SentForRefund => {
+                Self::AutoRefunded
+            }
+            PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
+            PaymentOutcome::ThreeDsUnavailable => Self::AuthenticationFailed,
         }
     }
 }
@@ -295,32 +405,106 @@ impl From<EventType> for enums::RefundStatus {
     }
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
-    for types::PaymentsAuthorizeRouterData
+impl<F, T>
+    ForeignTryFrom<(
+        types::ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
+        Option<String>,
+    )> for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::PaymentsResponseRouterData<WorldpayPaymentsResponse>,
+    fn foreign_try_from(
+        item: (
+            types::ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
+            Option<String>,
+        ),
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: match item.response.outcome {
-                Some(outcome) => enums::AttemptStatus::from(outcome),
-                None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "outcome",
-                })?,
-            },
-            description: item.response.description,
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::foreign_try_from(item.response.links)?,
-                redirection_data: None,
-                mandate_reference: Box::new(None),
+        let (router_data, optional_correlation_id) = item;
+        let (description, redirection_data) = router_data
+            .response
+            .other_fields
+            .as_ref()
+            .map(|other_fields| match other_fields {
+                WorldpayPaymentResponseFields::AuthorizedResponse(res) => {
+                    (res.description.clone(), None)
+                }
+                WorldpayPaymentResponseFields::DDCResponse(res) => (
+                    None,
+                    Some(services::RedirectForm::WorldpayDDCForm {
+                        endpoint: res.device_data_collection.url.clone(),
+                        method: common_utils::request::Method::Post,
+                        collection_id: Some("SessionId".to_string()),
+                        form_fields: HashMap::from([
+                            (
+                                "Bin".to_string(),
+                                res.device_data_collection.bin.clone().expose(),
+                            ),
+                            (
+                                "JWT".to_string(),
+                                res.device_data_collection.jwt.clone().expose(),
+                            ),
+                        ]),
+                    }),
+                ),
+                WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
+                    None,
+                    Some(services::RedirectForm::Form {
+                        endpoint: res.challenge.url.to_string(),
+                        method: common_utils::request::Method::Post,
+                        form_fields: HashMap::from([(
+                            "JWT".to_string(),
+                            res.challenge.jwt.clone().expose(),
+                        )]),
+                    }),
+                ),
+                WorldpayPaymentResponseFields::FraudHighRisk(_)
+                | WorldpayPaymentResponseFields::RefusedResponse(_) => (None, None),
+            })
+            .unwrap_or((None, None));
+        let worldpay_status = router_data.response.outcome.clone();
+        let optional_reason = match worldpay_status {
+            PaymentOutcome::ThreeDsAuthenticationFailed => {
+                Some("3DS authentication failed from issuer".to_string())
+            }
+            PaymentOutcome::ThreeDsUnavailable => {
+                Some("3DS authentication unavailable from issuer".to_string())
+            }
+            PaymentOutcome::FraudHighRisk => {
+                Some("Transaction marked as high risk by Worldpay".to_string())
+            }
+            PaymentOutcome::Refused => Some("Transaction refused by issuer".to_string()),
+            _ => None,
+        };
+        let status = enums::AttemptStatus::from(worldpay_status.clone());
+        let response = optional_reason.map_or(
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::foreign_try_from((
+                    router_data.response,
+                    optional_correlation_id.clone(),
+                ))?,
+                redirection_data,
+                mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            ..item.data
+            |reason| {
+                Err(types::ErrorResponse {
+                    code: worldpay_status.to_string(),
+                    message: reason.clone(),
+                    reason: Some(reason),
+                    status_code: router_data.http_code,
+                    attempt_status: Some(status),
+                    connector_transaction_id: optional_correlation_id,
+                })
+            },
+        );
+        Ok(Self {
+            status,
+            description,
+            response,
+            ..router_data.data
         })
     }
 }
@@ -360,5 +544,37 @@ impl TryFrom<WorldpayWebhookEventType> for WorldpayEventResponse {
             last_event: event.event_details.event_type,
             links: None,
         })
+    }
+}
+
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for ResponseIdStr {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        item: (WorldpayPaymentsResponse, Option<String>),
+    ) -> Result<Self, Self::Error> {
+        get_resource_id(item.0, item.1, |id| Self { id })
+    }
+}
+
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for types::ResponseId {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        item: (WorldpayPaymentsResponse, Option<String>),
+    ) -> Result<Self, Self::Error> {
+        get_resource_id(item.0, item.1, Self::ConnectorTransactionId)
+    }
+}
+
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAuthorizationRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let params = item
+            .request
+            .redirect_response
+            .as_ref()
+            .and_then(|redirect_response| redirect_response.params.as_ref())
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        serde_urlencoded::from_str::<Self>(params.peek())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 }
