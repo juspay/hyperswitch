@@ -359,7 +359,6 @@ pub struct AdyenplatformIncomingWebhook {
 pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
-    pub priority: AdyenPayoutPriority,
     pub tracking: Option<AdyenplatformInstantStatus>,
 }
 

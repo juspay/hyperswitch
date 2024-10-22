@@ -1144,8 +1144,6 @@ pub struct SurchargeDetailsResponse {
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
     pub display_total_surcharge_amount: f64,
-    /// sum of original amount,
-    pub display_final_amount: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

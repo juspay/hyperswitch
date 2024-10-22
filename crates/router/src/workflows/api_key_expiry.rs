@@ -6,7 +6,7 @@ use router_env::{logger, metrics::add_attributes};
 use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerSessionState};
 
 use crate::{
-    errors,
+    consts, errors,
     logger::error,
     routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
@@ -81,7 +81,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
                 );
                 errors::ProcessTrackerError::EApiErrorResponse
             })?,
-            subject: "API Key Expiry Notice",
+            subject: consts::EMAIL_SUBJECT_API_KEY_EXPIRY,
             expires_in: *expires_in,
             api_key_name,
             prefix,

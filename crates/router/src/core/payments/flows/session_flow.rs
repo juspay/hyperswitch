@@ -550,10 +550,15 @@ fn create_samsung_pay_session_token(
             message: "Failed to convert amount to string major unit for Samsung Pay".to_string(),
         })?;
 
-    let merchant_domain = header_payload
-        .x_merchant_domain
-        .get_required_value("samsung pay domain")
-        .attach_printable("Failed to get domain for samsung pay session call")?;
+    let merchant_domain = match header_payload.x_client_platform {
+        Some(common_enums::ClientPlatform::Web) => Some(
+            header_payload
+                .x_merchant_domain
+                .get_required_value("samsung pay domain")
+                .attach_printable("Failed to get domain for samsung pay session call")?,
+        ),
+        _ => None,
+    };
 
     let samsung_pay_wallet_details = match samsung_pay_session_token_data.data {
         payment_types::SamsungPayCombinedMetadata::MerchantCredentials(
@@ -567,13 +572,15 @@ fn create_samsung_pay_session_token(
         })?,
     };
 
+    let formatted_payment_id = router_data.payment_id.replace("_", "-");
+
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::SamsungPay(Box::new(
                 payment_types::SamsungPaySessionTokenResponse {
                     version: "2".to_string(),
                     service_id: samsung_pay_wallet_details.service_id,
-                    order_number: router_data.payment_id.clone(),
+                    order_number: formatted_payment_id,
                     merchant_payment_information:
                         payment_types::SamsungPayMerchantPaymentInformation {
                             name: samsung_pay_wallet_details.merchant_display_name,
@@ -955,7 +962,7 @@ fn create_paypal_sdk_session_token(
                     connector: connector.connector_name.to_string(),
                     session_token: paypal_sdk_data.data.client_id,
                     sdk_next_action: payment_types::SdkNextAction {
-                        next_action: payment_types::NextActionCall::Confirm,
+                        next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
                 },
             )),

@@ -255,6 +255,8 @@ diesel::table! {
         capture_sequence -> Int2,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        #[max_length = 512]
+        connector_capture_data -> Nullable<Varchar>,
     }
 }
 
@@ -813,10 +815,13 @@ diesel::table! {
         #[max_length = 128]
         external_reference_id -> Nullable<Varchar>,
         tax_on_surcharge -> Nullable<Int8>,
+        #[max_length = 512]
+        connector_payment_data -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        connector_mandate_detail -> Nullable<Jsonb>,
     }
 }
 
@@ -845,7 +850,7 @@ diesel::table! {
         #[max_length = 128]
         client_secret -> Varchar,
         #[max_length = 64]
-        active_attempt_id -> Varchar,
+        active_attempt_id -> Nullable<Varchar>,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,
@@ -860,7 +865,7 @@ diesel::table! {
         surcharge_applicable -> Nullable<Bool>,
         request_incremental_authorization -> Nullable<RequestIncrementalAuthorization>,
         authorization_count -> Nullable<Int4>,
-        session_expiry -> Nullable<Timestamp>,
+        session_expiry -> Timestamp,
         request_external_three_ds_authentication -> Nullable<Bool>,
         frm_metadata -> Nullable<Jsonb>,
         customer_details -> Nullable<Bytea>,
@@ -1130,6 +1135,10 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
+        #[max_length = 512]
+        connector_refund_data -> Nullable<Varchar>,
+        #[max_length = 512]
+        connector_transaction_data -> Nullable<Varchar>,
     }
 }
 
