@@ -125,11 +125,11 @@ impl Multitenancy {
     pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_names(&self) -> Vec<String> {
+    pub fn get_tenant_ids(&self) -> Vec<String> {
         self.tenants
             .0
-            .iter()
-            .map(|(_, tenant)| tenant.tenant_id.clone())
+            .values()
+            .map(|tenant| tenant.tenant_id.clone())
             .collect()
     }
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
@@ -137,9 +137,41 @@ impl Multitenancy {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<String, Tenant>);
+
+impl<'de> Deserialize<'de> for TenantConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Inner {
+            base_url: String,
+            schema: String,
+            redis_key_prefix: String,
+            clickhouse_database: String,
+        }
+
+        let hashmap = <HashMap<String, Inner>>::deserialize(deserializer)?;
+
+        Ok(Self(
+            hashmap
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        Tenant {
+                            tenant_id: key,
+                            base_url: value.base_url,
+                            schema: value.schema,
+                            redis_key_prefix: value.redis_key_prefix,
+                            clickhouse_database: value.clickhouse_database,
+                        },
+                    )
+                })
+                .collect(),
+        ))
+    }
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Tenant {

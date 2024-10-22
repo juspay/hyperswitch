@@ -144,8 +144,8 @@ impl Multitenancy {
     pub fn get_tenant_ids(&self) -> Vec<String> {
         self.tenants
             .0
-            .iter()
-            .map(|(_, tenant)| tenant.tenant_id.clone())
+            .values()
+            .map(|tenant| tenant.tenant_id.clone())
             .collect()
     }
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
