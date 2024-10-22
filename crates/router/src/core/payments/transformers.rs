@@ -16,7 +16,9 @@ use diesel_models::{
     payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
+use hyperswitch_domain_models::{
+    payments::payment_intent::CustomerData, router_request_types, ApiDieselConvertor,
+};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
@@ -568,10 +570,18 @@ where
                 order_details: payment_intent.order_details.clone().map(|order_details| {
                     order_details
                         .into_iter()
-                        .map(|order_detail| order_detail.expose())
+                        .map(|order_detail| order_detail.expose().to_api())
                         .collect()
                 }),
-                allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
+                allowed_payment_method_types: payment_intent
+                    .allowed_payment_method_types
+                    .clone()
+                    .map(|allowed_payment_method_types| {
+                        allowed_payment_method_types
+                            .into_iter()
+                            .map(ExposeInterface::expose)
+                            .collect()
+                    }),
                 metadata: payment_intent.metadata.clone(),
                 connector_metadata: payment_intent.connector_metadata.clone(),
                 feature_metadata: payment_intent.feature_metadata.clone(),

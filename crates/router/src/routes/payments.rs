@@ -125,7 +125,7 @@ pub async fn payments_create_intent(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
                 api_types::CreateIntent,
                 payment_types::PaymentsCreateIntentResponse,

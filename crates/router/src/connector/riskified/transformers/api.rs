@@ -113,7 +113,7 @@ pub struct LineItem {
     price: i64,
     quantity: i32,
     title: String,
-    product_type: Option<api_models::payments::ProductType>,
+    product_type: Option<common_enums::ProductType>,
     requires_shipping: Option<bool>,
     product_id: Option<String>,
     category: Option<String>,
