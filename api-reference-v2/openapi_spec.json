@@ -13234,6 +13234,8 @@
           "connector",
           "client_secret",
           "created",
+          "payment_method_type",
+          "payment_method_subtype",
           "merchant_connector_id"
         ],
         "properties": {
@@ -13274,12 +13276,10 @@
             "nullable": true
           },
           "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethod"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "connector_transaction_id": {
             "type": "string",
@@ -13287,7 +13287,7 @@
             "example": "993672945374576J",
             "nullable": true
           },
-          "reference_id": {
+          "connector_reference_id": {
             "type": "string",
             "description": "reference(Identifier) to the payment at connector side",
             "example": "993672945374576J",
