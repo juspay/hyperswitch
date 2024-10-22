@@ -126,7 +126,11 @@ impl Multitenancy {
         &self.tenants.0
     }
     pub fn get_tenant_names(&self) -> Vec<String> {
-        self.tenants.0.keys().cloned().collect()
+        self.tenants
+            .0
+            .iter()
+            .map(|(_, tenant)| tenant.tenant_id.clone())
+            .collect()
     }
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
@@ -139,7 +143,7 @@ pub struct TenantConfig(pub HashMap<String, Tenant>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Tenant {
-    pub name: String,
+    pub tenant_id: String,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
