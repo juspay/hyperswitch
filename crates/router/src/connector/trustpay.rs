@@ -688,7 +688,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 req.request.connector_transaction_id,
                 "/Refund"
             )),
-            _ => Ok(format!("{}{}", self.base_url(connectors), "api/v1/Reverse")),
+            _ => Ok(format!("{}{}", self.base_url(connectors), "api/v1/Refund")),
         }
     }
 

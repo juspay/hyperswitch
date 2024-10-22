@@ -228,24 +228,6 @@ pub async fn internal_user_signup(
     .await
 }
 
-pub async fn switch_merchant_id(
-    state: web::Data<AppState>,
-    http_req: HttpRequest,
-    json_payload: web::Json<user_api::SwitchMerchantRequest>,
-) -> HttpResponse {
-    let flow = Flow::SwitchMerchant;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        json_payload.into_inner(),
-        |state, user, req, _| user_core::switch_merchant_id(state, req, user),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 pub async fn user_merchant_account_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -317,41 +299,6 @@ pub async fn delete_sample_data(
     .await
 }
 
-pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::UserMerchantAccountList;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        (),
-        |state, user, _, _| user_core::list_merchants_for_user(state, user),
-        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::AcceptInvite),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn get_user_role_details(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
-) -> HttpResponse {
-    let flow = Flow::GetUserDetails;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        user_core::get_user_details_in_merchant_account,
-        &auth::JWTAuth {
-            permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 pub async fn list_user_roles_details(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -367,26 +314,6 @@ pub async fn list_user_roles_details(
         &auth::JWTAuth {
             permission: Permission::UsersRead,
             minimum_entity_level: EntityType::Profile,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn list_users_for_merchant_account(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-) -> HttpResponse {
-    let flow = Flow::ListUsersForMerchantAccount;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        (),
-        |state, user, _, _| user_core::list_users_for_merchant_account(state, user),
-        &auth::JWTAuth {
-            permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -750,6 +677,23 @@ pub async fn check_two_factor_auth_status(
         (),
         |state, user, _, _| user_core::check_two_factor_auth_status(state, user),
         &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn check_two_factor_auth_status_with_attempts(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::check_two_factor_auth_status_with_attempts(state, user),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
         api_locking::LockAction::NotApplicable,
     ))
     .await

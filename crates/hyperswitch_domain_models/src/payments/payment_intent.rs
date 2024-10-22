@@ -1,14 +1,16 @@
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    crypto::Encryptable,
+    crypto::{self, Encryptable},
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
     pii::{self, Email},
     type_name,
     types::{
-        keymanager::{self, KeyManagerState},
+        keymanager::{self, KeyManagerState, ToEncryptable},
         MinorUnit,
     },
 };
@@ -16,7 +18,10 @@ use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use masking::ExposeInterface;
 use masking::{Deserialize, PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -26,7 +31,7 @@ use super::PaymentIntent;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    type_encryption::{crypto_operation, CryptoOperation},
     RemoteStorageObject,
 };
 #[async_trait::async_trait]
@@ -1293,6 +1298,7 @@ pub struct PaymentIntentListParams {
     pub ending_before_id: Option<id_type::PaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
+    pub card_network: Option<Vec<storage_enums::CardNetwork>>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -1326,6 +1332,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             ending_before_id: ending_before,
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
+            card_network: None,
         }))
     }
 }
@@ -1350,6 +1357,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             ending_before_id: None,
             limit: None,
             order: Default::default(),
+            card_network: None,
         }))
     }
 }
@@ -1372,6 +1380,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             authentication_type,
             merchant_connector_id,
             order,
+            card_network,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
@@ -1394,6 +1403,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 ending_before_id: None,
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
+                card_network,
             }))
         }
     }
@@ -1518,10 +1528,20 @@ impl behaviour::Conversion for PaymentIntent {
             created_at,
             modified_at,
             last_synced,
-            setup_future_usage,
+            setup_future_usage: Some(setup_future_usage),
             client_secret,
-            active_attempt_id: active_attempt.get_id(),
-            order_details,
+            active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
+            order_details: order_details
+                .map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "invalid value found for order_details".to_string(),
+                })?,
             allowed_payment_method_types,
             connector_metadata,
             feature_metadata,
@@ -1531,7 +1551,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_id,
             updated_by,
 
-            request_incremental_authorization,
+            request_incremental_authorization: Some(request_incremental_authorization),
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1541,9 +1561,9 @@ impl behaviour::Conversion for PaymentIntent {
             customer_details: customer_details.map(Encryption::from),
             billing_address: billing_address.map(Encryption::from),
             shipping_address: shipping_address.map(Encryption::from),
-            capture_method,
+            capture_method: Some(capture_method),
             id,
-            authentication_type,
+            authentication_type: Some(authentication_type),
             prerouting_algorithm,
             merchant_reference_id,
             surcharge_amount: amount_details.surcharge_amount,
@@ -1568,17 +1588,25 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| async {
-                crypto_operation(
-                    state,
-                    type_name!(Self::DstType),
-                    CryptoOperation::DecryptOptional(inner),
-                    key_manager_identifier.clone(),
-                    key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-            };
+            let decrypted_data = crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentIntentAddress::to_encryptable(
+                    EncryptedPaymentIntentAddress {
+                        billing: storage_model.billing_address,
+                        shipping: storage_model.shipping_address,
+                        customer_details: storage_model.customer_details,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
 
             let amount_details = super::AmountDetails {
                 order_amount: storage_model.amount,
@@ -1594,6 +1622,23 @@ impl behaviour::Conversion for PaymentIntent {
                     storage_model.surcharge_applicable,
                 ),
             };
+            let billing_address = data
+                .billing
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+
+            let shipping_address = data
+                .shipping
+                .map(|shipping| {
+                    shipping.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: storage_model.merchant_id,
@@ -1608,10 +1653,23 @@ impl behaviour::Conversion for PaymentIntent {
                 created_at: storage_model.created_at,
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
-                setup_future_usage: storage_model.setup_future_usage,
+                setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 client_secret: storage_model.client_secret,
-                active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
-                order_details: storage_model.order_details,
+                active_attempt: storage_model
+                    .active_attempt_id
+                    .map(RemoteStorageObject::ForeignID),
+                order_details: storage_model
+                    .order_details
+                    .map(|order_details| {
+                        order_details
+                            .into_iter()
+                            .map(|order_detail| {
+                                order_detail.expose().parse_value("OrderDetailsWithAmount")
+                            })
+                            .collect::<Result<Vec<_>, _>>()
+                    })
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
                 allowed_payment_method_types: storage_model.allowed_payment_method_types,
                 connector_metadata: storage_model.connector_metadata,
                 feature_metadata: storage_model.feature_metadata,
@@ -1620,7 +1678,9 @@ impl behaviour::Conversion for PaymentIntent {
                 frm_merchant_decision: storage_model.frm_merchant_decision,
                 payment_link_id: storage_model.payment_link_id,
                 updated_by: storage_model.updated_by,
-                request_incremental_authorization: storage_model.request_incremental_authorization,
+                request_incremental_authorization: storage_model
+                    .request_incremental_authorization
+                    .unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication:
@@ -1628,23 +1688,14 @@ impl behaviour::Conversion for PaymentIntent {
                         storage_model.request_external_three_ds_authentication,
                     ),
                 frm_metadata: storage_model.frm_metadata,
-                customer_details: storage_model
-                    .customer_details
-                    .async_lift(inner_decrypt)
-                    .await?,
-                billing_address: storage_model
-                    .billing_address
-                    .async_lift(inner_decrypt)
-                    .await?,
-                shipping_address: storage_model
-                    .shipping_address
-                    .async_lift(inner_decrypt)
-                    .await?,
-                capture_method: storage_model.capture_method,
+                customer_details: data.customer_details,
+                billing_address,
+                shipping_address,
+                capture_method: storage_model.capture_method.unwrap_or_default(),
                 id: storage_model.id,
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
-                authentication_type: storage_model.authentication_type,
+                authentication_type: storage_model.authentication_type.unwrap_or_default(),
                 prerouting_algorithm: storage_model.prerouting_algorithm,
                 enable_payment_link: common_enums::EnablePaymentLinkRequest::from(
                     storage_model.enable_payment_link,
@@ -1684,10 +1735,21 @@ impl behaviour::Conversion for PaymentIntent {
             created_at: self.created_at,
             modified_at: self.modified_at,
             last_synced: self.last_synced,
-            setup_future_usage: self.setup_future_usage,
+            setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.get_id(),
-            order_details: self.order_details,
+            active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
+            order_details: self
+                .order_details
+                .map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Invalid value found for ".to_string(),
+                })?,
             allowed_payment_method_types: self.allowed_payment_method_types,
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
@@ -1697,7 +1759,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_id: self.payment_link_id,
             updated_by: self.updated_by,
 
-            request_incremental_authorization: self.request_incremental_authorization,
+            request_incremental_authorization: Some(self.request_incremental_authorization),
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1707,10 +1769,10 @@ impl behaviour::Conversion for PaymentIntent {
             customer_details: self.customer_details.map(Encryption::from),
             billing_address: self.billing_address.map(Encryption::from),
             shipping_address: self.shipping_address.map(Encryption::from),
-            capture_method: self.capture_method,
+            capture_method: Some(self.capture_method),
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
-            authentication_type: self.authentication_type,
+            authentication_type: Some(self.authentication_type),
             prerouting_algorithm: self.prerouting_algorithm,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
@@ -1796,17 +1858,26 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt = |inner| async {
-                crypto_operation(
-                    state,
-                    type_name!(Self::DstType),
-                    CryptoOperation::DecryptOptional(inner),
-                    key_manager_identifier.clone(),
-                    key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-            };
+            let decrypted_data = crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentIntentAddress::to_encryptable(
+                    EncryptedPaymentIntentAddress {
+                        billing: storage_model.billing_details,
+                        shipping: storage_model.shipping_details,
+                        customer_details: storage_model.customer_details,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -1854,19 +1925,10 @@ impl behaviour::Conversion for PaymentIntent {
                 frm_metadata: storage_model.frm_metadata,
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
-                customer_details: storage_model
-                    .customer_details
-                    .async_lift(inner_decrypt)
-                    .await?,
-                billing_details: storage_model
-                    .billing_details
-                    .async_lift(inner_decrypt)
-                    .await?,
+                customer_details: data.customer_details,
+                billing_details: data.billing,
                 merchant_order_reference_id: storage_model.merchant_order_reference_id,
-                shipping_details: storage_model
-                    .shipping_details
-                    .async_lift(inner_decrypt)
-                    .await?,
+                shipping_details: data.shipping,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
@@ -1933,5 +1995,75 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
         })
+    }
+}
+
+pub struct EncryptedPaymentIntentAddress {
+    pub shipping: Option<Encryption>,
+    pub billing: Option<Encryption>,
+    pub customer_details: Option<Encryption>,
+}
+
+pub struct PaymentAddressFromRequest {
+    pub shipping: Option<Secret<serde_json::Value>>,
+    pub billing: Option<Secret<serde_json::Value>>,
+    pub customer_details: Option<Secret<serde_json::Value>>,
+}
+
+pub struct DecryptedPaymentIntentAddress {
+    pub shipping: crypto::OptionalEncryptableValue,
+    pub billing: crypto::OptionalEncryptableValue,
+    pub customer_details: crypto::OptionalEncryptableValue,
+}
+
+impl ToEncryptable<DecryptedPaymentIntentAddress, Secret<serde_json::Value>, Encryption>
+    for EncryptedPaymentIntentAddress
+{
+    fn from_encryptable(
+        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
+    ) -> CustomResult<DecryptedPaymentIntentAddress, common_utils::errors::ParsingError> {
+        Ok(DecryptedPaymentIntentAddress {
+            shipping: hashmap.remove("shipping"),
+            billing: hashmap.remove("billing"),
+            customer_details: hashmap.remove("customer_details"),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Encryption> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+
+        self.shipping.map(|s| map.insert("shipping".to_string(), s));
+        self.billing.map(|s| map.insert("billing".to_string(), s));
+        self.customer_details
+            .map(|s| map.insert("customer_details".to_string(), s));
+        map
+    }
+}
+
+impl
+    ToEncryptable<
+        DecryptedPaymentIntentAddress,
+        Secret<serde_json::Value>,
+        Secret<serde_json::Value>,
+    > for PaymentAddressFromRequest
+{
+    fn from_encryptable(
+        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
+    ) -> CustomResult<DecryptedPaymentIntentAddress, common_utils::errors::ParsingError> {
+        Ok(DecryptedPaymentIntentAddress {
+            shipping: hashmap.remove("shipping"),
+            billing: hashmap.remove("billing"),
+            customer_details: hashmap.remove("customer_details"),
+        })
+    }
+
+    fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
+        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
+
+        self.shipping.map(|s| map.insert("shipping".to_string(), s));
+        self.billing.map(|s| map.insert("billing".to_string(), s));
+        self.customer_details
+            .map(|s| map.insert("customer_details".to_string(), s));
+        map
     }
 }

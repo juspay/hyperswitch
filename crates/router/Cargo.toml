@@ -17,7 +17,7 @@ email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
 keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
-encryption_service = ["hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
+encryption_service = ["keymanager_create","hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
 stripe = []
@@ -115,6 +115,7 @@ tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.11.0"
 unidecode = "0.3.0"
 url = { version = "2.5.0", features = ["serde"] }
+urlencoding = "2.1.3"
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
 uuid = { version = "1.8.0", features = ["v4"] }
 validator = "0.17.0"

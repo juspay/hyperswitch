@@ -42,6 +42,10 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+    pub sessionizer_payment_attempts: String,
+    pub sessionizer_payment_intents: String,
+    pub sessionizer_refunds: String,
+    pub sessionizer_disputes: String,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
@@ -81,6 +85,10 @@ impl Default for OpenSearchConfig {
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
+                sessionizer_payment_attempts: "sessionizer-payment-attempt-events".to_string(),
+                sessionizer_payment_intents: "sessionizer-payment-intent-events".to_string(),
+                sessionizer_refunds: "sessionizer-refund-events".to_string(),
+                sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
         }
     }
@@ -104,6 +112,8 @@ pub enum OpenSearchError {
     IndexAccessNotPermittedError(SearchIndex),
     #[error("Opensearch unknown error")]
     UnknownError,
+    #[error("Opensearch access forbidden error")]
+    AccessForbiddenError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -159,6 +169,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             Self::UnknownError => {
                 ApiErrorResponse::InternalServerError(ApiError::new("IR", 6, "Unknown error", None))
             }
+            Self::AccessForbiddenError => ApiErrorResponse::ForbiddenCommonResource(ApiError::new(
+                "IR",
+                7,
+                "Access Forbidden error",
+                None,
+            )),
         }
     }
 }
@@ -211,6 +227,14 @@ impl OpenSearchClient {
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
             SearchIndex::Disputes => self.indexes.disputes.clone(),
+            SearchIndex::SessionizerPaymentAttempts => {
+                self.indexes.sessionizer_payment_attempts.clone()
+            }
+            SearchIndex::SessionizerPaymentIntents => {
+                self.indexes.sessionizer_payment_intents.clone()
+            }
+            SearchIndex::SessionizerRefunds => self.indexes.sessionizer_refunds.clone(),
+            SearchIndex::SessionizerDisputes => self.indexes.sessionizer_disputes.clone(),
         }
     }
 
@@ -313,6 +337,36 @@ impl OpenSearchIndexes {
         when(self.disputes.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Disputes index must not be empty".into(),
+            ))
+        })?;
+
+        when(
+            self.sessionizer_payment_attempts.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Attempts index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.sessionizer_payment_intents.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Intents index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(self.sessionizer_refunds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Refunds index must not be empty".into(),
+            ))
+        })?;
+
+        when(self.sessionizer_disputes.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Disputes index must not be empty".into(),
             ))
         })?;
 

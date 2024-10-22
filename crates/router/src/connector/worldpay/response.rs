@@ -1,33 +1,205 @@
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
-use crate::{core::errors, types, types::transformers::ForeignTryFrom};
+use super::requests::*;
+use crate::core::errors;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub exemption: Option<Exemption>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<Issuer>,
-    pub outcome: Option<Outcome>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_instrument: Option<PaymentsResPaymentInstrument>,
-    /// Any risk factors which have been identified for the authorization. This section will not appear if no risks are identified.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub risk_factors: Option<Vec<RiskFactorsInner>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub scheme: Option<PaymentsResponseScheme>,
-    #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
-    pub links: Option<PaymentLinks>,
+    pub outcome: PaymentOutcome,
+    pub transaction_reference: Option<String>,
+    #[serde(flatten)]
+    pub other_fields: Option<WorldpayPaymentResponseFields>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorldpayPaymentResponseFields {
+    AuthorizedResponse(Box<AuthorizedResponse>),
+    DDCResponse(DDCResponse),
+    FraudHighRisk(FraudHighRiskResponse),
+    RefusedResponse(RefusedResponse),
+    ThreeDsChallenged(ThreeDsChallengedResponse),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Outcome {
+pub struct AuthorizedResponse {
+    pub payment_instrument: PaymentsResPaymentInstrument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<Issuer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme: Option<PaymentsResponseScheme>,
+    #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
+    pub links: Option<SelfLink>,
+    #[serde(rename = "_actions")]
+    pub actions: Option<ActionLinks>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub risk_factors: Option<Vec<RiskFactorsInner>>,
+    pub fraud: Option<Fraud>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FraudHighRiskResponse {
+    pub score: f32,
+    pub reason: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefusedResponse {
+    pub refusal_description: String,
+    pub refusal_code: String,
+    pub risk_factors: Vec<RiskFactorsInner>,
+    pub fraud: Fraud,
+    #[serde(rename = "threeDS")]
+    pub three_ds: Option<ThreeDsResponse>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDsResponse {
+    pub outcome: String,
+    pub issuer_response: IssuerResponse,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDsChallengedResponse {
+    pub authentication: AuthenticationResponse,
+    pub challenge: ThreeDsChallenge,
+    #[serde(rename = "_actions")]
+    pub actions: CompleteThreeDsActionLink,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AuthenticationResponse {
+    pub version: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ThreeDsChallenge {
+    pub reference: String,
+    pub url: Url,
+    pub jwt: Secret<String>,
+    pub payload: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CompleteThreeDsActionLink {
+    #[serde(rename = "complete3dsChallenge")]
+    pub complete_three_ds_challenge: ActionLink,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IssuerResponse {
+    Challenged,
+    Frictionless,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DDCResponse {
+    pub device_data_collection: DDCToken,
+    #[serde(rename = "_actions")]
+    pub actions: DDCActionLink,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DDCToken {
+    pub jwt: Secret<String>,
+    pub url: Url,
+    pub bin: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DDCActionLink {
+    #[serde(rename = "supply3dsDeviceData")]
+    supply_ddc_data: ActionLink,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PaymentOutcome {
+    #[serde(alias = "authorized", alias = "Authorized")]
     Authorized,
     Refused,
+    SentForSettlement,
+    SentForRefund,
+    FraudHighRisk,
+    #[serde(alias = "3dsDeviceDataRequired")]
+    ThreeDsDeviceDataRequired,
+    SentForCancellation,
+    #[serde(alias = "3dsAuthenticationFailed")]
+    ThreeDsAuthenticationFailed,
+    SentForPartialRefund,
+    #[serde(alias = "3dsChallenged")]
+    ThreeDsChallenged,
+    #[serde(alias = "3dsUnavailable")]
+    ThreeDsUnavailable,
+}
+
+impl std::fmt::Display for PaymentOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Authorized => write!(f, "authorized"),
+            Self::Refused => write!(f, "refused"),
+            Self::SentForSettlement => write!(f, "sentForSettlement"),
+            Self::SentForRefund => write!(f, "sentForRefund"),
+            Self::FraudHighRisk => write!(f, "fraudHighRisk"),
+            Self::ThreeDsDeviceDataRequired => write!(f, "3dsDeviceDataRequired"),
+            Self::SentForCancellation => write!(f, "sentForCancellation"),
+            Self::ThreeDsAuthenticationFailed => write!(f, "3dsAuthenticationFailed"),
+            Self::SentForPartialRefund => write!(f, "sentForPartialRefund"),
+            Self::ThreeDsChallenged => write!(f, "3dsChallenged"),
+            Self::ThreeDsUnavailable => write!(f, "3dsUnavailable"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SelfLink {
+    #[serde(rename = "self")]
+    pub self_link: SelfLinkInner,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SelfLinkInner {
+    pub href: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionLinks {
+    supply_3ds_device_data: Option<ActionLink>,
+    settle_payment: Option<ActionLink>,
+    partially_settle_payment: Option<ActionLink>,
+    refund_payment: Option<ActionLink>,
+    partiall_refund_payment: Option<ActionLink>,
+    cancel_payment: Option<ActionLink>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ActionLink {
+    pub href: String,
+    pub method: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Fraud {
+    pub outcome: FraudOutcome,
+    pub score: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FraudOutcome {
+    LowRisk,
+    HighRisk,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -41,31 +213,23 @@ pub struct WorldpayEventResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EventType {
+    SentForAuthorization,
+    #[serde(alias = "Authorized")]
     Authorized,
-    Cancelled,
-    Charged,
-    SentForRefund,
-    RefundFailed,
-    Refused,
-    Refunded,
-    Error,
+    #[serde(alias = "Sent for Settlement")]
     SentForSettlement,
+    Settled,
+    SettlementFailed,
+    Cancelled,
+    Error,
     Expired,
-    CaptureFailed,
+    Refused,
+    #[serde(alias = "Sent for Refund")]
+    SentForRefund,
+    Refunded,
+    RefundFailed,
     #[serde(other)]
     Unknown,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct Exemption {
-    pub result: String,
-    pub reason: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct PaymentLinks {
-    #[serde(rename = "payments:events", skip_serializing_if = "Option::is_none")]
-    pub events: Option<PaymentLink>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -79,47 +243,52 @@ pub struct PaymentLink {
     pub href: String,
 }
 
-fn get_resource_id<T, F>(
-    links: Option<PaymentLinks>,
+pub fn get_resource_id<T, F>(
+    response: WorldpayPaymentsResponse,
+    connector_transaction_id: Option<String>,
     transform_fn: F,
 ) -> Result<T, error_stack::Report<errors::ConnectorError>>
 where
     F: Fn(String) -> T,
 {
-    let reference_id = links
-        .and_then(|l| l.events)
-        .and_then(|e| e.href.rsplit_once('/').map(|h| h.1.to_string()))
-        .map(transform_fn);
-    reference_id.ok_or_else(|| {
-        errors::ConnectorError::MissingRequiredField {
-            field_name: "links.events",
-        }
-        .into()
-    })
+    let optional_reference_id = response
+        .other_fields
+        .as_ref()
+        .and_then(|other_fields| match other_fields {
+            WorldpayPaymentResponseFields::AuthorizedResponse(res) => res
+                .links
+                .as_ref()
+                .and_then(|link| link.self_link.href.rsplit_once('/').map(|(_, h)| h)),
+            WorldpayPaymentResponseFields::DDCResponse(res) => {
+                res.actions.supply_ddc_data.href.split('/').nth_back(1)
+            }
+            WorldpayPaymentResponseFields::ThreeDsChallenged(res) => res
+                .actions
+                .complete_three_ds_challenge
+                .href
+                .split('/')
+                .nth_back(1),
+            WorldpayPaymentResponseFields::FraudHighRisk(_)
+            | WorldpayPaymentResponseFields::RefusedResponse(_) => None,
+        })
+        .map(|href| {
+            urlencoding::decode(href)
+                .map(|s| transform_fn(s.into_owned()))
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
+        .transpose()?;
+    optional_reference_id
+        .or_else(|| connector_transaction_id.map(transform_fn))
+        .ok_or_else(|| {
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "_links.self.href",
+            }
+            .into()
+        })
 }
 
 pub struct ResponseIdStr {
     pub id: String,
-}
-
-impl TryFrom<Option<PaymentLinks>> for ResponseIdStr {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(links: Option<PaymentLinks>) -> Result<Self, Self::Error> {
-        get_resource_id(links, |id| Self { id })
-    }
-}
-
-impl ForeignTryFrom<Option<PaymentLinks>> for types::ResponseId {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(links: Option<PaymentLinks>) -> Result<Self, Self::Error> {
-        get_resource_id(links, Self::ConnectorTransactionId)
-    }
-}
-
-impl Exemption {
-    pub fn new(result: String, reason: String) -> Self {
-        Self { result, reason }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -137,105 +306,18 @@ impl Issuer {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentsResPaymentInstrument {
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub risk_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<PaymentInstrumentCard>,
-}
-
-impl PaymentsResPaymentInstrument {
-    pub fn new() -> Self {
-        Self {
-            risk_type: None,
-            card: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCard {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub number: Option<PaymentInstrumentCardNumber>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<PaymentInstrumentCardIssuer>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_account_reference: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub country_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "type")]
+    pub payment_instrument_type: String,
+    pub card_bin: Option<String>,
+    pub last_four: Option<String>,
+    pub expiry_date: Option<ExpiryDate>,
+    pub card_brand: Option<String>,
     pub funding_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub brand: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expiry_date: Option<PaymentInstrumentCardExpiryDate>,
-}
-
-impl PaymentInstrumentCard {
-    pub fn new() -> Self {
-        Self {
-            number: None,
-            issuer: None,
-            payment_account_reference: None,
-            country_code: None,
-            funding_type: None,
-            brand: None,
-            expiry_date: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCardExpiryDate {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub month: Option<Secret<i32>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub year: Option<Secret<i32>>,
-}
-
-impl PaymentInstrumentCardExpiryDate {
-    pub fn new() -> Self {
-        Self {
-            month: None,
-            year: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCardIssuer {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-}
-
-impl PaymentInstrumentCardIssuer {
-    pub fn new() -> Self {
-        Self { name: None }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentInstrumentCardNumber {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bin: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last4_digits: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dpan: Option<String>,
-}
-
-impl PaymentInstrumentCardNumber {
-    pub fn new() -> Self {
-        Self {
-            bin: None,
-            last4_digits: None,
-            dpan: None,
-        }
-    }
+    pub category: Option<String>,
+    pub issuer_name: Option<String>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -272,7 +354,7 @@ pub enum RiskType {
 #[derive(
     Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum Detail {
     #[default]
     Address,
@@ -282,15 +364,12 @@ pub enum Detail {
 #[derive(
     Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
 )]
+#[serde(rename_all = "camelCase")]
 pub enum Risk {
     #[default]
-    #[serde(rename = "not_checked")]
     NotChecked,
-    #[serde(rename = "not_matched")]
     NotMatched,
-    #[serde(rename = "not_supplied")]
     NotSupplied,
-    #[serde(rename = "verificationFailed")]
     VerificationFailed,
 }
 
@@ -305,12 +384,29 @@ impl PaymentsResponseScheme {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayErrorResponse {
     pub error_name: String,
     pub message: String,
     pub validation_errors: Option<serde_json::Value>,
+}
+
+impl WorldpayErrorResponse {
+    pub fn default(status_code: u16) -> Self {
+        match status_code {
+            code @ 404 => Self {
+                error_name: format!("{} Not found", code),
+                message: "Resource not found".to_string(),
+                validation_errors: None,
+            },
+            code => Self {
+                error_name: code.to_string(),
+                message: "Unknown error".to_string(),
+                validation_errors: None,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

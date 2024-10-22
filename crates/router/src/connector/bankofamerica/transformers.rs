@@ -297,6 +297,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -323,7 +324,8 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?
@@ -532,6 +534,22 @@ impl From<CardIssuer> for String {
             CardIssuer::JCB => "007",
         };
         card_type.to_string()
+    }
+}
+
+fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static str> {
+    match card_network {
+        common_enums::CardNetwork::Visa => Some("001"),
+        common_enums::CardNetwork::Mastercard => Some("002"),
+        common_enums::CardNetwork::AmericanExpress => Some("003"),
+        common_enums::CardNetwork::JCB => Some("007"),
+        common_enums::CardNetwork::DinersClub => Some("005"),
+        common_enums::CardNetwork::Discover => Some("004"),
+        common_enums::CardNetwork::CartesBancaires => Some("006"),
+        common_enums::CardNetwork::UnionPay => Some("062"),
+        //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
+        common_enums::CardNetwork::Maestro => Some("042"),
+        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
     }
 }
 
@@ -961,6 +979,9 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                             "Bank Of America"
                                         ))?
                                     }
+                                    types::PaymentMethodToken::PazeDecrypt(_) => Err(
+                                        unimplemented_payment_method!("Paze", "Bank Of America"),
+                                    )?,
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
@@ -1035,6 +1056,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                         | domain::WalletData::MobilePayRedirect(_)
                         | domain::WalletData::PaypalRedirect(_)
                         | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::Paze(_)
                         | domain::WalletData::SamsungPay(_)
                         | domain::WalletData::TwintRedirect {}
                         | domain::WalletData::VippsRedirect {}
@@ -1076,7 +1098,8 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
@@ -2312,6 +2335,9 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
                     "Manual",
                     "Bank Of America"
                 ))?,
+                types::PaymentMethodToken::PazeDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Paze", "Bank Of America"))?
+                }
             },
             None => PaymentInformation::from(&apple_pay_data),
         };
@@ -2418,10 +2444,9 @@ impl TryFrom<&domain::Card> for PaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(ccard: &domain::Card) -> Result<Self, Self::Error> {
-        let card_issuer = ccard.get_card_issuer();
-        let card_type = match card_issuer {
-            Ok(issuer) => Some(String::from(issuer)),
-            Err(_) => None,
+        let card_type = match ccard.card_network.clone().and_then(get_boa_card_type) {
+            Some(card_network) => Some(card_network.to_string()),
+            None => ccard.get_card_issuer().ok().map(String::from),
         };
         Ok(Self::Cards(Box::new(CardPaymentInformation {
             card: Card {

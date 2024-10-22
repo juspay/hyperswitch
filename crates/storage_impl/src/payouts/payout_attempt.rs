@@ -115,7 +115,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
-                match kv_wrapper::<DieselPayoutAttempt, _, _>(
+                match Box::pin(kv_wrapper::<DieselPayoutAttempt, _, _>(
                     self,
                     KvOperation::<DieselPayoutAttempt>::HSetNx(
                         &field,
@@ -123,7 +123,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -227,11 +227,11 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     _ => {}
                 }
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPayoutAttempt>::Hset((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
@@ -284,11 +284,11 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 };
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPayoutAttempt>::HGet(&lookup.sk_id),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -345,11 +345,11 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 };
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPayoutAttempt>::HGet(&lookup.sk_id),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },

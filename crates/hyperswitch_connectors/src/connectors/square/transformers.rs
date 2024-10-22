@@ -1,38 +1,44 @@
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{BankDebitData, Card, PayLaterData, PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_flow_types::{refunds::Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
+    utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
-impl TryFrom<(&types::TokenizationRouterData, domain::BankDebitData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, domain::BankDebitData),
+        value: (&types::TokenizationRouterData, BankDebitData),
     ) -> Result<Self, Self::Error> {
         let (_item, bank_debit_data) = value;
         match bank_debit_data {
-            domain::BankDebitData::AchBankDebit { .. }
-            | domain::BankDebitData::SepaBankDebit { .. }
-            | domain::BankDebitData::BecsBankDebit { .. }
-            | domain::BankDebitData::BacsBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Square"),
-                ))?
-            }
+            BankDebitData::AchBankDebit { .. }
+            | BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Square"),
+            ))?,
         }
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, Card)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        value: (&types::TokenizationRouterData, domain::Card),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (&types::TokenizationRouterData, Card)) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
         let auth = SquareAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -69,63 +75,60 @@ impl TryFrom<(&types::TokenizationRouterData, domain::Card)> for SquareTokenRequ
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, domain::PayLaterData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::TokenizationRouterData, domain::PayLaterData),
+        value: (&types::TokenizationRouterData, PayLaterData),
     ) -> Result<Self, Self::Error> {
         let (_item, pay_later_data) = value;
         match pay_later_data {
-            domain::PayLaterData::AfterpayClearpayRedirect { .. }
-            | domain::PayLaterData::KlarnaRedirect { .. }
-            | domain::PayLaterData::KlarnaSdk { .. }
-            | domain::PayLaterData::AffirmRedirect { .. }
-            | domain::PayLaterData::PayBrightRedirect { .. }
-            | domain::PayLaterData::WalleyRedirect { .. }
-            | domain::PayLaterData::AlmaRedirect { .. }
-            | domain::PayLaterData::AtomeRedirect { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Square"),
-                ))?
-            }
+            PayLaterData::AfterpayClearpayRedirect { .. }
+            | PayLaterData::KlarnaRedirect { .. }
+            | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::AffirmRedirect { .. }
+            | PayLaterData::PayBrightRedirect { .. }
+            | PayLaterData::WalleyRedirect { .. }
+            | PayLaterData::AlmaRedirect { .. }
+            | PayLaterData::AtomeRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Square"),
+            ))?,
         }
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, domain::WalletData)> for SquareTokenRequest {
+impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        value: (&types::TokenizationRouterData, domain::WalletData),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (&types::TokenizationRouterData, WalletData)) -> Result<Self, Self::Error> {
         let (_item, wallet_data) = value;
         match wallet_data {
-            domain::WalletData::ApplePay(_)
-            | domain::WalletData::GooglePay(_)
-            | domain::WalletData::AliPayQr(_)
-            | domain::WalletData::AliPayRedirect(_)
-            | domain::WalletData::AliPayHkRedirect(_)
-            | domain::WalletData::MomoRedirect(_)
-            | domain::WalletData::KakaoPayRedirect(_)
-            | domain::WalletData::GoPayRedirect(_)
-            | domain::WalletData::GcashRedirect(_)
-            | domain::WalletData::ApplePayRedirect(_)
-            | domain::WalletData::ApplePayThirdPartySdk(_)
-            | domain::WalletData::DanaRedirect {}
-            | domain::WalletData::GooglePayRedirect(_)
-            | domain::WalletData::GooglePayThirdPartySdk(_)
-            | domain::WalletData::MbWayRedirect(_)
-            | domain::WalletData::MobilePayRedirect(_)
-            | domain::WalletData::PaypalRedirect(_)
-            | domain::WalletData::PaypalSdk(_)
-            | domain::WalletData::SamsungPay(_)
-            | domain::WalletData::TwintRedirect {}
-            | domain::WalletData::VippsRedirect {}
-            | domain::WalletData::TouchNGoRedirect(_)
-            | domain::WalletData::WeChatPayRedirect(_)
-            | domain::WalletData::WeChatPayQr(_)
-            | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_)
-            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            WalletData::ApplePay(_)
+            | WalletData::GooglePay(_)
+            | WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect {}
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect {}
+            | WalletData::VippsRedirect {}
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_)
+            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Square"),
             ))?,
         }
@@ -156,27 +159,26 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::BankDebit(bank_debit_data) => {
+            PaymentMethodData::BankDebit(bank_debit_data) => {
                 Self::try_from((item, bank_debit_data))
             }
-            domain::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
-            domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
-            domain::PaymentMethodData::PayLater(pay_later_data) => {
-                Self::try_from((item, pay_later_data))
-            }
-            domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
+            PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
+            PaymentMethodData::PayLater(pay_later_data) => Self::try_from((item, pay_later_data)),
+            PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Square"),
                 ))?
@@ -191,18 +193,17 @@ pub struct SquareSessionResponse {
     session_id: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, SquareSessionResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, SquareSessionResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Pending,
             session_token: Some(item.response.session_id.clone().expose()),
-            response: Ok(types::PaymentsResponseData::SessionTokenResponse {
+            response: Ok(PaymentsResponseData::SessionTokenResponse {
                 session_token: item.response.session_id.expose(),
             }),
             ..item.data
@@ -215,16 +216,15 @@ pub struct SquareTokenResponse {
     card_nonce: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, SquareTokenResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, SquareTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, SquareTokenResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, SquareTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_nonce.expose(),
             }),
             ..item.data
@@ -258,15 +258,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(_) => {
+            PaymentMethodData::Card(_) => {
                 let pm_token = item.get_payment_method_token()?;
                 Ok(Self {
                     idempotency_key: Secret::new(item.attempt_id.clone()),
                     source_id: match pm_token {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Square"))?
+                        }
                     },
                     amount_money: SquarePaymentsAmountData {
                         amount: item.request.amount,
@@ -279,22 +282,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     },
                 })
             }
-            domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Square"),
                 ))?
@@ -309,21 +313,21 @@ pub struct SquareAuthType {
     pub(super) key1: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
+impl TryFrom<&ConnectorAuthType> for SquareAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1, .. } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
                 key1: key1.to_owned(),
             }),
-            types::ConnectorAuthType::HeaderKey { .. }
-            | types::ConnectorAuthType::SignatureKey { .. }
-            | types::ConnectorAuthType::MultiAuthKey { .. }
-            | types::ConnectorAuthType::CurrencyAuthKey { .. }
-            | types::ConnectorAuthType::TemporaryAuth { .. }
-            | types::ConnectorAuthType::NoKey { .. }
-            | types::ConnectorAuthType::CertificateAuth { .. } => {
+            ConnectorAuthType::HeaderKey { .. }
+            | ConnectorAuthType::SignatureKey { .. }
+            | ConnectorAuthType::MultiAuthKey { .. }
+            | ConnectorAuthType::CurrencyAuthKey { .. }
+            | ConnectorAuthType::TemporaryAuth { .. }
+            | ConnectorAuthType::NoKey { .. }
+            | ConnectorAuthType::CertificateAuth { .. } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
         }
@@ -364,13 +368,12 @@ pub struct SquarePaymentsResponse {
     payment: SquarePaymentsResponseDetails,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         //Since this try_from is being used in Authorize, Sync, Capture & Void flow. Field amount_captured should only be updated in case of Charged status.
         let status = enums::AttemptStatus::from(item.response.payment.status);
@@ -380,8 +383,8 @@ impl<F, T>
         };
         Ok(Self {
             status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -448,15 +451,15 @@ pub struct RefundResponse {
     refund: SquareRefundResponseDetails,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.refund.id,
                 refund_status: enums::RefundStatus::from(item.response.refund.status),
             }),
@@ -465,15 +468,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.refund.id,
                 refund_status: enums::RefundStatus::from(item.response.refund.status),
             }),
@@ -513,7 +514,7 @@ pub struct SquareWebhookBody {
     pub data: SquareWebhookData,
 }
 
-impl From<SquareWebhookObject> for api::IncomingWebhookEvent {
+impl From<SquareWebhookObject> for IncomingWebhookEvent {
     fn from(item: SquareWebhookObject) -> Self {
         match item {
             SquareWebhookObject::Payment(payment_data) => match payment_data.status {
