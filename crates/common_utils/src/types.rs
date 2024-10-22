@@ -553,7 +553,7 @@ pub struct StringMajorUnit(String);
 
 impl StringMajorUnit {
     /// forms a new major unit from amount
-    fn new(value: String) -> Self {
+    pub fn new(value: String) -> Self {
         Self(value)
     }
 
@@ -579,6 +579,11 @@ impl StringMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+
+    /// forms a new StringMajorUnit default unit i.e zero
+    pub fn zero() -> Self {
+        Self("0".to_string())
     }
 
     /// Get string amount from struct to be removed in future

@@ -394,17 +394,7 @@ impl
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
-        let amount = convert_amount(self.amount_converter, minor_amount, req.request.currency)?;
-        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
-
-        let connector_req =
-            cybersource::CybersourceZeroMandateRequest::try_from(&connector_router_data)?;
+        let connector_req = cybersource::CybersourceZeroMandateRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -738,19 +728,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // let minor_amount_to_capture = req.request.minor_amount_to_capture;
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
-        // let connector_router_data = cybersource::CybersourceRouterData::try_from((
-        //     &self.get_currency_unit(),
-        //     req.request.currency,
-        //     req.request.amount_to_capture,
-        //     req,
-        // ));
         let connector_req =
             cybersource::CybersourcePaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
