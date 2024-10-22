@@ -190,6 +190,55 @@ export const connectorDetails = {
     Refund: {
       Request: {
         currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    Refund_7000: {
+      Request: {
+        currency: "USD",
+        amount: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    PartialRefundForFullCapture3DS1: {
+      Request: {
+        currency: "USD",
+        amount: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    PartialRefundForFullCapture3DS2: {
+      Request: {
+        currency: "USD",
+        amount: 1500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    RefundforPartialCapture: {
+      Request: {
+        currency: "USD",
+        amount: 100,
       },
       Response: {
         status: 200,
@@ -201,6 +250,31 @@ export const connectorDetails = {
     PartialRefund: {
       Request: {
         currency: "USD",
+        amount: 1200,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    PartialRefundForPartialCapture3DS: {
+      Request: {
+        currency: "USD",
+        amount: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    PartialRefundNo3DS: {
+      Request: {
+        currency: "USD",
+        amount: 3000,
       },
       Response: {
         status: 200,
