@@ -2133,10 +2133,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
     ) -> RouterResult<PaymentConfirmData<F>>
     where
         F: 'b + Send,
@@ -2250,6 +2246,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to update payment intent")?;
+
                 payment_data.payment_intent = updated_payment_intent;
 
                 // TODO: populate unified code and message and translation by calling gsm and translation table

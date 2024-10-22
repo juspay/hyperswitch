@@ -1,9 +1,7 @@
-use api_models::payments::PaymentsConfirmIntentRequest;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    // payment_methods::PaymentMethodsData,
-    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
+    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData, PaymentsConfirmIntentRequest},
 };
 use async_trait::async_trait;
 use error_stack::ResultExt;
@@ -19,8 +17,9 @@ use crate::{
         authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
-            PaymentData,
+            self, helpers,
+            operations::{self, ValidateStatusForOperation},
+            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
         },
         utils as core_utils,
     },
@@ -37,6 +36,35 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentsIntentConfirm;
+
+impl ValidateStatusForOperation for PaymentsIntentConfirm {
+    /// Validate if the current operation can be performed on the current status
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse> {
+        match intent_status {
+            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: "cofirm_intent".to_string(),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: vec!["requires_payment_method".to_string()].join(", "),
+                })
+            }
+        }
+    }
+}
 
 type BoxedConfirmOperation<'b, F> =
     super::BoxedOperation<'b, F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>;
@@ -143,11 +171,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        self.validate_status_for_operation(payment_intent.status)?;
+
         let cell_id = state.conf.cell_information.id.clone();
 
         let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
-                &state.into(),
                 &payment_intent,
                 cell_id,
                 storage_scheme,
@@ -303,13 +332,10 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             merchant_connector_id,
         };
 
-        // let connector_request_reference_id = payment_data.payment_attempt.id.get_string_repr();
-
-        let current_payment_intent = payment_data.payment_intent.clone();
         let updated_payment_intent = db
             .update_payment_intent(
                 key_manager_state,
-                current_payment_intent,
+                payment_data.payment_intent.clone(),
                 payment_intent_update,
                 key_store,
                 storage_scheme,
@@ -317,14 +343,14 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment intent")?;
+
         payment_data.payment_intent = updated_payment_intent;
 
-        let current_payment_attempt = payment_data.payment_attempt.clone();
         let updated_payment_attempt = db
             .update_payment_attempt(
                 key_manager_state,
                 key_store,
-                current_payment_attempt,
+                payment_data.payment_attempt.clone(),
                 payment_attempt_update,
                 storage_scheme,
             )

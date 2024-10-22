@@ -347,7 +347,6 @@ impl PaymentAttempt {
     /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
     #[cfg(feature = "v2")]
     pub async fn create_domain_model(
-        state: &KeyManagerState,
         payment_intent: &super::PaymentIntent,
         cell_id: id_type::CellId,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -1722,6 +1721,8 @@ impl behaviour::Conversion for PaymentAttempt {
     where
         Self: Sized,
     {
+        use crate::type_encryption;
+
         async {
             let connector_payment_id = storage_model
                 .get_optional_connector_transaction_id()
@@ -1738,10 +1739,10 @@ impl behaviour::Conversion for PaymentAttempt {
             };
 
             let inner_decrypt = |inner| async {
-                crate::type_encryption::crypto_operation(
+                type_encryption::crypto_operation(
                     state,
                     common_utils::type_name!(Self::DstType),
-                    crate::type_encryption::CryptoOperation::DecryptOptional(inner),
+                    type_encryption::CryptoOperation::DecryptOptional(inner),
                     key_manager_identifier.clone(),
                     key.peek(),
                 )

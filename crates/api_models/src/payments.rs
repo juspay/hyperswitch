@@ -4550,13 +4550,16 @@ pub struct PaymentsConfirmIntentResponse {
     pub created: PrimitiveDateTime,
 
     /// The payment method information provided for making a payment
-    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]
+    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
-    /// Can be used to specify the Payment Method Type
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
-    pub payment_method_type: Option<api_enums::PaymentMethod>,
+    /// The payment method type for this payment attempt
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
@@ -4564,7 +4567,7 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// reference(Identifier) to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub reference_id: Option<String>,
+    pub connector_reference_id: Option<String>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
     #[schema(value_type = String)]

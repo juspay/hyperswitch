@@ -754,3 +754,11 @@ where
         Ok(false)
     }
 }
+
+/// Validate if a particular operation can be performed for the given intent status
+pub trait ValidateStatusForOperation {
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse>;
+}
