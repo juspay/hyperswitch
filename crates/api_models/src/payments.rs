@@ -4585,6 +4585,7 @@ impl PaymentListFilterConstraints {
             && self.payment_method_type.is_none()
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
+            && self.card_network.is_none()
     }
 }
 

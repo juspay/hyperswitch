@@ -159,6 +159,7 @@ pub trait PaymentAttemptInterface {
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<storage_enums::CardNetwork>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
