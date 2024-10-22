@@ -1556,8 +1556,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 } else {
                                     None
                                 };
-
-                            if router_data.status == enums::AttemptStatus::Charged {
+                            // update connector_mandate_details in case of Authorized/Charged Payment Status
+                            if matches!(
+                                router_data.status,
+                                enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                            ) {
                                 payment_data
                                     .payment_intent
                                     .fingerprint_id
