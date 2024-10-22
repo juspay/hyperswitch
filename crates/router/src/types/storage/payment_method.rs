@@ -125,6 +125,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub mandate_metadata: Option<serde_json::Value>,
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

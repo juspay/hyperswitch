@@ -725,6 +725,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
 }
 
 impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
@@ -735,6 +736,9 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method.to_owned()
     }
 }
 
@@ -1117,6 +1121,20 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             })
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+}
+
+pub trait PaymentsPostSessionTokensRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
 }

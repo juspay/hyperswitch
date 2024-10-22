@@ -530,6 +530,8 @@ impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
+            .service(web::resource("/create-intent").route(web::post().to(payments_create_intent)));
+        route = route
             .service(
                 web::resource("/{payment_id}/saved_payment_methods")
                     .route(web::get().to(list_customer_payment_method_for_payment)),
@@ -593,6 +595,9 @@ impl Payments {
                     web::resource("/{payment_id}")
                         .route(web::get().to(payments_retrieve))
                         .route(web::post().to(payments_update)),
+                )
+                .service(
+                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments_post_session_tokens)),
                 )
                 .service(
                     web::resource("/{payment_id}/confirm").route(web::post().to(payments_confirm)),
@@ -1103,7 +1108,8 @@ impl PaymentMethods {
                 web::resource("/{id}/update_saved_payment_method")
                     .route(web::patch().to(payment_method_update_api)),
             )
-            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)));
+            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
+            .service(web::resource("/{id}").route(web::delete().to(payment_method_delete_api)));
 
         route
     }
@@ -1861,7 +1867,12 @@ impl User {
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
+                // TODO: to be deprecated
                 .service(web::resource("").route(web::get().to(user::check_two_factor_auth_status)))
+                .service(
+                    web::resource("/v2")
+                        .route(web::get().to(user::check_two_factor_auth_status_with_attempts)),
+                )
                 .service(
                     web::scope("/totp")
                         .service(web::resource("/begin").route(web::get().to(user::totp_begin)))
