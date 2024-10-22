@@ -1,4 +1,6 @@
-use crate::errors;
+use error_stack::ResultExt;
+
+use crate::{errors, generate_id_with_default_len, generate_time_ordered_id_without_prefix, types};
 
 /// A global id that can be used to identify a payment
 #[derive(
@@ -21,6 +23,17 @@ impl GlobalPaymentId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+
+    /// Generate a new GlobalPaymentId from a cell id
+    pub fn generate(cell_id: crate::id_type::CellId) -> Self {
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
+        Self(global_id)
+    }
+
+    /// Generate a new ClientId from self
+    pub fn generate_client_secret(&self) -> types::ClientSecret {
+        types::ClientSecret::new(self.clone(), generate_time_ordered_id_without_prefix())
     }
 }
 

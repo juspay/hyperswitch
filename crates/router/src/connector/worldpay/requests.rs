@@ -4,29 +4,28 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub address1: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address2: Option<Secret<String>>,
-    pub postal_code: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address3: Option<Secret<String>>,
-    pub country_code: common_enums::CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address1: Option<Secret<String>>,
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub channel: Option<Channel>,
+    pub transaction_reference: String,
+    pub merchant: Merchant,
     pub instruction: Instruction,
+    pub channel: Channel,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<Customer>,
-    pub merchant: Merchant,
-    pub transaction_reference: String,
 }
 
 #[derive(
@@ -35,6 +34,7 @@ pub struct WorldpayPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub enum Channel {
     #[default]
+    Ecom,
     Moto,
 }
 
@@ -101,11 +101,18 @@ pub struct NetworkToken {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instruction {
+    pub request_auto_settlement: RequestAutoSettlement,
+    pub narrative: InstructionNarrative,
+    pub value: PaymentValue,
+    pub payment_instrument: PaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debt_repayment: Option<bool>,
-    pub value: PaymentValue,
-    pub narrative: InstructionNarrative,
-    pub payment_instrument: PaymentInstrument,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestAutoSettlement {
+    pub enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -143,16 +150,15 @@ pub enum PaymentType {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardPayment {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub billing_address: Option<BillingAddress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_name: Option<Secret<String>>,
-    pub card_expiry_date: CardExpiryDate,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvc: Option<Secret<String>>,
     #[serde(rename = "type")]
     pub payment_type: PaymentType,
     pub card_number: cards::CardNumber,
+    pub expiry_date: ExpiryDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<BillingAddress>,
+    pub cvc: Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -174,7 +180,7 @@ pub struct WalletPayment {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct CardExpiryDate {
+pub struct ExpiryDate {
     pub month: Secret<i8>,
     pub year: Secret<i32>,
 }
@@ -182,13 +188,13 @@ pub struct CardExpiryDate {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentValue {
     pub amount: i64,
-    pub currency: String,
+    pub currency: api_models::enums::Currency,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Merchant {
-    pub entity: String,
+    pub entity: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcc: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -220,7 +226,7 @@ pub struct SubMerchant {
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct WorldpayRefundRequest {
+pub struct WorldpayPartialRequest {
     pub value: PaymentValue,
     pub reference: String,
 }

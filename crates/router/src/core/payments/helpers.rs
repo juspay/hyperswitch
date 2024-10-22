@@ -1567,10 +1567,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 .or(parsed_customer_data.phone_country_code.clone()),
         })
         .or(temp_customer_data);
-
+    let key_manager_state = state.into();
     payment_data.payment_intent.customer_details = raw_customer_details
         .clone()
-        .async_map(|customer_details| create_encrypted_data(state, key_store, customer_details))
+        .async_map(|customer_details| {
+            create_encrypted_data(&key_manager_state, key_store, customer_details)
+        })
         .await
         .transpose()
         .change_context(errors::StorageError::EncryptionError)
@@ -3172,11 +3174,7 @@ pub fn authenticate_client_secret(
             } else {
                 let current_timestamp = common_utils::date_time::now();
 
-                let session_expiry = payment_intent.session_expiry.unwrap_or(
-                    payment_intent
-                        .created_at
-                        .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
-                );
+                let session_expiry = payment_intent.session_expiry;
 
                 fp_utils::when(current_timestamp > session_expiry, || {
                     Err(errors::ApiErrorResponse::ClientSecretExpired)
@@ -4073,6 +4071,7 @@ impl AttemptType {
             customer_acceptance: old_payment_attempt.customer_acceptance,
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
+            connector_mandate_detail: None,
         }
     }
 
@@ -5927,6 +5926,7 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
+#[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
     payment_data: &mut D,

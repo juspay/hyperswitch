@@ -847,11 +847,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .statement_descriptor_suffix
             .clone();
-
+        let key_manager_state = state.into();
         let billing_details = payment_data
             .address
             .get_payment_billing()
-            .async_map(|billing_details| create_encrypted_data(state, key_store, billing_details))
+            .async_map(|billing_details| {
+                create_encrypted_data(&key_manager_state, key_store, billing_details)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -860,7 +862,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let shipping_details = payment_data
             .address
             .get_shipping()
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
+            .async_map(|shipping_details| {
+                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -71,7 +71,7 @@ pub async fn payment_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -452,7 +452,7 @@ pub async fn payment_intents_capture(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth: auth::AuthenticationData, payload, req_state| {
             payments::payments_core::<
                 api_types::Capture,
                 api_types::PaymentsResponse,
@@ -581,7 +581,7 @@ pub async fn payment_intent_list(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
