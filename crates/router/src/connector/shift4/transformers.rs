@@ -23,7 +23,6 @@ trait Shift4AuthorizePreprocessingCommon {
     fn get_router_return_url(&self) -> Option<String>;
     fn get_email_optional(&self) -> Option<pii::Email>;
     fn get_complete_authorize_url(&self) -> Option<String>;
-    fn get_amount_required(&self) -> Result<i64, Error>;
     fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_payment_method_data_required(&self) -> Result<domain::PaymentMethodData, Error>;
 }
@@ -50,10 +49,6 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
 
     fn get_complete_authorize_url(&self) -> Option<String> {
         self.complete_authorize_url.clone()
-    }
-
-    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.amount)
     }
 
     fn get_currency_required(
@@ -83,10 +78,6 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
 
     fn get_complete_authorize_url(&self) -> Option<String> {
         self.complete_authorize_url.clone()
-    }
-
-    fn get_amount_required(&self) -> Result<i64, Error> {
-        self.get_amount()
     }
 
     fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error> {
