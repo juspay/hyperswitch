@@ -34,6 +34,8 @@ impl RoleInfo {
         self.groups
             .iter()
             .flat_map(|group| group.accessible_groups())
+            .collect::<HashSet<_>>()
+            .into_iter()
             .collect()
     }
 
