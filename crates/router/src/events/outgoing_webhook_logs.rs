@@ -64,7 +64,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
             }),
             Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: refund_payload.payment_id.clone(),
-                refund_id: refund_payload.refund_id.clone(),
+                refund_id: refund_payload.get_refund_id_as_string(),
                 content: masking::masked_serialize(&refund_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),

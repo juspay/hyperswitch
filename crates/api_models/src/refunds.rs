@@ -61,6 +61,45 @@ pub struct RefundRequest {
     pub charges: Option<ChargeRefunds>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundsCreateRequest {
+    /// The payment id against which refund is initiated
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
+
+    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "ref_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+
+    /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
+    #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
+    pub amount: Option<MinorUnit>,
+
+    /// Reason for the refund. Often useful for displaying to users and your customer support executive.
+    #[schema(max_length = 255, example = "Customer returned the product")]
+    pub reason: Option<String>,
+
+    /// To indicate whether to refund needs to be instant or scheduled. Default value is instant
+    #[schema(default = "Instant", example = "Instant")]
+    pub refund_type: Option<RefundType>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
@@ -125,6 +164,7 @@ pub enum RefundType {
     Instant,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundResponse {
     /// Unique Identifier for the refund
@@ -166,6 +206,70 @@ pub struct RefundResponse {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<ChargeRefunds>)]
     pub charges: Option<ChargeRefunds>,
+}
+
+#[cfg(feature = "v1")]
+impl RefundResponse {
+    pub fn get_refund_id_as_string(&self) -> String {
+        self.refund_id.clone()
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
+pub struct RefundResponse {
+    /// Global Refund Id for the refund
+    #[schema(value_type = String)]
+    pub id: common_utils::id_type::GlobalRefundId,
+    /// The payment id against which refund is initiated
+    #[schema(value_type = String)]
+    pub payment_id: common_utils::id_type::PaymentId,
+    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "ref_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+    /// The refund amount
+    #[schema(value_type = i64 , minimum = 100, example = 6540)]
+    pub amount: MinorUnit,
+    /// The three-letter ISO currency code
+    pub currency: String,
+    /// The status for refund
+    pub status: RefundStatus,
+    /// An arbitrary string attached to the object
+    pub reason: Option<String>,
+    /// Metadata is useful for storing additional, unstructured information on an object
+    #[schema(value_type = Option<Object>)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// The code for the error
+    pub error_code: Option<String>,
+    /// The error message
+    pub error_message: Option<String>,
+    /// The timestamp at which refund is created
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    /// The timestamp at which refund is updated
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    /// The connector used for the refund and the corresponding payment
+    #[schema(example = "stripe", value_type = Connector)]
+    pub connector: enums::Connector,
+    /// The id of business profile for this refund
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+    /// The merchant_connector_id of the processor through which this payment went through
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+#[cfg(feature = "v2")]
+impl RefundResponse {
+    pub fn get_refund_id_as_string(&self) -> String {
+        self.id.get_string_repr().to_owned()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
