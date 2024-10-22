@@ -430,6 +430,45 @@ impl PaymentIntent {
     }
 }
 
+#[cfg(feature = "v1")]
+#[derive(Default, Debug, Clone)]
+pub struct HeaderPayload {
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
+    pub x_hs_latency: Option<bool>,
+    pub browser_name: Option<common_enums::BrowserName>,
+    pub x_client_platform: Option<common_enums::ClientPlatform>,
+    pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
+    pub x_app_id: Option<String>,
+    pub x_redirect_uri: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, Clone)]
+pub struct HeaderPayload {
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
+    pub x_hs_latency: Option<bool>,
+    pub browser_name: Option<common_enums::BrowserName>,
+    pub x_client_platform: Option<common_enums::ClientPlatform>,
+    pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
+    pub x_app_id: Option<String>,
+    pub x_redirect_uri: Option<String>,
+}
+
+impl HeaderPayload {
+    pub fn with_source(payment_confirm_source: common_enums::PaymentSource) -> Self {
+        Self {
+            payment_confirm_source: Some(payment_confirm_source),
+            ..Default::default()
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct PaymentIntentData<F>

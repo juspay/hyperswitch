@@ -39,7 +39,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -52,7 +52,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<api_models::payments::HeaderPayload>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     async fn get_merchant_recipient_data<'a>(
@@ -75,7 +75,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where
         Self: Sized,

@@ -22,7 +22,7 @@ use api_models::admin::MerchantConnectorInfo;
 use api_models::{
     self, enums,
     mandates::RecurringDetails,
-    payments::{self as payments_api, HeaderPayload},
+    payments::{self as payments_api},
 };
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
@@ -40,6 +40,7 @@ use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData}
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
+    payments::HeaderPayload,
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
 };

@@ -2,9 +2,9 @@
 pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
-    MandateData, MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
-    OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
     PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,

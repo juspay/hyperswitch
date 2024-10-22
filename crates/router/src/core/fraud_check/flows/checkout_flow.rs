@@ -38,7 +38,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        _header_payload: Option<api_models::payments::HeaderPayload>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         todo!()
@@ -54,7 +54,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         use crate::connector::utils::PaymentsAttemptData;

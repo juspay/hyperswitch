@@ -1128,28 +1128,28 @@ impl RequestSurchargeDetails {
     }
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct HeaderPayload {
-    pub payment_confirm_source: Option<api_enums::PaymentSource>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
-    pub x_hs_latency: Option<bool>,
-    pub browser_name: Option<api_enums::BrowserName>,
-    pub x_client_platform: Option<api_enums::ClientPlatform>,
-    pub x_merchant_domain: Option<String>,
-    pub locale: Option<String>,
-    pub x_app_id: Option<String>,
-    pub x_redirect_uri: Option<String>,
-}
+// #[derive(Default, Debug, Clone)]
+// pub struct HeaderPayload {
+//     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+//     pub client_source: Option<String>,
+//     pub client_version: Option<String>,
+//     pub x_hs_latency: Option<bool>,
+//     pub browser_name: Option<api_enums::BrowserName>,
+//     pub x_client_platform: Option<api_enums::ClientPlatform>,
+//     pub x_merchant_domain: Option<String>,
+//     pub locale: Option<String>,
+//     pub x_app_id: Option<String>,
+//     pub x_redirect_uri: Option<String>,
+// }
 
-impl HeaderPayload {
-    pub fn with_source(payment_confirm_source: api_enums::PaymentSource) -> Self {
-        Self {
-            payment_confirm_source: Some(payment_confirm_source),
-            ..Default::default()
-        }
-    }
-}
+// impl HeaderPayload {
+//     pub fn with_source(payment_confirm_source: api_enums::PaymentSource) -> Self {
+//         Self {
+//             payment_confirm_source: Some(payment_confirm_source),
+//             ..Default::default()
+//         }
+//     }
+// }
 
 #[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
 pub struct PaymentAttemptResponse {

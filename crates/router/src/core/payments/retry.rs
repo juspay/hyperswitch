@@ -347,7 +347,7 @@ where
         payments::CallConnectorAction::Trigger,
         validate_result,
         schedule_time,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
         true,

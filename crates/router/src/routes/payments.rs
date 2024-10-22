@@ -5,9 +5,9 @@ use crate::{
 pub mod helpers;
 
 use actix_web::{web, Responder};
-use api_models::payments::HeaderPayload;
 use common_enums::EntityType;
 use error_stack::report;
+use hyperswitch_domain_models::payments::HeaderPayload;
 use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 

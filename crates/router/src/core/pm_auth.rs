@@ -51,7 +51,7 @@ pub async fn create_link_token(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::LinkTokenCreateRequest,
-    headers: Option<api_models::payments::HeaderPayload>,
+    headers: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     let db = &*state.store;
 
@@ -216,7 +216,7 @@ pub async fn create_link_token(
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _payload: api_models::pm_auth::LinkTokenCreateRequest,
-    _headers: Option<api_models::payments::HeaderPayload>,
+    _headers: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     todo!()
 }

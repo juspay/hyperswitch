@@ -168,7 +168,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     // TODO: this need not return the operation, since operation does not change in v2
@@ -183,7 +183,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         profile: &domain::Profile,
         mechant_key_store: &domain::MerchantKeyStore,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 }
 
@@ -315,7 +315,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
-        header_payload: api::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
     where
         F: 'b + Send;
