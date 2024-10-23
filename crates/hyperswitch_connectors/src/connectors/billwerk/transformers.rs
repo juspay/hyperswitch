@@ -1,16 +1,30 @@
+use common_enums::enums;
 use common_utils::{
     id_type,
     pii::{Email, SecretSerdeValue},
     types::MinorUnit,
 };
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_flow_types::{
+        payments,
+        refunds::{Execute, RSync},
+    },
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
-    consts,
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, CardData as _, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub struct BillwerkRouterData<T> {
@@ -33,11 +47,11 @@ pub struct BillwerkAuthType {
     pub(super) public_api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BillwerkAuthType {
+impl TryFrom<&ConnectorAuthType> for BillwerkAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_api_key: key1.to_owned(),
             }),
@@ -75,7 +89,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ccard) => {
+            PaymentMethodData::Card(ccard) => {
                 let connector_auth = &item.connector_auth_type;
                 let auth_type = BillwerkAuthType::try_from(connector_auth)?;
                 Ok(Self {
@@ -89,22 +103,23 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
                     strong_authentication_rule: None,
                 })
             }
-            domain::payments::PaymentMethodData::Wallet(_)
-            | domain::payments::PaymentMethodData::CardRedirect(_)
-            | domain::payments::PaymentMethodData::PayLater(_)
-            | domain::payments::PaymentMethodData::BankRedirect(_)
-            | domain::payments::PaymentMethodData::BankDebit(_)
-            | domain::payments::PaymentMethodData::BankTransfer(_)
-            | domain::payments::PaymentMethodData::Crypto(_)
-            | domain::payments::PaymentMethodData::MandatePayment
-            | domain::payments::PaymentMethodData::Reward
-            | domain::payments::PaymentMethodData::RealTimePayment(_)
-            | domain::payments::PaymentMethodData::Upi(_)
-            | domain::payments::PaymentMethodData::Voucher(_)
-            | domain::payments::PaymentMethodData::GiftCard(_)
-            | domain::payments::PaymentMethodData::OpenBanking(_)
-            | domain::payments::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
                 )
@@ -122,25 +137,25 @@ pub struct BillwerkTokenResponse {
 
 impl<T>
     TryFrom<
-        types::ResponseRouterData<
-            api::PaymentMethodToken,
+        ResponseRouterData<
+            payments::PaymentMethodToken,
             BillwerkTokenResponse,
             T,
-            types::PaymentsResponseData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<api::PaymentMethodToken, T, types::PaymentsResponseData>
+    > for RouterData<payments::PaymentMethodToken, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::PaymentMethodToken,
+        item: ResponseRouterData<
+            payments::PaymentMethodToken,
             BillwerkTokenResponse,
             T,
-            types::PaymentsResponseData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.id.expose(),
             }),
             ..item.data
@@ -183,7 +198,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsAuthorizeRouterData>> for Billw
             .into());
         };
         let source = match item.router_data.get_payment_method_token()? {
-            types::PaymentMethodToken::Token(pm_token) => Ok(pm_token),
+            PaymentMethodToken::Token(pm_token) => Ok(pm_token),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_token",
             }),
@@ -240,31 +255,25 @@ pub struct BillwerkPaymentsResponse {
     error_state: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BillwerkPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BillwerkPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let error_response = if item.response.error.is_some() || item.response.error_state.is_some()
         {
-            Some(types::ErrorResponse {
+            Some(ErrorResponse {
                 code: item
                     .response
                     .error_state
                     .clone()
-                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or(NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .error_state
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.error,
                 status_code: item.http_code,
                 attempt_status: None,
@@ -273,8 +282,8 @@ impl<F, T>
         } else {
             None
         };
-        let payments_response = types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(item.response.handle.clone()),
+        let payments_response = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.handle.clone()),
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
@@ -353,15 +362,15 @@ pub struct RefundResponse {
     state: RefundState,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.state),
             }),
@@ -370,15 +379,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.state),
             }),

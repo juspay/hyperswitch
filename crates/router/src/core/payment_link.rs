@@ -744,7 +744,7 @@ pub async fn get_payment_link_status(
     let required_conversion_type = StringMajorUnitForCore;
 
     let amount = required_conversion_type
-        .convert(payment_attempt.net_amount, currency)
+        .convert(payment_attempt.get_total_amount(), currency)
         .change_context(errors::ApiErrorResponse::AmountConversionFailed {
             amount_type: "StringMajorUnit",
         })?;

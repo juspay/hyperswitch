@@ -456,6 +456,7 @@ where
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
+                connector_mandate_detail: None,
             };
 
             #[cfg(feature = "v1")]
@@ -588,12 +589,9 @@ pub fn make_new_payment_attempt(
         payment_id: old_payment_attempt.payment_id,
         merchant_id: old_payment_attempt.merchant_id,
         status: old_payment_attempt.status,
-        amount: old_payment_attempt.amount,
         currency: old_payment_attempt.currency,
         save_to_locker: old_payment_attempt.save_to_locker,
         offer_amount: old_payment_attempt.offer_amount,
-        surcharge_amount: old_payment_attempt.surcharge_amount,
-        tax_amount: old_payment_attempt.tax_amount,
         payment_method_id: old_payment_attempt.payment_method_id,
         payment_method: old_payment_attempt.payment_method,
         payment_method_type: old_payment_attempt.payment_method_type,
@@ -616,8 +614,7 @@ pub fn make_new_payment_attempt(
         last_synced,
         profile_id: old_payment_attempt.profile_id,
         organization_id: old_payment_attempt.organization_id,
-        shipping_cost: old_payment_attempt.shipping_cost,
-        net_amount: Default::default(),
+        net_amount: old_payment_attempt.net_amount,
         error_message: Default::default(),
         cancellation_reason: Default::default(),
         error_code: Default::default(),
@@ -646,7 +643,7 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
-        order_tax_amount: Default::default(),
+        connector_mandate_detail: Default::default(),
     }
 }
 

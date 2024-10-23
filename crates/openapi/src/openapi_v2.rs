@@ -123,6 +123,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payments
         routes::payments::payments_create_intent,
+
+        //Routes for refunds
+        routes::refunds::refunds_create,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -140,6 +143,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::PaypalAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         api_models::refunds::RefundRequest,
+        api_models::refunds::RefundsCreateRequest,
+        api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
         api_models::refunds::RefundStatus,
@@ -366,6 +371,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SamsungPayAmountFormat,
         api_models::payments::SamsungPayProtocolType,
         api_models::payments::SamsungPayWalletCredentials,
+        api_models::payments::SamsungPayWebWalletData,
+        api_models::payments::SamsungPayAppWalletData,
+        api_models::payments::SamsungPayCardBrand,
         api_models::payments::SamsungPayTokenData,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
@@ -386,6 +394,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
         api_models::payments::GooglePayThirdPartySdk,
+        api_models::mandates::NetworkTransactionIdAndCardDetails,
         api_models::payments::GooglePaySessionResponse,
         api_models::payments::GpayShippingAddressParameters,
         api_models::payments::GpayBillingAddressParameters,
