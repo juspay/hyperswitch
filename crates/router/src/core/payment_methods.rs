@@ -1538,6 +1538,23 @@ pub async fn list_customer_payment_method(
         }
     }
 
+    let merchant_connector_accounts = if filtered_saved_payment_methods_ctx.iter().any(
+        |(_pm_list_context, _parent_payment_method_token, pm)| {
+            pm.connector_mandate_details.is_some()
+        },
+    ) {
+        db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            key_manager_state,
+            merchant_account.get_id(),
+            true,
+            &key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?
+    } else {
+        Vec::new()
+    };
+
     let pm_list_futures = filtered_saved_payment_methods_ctx
         .into_iter()
         .map(|ctx| {
@@ -1545,6 +1562,7 @@ pub async fn list_customer_payment_method(
                 state,
                 &key_store,
                 merchant_account,
+                merchant_connector_accounts.clone(),
                 ctx,
                 &customer,
                 payments_info.as_ref(),
@@ -1585,7 +1603,8 @@ async fn generate_saved_pm_response(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_account: &domain::MerchantAccount,
-    pm_list_context: (
+    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    (pm_list_context, parent_payment_method_token, pm): (
         PaymentMethodListContext,
         Option<String>,
         domain::PaymentMethod,
@@ -1593,7 +1612,6 @@ async fn generate_saved_pm_response(
     customer: &domain::Customer,
     payment_info: Option<&pm_types::SavedPMLPaymentsInfo>,
 ) -> Result<api::CustomerPaymentMethod, error_stack::Report<errors::ApiErrorResponse>> {
-    let (pm_list_context, parent_payment_method_token, pm) = pm_list_context;
     let payment_method = pm.payment_method.get_required_value("payment_method")?;
 
     let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
@@ -1616,16 +1634,6 @@ async fn generate_saved_pm_response(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse payment method billing address details")?;
 
-    let connector_mandate_details = pm
-        .connector_mandate_details
-        .clone()
-        .map(|val| {
-            val.parse_value::<diesel_models::PaymentsMandateReference>("PaymentsMandateReference")
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
-
     let (is_connector_agnostic_mit_enabled, requires_cvv, off_session_payment_flag, profile_id) =
         payment_info
             .map(|pi| {
@@ -1646,10 +1654,11 @@ async fn generate_saved_pm_response(
         profile_id,
         merchant_account.get_id(),
         is_connector_agnostic_mit_enabled,
-        connector_mandate_details,
+        pm.connector_mandate_details.as_ref(),
         pm.network_transaction_id.as_ref(),
+        merchant_connector_accounts,
     )
-    .await?;
+    .await;
 
     let requires_cvv = if is_connector_agnostic_mit_enabled {
         requires_cvv
@@ -1685,8 +1694,10 @@ async fn generate_saved_pm_response(
         requires_cvv: requires_cvv
             && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
         last_used_at: Some(pm.last_used_at),
-        is_default: customer.default_payment_method_id.is_some()
-            && customer.default_payment_method_id.as_deref() == Some(pm.get_id().get_string_repr()),
+        is_default: customer
+            .default_payment_method_id
+            .as_ref()
+            .is_some_and(|payment_method_id| payment_method_id == pm.get_id().get_string_repr()),
         billing: payment_method_billing,
     };
 
