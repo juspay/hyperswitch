@@ -23,9 +23,15 @@ pub enum ApiEventsType {
     Payment {
         payment_id: id_type::GlobalPaymentId,
     },
+    #[cfg(feature = "v1")]
     Refund {
         payment_id: Option<id_type::PaymentId>,
         refund_id: String,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: id_type::GlobalPaymentId,
+        refund_id: id_type::GlobalRefundId,
     },
     PaymentMethod {
         payment_method_id: String,
@@ -44,6 +50,9 @@ pub enum ApiEventsType {
     },
     BusinessProfile {
         profile_id: id_type::ProfileId,
+    },
+    ApiKey {
+        key_id: id_type::ApiKeyId,
     },
     User {
         user_id: String,
@@ -130,10 +139,6 @@ impl_api_event_type!(
     (
         String,
         id_type::MerchantId,
-        (id_type::MerchantId, String),
-        (id_type::MerchantId, &String),
-        (&id_type::MerchantId, &String),
-        (&String, &String),
         (Option<i64>, Option<i64>, String),
         (Option<i64>, Option<i64>, id_type::MerchantId),
         bool
