@@ -2323,6 +2323,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 },
             ),
             order_details,
+            email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
         })
     }

@@ -5426,6 +5426,12 @@ pub struct PazeSessionTokenResponse {
     pub client_name: String,
     /// Paze Client Profile ID
     pub client_profile_id: String,
+    /// The transaction currency code
+    pub transaction_currency_code: api_enums::Currency,
+    /// The transaction amount
+    pub transaction_amount: StringMajorUnit,
+    /// Email Address
+    pub email_address: Option<Email>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
