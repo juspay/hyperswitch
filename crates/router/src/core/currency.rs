@@ -1,13 +1,14 @@
+use analytics::errors::AnalyticsError;
 use common_utils::errors::CustomResult;
+use currency_conversion::types::ExchangeRates;
 use error_stack::ResultExt;
+
 use crate::{
     core::errors::ApiErrorResponse,
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates},
     SessionState,
 };
-use analytics::errors::AnalyticsError;
-use currency_conversion::types::ExchangeRates;
 
 pub async fn retrieve_forex(
     state: SessionState,

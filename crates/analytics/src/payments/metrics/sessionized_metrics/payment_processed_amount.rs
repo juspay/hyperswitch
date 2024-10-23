@@ -56,7 +56,7 @@ where
             .switch()?;
 
         query_builder.add_select_column("first_attempt").switch()?;
-        
+
         query_builder.add_select_column("currency").switch()?;
 
         query_builder

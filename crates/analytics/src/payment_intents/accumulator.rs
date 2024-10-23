@@ -310,8 +310,12 @@ impl PaymentIntentMetricsAccumulator {
             payments_success_rate,
             payments_success_rate_without_smart_retries,
         ) = self.payments_success_rate.collect();
-        let (smart_retried_amount, smart_retried_amount_without_smart_retries, smart_retried_amount_in_usd, smart_retried_amount_without_smart_retries_in_usd) =
-            self.smart_retried_amount.collect();
+        let (
+            smart_retried_amount,
+            smart_retried_amount_without_smart_retries,
+            smart_retried_amount_in_usd,
+            smart_retried_amount_without_smart_retries_in_usd,
+        ) = self.smart_retried_amount.collect();
         let (
             payment_processed_amount,
             payment_processed_count,

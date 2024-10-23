@@ -9,9 +9,9 @@ use api_models::analytics::{
     FilterValue, GetPaymentFiltersRequest, GetPaymentMetricRequest, PaymentFiltersResponse,
     PaymentsAnalyticsMetadata, PaymentsMetricsResponse,
 };
+use bigdecimal::ToPrimitive;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
-use bigdecimal::ToPrimitive;
 use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
@@ -235,12 +235,15 @@ pub async fn get_metrics(
         .map(|(id, val)| {
             let mut collected_values = val.collect();
             if let Some(amount) = collected_values.payment_processed_amount {
-                let amount_in_usd = id.currency.and_then(|currency| {
-                    i64::try_from(amount).ok().and_then(|amount_i64| {
-                        convert(ex_rates, currency, Currency::USD, amount_i64).ok()
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(amount).ok().and_then(|amount_i64| {
+                            convert(ex_rates, currency, Currency::USD, amount_i64).ok()
+                        })
                     })
-                    
-                }).map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64()).unwrap_or_default();
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
                 collected_values.payment_processed_amount_usd = amount_in_usd;
                 total_payment_processed_amount += amount;
                 total_payment_processed_amount_usd += amount_in_usd.unwrap_or(0);
@@ -249,15 +252,19 @@ pub async fn get_metrics(
                 total_payment_processed_count += count;
             }
             if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
-                let amount_in_usd = id.currency.and_then(|currency| {
-                    i64::try_from(amount).ok().and_then(|amount_i64| {
-                        convert(ex_rates, currency, Currency::USD, amount_i64).ok()
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(amount).ok().and_then(|amount_i64| {
+                            convert(ex_rates, currency, Currency::USD, amount_i64).ok()
+                        })
                     })
-                    
-                }).map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64()).unwrap_or_default();
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
                 collected_values.payment_processed_amount_without_smart_retries_usd = amount_in_usd;
                 total_payment_processed_amount_without_smart_retries += amount;
-                total_payment_processed_amount_without_smart_retries_usd += amount_in_usd.unwrap_or(0);
+                total_payment_processed_amount_without_smart_retries_usd +=
+                    amount_in_usd.unwrap_or(0);
             }
             if let Some(count) = collected_values.payment_processed_count_without_smart_retries {
                 total_payment_processed_count_without_smart_retries += count;

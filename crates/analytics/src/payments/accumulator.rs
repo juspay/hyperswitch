@@ -272,7 +272,14 @@ impl PaymentMetricAccumulator for CountAccumulator {
 }
 
 impl PaymentMetricAccumulator for ProcessedAmountAccumulator {
-    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>, Option<u64>, Option<u64>, Option<u64>);
+    type MetricOutput = (
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+    );
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         self.total_with_retries = match (
@@ -322,7 +329,8 @@ impl PaymentMetricAccumulator for ProcessedAmountAccumulator {
             count_with_retries,
             total_without_retries,
             count_without_retries,
-            Some(0), Some(0),
+            Some(0),
+            Some(0),
         )
     }
 }

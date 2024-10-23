@@ -61,8 +61,7 @@ where
         query_builder
             .add_select_column("attempt_count == 1 as first_attempt")
             .switch()?;
-        query_builder
-            .add_select_column("currency").switch()?;
+        query_builder.add_select_column("currency").switch()?;
         query_builder
             .add_select_column(Aggregate::Sum {
                 field: "amount",
