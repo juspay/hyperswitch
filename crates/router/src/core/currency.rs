@@ -1,12 +1,13 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-
 use crate::{
     core::errors::ApiErrorResponse,
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates},
     SessionState,
 };
+use analytics::errors::AnalyticsError;
+use currency_conversion::types::ExchangeRates;
 
 pub async fn retrieve_forex(
     state: SessionState,
@@ -45,4 +46,20 @@ pub async fn convert_forex(
         .await
         .change_context(ApiErrorResponse::InternalServerError)?,
     ))
+}
+
+pub async fn get_forex_exchange_rates(
+    state: SessionState,
+) -> CustomResult<ExchangeRates, AnalyticsError> {
+    let forex_api = state.conf.forex_api.get_inner();
+    let rates = get_forex_rates(
+        &state,
+        forex_api.call_delay,
+        forex_api.local_fetch_retry_delay,
+        forex_api.local_fetch_retry_count,
+    )
+    .await
+    .change_context(AnalyticsError::ForexFetchFailed)?;
+
+    Ok((*rates.data).clone())
 }

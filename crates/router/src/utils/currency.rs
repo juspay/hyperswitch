@@ -26,7 +26,7 @@ const FALLBACK_FOREX_API_CURRENCY_PREFIX: &str = "USD";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FxExchangeRatesCacheEntry {
-    data: Arc<ExchangeRates>,
+    pub data: Arc<ExchangeRates>,
     timestamp: i64,
 }
 
