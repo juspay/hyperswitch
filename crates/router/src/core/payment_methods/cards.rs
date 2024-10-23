@@ -221,37 +221,6 @@ pub async fn create_payment_method(
     Ok(response)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-async fn create_vault_request<R: pm_types::VaultingInterface>(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
-    payload: Vec<u8>,
-) -> errors::CustomResult<Request, errors::VaultError> {
-    let private_key = jwekey.vault_private_key.peek().as_bytes();
-
-    let jws = services::encryption::jws_sign_payload(
-        &payload,
-        &locker.locker_signing_key_id,
-        private_key,
-    )
-    .await
-    .change_context(errors::VaultError::RequestEncryptionFailed)?;
-
-    let jwe_payload = payment_methods::create_jwe_body_for_vault(jwekey, &jws).await?;
-
-    let mut url = locker.host.to_owned();
-    url.push_str(R::get_vaulting_request_url());
-    let mut request = Request::new(services::Method::Post, &url);
-    request.add_header(
-        headers::CONTENT_TYPE,
-        router_consts::VAULT_HEADER_CONTENT_TYPE.into(),
-    );
-    request.set_body(common_utils::request::RequestContent::Json(Box::new(
-        jwe_payload,
-    )));
-    Ok(request)
-}
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -694,11 +663,11 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let connector_mandate_details = serde_json::to_value(&connector_mandate_details_req)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse connector mandate details")?;
-
+    let key_manager_state = (&state).into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| create_encrypted_data(&state, key_store, billing))
+        .async_map(|billing| create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -719,7 +688,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()));
 
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
-        create_encrypted_data(&state, key_store, payment_method_card_details)
+        create_encrypted_data(&key_manager_state, key_store, payment_method_card_details)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt Payment method card details")?,
@@ -852,11 +821,11 @@ pub async fn get_client_secret_or_add_payment_method(
     let condition = req.card.is_some();
     #[cfg(feature = "payouts")]
     let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
-
+    let key_manager_state = state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| create_encrypted_data(state, key_store, billing))
+        .async_map(|billing| create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1004,7 +973,7 @@ pub async fn add_payment_method_data(
     if client_secret_expired {
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     };
-
+    let key_manager_state = (&state).into();
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {
             helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
@@ -1076,10 +1045,9 @@ pub async fn add_payment_method_data(
                             card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
                             saved_to_locker: true,
                         };
-
                         let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
                             create_encrypted_data(
-                                &state,
+                                &key_manager_state,
                                 &key_store,
                                 PaymentMethodsData::Card(updated_card),
                             )
@@ -1170,10 +1138,11 @@ pub async fn add_payment_method(
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let payment_method = req.payment_method.get_required_value("payment_method")?;
+    let key_manager_state = state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| create_encrypted_data(state, key_store, billing))
+        .async_map(|billing| create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1347,7 +1316,7 @@ pub async fn add_payment_method(
                     let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                         updated_pmd
                             .async_map(|updated_pmd| {
-                                create_encrypted_data(state, key_store, updated_pmd)
+                                create_encrypted_data(&key_manager_state, key_store, updated_pmd)
                             })
                             .await
                             .transpose()
@@ -1411,107 +1380,6 @@ pub async fn add_payment_method(
     Ok(services::ApplicationResponse::Json(resp))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_locker<
-    D: pm_types::VaultingDataInterface + serde::Serialize,
->(
-    state: &routes::SessionState,
-    data: &D,
-) -> errors::CustomResult<String, errors::VaultError> {
-    let key = data.get_vaulting_data_key();
-    let data = serde_json::to_value(data)
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode Vaulting data to value")?
-        .to_string();
-
-    let payload = pm_types::VaultFingerprintRequest { key, data }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
-
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
-
-    let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
-        .parse_struct("VaultFingerprintResp")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultFingerprintResp")?;
-
-    Ok(fingerprint_resp.fingerprint_id)
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn vault_payment_method_in_locker(
-    state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
-    pmd: &pm_types::PaymentMethodVaultingData,
-    existing_vault_id: Option<String>,
-) -> errors::CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
-    let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_account.get_id().to_owned(),
-        vault_id: pm_types::VaultId::generate(
-            existing_vault_id.unwrap_or(uuid::Uuid::now_v7().to_string()),
-        ),
-        data: pmd,
-        ttl: state.conf.locker.ttl_for_storage_in_secs,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode AddVaultRequest")?;
-
-    let resp = call_to_vault::<pm_types::AddVault>(state, payload)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
-
-    let stored_pm_resp: pm_types::AddVaultResponse = resp
-        .parse_struct("AddVaultResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into AddVaultResponse")?;
-
-    Ok(stored_pm_resp)
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn retrieve_payment_method_from_vault(
-    state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
-    customer_id: &id_type::CustomerId,
-    pm: &domain::PaymentMethod,
-) -> errors::CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-    let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_account.get_id().to_owned(),
-        vault_id: pm_types::VaultId::generate(
-            pm.locker_id
-                .clone()
-                .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "locker_id",
-                })
-                .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
-        ),
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultRetrieveRequest")?;
-
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Failed to get response from locker")?;
-
-    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
-        .parse_struct("VaultRetrieveResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
-
-    Ok(stored_pm_resp)
-}
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -1539,10 +1407,10 @@ pub async fn insert_payment_method(
         .card
         .clone()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-
+    let key_manager_state = state.into();
     let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
         .clone()
-        .async_map(|pm_card| create_encrypted_data(state, key_store, pm_card))
+        .async_map(|pm_card| create_encrypted_data(&key_manager_state, key_store, pm_card))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1765,9 +1633,11 @@ pub async fn update_customer_payment_method(
             let updated_pmd = updated_card
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
-
+            let key_manager_state = (&state).into();
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
-                .async_map(|updated_pmd| create_encrypted_data(&state, &key_store, updated_pmd))
+                .async_map(|updated_pmd| {
+                    create_encrypted_data(&key_manager_state, &key_store, updated_pmd)
+                })
                 .await
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2264,37 +2134,6 @@ pub async fn add_card_to_hs_locker(
         .get_required_value("StoreCardRespPayload")
         .change_context(errors::VaultError::SaveCardFailed)?;
     Ok(stored_card)
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn call_to_vault<V: pm_types::VaultingInterface>(
-    state: &routes::SessionState,
-    payload: Vec<u8>,
-) -> errors::CustomResult<String, errors::VaultError> {
-    let locker = &state.conf.locker;
-    let jwekey = state.conf.jwekey.get_inner();
-
-    let request = create_vault_request::<V>(jwekey, locker, payload).await?;
-    let response = services::call_connector_api(state, request, "vault_in_locker")
-        .await
-        .change_context(errors::VaultError::VaultAPIError);
-
-    let jwe_body: services::JweBody = response
-        .get_response_inner("JweBody")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to get JweBody from vault response")?;
-
-    let decrypted_payload = payment_methods::get_decrypted_vault_response_payload(
-        jwekey,
-        jwe_body,
-        locker.decryption_scheme.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::ResponseDecryptionFailed)
-    .attach_printable("Error getting decrypted vault response payload")?;
-
-    Ok(decrypted_payload)
 }
 
 #[instrument(skip_all)]
@@ -2915,7 +2754,7 @@ pub async fn list_payment_methods(
         .transpose()?;
     let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
     let payment_type = payment_attempt.as_ref().map(|pa| {
-        let amount = api::Amount::from(pa.amount);
+        let amount = api::Amount::from(pa.net_amount.get_order_amount());
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         } else if pa.mandate_details.is_some()
@@ -5401,21 +5240,6 @@ pub async fn retrieve_payment_method(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
-#[instrument(skip_all)]
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn delete_payment_method(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _pm_id: api::PaymentMethodId,
-    _key_store: domain::MerchantKeyStore,
-) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
-    todo!()
-}
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
@@ -5518,19 +5342,8 @@ pub async fn delete_payment_method(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn delete_payment_method(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _pm_id: api::PaymentMethodId,
-    _key_store: domain::MerchantKeyStore,
-) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
-    todo!()
-}
-
 pub async fn create_encrypted_data<T>(
-    state: &routes::SessionState,
+    key_manager_state: &KeyManagerState,
     key_store: &domain::MerchantKeyStore,
     data: T,
 ) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<errors::StorageError>>
@@ -5539,7 +5352,6 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let key_manager_state: KeyManagerState = state.into();
 
     let encoded_data = Encode::encode_to_value(&data)
         .change_context(errors::StorageError::SerializationFailed)
@@ -5548,7 +5360,7 @@ where
     let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
 
     let encrypted_data = domain::types::crypto_operation(
-        &key_manager_state,
+        key_manager_state,
         type_name!(payment_method::PaymentMethod),
         domain::types::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),

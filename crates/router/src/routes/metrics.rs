@@ -21,6 +21,8 @@ counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
 
 counter_metric!(PAYMENT_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
+//TODO: This can be removed, added for payment list debugging
+histogram_metric!(PAYMENT_LIST_LATENCY, GLOBAL_METER);
 
 counter_metric!(REFUND_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);

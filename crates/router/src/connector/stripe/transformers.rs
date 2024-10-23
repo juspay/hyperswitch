@@ -737,6 +737,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::MandiriVa
             | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::PaySafeCard
+            | enums::PaymentMethodType::Paze
             | enums::PaymentMethodType::Givex
             | enums::PaymentMethodType::Benefit
             | enums::PaymentMethodType::Knet
@@ -1062,6 +1063,7 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::MbWayRedirect(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::SamsungPay(_)
             | domain::WalletData::TwintRedirect {}
             | domain::WalletData::VippsRedirect {}
@@ -1345,7 +1347,8 @@ fn create_stripe_payment_method(
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::OpenBanking(_)
         | domain::PaymentMethodData::CardToken(_)
-        | domain::PaymentMethodData::NetworkToken(_) => {
+        | domain::PaymentMethodData::NetworkToken(_)
+        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1478,6 +1481,7 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::MbWayRedirect(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::SamsungPay(_)
             | domain::WalletData::TwintRedirect {}
             | domain::WalletData::VippsRedirect {}
@@ -1721,20 +1725,28 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                     });
 
                     let payment_data = match item.request.payment_method_data {
-                        domain::payments::PaymentMethodData::Card(ref card) => {
-                            StripePaymentMethodData::Card(StripeCardData {
-                                payment_method_data_type: StripePaymentMethodType::Card,
-                                payment_method_data_card_number: card.card_number.clone(),
-                                payment_method_data_card_exp_month: card.card_exp_month.clone(),
-                                payment_method_data_card_exp_year: card.card_exp_year.clone(),
-                                payment_method_data_card_cvc: None,
-                                payment_method_auth_type: None,
-                                payment_method_data_card_preferred_network: card
+                        domain::payments::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                            ref card_details_for_network_transaction_id,
+                        ) => StripePaymentMethodData::Card(StripeCardData {
+                            payment_method_data_type: StripePaymentMethodType::Card,
+                            payment_method_data_card_number:
+                                card_details_for_network_transaction_id.card_number.clone(),
+                            payment_method_data_card_exp_month:
+                                card_details_for_network_transaction_id
+                                    .card_exp_month
+                                    .clone(),
+                            payment_method_data_card_exp_year:
+                                card_details_for_network_transaction_id
+                                    .card_exp_year
+                                    .clone(),
+                            payment_method_data_card_cvc: None,
+                            payment_method_auth_type: None,
+                            payment_method_data_card_preferred_network:
+                                card_details_for_network_transaction_id
                                     .card_network
                                     .clone()
                                     .and_then(get_stripe_card_network),
-                            })
-                        }
+                        }),
                         domain::payments::PaymentMethodData::CardRedirect(_)
                         | domain::payments::PaymentMethodData::Wallet(_)
                         | domain::payments::PaymentMethodData::PayLater(_)
@@ -1750,7 +1762,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         | domain::payments::PaymentMethodData::GiftCard(_)
                         | domain::payments::PaymentMethodData::OpenBanking(_)
                         | domain::payments::PaymentMethodData::CardToken(_)
-                        | domain::PaymentMethodData::NetworkToken(_) => {
+                        | domain::PaymentMethodData::NetworkToken(_)
+                        | domain::PaymentMethodData::Card(_) => {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
                                 connector: "Stripe",
@@ -1808,6 +1821,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         Err(errors::ConnectorError::InvalidWalletToken {
                             wallet_name: "Apple Pay".to_string(),
                         })?
+                    }
+                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(crate::unimplemented_payment_method!("Paze", "Stripe"))?
                     }
                 };
                 Some(StripePaymentMethodData::Wallet(
@@ -3363,6 +3379,7 @@ impl
             | Some(domain::PaymentMethodData::OpenBanking(..))
             | Some(domain::PaymentMethodData::CardToken(..))
             | Some(domain::PaymentMethodData::NetworkToken(..))
+            | Some(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -3817,7 +3834,8 @@ impl
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))?

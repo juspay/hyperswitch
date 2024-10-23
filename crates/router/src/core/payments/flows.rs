@@ -4,6 +4,7 @@ pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod incremental_authorization_flow;
+pub mod post_session_tokens_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -207,7 +208,6 @@ default_imp_for_complete_authorize!(
     connector::Adyen,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Boku,
     connector::Checkout,
     connector::Datatrans,
@@ -240,7 +240,6 @@ default_imp_for_complete_authorize!(
     connector::Wise,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldpay,
     connector::Zen,
     connector::Zsl
 );
@@ -278,7 +277,6 @@ default_imp_for_webhook_source_verification!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Braintree,
     connector::Boku,
@@ -361,7 +359,6 @@ default_imp_for_create_customer!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -443,7 +440,6 @@ default_imp_for_connector_redirect_response!(
     connector::Adyen,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Boku,
     connector::Cybersource,
     connector::Datatrans,
@@ -475,7 +471,6 @@ default_imp_for_connector_redirect_response!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldpay,
     connector::Zsl
 );
 
@@ -605,7 +600,6 @@ default_imp_for_accept_dispute!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -709,7 +703,6 @@ default_imp_for_file_upload!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -790,7 +783,6 @@ default_imp_for_submit_evidence!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -871,7 +863,6 @@ default_imp_for_defend_dispute!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -967,7 +958,6 @@ default_imp_for_pre_processing_steps!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1036,7 +1026,6 @@ default_imp_for_post_processing_steps!(
     connector::Aci,
     connector::Authorizedotnet,
     connector::Bamboraapac,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1193,7 +1182,6 @@ default_imp_for_payouts_create!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1274,7 +1262,6 @@ default_imp_for_payouts_retrieve!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1360,7 +1347,6 @@ default_imp_for_payouts_eligibility!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1441,7 +1427,6 @@ default_imp_for_payouts_fulfill!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1519,7 +1504,6 @@ default_imp_for_payouts_cancel!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1601,7 +1585,6 @@ default_imp_for_payouts_quote!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1684,7 +1667,6 @@ default_imp_for_payouts_recipient!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1769,7 +1751,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1852,7 +1833,6 @@ default_imp_for_approve!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -1936,7 +1916,6 @@ default_imp_for_reject!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2111,7 +2090,6 @@ default_imp_for_frm_sale!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2195,7 +2173,6 @@ default_imp_for_frm_checkout!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2279,7 +2256,6 @@ default_imp_for_frm_transaction!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2363,7 +2339,6 @@ default_imp_for_frm_fulfillment!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2447,7 +2422,6 @@ default_imp_for_frm_record_return!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2529,7 +2503,6 @@ default_imp_for_incremental_authorization!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2609,7 +2582,6 @@ default_imp_for_revoking_mandates!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2849,7 +2821,6 @@ default_imp_for_authorize_session_token!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -2930,7 +2901,6 @@ default_imp_for_calculate_tax!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -3012,7 +2982,6 @@ default_imp_for_session_update!(
     connector::Authorizedotnet,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
@@ -3040,7 +3009,86 @@ default_imp_for_session_update!(
     connector::Payeezy,
     connector::Payme,
     connector::Payone,
-    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl
+);
+
+macro_rules! default_imp_for_post_session_tokens {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentPostSessionTokens for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::PostSessionTokens,
+                types::PaymentsPostSessionTokensData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentPostSessionTokens for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PostSessionTokens,
+        types::PaymentsPostSessionTokensData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_post_session_tokens!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Ebanx,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
     connector::Payu,
     connector::Placetopay,
     connector::Plaid,

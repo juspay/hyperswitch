@@ -912,6 +912,46 @@
         ]
       }
     },
+    "/payments/{payment_id}/post_session_tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Post Session Tokens",
+        "description": "\n",
+        "operationId": "Create Post Session Tokens for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsPostSessionTokensRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Post Session Token is done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsPostSessionTokensResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -8884,6 +8924,11 @@
             "type": "object",
             "description": "This field contains the Samsung Pay certificates and credentials",
             "nullable": true
+          },
+          "paze": {
+            "type": "object",
+            "description": "This field contains the Paze certificates and credentials",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -9255,6 +9300,7 @@
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
         "enum": [
           "AED",
+          "AFN",
           "ALL",
           "AMD",
           "ANG",
@@ -9274,10 +9320,12 @@
           "BOB",
           "BRL",
           "BSD",
+          "BTN",
           "BWP",
           "BYN",
           "BZD",
           "CAD",
+          "CDF",
           "CHF",
           "CLP",
           "CNY",
@@ -9291,6 +9339,7 @@
           "DOP",
           "DZD",
           "EGP",
+          "ERN",
           "ETB",
           "EUR",
           "FJD",
@@ -9312,6 +9361,8 @@
           "ILS",
           "INR",
           "IQD",
+          "IRR",
+          "ISK",
           "JMD",
           "JOD",
           "JPY",
@@ -9319,6 +9370,7 @@
           "KGS",
           "KHR",
           "KMF",
+          "KPW",
           "KRW",
           "KWD",
           "KYD",
@@ -9365,6 +9417,7 @@
           "SAR",
           "SBD",
           "SCR",
+          "SDG",
           "SEK",
           "SGD",
           "SHP",
@@ -9375,8 +9428,11 @@
           "SSP",
           "STN",
           "SVC",
+          "SYP",
           "SZL",
           "THB",
+          "TJS",
+          "TMT",
           "TND",
           "TOP",
           "TRY",
@@ -9398,7 +9454,8 @@
           "XPF",
           "YER",
           "ZAR",
-          "ZMW"
+          "ZMW",
+          "ZWL"
         ]
       },
       "CurrentBlockThreshold": {
@@ -13732,9 +13789,81 @@
           }
         }
       },
+      "NetworkTransactionIdAndCardDetails": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
       "NextActionCall": {
         "type": "string",
         "enum": [
+          "post_session_tokens",
           "confirm",
           "sync",
           "complete_authorize"
@@ -16185,6 +16314,7 @@
           "open_banking_uk",
           "pay_bright",
           "paypal",
+          "paze",
           "pix",
           "pay_safe_card",
           "przelewy24",
@@ -17217,6 +17347,13 @@
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
+          },
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
@@ -17719,6 +17856,11 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session Id",
+            "nullable": true
           }
         }
       },
@@ -17848,6 +17990,55 @@
             "type": "string",
             "description": "Reason for incremental authorization",
             "nullable": true
+          }
+        }
+      },
+      "PaymentsPostSessionTokensRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_method"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification."
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          }
+        }
+      },
+      "PaymentsPostSessionTokensResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "status"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NextActionData"
+              }
+            ],
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           }
         }
       },
@@ -18350,6 +18541,13 @@
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
           },
           "amount_capturable": {
             "type": "integer",
@@ -20883,6 +21081,39 @@
           }
         }
       },
+      "PazeSessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_name",
+          "client_profile_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Paze Client ID"
+          },
+          "client_name": {
+            "type": "string",
+            "description": "Client Name to be displayed on the Paze screen"
+          },
+          "client_profile_id": {
+            "type": "string",
+            "description": "Paze Client Profile ID"
+          }
+        }
+      },
+      "PazeWalletData": {
+        "type": "object",
+        "required": [
+          "complete_response"
+        ],
+        "properties": {
+          "complete_response": {
+            "type": "string"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -21636,6 +21867,24 @@
               },
               "data": {
                 "$ref": "#/components/schemas/ProcessorPaymentToken"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_transaction_id_and_card_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
               }
             }
           }
@@ -22652,11 +22901,65 @@
           "FORMAT_TOTAL_ESTIMATED_AMOUNT"
         ]
       },
+      "SamsungPayAppWalletData": {
+        "type": "object",
+        "required": [
+          "3_d_s",
+          "payment_card_brand",
+          "payment_currency_type",
+          "payment_last4_fpan"
+        ],
+        "properties": {
+          "3_d_s": {
+            "$ref": "#/components/schemas/SamsungPayTokenData"
+          },
+          "payment_card_brand": {
+            "$ref": "#/components/schemas/SamsungPayCardBrand"
+          },
+          "payment_currency_type": {
+            "type": "string",
+            "description": "Currency type of the payment"
+          },
+          "payment_last4_dpan": {
+            "type": "string",
+            "description": "Last 4 digits of the device specific card number",
+            "nullable": true
+          },
+          "payment_last4_fpan": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "merchant_ref": {
+            "type": "string",
+            "description": "Merchant reference id that was passed in the session call request",
+            "nullable": true
+          },
+          "method": {
+            "type": "string",
+            "description": "Specifies authentication method used",
+            "nullable": true
+          },
+          "recurring_payment": {
+            "type": "boolean",
+            "description": "Value if credential is enabled for recurring payment",
+            "nullable": true
+          }
+        }
+      },
+      "SamsungPayCardBrand": {
+        "type": "string",
+        "enum": [
+          "visa",
+          "mastercard",
+          "amex",
+          "discover",
+          "unknown"
+        ]
+      },
       "SamsungPayMerchantPaymentInformation": {
         "type": "object",
         "required": [
           "name",
-          "url",
           "country_code"
         ],
         "properties": {
@@ -22666,7 +22969,8 @@
           },
           "url": {
             "type": "string",
-            "description": "Merchant domain that process payments"
+            "description": "Merchant domain that process payments, required for web payments",
+            "nullable": true
           },
           "country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
@@ -22744,6 +23048,27 @@
         }
       },
       "SamsungPayWalletCredentials": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SamsungPayWebWalletData"
+          },
+          {
+            "$ref": "#/components/schemas/SamsungPayAppWalletData"
+          }
+        ]
+      },
+      "SamsungPayWalletData": {
+        "type": "object",
+        "required": [
+          "payment_credential"
+        ],
+        "properties": {
+          "payment_credential": {
+            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
+          }
+        }
+      },
+      "SamsungPayWebWalletData": {
         "type": "object",
         "required": [
           "card_brand",
@@ -22762,8 +23087,7 @@
             "nullable": true
           },
           "card_brand": {
-            "type": "string",
-            "description": "Brand of the payment card"
+            "$ref": "#/components/schemas/SamsungPayCardBrand"
           },
           "card_last4digits": {
             "type": "string",
@@ -22771,17 +23095,6 @@
           },
           "3_d_s": {
             "$ref": "#/components/schemas/SamsungPayTokenData"
-          }
-        }
-      },
-      "SamsungPayWalletData": {
-        "type": "object",
-        "required": [
-          "payment_credential"
-        ],
-        "properties": {
-          "payment_credential": {
-            "$ref": "#/components/schemas/SamsungPayWalletCredentials"
           }
         }
       },
@@ -22847,6 +23160,10 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "order_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -23140,6 +23457,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PazeSessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "paze"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -23366,8 +23704,7 @@
           "surcharge",
           "display_surcharge_amount",
           "display_tax_on_surcharge_amount",
-          "display_total_surcharge_amount",
-          "display_final_amount"
+          "display_total_surcharge_amount"
         ],
         "properties": {
           "surcharge": {
@@ -23395,11 +23732,6 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
-          },
-          "display_final_amount": {
-            "type": "number",
-            "format": "double",
-            "description": "sum of original amount,"
           }
         }
       },
@@ -24392,6 +24724,17 @@
             "properties": {
               "paypal_sdk": {
                 "$ref": "#/components/schemas/PayPalWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paze"
+            ],
+            "properties": {
+              "paze": {
+                "$ref": "#/components/schemas/PazeWalletData"
               }
             }
           },

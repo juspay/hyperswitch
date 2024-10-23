@@ -119,7 +119,7 @@ impl UserRole {
         conn: &PgPooledConn,
         user_id: String,
         org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
+        merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         update: UserRoleUpdate,
         version: UserRoleVersion,
@@ -258,6 +258,7 @@ impl UserRole {
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         version: Option<UserRoleVersion>,
+        limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
             .filter(dsl::org_id.eq(org_id))
@@ -277,6 +278,10 @@ impl UserRole {
 
         if let Some(version) = version {
             query = query.filter(dsl::version.eq(version));
+        }
+
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());

@@ -88,7 +88,11 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckRecordReturnData {
-                amount: self.payment_attempt.amount.get_amount_as_i64(),
+                amount: self
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
                 refund_method: RefundMethod::OriginalPaymentInstrument, //we dont consume this data now in payments...hence hardcoded
                 currency,
                 refund_transaction_id: self.refund.clone().map(|refund| refund.refund_id),

@@ -1781,6 +1781,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -1860,6 +1861,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    NetworkTransactionIdAndCardDetails,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -1867,6 +1869,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
             PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                    hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -1898,6 +1901,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                  hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
                  hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                  hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,

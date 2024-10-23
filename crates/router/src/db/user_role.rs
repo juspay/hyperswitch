@@ -19,6 +19,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
     pub version: Option<enums::UserRoleVersion>,
+    pub limit: Option<u32>,
 }
 
 pub struct ListUserRolesByUserIdPayload<'a> {
@@ -52,7 +53,7 @@ pub trait UserRoleInterface {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -102,7 +103,7 @@ impl UserRoleInterface for Store {
         profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_org_id_merchant_id_profile_id(
             &conn,
             user_id.to_owned(),
@@ -120,7 +121,7 @@ impl UserRoleInterface for Store {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -130,7 +131,7 @@ impl UserRoleInterface for Store {
             &conn,
             user_id.to_owned(),
             org_id.to_owned(),
-            merchant_id.to_owned(),
+            merchant_id.cloned(),
             profile_id.cloned(),
             update,
             version,
@@ -193,6 +194,7 @@ impl UserRoleInterface for Store {
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
             payload.version,
+            payload.limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -280,7 +282,7 @@ impl UserRoleInterface for MockDb {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -293,11 +295,11 @@ impl UserRoleInterface for MockDb {
                 && user_role.profile_id.is_none();
 
             let merchant_level_check = user_role.org_id.as_ref() == Some(org_id)
-                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.merchant_id.as_ref() == merchant_id
                 && user_role.profile_id.is_none();
 
             let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
-                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.merchant_id.as_ref() == merchant_id
                 && user_role.profile_id.as_ref() == profile_id;
 
             // Check if the user role matches the conditions and the version matches

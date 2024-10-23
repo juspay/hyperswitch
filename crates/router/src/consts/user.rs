@@ -15,6 +15,10 @@ pub const TOTP_DIGITS: usize = 6;
 pub const TOTP_VALIDITY_DURATION_IN_SECONDS: u64 = 30;
 /// Number of totps allowed as network delay. 1 would mean one totp before current totp and one totp after are valids.
 pub const TOTP_TOLERANCE: u8 = 1;
+/// Number of maximum attempts user has for totp
+pub const TOTP_MAX_ATTEMPTS: u8 = 4;
+/// Number of maximum attempts user has for recovery code
+pub const RECOVERY_CODE_MAX_ATTEMPTS: u8 = 4;
 
 pub const MAX_PASSWORD_LENGTH: usize = 70;
 pub const MIN_PASSWORD_LENGTH: usize = 8;
@@ -23,8 +27,18 @@ pub const REDIS_TOTP_PREFIX: &str = "TOTP_";
 pub const REDIS_RECOVERY_CODE_PREFIX: &str = "RC_";
 pub const REDIS_TOTP_SECRET_PREFIX: &str = "TOTP_SEC_";
 pub const REDIS_TOTP_SECRET_TTL_IN_SECS: i64 = 15 * 60; // 15 minutes
+pub const REDIS_TOTP_ATTEMPTS_PREFIX: &str = "TOTP_ATTEMPTS_";
+pub const REDIS_RECOVERY_CODE_ATTEMPTS_PREFIX: &str = "RC_ATTEMPTS_";
+pub const REDIS_TOTP_ATTEMPTS_TTL_IN_SECS: i64 = 5 * 60; // 5 mins
+pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS: i64 = 10 * 60; // 10 mins
 
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 
 pub const MAX_INVITE_REQUESTS: usize = 10;
+/// Email subject
+pub const EMAIL_SUBJECT_SIGNUP: &str = "Welcome to the Hyperswitch community!";
+pub const EMAIL_SUBJECT_INVITATION: &str = "You have been invited to join Hyperswitch Community!";
+pub const EMAIL_SUBJECT_MAGIC_LINK: &str = "Unlock Hyperswitch: Use Your Magic Link to Sign In";
+pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset Your Password Now";
+pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";

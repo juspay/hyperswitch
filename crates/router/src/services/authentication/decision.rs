@@ -67,7 +67,7 @@ pub enum Identifiers {
     /// [`ApiKey`] is an authentication method that uses an API key. This is used with [`ApiKey`]
     ApiKey {
         merchant_id: common_utils::id_type::MerchantId,
-        key_id: String,
+        key_id: common_utils::id_type::ApiKeyId,
     },
     /// [`PublishableKey`] is an authentication method that uses a publishable key. This is used with [`PublishableKey`]
     PublishableKey { merchant_id: String },
@@ -80,7 +80,7 @@ pub async fn add_api_key(
     state: &SessionState,
     api_key: Secret<String>,
     merchant_id: common_utils::id_type::MerchantId,
-    key_id: String,
+    key_id: common_utils::id_type::ApiKeyId,
     expiry: Option<u64>,
 ) -> CustomResult<(), ApiClientError> {
     let decision_config = if let Some(config) = &state.conf.decision {

@@ -79,7 +79,7 @@ pub async fn api_key_create(
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ApiKeyId>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRetrieve;
     let key_id = path.into_inner();
@@ -93,7 +93,7 @@ pub async fn api_key_retrieve(
             api_keys::retrieve_api_key(
                 state,
                 auth_data.merchant_account.get_id().to_owned(),
-                key_id,
+                key_id.to_owned(),
             )
         },
         auth::auth_type(
@@ -114,7 +114,10 @@ pub async fn api_key_retrieve(
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRetrieve;
     let (merchant_id, key_id) = path.into_inner();
@@ -123,7 +126,7 @@ pub async fn api_key_retrieve(
         flow,
         state,
         &req,
-        (merchant_id.clone(), &key_id),
+        (merchant_id.clone(), key_id.clone()),
         |state, _, (merchant_id, key_id), _| api_keys::retrieve_api_key(state, merchant_id, key_id),
         auth::auth_type(
             &auth::AdminApiAuth,
@@ -144,7 +147,10 @@ pub async fn api_key_retrieve(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
@@ -177,7 +183,7 @@ pub async fn api_key_update(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    key_id: web::Path<String>,
+    key_id: web::Path<common_utils::id_type::ApiKeyId>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
@@ -212,7 +218,10 @@ pub async fn api_key_update(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
@@ -242,7 +251,10 @@ pub async fn api_key_revoke(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();

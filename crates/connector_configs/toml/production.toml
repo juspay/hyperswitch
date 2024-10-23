@@ -1788,7 +1788,6 @@ key1="Payment Access Key"
 api_secret="Tariff ID"
 [novalnet.connector_webhook_details]
 merchant_secret="Source verification key"
-placeholder="Enter Payment Access Key"
 
 [nuvei]
 [[nuvei.credit]]
@@ -2470,9 +2469,16 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[worldpay.wallet]]
   payment_method_type = "apple_pay"
-[worldpay.connector_auth.BodyKey]
+[worldpay.connector_auth.SignatureKey]
 api_key="Username"
 key1="Password"
+api_secret="Merchant Identifier"
+[worldpay.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant to de displayed during 3DS challenge"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
 
 [[worldpay.metadata.apple_pay]]
 name="certificate"
@@ -3186,3 +3192,6 @@ placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
 options=["Connector","Hyperswitch"]
+
+[fiuu.connector_webhook_details]
+merchant_secret="Source verification key"
