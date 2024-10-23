@@ -1064,6 +1064,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
+        let payment_method_billing_address = payment_data.address.get_payment_method_billing();
         let billing_name = resp
             .address
             .get_payment_method_billing()
@@ -1096,7 +1097,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             resp.request.payment_method_type,
             key_store,
             billing_name,
-            None,
+            payment_method_billing_address,
             business_profile,
         ))
         .await?;

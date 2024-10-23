@@ -180,6 +180,7 @@ where
                         payment_method_type,
                         &customer_id.clone(),
                         billing_name,
+                        payment_method_billing_address,
                     )
                     .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
