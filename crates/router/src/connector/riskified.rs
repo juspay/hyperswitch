@@ -2,7 +2,9 @@ pub mod transformers;
 
 #[cfg(feature = "frm")]
 use base64::Engine;
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
+use common_utils::types::{
+    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+};
 #[cfg(feature = "frm")]
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 #[cfg(feature = "frm")]
@@ -38,13 +40,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Riskified {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Riskified {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 

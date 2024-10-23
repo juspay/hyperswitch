@@ -1,5 +1,5 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::{ext_traits::ValueExt, id_type, pii::Email, types::MinorUnit};
+use common_utils::{ext_traits::ValueExt, id_type, pii::Email, types::StringMajorUnit};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -20,12 +20,12 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct RiskifiedRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(MinorUnit, T)> for RiskifiedRouterData<T> {
-    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+impl<T> From<(StringMajorUnit, T)> for RiskifiedRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -50,8 +50,8 @@ pub struct CheckoutRequest {
     updated_at: PrimitiveDateTime,
     gateway: Option<String>,
     browser_ip: Option<std::net::IpAddr>,
-    total_price: MinorUnit,
-    total_discounts: MinorUnit,
+    total_price: StringMajorUnit,
+    total_discounts: StringMajorUnit,
     cart_token: String,
     referring_site: String,
     line_items: Vec<LineItem>,
@@ -75,13 +75,13 @@ pub struct PaymentDetails {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct ShippingLines {
-    price: MinorUnit,
+    price: StringMajorUnit,
     title: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct DiscountCodes {
-    amount: MinorUnit,
+    amount: StringMajorUnit,
     code: Option<String>,
 }
 
@@ -125,7 +125,7 @@ pub struct OrderAddress {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct LineItem {
-    price: MinorUnit,
+    price: StringMajorUnit,
     quantity: i32,
     title: String,
     product_type: Option<api_models::payments::ProductType>,
@@ -176,14 +176,14 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                 created_at: common_utils::date_time::now(),
                 updated_at: common_utils::date_time::now(),
                 gateway: payment_data.request.gateway.clone(),
-                total_price: MinorUnit::new(payment_data.request.amount),
+                total_price: StringMajorUnit::new(payment_data.request.amount.to_string()),
                 cart_token: payment_data.attempt_id.clone(),
                 line_items: payment_data
                     .request
                     .get_order_details()?
                     .iter()
                     .map(|order_detail| LineItem {
-                        price: MinorUnit::new(order_detail.amount),
+                        price: StringMajorUnit::new(order_detail.amount.to_string()),
                         quantity: i32::from(order_detail.quantity),
                         title: order_detail.product_name.clone(),
                         product_type: order_detail.product_type.clone(),
@@ -196,7 +196,7 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                 source: Source::DesktopWeb,
                 billing_address: OrderAddress::try_from(billing_address).ok(),
                 shipping_address: OrderAddress::try_from(shipping_address).ok(),
-                total_discounts: MinorUnit::zero(),
+                total_discounts: StringMajorUnit::new("0".to_string()),
                 currency: payment_data.request.currency,
                 referring_site: "hyperswitch.io".to_owned(),
                 discount_codes: Vec::new(),
@@ -431,7 +431,7 @@ pub struct SuccessfulTransactionData {
 pub struct TransactionDecisionData {
     external_status: TransactionStatus,
     reason: Option<String>,
-    amount: MinorUnit,
+    amount: StringMajorUnit,
     currency: storage_enums::Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     decided_at: PrimitiveDateTime,
@@ -458,7 +458,7 @@ impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest
                 decision: TransactionDecisionData {
                     external_status: TransactionStatus::Approved,
                     reason: None,
-                    amount: MinorUnit::new(item.request.amount),
+                    amount: StringMajorUnit::new(item.request.amount.to_string()),
                     currency: item.request.get_currency()?,
                     decided_at: common_utils::date_time::now(),
                     payment_details: [TransactionPaymentDetails {
