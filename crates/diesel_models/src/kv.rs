@@ -223,7 +223,7 @@ pub enum Updateable {
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),
-     PaymentMethodUpdate(Box<PaymentMethodUpdateMems>),
+    PaymentMethodUpdate(Box<PaymentMethodUpdateMems>),
     MandateUpdate(MandateUpdateMems),
 }
 
