@@ -976,17 +976,13 @@ impl ParentPaymentMethodToken {
         token: PaymentTokenData,
         state: &SessionState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let token_json_str = token
-            .encode_to_string_of_json()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to serialize hyperswitch token to json")?;
         let redis_conn = state
             .store
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         redis_conn
-            .set_key_with_expiry(&self.key_for_token, token_json_str, fulfillment_time)
+            .serialize_and_set_key_with_expiry(&self.key_for_token, token, fulfillment_time)
             .await
             .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)
