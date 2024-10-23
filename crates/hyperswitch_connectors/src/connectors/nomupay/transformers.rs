@@ -1,12 +1,12 @@
-use common_enums::{enums, Currency};
-use common_utils::types::{StringMajorUnit, StringMinorUnit};
+use common_enums::{enums, Currency, PayoutStatus};
+use common_utils::{pii::Email, types::{StringMajorUnit, StringMinorUnit}};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, PayoutsRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -14,8 +14,8 @@ use serde::{ Deserialize, Serialize};
 
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    types::{PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,},
+    utils::{PaymentsAuthorizeRequestData, RouterData as UtilsRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -50,39 +50,39 @@ pub struct NomupayCard {
     cvc: Secret<String>,
     complete: bool,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
-    pub country: String,
-    pub state_province: String,
-    pub street: String,
+    pub country: enums::CountryAlpha2,
+    pub state_province: Secret<String>,
+    pub street: Secret<String>,
     pub city: String,
-    pub postal_code: String,
+    pub postal_code: Secret<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub profile_type: String,
-    pub first_name: String,
-    pub last_name: String,
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
     pub date_of_birth: String,
     pub gender: String,
-    pub email_address: String,
+    pub email_address: Email,
     pub phone_number_country_code: Option<String>,
-    pub phone_number: Option<String>,
+    pub phone_number: Option<Secret<String>>,
     pub address : Address,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnboardSubAccout{    //1
+pub struct OnboardSubAccount{    //1
     pub account_id: String,
     pub client_sub_account_id: String,
     pub profile: Profile,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BankAccount {
     pub bank_id: String,
@@ -90,7 +90,7 @@ pub struct BankAccount {
     pub account_purpose: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VirtualAccountsType{
     pub country_code: String,
@@ -99,7 +99,7 @@ pub struct VirtualAccountsType{
     pub bank_account_id: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OnboardTransferMethod {  //2
     pub country_code: String,
@@ -110,7 +110,7 @@ pub struct OnboardTransferMethod {  //2
     pub profile: Profile,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Payment {  //3
     pub source_d: String,
@@ -123,7 +123,7 @@ pub struct Payment {  //3
     pub internal_memo:  String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Quote {  //4
     pub source_id: String,
@@ -133,7 +133,7 @@ pub struct Quote {  //4
     pub include_fee: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Commit { //5
     pub source_id:  String,
@@ -147,9 +147,9 @@ pub struct Commit { //5
     pub internal_memo:  String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnboardSubAccoutResponse{
+pub struct OnboardSubAccountResponse{
     pub account_id: String,
     pub id: String,
     pub client_sub_account_id: String,
@@ -160,7 +160,7 @@ pub struct OnboardSubAccoutResponse{
     pub last_updated: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OnboardTransferMethodResponse{
     pub parent_id: String,
@@ -178,7 +178,7 @@ pub struct OnboardTransferMethodResponse{
     pub bank_account: BankAccount,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentResponse {
     pub id: String,
@@ -197,7 +197,7 @@ pub struct PaymentResponse {
     pub expire_on: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FeesType {
     pub typee: String,
@@ -205,7 +205,7 @@ pub struct FeesType {
     pub currency_code: Currency,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutQuoteResponse{
     pub source_id: String,
@@ -216,7 +216,7 @@ pub struct PayoutQuoteResponse{
     pub fees: Vec<FeesType>,
     pub payment_reference: String,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitResponse{
     pub id: String,
@@ -235,13 +235,13 @@ pub struct CommitResponse{
     pub expire_on: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     pub field: String,
     pub message: String, 
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NomupayError {
     pub error_code: String,
@@ -281,15 +281,17 @@ impl TryFrom<&NomupayRouterData<&PaymentsAuthorizeRouterData>> for NomupayPaymen
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct NomupayAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) kid: Secret<String>,
+    pub(super) eid: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for NomupayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                kid: api_key.to_owned(),
+                eid: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -430,4 +432,107 @@ pub struct NomupayErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+
+
+impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccount {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let request = item.request.to_owned();
+        let payout_type = request.payout_type;
+        let external_id = item.connector_request_reference_id.to_owned();
+
+        let country_iso2_code = item
+            .get_billing_country()
+            .unwrap_or(enums::CountryAlpha2::CA);
+
+        // let auth  =  NomupayAuthType::try_from(&item.router_data.connector_auth_type)?; 
+
+        let my_address = Address{
+            country: item.get_billing_country().unwrap_or(enums::CountryAlpha2::ER),
+            state_province: item.get_billing_state().unwrap_or(Secret::new("default state".to_string())),
+            street: item.get_billing_line1().unwrap_or(Secret::new("default street".to_string())),
+            city: item.get_billing_city().unwrap_or("default city".to_string()),
+            postal_code: item.get_billing_zip().unwrap_or(Secret::new("123456".to_string())),
+        };
+
+        let profile = Profile {
+            profile_type: "INDIVIDUAL".to_string(),
+            first_name: item.get_billing_first_name().unwrap_or(Secret::new("first name".to_string())),
+            last_name: item.get_billing_last_name().unwrap_or(Secret::new("last name".to_string())),
+            date_of_birth: "unknown".to_string(),
+            gender: "unknown".to_string(),
+            email_address: item.get_billing_email().unwrap(),
+            phone_number_country_code: item.get_billing_phone().map(|phone|phone.country_code.clone()).unwrap(),
+            phone_number: Some(item.get_billing_phone_number().unwrap_or(Secret::new("phone number".to_string()))),
+            address: my_address,
+        };
+
+
+
+
+        match payout_type {
+            Some(common_enums::PayoutType::Bank) => Ok(OnboardSubAccount {
+                account_id: "how to get it".to_string(),               //need help
+                client_sub_account_id: "how to get it".to_string(),    //need help
+                profile,
+            }),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "This payment method is not implemented for Thunes".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>>
+    for PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, OnboardSubAccountResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response: OnboardSubAccountResponse = item.response;
+
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::RequiresCreation),
+                connector_payout_id: Some(response.id.to_string()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: Some(String::from("error from: Payouts quote response transform")),
+            }),
+            ..item.data
+        })
+    }
+}
+
+
+impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethod{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+
+        let payout_method_data = item.get_payout_method_data()?;
+
+
+
+        match payout_method_data {
+            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
+                api_models::payouts::Bank::Sepa(bank_details) {
+                }
+                _=> Err(errors::ConnectorError::NotSupported {
+                    message: "SEPA payouts are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into()),
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "This payment method is not implemented for Thunes".to_string(),
+            )
+            .into()),
+        }
+    }
 }

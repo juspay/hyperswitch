@@ -1115,7 +1115,7 @@ default_imp_for_payouts!(
     connector::Nexinets,
     connector::Nexixpay,
     connector::Nmi,
-    connector::Nomupay,
+    // connector::Nomupay,
     connector::Noon,
     connector::Novalnet,
     connector::Nuvei,

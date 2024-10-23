@@ -22,15 +22,21 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PayoutsRouterData, RefundSyncRouterData, RefundsRouterData,
     },
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{PoCancel, PoCreate, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount},
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, PayoutCreateType, Response},
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
@@ -117,7 +123,7 @@ impl ConnectorCommon for Nomupay {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth.kid.expose().into_masked(),
         )])
     }
 
@@ -522,6 +528,168 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nomupay {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nomupay {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoRecipient>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/v1alpha1/sub-account", connectors.nomupay.base_url))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoRecipient>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError>{
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoRecipient>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nomupay::OnboardSubAccount::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoRecipient>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutRecipientType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutRecipientType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutRecipientType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    // #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoRecipient>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoRecipient>, errors::ConnectorError> {
+        let response: nomupay::OnboardSubAccountResponse = res
+            .response
+            .parse_struct("NomupayRecipientCreateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+
+impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> for Nomupay {
+    fn get_url(
+        &self,
+        req: &PayoutsRouterData<PoRecipientAccount>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+
+        let sid = req
+            .request
+            .connector_payout_id
+            .to_owned()
+            .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "id" })?;
+
+        Ok(format!("{}/v1alpha1/sub-account/{}/transfer-method", connectors.nomupay.base_url, sid))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoRecipientAccount>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError>{
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoRecipientAccount>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nomupay::OnboardTransferMethod::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoRecipientAccount>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutRecipientAccountType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutRecipientAccountType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutRecipientAccountType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    // #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoRecipientAccount>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoRecipientAccount>, errors::ConnectorError> {
+        let response: nomupay::OnboardTransferMethodResponse = res
+            .response
+            .parse_struct("NomupayRecipientAccountCreateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
