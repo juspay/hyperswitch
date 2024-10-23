@@ -288,6 +288,7 @@ impl PaymentsCreateIntentRequest {
     }
 }
 
+// This struct is only used internally, not visible in API Reference
 #[derive(Debug, Clone, serde::Serialize)]
 #[cfg(feature = "v2")]
 pub struct PaymentsGetIntentRequest {
