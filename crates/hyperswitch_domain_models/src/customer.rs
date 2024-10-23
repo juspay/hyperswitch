@@ -275,7 +275,7 @@ pub enum CustomerUpdate {
         description: Option<Description>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
-         connector_customer: Box<Option<pii::SecretSerdeValue>>,
+        connector_customer: Box<Option<pii::SecretSerdeValue>>,
         default_billing_address: Option<Encryption>,
         default_shipping_address: Option<Encryption>,
         default_payment_method_id: Option<Option<String>>,
