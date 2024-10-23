@@ -14,6 +14,8 @@ use common_utils::{
         MinorUnit,
     },
 };
+#[cfg(feature = "v2")]
+use diesel_models::types::OrderDetailsWithAmount;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -34,8 +36,6 @@ use crate::{
     type_encryption::{crypto_operation, CryptoOperation},
     RemoteStorageObject,
 };
-#[cfg(feature = "v2")]
-use crate::{types::OrderDetailsWithAmount, ApiDieselConvertor};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
@@ -1537,7 +1537,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_details: order_details.map(|order_details| {
                 order_details
                     .into_iter()
-                    .map(|order_detail| Secret::new(order_detail.expose().to_diesel()))
+                    .map(|order_detail| Secret::new(order_detail.expose()))
                     .collect::<Vec<_>>()
             }),
             allowed_payment_method_types: allowed_payment_method_types
@@ -1674,9 +1674,7 @@ impl behaviour::Conversion for PaymentIntent {
                 order_details: storage_model.order_details.map(|order_details| {
                     order_details
                         .into_iter()
-                        .map(|order_detail| {
-                            Secret::new(OrderDetailsWithAmount::from_diesel(order_detail.expose()))
-                        })
+                        .map(|order_detail| Secret::new(order_detail.expose()))
                         .collect::<Vec<_>>()
                 }),
                 allowed_payment_method_types,
@@ -1747,18 +1745,7 @@ impl behaviour::Conversion for PaymentIntent {
             setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
             active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
-            order_details: self
-                .order_details
-                .map(|order_details| {
-                    order_details
-                        .into_iter()
-                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                        .collect::<Result<Vec<_>, _>>()
-                })
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Invalid value found for ".to_string(),
-                })?,
+            order_details: self.order_details,
             allowed_payment_method_types: self
                 .allowed_payment_method_types
                 .map(|allowed_payment_method_types| {

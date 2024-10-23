@@ -1,7 +1,3 @@
-mod payments;
-
-pub use payments::*;
-
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{

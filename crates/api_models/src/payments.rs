@@ -382,7 +382,7 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]

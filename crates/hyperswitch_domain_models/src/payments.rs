@@ -14,11 +14,13 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{business_profile, merchant_account, types::OrderDetailsWithAmount};
+use crate::{business_profile, merchant_account};
 #[cfg(feature = "v2")]
 use crate::{errors, ApiModelToDieselModelConvertor};
 
@@ -220,7 +222,7 @@ pub struct PaymentIntent {
     pub allowed_payment_method_types: Option<Vec<Secret<common_enums::PaymentMethodType>>>,
     /// This metadata contains details about
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     /// Number of attempts that have been made for the order
     pub attempt_count: i16,
     /// The profile id for the payment.
@@ -305,10 +307,6 @@ impl PaymentIntent {
             .get_connector_metadata_as_value()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting connector metadata as value")?;
-        let feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting feature metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
         let allowed_payment_method_types =
@@ -333,7 +331,7 @@ impl PaymentIntent {
         let order_details = request.order_details.map(|order_details| {
             order_details
                 .into_iter()
-                .map(|order_detail| Secret::new(OrderDetailsWithAmount::from(order_detail)))
+                .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
         Ok(Self {
@@ -357,7 +355,7 @@ impl PaymentIntent {
             order_details,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: request.feature_metadata.map(FeatureMetadata::convert_from),
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
             profile_id: profile.get_id().clone(),
