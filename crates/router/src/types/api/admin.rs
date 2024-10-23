@@ -256,6 +256,7 @@ pub async fn create_profile_from_merchant_account(
     let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
+    let profile_name = request.profile_name.unwrap_or_default();
 
     let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
@@ -295,7 +296,7 @@ pub async fn create_profile_from_merchant_account(
     Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,
         merchant_id,
-        profile_name: request.profile_name.unwrap_or("default".to_string()),
+        profile_name,
         created_at: current_time,
         modified_at: current_time,
         return_url: request

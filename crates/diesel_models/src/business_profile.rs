@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, pii, types::NameType};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 
@@ -21,7 +21,7 @@ use crate::schema_v2::business_profile;
 pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -65,7 +65,7 @@ pub struct Profile {
 pub struct ProfileNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -106,7 +106,7 @@ pub struct ProfileNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
 pub struct ProfileUpdateInternal {
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
@@ -252,7 +252,7 @@ impl ProfileUpdateInternal {
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -310,7 +310,7 @@ impl Profile {
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct ProfileNew {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_name: String,
+    pub profile_name: NameType,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -354,7 +354,7 @@ pub struct ProfileNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
 pub struct ProfileUpdateInternal {
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
