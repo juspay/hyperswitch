@@ -1763,7 +1763,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
