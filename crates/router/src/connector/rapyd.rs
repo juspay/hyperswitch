@@ -542,10 +542,7 @@ impl
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
-        let connector_router_data = rapyd::RapydRouterData::from((
-           amount,
-            req,
-        ));
+        let connector_router_data = rapyd::RapydRouterData::from((amount, req));
         let connector_req = rapyd::CaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -685,10 +682,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let connector_router_data = rapyd::RapydRouterData::from((
-            amount,
-            req,
-        ));
+        let connector_router_data = rapyd::RapydRouterData::from((amount, req));
         let connector_req = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
