@@ -43,4 +43,5 @@ option_map_unit_fn = "allow"
 [profile.release]
 strip = true
 lto = true
-codegen-units = 1
+codegen-units = 1  
+
