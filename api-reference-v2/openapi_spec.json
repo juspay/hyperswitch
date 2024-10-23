@@ -17305,7 +17305,9 @@
         "required": [
           "client_id",
           "client_name",
-          "client_profile_id"
+          "client_profile_id",
+          "transaction_currency_code",
+          "transaction_amount"
         ],
         "properties": {
           "client_id": {
@@ -17319,6 +17321,21 @@
           "client_profile_id": {
             "type": "string",
             "description": "Paze Client Profile ID"
+          },
+          "transaction_currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "transaction_amount": {
+            "type": "string",
+            "description": "The transaction amount",
+            "example": "38.02"
+          },
+          "email_address": {
+            "type": "string",
+            "description": "Email Address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
