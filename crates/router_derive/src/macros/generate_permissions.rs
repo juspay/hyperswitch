@@ -72,7 +72,6 @@ pub fn generate_permissions_inner(input: TokenStream) -> TokenStream {
     let mut resource_impl_per = Vec::new();
 
     let mut entity_impl_res = Vec::new();
-    let mut permission_impl_res = Vec::new();
 
     for per in res {
         let resource_name = &per.resource_name;
@@ -92,7 +91,6 @@ pub fn generate_permissions_inner(input: TokenStream) -> TokenStream {
             entity_impl_res
                 .push(quote! { Resource::#resource_name => vec![#(EntityType::#entities_iter),*] });
         }
-        permission_impl_res.push(quote! { Resource::#resource_name => vec![#(#permissions),*] });
     }
 
     let expanded = quote! {
@@ -122,16 +120,10 @@ pub fn generate_permissions_inner(input: TokenStream) -> TokenStream {
         }
 
         pub trait ResourceExt {
-            fn permissions(&self) -> Vec<Permission>;
             fn entities(&self) -> Vec<EntityType>;
         }
 
         impl ResourceExt for Resource {
-            fn permissions(&self) -> Vec<Permission> {
-                match self {
-                    #(#permission_impl_res),*
-                }
-            }
             fn entities(&self) -> Vec<EntityType> {
                 match self {
                     #(#entity_impl_res),*

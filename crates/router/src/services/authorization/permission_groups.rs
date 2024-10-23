@@ -1,13 +1,8 @@
-use std::collections::HashSet;
-
 use common_enums::{ParentGroup, PermissionGroup, PermissionScope, Resource};
-
-use super::permissions::{Permission, ResourceExt};
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
     fn parent(&self) -> ParentGroup;
-    fn permissions_set(&self) -> HashSet<Permission>;
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
 }
@@ -43,15 +38,6 @@ impl PermissionGroupExt for PermissionGroup {
             Self::OrganizationManage => ParentGroup::Organization,
             Self::ReconOps => ParentGroup::Recon,
         }
-    }
-
-    fn permissions_set(&self) -> HashSet<Permission> {
-        self.parent()
-            .resources()
-            .into_iter()
-            .flat_map(|resource| resource.permissions())
-            .filter(|per| per.scope() <= self.scope())
-            .collect()
     }
 
     fn resources(&self) -> Vec<Resource> {

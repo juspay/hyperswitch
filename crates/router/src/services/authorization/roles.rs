@@ -63,13 +63,6 @@ impl RoleInfo {
         self.is_updatable
     }
 
-    pub fn get_permissions_set(&self) -> HashSet<Permission> {
-        self.get_permission_groups()
-            .iter()
-            .flat_map(|group| group.permissions_set())
-            .collect()
-    }
-
     pub fn get_resources_set(&self) -> HashSet<Resource> {
         self.get_permission_groups()
             .iter()
