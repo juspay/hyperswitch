@@ -1488,8 +1488,9 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
 impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
-        use crate::headers::X_CLIENT_SECRET;
         use std::str::FromStr;
+
+        use crate::headers::X_CLIENT_SECRET;
 
         let payment_confirm_source: Option<api_enums::PaymentSource> =
             get_header_value_by_key(X_PAYMENT_CONFIRM_SOURCE.into(), headers)?
