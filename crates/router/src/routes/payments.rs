@@ -138,7 +138,7 @@ pub async fn payments_create_intent(
                 auth.merchant_account,
                 auth.profile,
                 auth.key_store,
-                payments::operations::PaymentCreateIntent,
+                payments::operations::PaymentIntentCreate,
                 req,
                 header_payload.clone(),
             )
@@ -2071,7 +2071,7 @@ pub async fn payment_confirm_intent(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            let operation = payments::operations::PaymentsIntentConfirm;
+            let operation = payments::operations::PaymentIntentConfirm;
 
             Box::pin(payments::payments_core::<
                 api_types::Authorize,

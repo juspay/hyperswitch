@@ -35,9 +35,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct PaymentsIntentConfirm;
+pub struct PaymentIntentConfirm;
 
-impl ValidateStatusForOperation for PaymentsIntentConfirm {
+impl ValidateStatusForOperation for PaymentIntentConfirm {
     /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,
@@ -56,10 +56,10 @@ impl ValidateStatusForOperation for PaymentsIntentConfirm {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
-                    current_flow: "cofirm_intent".to_string(),
+                    current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
                     current_value: intent_status.to_string(),
-                    states: vec!["requires_payment_method".to_string()].join(", "),
+                    states: ["requires_payment_method".to_string()].join(", "),
                 })
             }
         }
@@ -71,7 +71,7 @@ type BoxedConfirmOperation<'b, F> =
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentsIntentConfirm {
+impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -99,7 +99,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentsIn
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentsIntentConfirm {
+impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -126,7 +126,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentsInt
 }
 
 impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
-    for PaymentsIntentConfirm
+    for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
@@ -146,7 +146,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentCo
 
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
-    for PaymentsIntentConfirm
+    for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -176,7 +176,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .client_secret
             .as_ref()
             .get_required_value("client_secret header")?;
-        payment_intent.validate_client_secret(&client_secret)?;
+        payment_intent.validate_client_secret(client_secret)?;
 
         let cell_id = state.conf.cell_information.id.clone();
 
@@ -224,7 +224,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 
 #[async_trait]
 impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
-    for PaymentsIntentConfirm
+    for PaymentIntentConfirm
 {
     async fn get_customer_details<'a>(
         &'a self,
@@ -284,7 +284,7 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
 
 #[async_trait]
 impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
-    for PaymentsIntentConfirm
+    for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(

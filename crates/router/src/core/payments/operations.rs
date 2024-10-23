@@ -42,9 +42,9 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-pub use self::payment_confirm_intent::PaymentsIntentConfirm;
+pub use self::payment_confirm_intent::PaymentIntentConfirm;
 #[cfg(feature = "v2")]
-pub use self::payment_create_intent::PaymentCreateIntent;
+pub use self::payment_create_intent::PaymentIntentCreate;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
