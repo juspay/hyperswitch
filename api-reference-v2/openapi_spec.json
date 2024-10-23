@@ -13174,8 +13174,7 @@
         "required": [
           "payment_method_data",
           "payment_method_type",
-          "payment_method_subtype",
-          "client_secret"
+          "payment_method_subtype"
         ],
         "properties": {
           "return_url": {
@@ -13216,11 +13215,6 @@
               }
             ],
             "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification.",
-            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8_secret_01926c58bc7177c291921c0ebf9b3ef3"
           }
         }
       },
