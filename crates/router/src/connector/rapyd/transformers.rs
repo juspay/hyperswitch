@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -15,25 +16,22 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct RapydRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for RapydRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for RapydRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
 
 #[derive(Default, Debug, Serialize)]
 pub struct RapydPaymentsRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
     pub payment_method_options: Option<PaymentMethodOptions>,
@@ -299,7 +297,7 @@ pub struct DisputeResponseData {
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<enums::Currency>,
 }
 
@@ -406,7 +404,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
-    amount: Option<i64>,
+    amount: Option<MinorUnit>,
     receipt_email: Option<Secret<String>>,
     statement_descriptor: Option<String>,
 }

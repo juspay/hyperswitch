@@ -1,11 +1,11 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{
     date_time,
     ext_traits::{Encode, StringExt},
     request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
@@ -17,6 +17,7 @@ use transformers as rapyd;
 use super::utils as connector_utils;
 use crate::{
     configs::settings,
+    connector::utils::convert_amount,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -34,9 +35,17 @@ use crate::{
     utils::{self, crypto, ByteSliceExt, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Rapyd;
-
+#[derive(Clone)]
+pub struct Rapyd {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+impl Rapyd {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 impl Rapyd {
     pub fn generate_signature(
         &self,
@@ -198,12 +207,12 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = rapyd::RapydRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = rapyd::RapydRouterData::from((amount, req));
         let connector_req = rapyd::RapydPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -528,12 +537,15 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = rapyd::RapydRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
+        )?;
+        let connector_router_data = rapyd::RapydRouterData::from((
+           amount,
             req,
-        ))?;
+        ));
         let connector_req = rapyd::CaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -668,12 +680,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = rapyd::RapydRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
+        )?;
+        let connector_router_data = rapyd::RapydRouterData::from((
+            amount,
             req,
-        ))?;
+        ));
         let connector_req = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
