@@ -2122,7 +2122,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_label: self.connector_label.clone(),
- connector_account_details: Box::new(encrypted_data.connector_account_details),
+            connector_account_details: Box::new(encrypted_data.connector_account_details),
             disabled,
             payment_methods_enabled,
             metadata: self.metadata,
@@ -2136,10 +2136,10 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 None => None,
             },
             applepay_verified_domains: None,
- pm_auth_config: Box::new(self.pm_auth_config),
+            pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
-additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
-connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
+            additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
+            connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
         })
     }
 }
