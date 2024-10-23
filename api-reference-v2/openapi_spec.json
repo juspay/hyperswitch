@@ -18381,7 +18381,6 @@
         "required": [
           "id",
           "payment_id",
-          "merchant_reference_id",
           "amount",
           "currency",
           "status",
@@ -18404,6 +18403,7 @@
             "type": "string",
             "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.",
             "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -18526,7 +18526,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
+            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the amount_captured of the payment",
             "example": 6540,
             "nullable": true,
             "minimum": 100

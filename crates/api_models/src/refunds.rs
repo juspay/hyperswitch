@@ -83,7 +83,7 @@ pub struct RefundsCreateRequest {
     )]
     pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
 
-    /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
+    /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the amount_captured of the payment
     #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
     pub amount: Option<MinorUnit>,
 
@@ -229,9 +229,9 @@ pub struct RefundResponse {
         max_length = 30,
         min_length = 30,
         example = "ref_mbabizu24mvu3mela5njyhpit4",
-        value_type = String,
+        value_type = Option<String>,
     )]
-    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+    pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
     /// The refund amount
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
