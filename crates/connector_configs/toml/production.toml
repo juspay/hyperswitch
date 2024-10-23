@@ -188,7 +188,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[adyen.metadata.google_pay]]
 name="merchant_name"
@@ -352,7 +352,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[authorizedotnet.metadata.google_pay]]
 name="merchant_name"
@@ -477,7 +477,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[bluesnap.metadata.google_pay]]
 name="merchant_name"
@@ -970,7 +970,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[checkout.metadata.google_pay]]
 name="merchant_name"
@@ -1680,7 +1680,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [nexixpay]
 [[nexixpay.credit]]
@@ -2054,7 +2054,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [shift4]
 [[shift4.credit]]
@@ -2359,7 +2359,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[trustpay.metadata.google_pay]]
 name="merchant_name"
@@ -2529,7 +2529,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[worldpay.metadata.google_pay]]
 name="merchant_name"
@@ -3191,7 +3191,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Hyperswitch"]
 
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
