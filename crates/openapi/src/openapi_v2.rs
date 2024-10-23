@@ -123,6 +123,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payments
         routes::payments::payments_create_intent,
+
+        //Routes for refunds
+        routes::refunds::refunds_create,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -140,6 +143,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::PaypalAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         api_models::refunds::RefundRequest,
+        api_models::refunds::RefundsCreateRequest,
+        api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
         api_models::refunds::RefundStatus,
