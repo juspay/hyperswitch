@@ -2473,6 +2473,12 @@ merchant_secret="Source verification key"
 api_key="Username"
 key1="Password"
 api_secret="Merchant Identifier"
+[worldpay.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant to de displayed during 3DS challenge"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
 
 [[worldpay.metadata.apple_pay]]
 name="certificate"

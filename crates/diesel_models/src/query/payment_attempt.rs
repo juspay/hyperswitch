@@ -173,11 +173,23 @@ impl PaymentAttempt {
         merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
     ) -> StorageResult<Self> {
+        let (txn_id, txn_data) = common_utils::types::ConnectorTransactionId::form_id_and_data(
+            connector_txn_id.to_string(),
+        );
+        let connector_transaction_id = txn_id
+            .get_txn_id(txn_data.as_ref())
+            .change_context(DatabaseError::Others)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed to retrieve txn_id for ({:?}, {:?})",
+                    txn_id, txn_data
+                )
+            })?;
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::connector_transaction_id.eq(connector_txn_id.to_owned())),
+                .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
         )
         .await
     }

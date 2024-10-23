@@ -206,6 +206,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 
 default_imp_for_new_connector_integration_payment!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -249,6 +250,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 
 default_imp_for_new_connector_integration_refund!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -287,6 +289,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -331,6 +334,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -374,6 +378,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -417,6 +422,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -470,6 +476,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -515,6 +522,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -560,6 +568,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -605,6 +614,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -650,6 +660,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -695,6 +706,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -740,6 +752,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -785,6 +798,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -830,6 +844,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -873,6 +888,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -918,6 +934,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -963,6 +980,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1008,6 +1026,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1053,6 +1072,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1098,6 +1118,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1140,6 +1161,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,

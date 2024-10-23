@@ -45,6 +45,9 @@ pub enum ApiEventsType {
     BusinessProfile {
         profile_id: id_type::ProfileId,
     },
+    ApiKey {
+        key_id: id_type::ApiKeyId,
+    },
     User {
         user_id: String,
     },
@@ -139,10 +142,6 @@ impl_api_event_type!(
     (
         String,
         id_type::MerchantId,
-        (id_type::MerchantId, String),
-        (id_type::MerchantId, &String),
-        (&id_type::MerchantId, &String),
-        (&String, &String),
         (Option<i64>, Option<i64>, String),
         (Option<i64>, Option<i64>, id_type::MerchantId),
         bool
