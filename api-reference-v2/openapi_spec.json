@@ -1855,7 +1855,7 @@
         ],
         "summary": "Payments - Get Intent",
         "description": "**Get a payment intent object when id is passed in path**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
-        "operationId": "Get a Payment Intent",
+        "operationId": "Get the Payment Intent details",
         "parameters": [
           {
             "name": "id",
