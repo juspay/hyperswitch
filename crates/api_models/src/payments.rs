@@ -913,15 +913,6 @@ impl PaymentsRequest {
         }
     }
 
-    pub fn get_total_capturable_amount(&self) -> Option<MinorUnit> {
-        let surcharge_amount = self
-            .surcharge_details
-            .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
-            .unwrap_or_default();
-        self.amount
-            .map(|amount| MinorUnit::from(amount) + surcharge_amount)
-    }
-
     pub fn get_feature_metadata_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<
