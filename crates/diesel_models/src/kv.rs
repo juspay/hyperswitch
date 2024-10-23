@@ -216,7 +216,7 @@ pub enum Insertable {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "table", content = "data")]
 pub enum Updateable {
-    PaymentIntentUpdate(PaymentIntentUpdateMems),
+    PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
     PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
     RefundUpdate(RefundUpdateMems),
     CustomerUpdate(CustomerUpdateMems),
