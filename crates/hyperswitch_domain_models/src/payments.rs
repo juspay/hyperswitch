@@ -350,7 +350,7 @@ impl PaymentIntent {
             Err(errors::api_error_response::ApiErrorResponse::ClientSecretInvalid)
         })?;
 
-        common_utils::fp_utils::when(self.session_expiry > common_utils::date_time::now(), || {
+        common_utils::fp_utils::when(self.session_expiry < common_utils::date_time::now(), || {
             Err(errors::api_error_response::ApiErrorResponse::ClientSecretExpired)
         })?;
 
