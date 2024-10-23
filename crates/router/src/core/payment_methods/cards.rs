@@ -4374,7 +4374,9 @@ pub async fn list_customer_payment_method(
             .connector_mandate_details
             .clone()
             .map(|val| {
-                val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+                val.parse_value::<diesel_models::PaymentsMandateReference>(
+                    "PaymentsMandateReference",
+                )
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4650,7 +4652,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<storage::PaymentsMandateReference>,
+    connector_mandate_details: Option<payment_method::PaymentsMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {

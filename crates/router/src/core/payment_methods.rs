@@ -1619,7 +1619,9 @@ async fn generate_saved_pm_response(
     let connector_mandate_details = pm
         .connector_mandate_details
         .clone()
-        .map(|val| val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference"))
+        .map(|val| {
+            val.parse_value::<diesel_models::PaymentsMandateReference>("PaymentsMandateReference")
+        })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
