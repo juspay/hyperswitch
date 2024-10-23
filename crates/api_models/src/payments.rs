@@ -5427,10 +5427,13 @@ pub struct PazeSessionTokenResponse {
     /// Paze Client Profile ID
     pub client_profile_id: String,
     /// The transaction currency code
+    #[schema(value_type = Currency, example = "USD")]
     pub transaction_currency_code: api_enums::Currency,
     /// The transaction amount
+    #[schema(value_type = String, example = "38.02")]
     pub transaction_amount: StringMajorUnit,
     /// Email Address
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email_address: Option<Email>,
 }
 
