@@ -1134,7 +1134,7 @@ pub async fn create_payment_method_in_db(
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
     payment_method_data: crypto::OptionalEncryptableValue,
     key_store: &domain::MerchantKeyStore,
-    connector_mandate_details: Option<common_utils::pii::SecretSerdeValue>,
+    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     status: Option<enums::PaymentMethodStatus>,
     network_transaction_id: Option<String>,
     storage_scheme: enums::MerchantStorageScheme,

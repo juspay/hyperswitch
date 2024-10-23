@@ -2256,11 +2256,11 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details: connector_mandate_details.map(Secret::new),
+        connector_mandate_details,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)

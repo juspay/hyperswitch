@@ -67,9 +67,7 @@ pub struct PaymentMethod {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(
-    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
     pub customer_id: common_utils::id_type::CustomerId,
@@ -82,7 +80,7 @@ pub struct PaymentMethod {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_details: Option<PaymentsMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -158,9 +156,7 @@ pub struct PaymentMethodNew {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(
-    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
     pub customer_id: common_utils::id_type::CustomerId,
@@ -173,7 +169,7 @@ pub struct PaymentMethodNew {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_details: Option<PaymentsMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -291,7 +287,7 @@ pub enum PaymentMethodUpdate {
         network_token_payment_method_data: Option<Encryption>,
     },
     ConnectorMandateDetailsUpdate {
-        connector_mandate_details: Option<pii::SecretSerdeValue>,
+        connector_mandate_details: Option<PaymentsMandateReference>,
     },
 }
 
@@ -317,7 +313,7 @@ pub struct PaymentMethodUpdateInternal {
     status: Option<storage_enums::PaymentMethodStatus>,
     locker_id: Option<String>,
     payment_method: Option<storage_enums::PaymentMethod>,
-    connector_mandate_details: Option<pii::SecretSerdeValue>,
+    connector_mandate_details: Option<PaymentsMandateReference>,
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     last_modified: PrimitiveDateTime,
@@ -851,7 +847,8 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentsMandateReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
