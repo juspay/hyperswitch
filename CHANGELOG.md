@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.18.0-hotfix2
+
+### Features
+
+- **analytics:** Remove additional filters from PaymentIntentFilters ([#6407](https://github.com/juspay/hyperswitch/pull/6407)) ([`838788b`](https://github.com/juspay/hyperswitch/commit/838788b54fec345f360b9e39eb56a91e4de7f3ad))
+
+- - -
+
 ## 2024.10.18.0-hotfix1
 
 ### Bug Fixes
