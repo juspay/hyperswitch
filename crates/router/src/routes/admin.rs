@@ -136,6 +136,10 @@ pub async fn retrieve_merchant_account(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
+                // This should ideally be MerchantAccountRead, but since FE is calling this API for
+                // profile level users currently keeping this as ProfileAccountRead. FE is removing
+                // this API call for profile level users.
+                // TODO: Convert this to MerchantAccountRead once FE changes are done.
                 required_permission: Permission::ProfileAccountRead,
             },
             req.headers(),
