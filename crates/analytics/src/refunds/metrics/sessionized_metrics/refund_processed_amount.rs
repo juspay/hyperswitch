@@ -40,7 +40,8 @@ where
     where
         T: AnalyticsDataSource + super::RefundMetricAnalytics,
     {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::RefundSessionized);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::RefundSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;

@@ -37,7 +37,8 @@ where
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::RefundSessionized);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::RefundSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
