@@ -178,13 +178,6 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
     }
 }
 
-// pub trait ApiDieselConvertor<Api, Diesel> {
-//     fn from_api(api_model: Api) -> Self;
-//     fn to_api(&self) -> Api;
-//     fn from_diesel(diesel_model: Diesel) -> Self;
-//     fn to_diesel(&self) -> Diesel;
-// }
-
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
     for diesel_models::payment_intent::PaymentLinkConfigRequestForPayments
