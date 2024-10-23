@@ -23,9 +23,15 @@ pub enum ApiEventsType {
     Payment {
         payment_id: id_type::GlobalPaymentId,
     },
+    #[cfg(feature = "v1")]
     Refund {
         payment_id: Option<id_type::PaymentId>,
         refund_id: String,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: id_type::GlobalPaymentId,
+        refund_id: id_type::GlobalRefundId,
     },
     PaymentMethod {
         payment_method_id: String,

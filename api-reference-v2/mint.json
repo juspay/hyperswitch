@@ -108,6 +108,12 @@
         "api-reference/customers/customers--delete",
         "api-reference/customers/customers--list"
       ]
+    },
+    {
+      "group": "Refunds",
+      "pages": [
+        "api-reference/refunds/refunds--create"
+      ]
     }
   ],
   "footerSocials": {
