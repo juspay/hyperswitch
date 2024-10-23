@@ -86,16 +86,16 @@ pub async fn get_metrics(
             logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
             let metrics_builder = metrics_accumulator.entry(id).or_default();
             match metric {
-                RefundMetrics::RefundSuccessRate => metrics_builder
+                RefundMetrics::RefundSuccessRate | RefundMetrics::SessionizedRefundSuccessRate => metrics_builder
                     .refund_success_rate
                     .add_metrics_bucket(&value),
-                RefundMetrics::RefundCount => {
+                RefundMetrics::RefundCount | RefundMetrics::SessionizedRefundCount=> {
                     metrics_builder.refund_count.add_metrics_bucket(&value)
                 }
-                RefundMetrics::RefundSuccessCount => {
+                RefundMetrics::RefundSuccessCount | RefundMetrics::SessionizedRefundSuccessCount => {
                     metrics_builder.refund_success.add_metrics_bucket(&value)
                 }
-                RefundMetrics::RefundProcessedAmount => {
+                RefundMetrics::RefundProcessedAmount | RefundMetrics::SessionizedRefundProcessedAmount=> {
                     metrics_builder.processed_amount.add_metrics_bucket(&value)
                 }
             }

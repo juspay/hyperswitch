@@ -88,6 +88,10 @@ pub enum RefundMetrics {
     RefundCount,
     RefundSuccessCount,
     RefundProcessedAmount,
+    SessionizedRefundSuccessRate,
+    SessionizedRefundCount,
+    SessionizedRefundSuccessCount,
+    SessionizedRefundProcessedAmount,
 }
 
 pub mod metric_behaviour {
