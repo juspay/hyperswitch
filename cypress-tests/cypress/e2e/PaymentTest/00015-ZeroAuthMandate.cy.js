@@ -108,4 +108,92 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
     }
   );
+
+  context("Card - Zero Auth Payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create No 3DS Payment Intent", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthPaymentIntent"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Confirm No 3DS payment", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthConfirmPayment"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.confirmCallTest(
+        fixtures.confirmBody,
+        req_data,
+        res_data,
+        true,
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve Payment Call Test", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Retrieve CustomerPM Call Test", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
+
+    it("Create Recurring Payment Intent", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Confirm Recurring Payment", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardConfirmAutoCaptureOffSession"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.saveCardConfirmCallTest(
+        fixtures.saveCardConfirmBody,
+        req_data,
+        res_data,
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
 });
