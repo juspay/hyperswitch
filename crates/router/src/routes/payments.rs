@@ -147,8 +147,7 @@ pub async fn payments_create_intent(
             _ => auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth {
-                    permission: Permission::PaymentWrite,
-                    minimum_entity_level: EntityType::Profile,
+                    permission: Permission::ProfilePaymentWrite,
                 },
                 req.headers(),
             ),
