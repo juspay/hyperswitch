@@ -1,6 +1,7 @@
 #![allow(unused)]
 pub mod payment;
 pub mod payment_methods;
+pub mod refunds;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -24,6 +25,7 @@ pub(crate) enum GlobalEntity {
     Customer,
     Payment,
     PaymentMethod,
+    Refund,
 }
 
 impl GlobalEntity {
@@ -32,6 +34,7 @@ impl GlobalEntity {
             Self::Customer => "cus",
             Self::Payment => "pay",
             Self::PaymentMethod => "pm",
+            Self::Refund => "ref",
         }
     }
 }

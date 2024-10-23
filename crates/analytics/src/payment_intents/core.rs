@@ -372,15 +372,6 @@ pub async fn get_filters(
             PaymentIntentDimensions::PaymentIntentStatus => fil.status.map(|i| i.as_ref().to_string()),
             PaymentIntentDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
             PaymentIntentDimensions::ProfileId => fil.profile_id,
-            PaymentIntentDimensions::Connector => fil.connector,
-            PaymentIntentDimensions::AuthType => fil.authentication_type.map(|i| i.as_ref().to_string()),
-            PaymentIntentDimensions::PaymentMethod => fil.payment_method,
-            PaymentIntentDimensions::PaymentMethodType => fil.payment_method_type,
-            PaymentIntentDimensions::CardNetwork => fil.card_network,
-            PaymentIntentDimensions::MerchantId => fil.merchant_id,
-            PaymentIntentDimensions::CardLast4 => fil.card_last_4,
-            PaymentIntentDimensions::CardIssuer => fil.card_issuer,
-            PaymentIntentDimensions::ErrorReason => fil.error_reason,
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {
