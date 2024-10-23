@@ -104,8 +104,8 @@ function run_tests() {
       # Connector-specific tests (e.g., payments or payouts)
       print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
 
-      # Execute tests in parallel with progress output
-      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" --progress --bar "execute_test {} ${service} ${tmp_file}"
+      # Execute tests in parallel
+      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
     fi
   done
 
