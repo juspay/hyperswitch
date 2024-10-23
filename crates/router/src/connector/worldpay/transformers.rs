@@ -169,18 +169,25 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<(enums::PaymentMethod, enums::PaymentMethodType)> for PaymentMethod {
+impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for PaymentMethod {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        src: (enums::PaymentMethod, enums::PaymentMethodType),
+        src: (enums::PaymentMethod, Option<enums::PaymentMethodType>),
     ) -> Result<Self, Self::Error> {
         match (src.0, src.1) {
             (enums::PaymentMethod::Card, _) => Ok(Self::Card),
-            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::ApplePay) => {
-                Ok(Self::ApplePay)
-            }
-            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::GooglePay) => {
-                Ok(Self::GooglePay)
+            (enums::PaymentMethod::Wallet, pmt) => {
+                let pm = pmt.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                })?;
+                match pm {
+                    enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
+                    enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("worldpay"),
+                    )
+                    .into()),
+                }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
@@ -280,16 +287,10 @@ impl
                     .map(|capture_method| AutoSettlement {
                         auto: capture_method == enums::CaptureMethod::Automatic,
                     }),
-                method: item
-                    .router_data
-                    .request
-                    .payment_method_type
-                    .map(|pmt| PaymentMethod::try_from((item.router_data.payment_method, pmt)))
-                    .transpose()?
-                    .get_required_value("payment_method")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method",
-                    })?,
+                method: PaymentMethod::try_from((
+                    item.router_data.payment_method,
+                    item.router_data.request.payment_method_type,
+                ))?,
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
