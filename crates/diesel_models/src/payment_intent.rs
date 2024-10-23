@@ -524,7 +524,7 @@ pub struct PaymentIntentUpdateInternal {
     // #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     // pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     // pub attempt_count: Option<i16>,
-    // pub updated_by: String,
+    pub updated_by: String,
     // pub surcharge_applicable: Option<bool>,
     // pub authorization_count: Option<i32>,
     // pub session_expiry: Option<PrimitiveDateTime>,
@@ -598,7 +598,7 @@ impl PaymentIntentUpdate {
             // order_details,
             // attempt_count,
             // frm_merchant_decision,
-            // updated_by,
+            updated_by,
             // surcharge_applicable,
             // authorization_count,
             // session_expiry,
@@ -624,7 +624,7 @@ impl PaymentIntentUpdate {
             // order_details: order_details.or(source.order_details),
             // attempt_count: attempt_count.unwrap_or(source.attempt_count),
             // frm_merchant_decision: frm_merchant_decision.or(source.frm_merchant_decision),
-            // updated_by,
+            updated_by,
             // surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
             // authorization_count: authorization_count.or(source.authorization_count),
             // session_expiry: session_expiry.or(source.session_expiry),
@@ -736,10 +736,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::ConfirmIntent { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
+                updated_by,
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
+                updated_by,
             },
         }
     }
