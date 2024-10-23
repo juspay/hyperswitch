@@ -8,10 +8,14 @@ This Tool is a solution designed to automate testing for the [Hyperswitch](https
 
 ### Prerequisites
 
-Before installing Cypress, ensure you have the following prerequisites installed:
+Before installing Cypress, ensure that `Node` and `npm` is installed on your machine. To check if it is installed, run the following command:
 
-- npm (Node Package Manager)
-- Node.js (18.x and above)
+```shell
+node -v
+npm -v
+```
+
+If not, download and install `Node` from the official [Node.js website](https://nodejs.org/en/download/package-manager/current). This will also install `npm`.
 
 ### Run Test Cases on your local
 
@@ -251,6 +255,13 @@ describe("Payment Scenarios", () => {
 ```
 
 You can create similar scenarios by calling other functions defined in `commands.js`. These functions interact with utility files like `<connector_name>.js` and include necessary assertions to support various connector scenarios.
+
+### Debugging
+
+It is recommended to run `npm run cypress` while developing new test cases to debug and verify as it opens the Cypress UI allowing the developer to run individual tests. This also opens up the possibility to to view the test execution in real-time and debug any issues that may arise by viewing the request and response payloads directly.
+
+If, for any reason, the `globalState` object does not contain latest data, it must be due to the hooks not being executed in the correct order. In such cases, it is recommended to add `cy.log(globalState)` to the test case to verify the data in the `globalState` object.
+Please refer to the Cypress's official documentation for more information on hooks and their execution order [here](https://docs.cypress.io/app/core-concepts/writing-and-organizing-tests#Hooks).
 
 ## Additional Resources
 
