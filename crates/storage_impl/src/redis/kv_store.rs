@@ -312,8 +312,12 @@ where
             Op::Find => MerchantStorageScheme::RedisKv,
             Op::Update(_, _, Some("postgres_only")) => MerchantStorageScheme::PostgresOnly,
             Op::Update(partition_key, field, Some(_updated_by)) => {
-                match kv_wrapper::<D, _, _>(store, KvOperation::<D>::HGet(field), partition_key)
-                    .await
+                match Box::pin(kv_wrapper::<D, _, _>(
+                    store,
+                    KvOperation::<D>::HGet(field),
+                    partition_key,
+                ))
+                .await
                 {
                     Ok(_) => {
                         metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
