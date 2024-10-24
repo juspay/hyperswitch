@@ -3,13 +3,11 @@ use std::{str::FromStr, time::Instant};
 use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
-use api_models::{
-    payments::HeaderPayload,
-    webhooks::{self, WebhookResponseTracker},
-};
+use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payments::HeaderPayload,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };

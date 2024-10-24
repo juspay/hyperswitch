@@ -28,7 +28,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsPostSessionTokensRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::PostSessionTokens,
@@ -74,7 +74,7 @@ impl Feature<api::PostSessionTokens, types::PaymentsPostSessionTokensData>
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PostSessionTokens,

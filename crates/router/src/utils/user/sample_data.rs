@@ -6,9 +6,9 @@ use common_utils::{
     id_type,
     types::{ConnectorTransactionId, MinorUnit},
 };
-use diesel_models::{
-    enums as storage_enums, user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew,
-};
+#[cfg(feature = "v1")]
+use diesel_models::user::sample_data::PaymentAttemptBatchNew;
+use diesel_models::{enums as storage_enums, DisputeNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
