@@ -20,8 +20,14 @@ pub async fn migrate_payment_methods(
 ) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
     for record in payment_methods {
-        let req = api::PaymentMethodMigrate::try_from((record.clone(), merchant_id.clone(), mca_id.clone()))
-        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData{ message: format!("error: {:?}", err) })
+        let req = api::PaymentMethodMigrate::try_from((
+            record.clone(),
+            merchant_id.clone(),
+            mca_id.clone(),
+        ))
+        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("error: {:?}", err),
+        })
         .attach_printable("record deserialization failed");
         match req {
             Ok(_) => (),
@@ -77,13 +83,19 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
 }
 pub fn get_payment_method_records(
     form: PaymentMethodsMigrateForm,
-) -> Result<(common_utils::id_type::MerchantId, Vec<PaymentMethodRecord>, Option<common_utils::id_type::MerchantConnectorAccountId>), errors::ApiErrorResponse>
-{
+) -> Result<
+    (
+        common_utils::id_type::MerchantId,
+        Vec<PaymentMethodRecord>,
+        Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ),
+    errors::ApiErrorResponse,
+> {
     match parse_csv(form.file.data.to_bytes()) {
         Ok(records) => {
             let merchant_id = form.merchant_id.clone();
-                let mca_id = form.merchant_connector_id.clone();
-                Ok((merchant_id.clone(), records, mca_id))
+            let mca_id = form.merchant_connector_id.clone();
+            Ok((merchant_id.clone(), records, mca_id))
         }
         Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: e.to_string(),

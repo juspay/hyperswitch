@@ -332,10 +332,13 @@ pub async fn migrate_payment_methods(
     MultipartForm(form): MultipartForm<migration::PaymentMethodsMigrateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-    let (merchant_id, records, merchant_connector_id) = match migration::get_payment_method_records(form) {
-        Ok((merchant_id, records, merchant_connector_id)) => (merchant_id, records, merchant_connector_id),
-        Err(e) => return api::log_and_return_error_response(e.into()),
-    };
+    let (merchant_id, records, merchant_connector_id) =
+        match migration::get_payment_method_records(form) {
+            Ok((merchant_id, records, merchant_connector_id)) => {
+                (merchant_id, records, merchant_connector_id)
+            }
+            Err(e) => return api::log_and_return_error_response(e.into()),
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
