@@ -58,6 +58,14 @@ pub struct AuthenticationData {
     pub profile_id: Option<id_type::ProfileId>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct AuthenticationDataV2 {
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+    pub profile: domain::Profile,
+}
+
 #[derive(Clone, Debug)]
 pub struct AuthenticationDataWithMultipleProfiles {
     pub merchant_account: domain::MerchantAccount,
@@ -82,7 +90,7 @@ pub struct AuthenticationDataWithUser {
 pub enum AuthenticationType {
     ApiKey {
         merchant_id: id_type::MerchantId,
-        key_id: String,
+        key_id: id_type::ApiKeyId,
     },
     AdminApiKey,
     AdminApiAuthWithMerchantId {
@@ -275,6 +283,13 @@ impl AuthInfo for AuthenticationData {
     }
 }
 
+#[cfg(feature = "v2")]
+impl AuthInfo for AuthenticationDataV2 {
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        Some(self.merchant_account.get_id())
+    }
+}
+
 impl AuthInfo for AuthenticationDataWithMultipleProfiles {
     fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         Some(self.merchant_account.get_id())
@@ -295,6 +310,9 @@ where
 
 #[derive(Debug)]
 pub struct ApiKeyAuth;
+
+#[derive(Debug)]
+pub struct ApiKeyAuthV2;
 
 pub struct NoAuth;
 
@@ -346,6 +364,97 @@ where
         _state: &A,
     ) -> RouterResult<(Option<T>, AuthenticationType)> {
         Ok((None, AuthenticationType::NoAuth))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for ApiKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let api_key = get_api_key(request_headers)
+            .change_context(errors::ApiErrorResponse::Unauthorized)?
+            .trim();
+        if api_key.is_empty() {
+            return Err(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("API key is empty");
+        }
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+        let api_key = api_keys::PlaintextApiKey::from(api_key);
+        let hash_key = {
+            let config = state.conf();
+            config.api_keys.get_inner().get_hash_key()?
+        };
+        let hashed_api_key = api_key.keyed_hash(hash_key.peek());
+
+        let stored_api_key = state
+            .store()
+            .find_api_key_by_hash_optional(hashed_api_key.into())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+            .attach_printable("Failed to retrieve API key")?
+            .ok_or(report!(errors::ApiErrorResponse::Unauthorized)) // If retrieve returned `None`
+            .attach_printable("Merchant not authenticated")?;
+
+        if stored_api_key
+            .expires_at
+            .map(|expires_at| expires_at < date_time::now())
+            .unwrap_or(false)
+        {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("API key has expired");
+        }
+
+        let key_manager_state = &(&state.session_state()).into();
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &stored_api_key.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &stored_api_key.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationDataV2 {
+            merchant_account: merchant,
+            key_store,
+            profile,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: auth.merchant_account.get_id().clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -528,6 +637,49 @@ where
                 self.0.authenticate_and_fetch(request_headers, state).await
             }
         }
+    }
+}
+
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
+#[async_trait]
+impl<A, I> AuthenticateAndFetch<AuthenticationDataV2, A> for HeaderAuth<I>
+where
+    A: SessionStateInfo + Sync,
+    I: AuthenticateAndFetch<AuthenticationDataV2, A>
+        + AuthenticateAndFetch<AuthenticationData, A>
+        + GetAuthType
+        + Sync
+        + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = self
+            .0
+            .authenticate_and_fetch(request_headers, state)
+            .await?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+        let key_manager_state = &(&state.session_state()).into();
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &auth_data.key_store,
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        let auth_data_v2 = AuthenticationDataV2 {
+            merchant_account: auth_data.merchant_account,
+            key_store: auth_data.key_store,
+            profile,
+        };
+        Ok((auth_data_v2, auth_type))
     }
 }
 
@@ -790,17 +942,17 @@ impl<'a> HeaderMapStruct<'a> {
 
     fn get_mandatory_header_value_by_key(
         &self,
-        key: String,
+        key: &str,
     ) -> Result<&str, error_stack::Report<errors::ApiErrorResponse>> {
         self.headers
-            .get(&key)
+            .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("Missing header key: `{}`", key),
             })
             .attach_printable(format!("Failed to find header key: {}", key))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`X-Merchant-Id` in headers",
+                field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {}",
@@ -808,13 +960,23 @@ impl<'a> HeaderMapStruct<'a> {
             ))
     }
 
-    pub fn get_merchant_id_from_header(&self) -> RouterResult<id_type::MerchantId> {
-        self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+    /// Get the id type from the header
+    /// This can be used to extract lineage ids from the headers
+    pub fn get_id_type_from_header<
+        T: TryFrom<
+            std::borrow::Cow<'static, str>,
+            Error = error_stack::Report<errors::ValidationError>,
+        >,
+    >(
+        &self,
+        key: &str,
+    ) -> RouterResult<T> {
+        self.get_mandatory_header_value_by_key(key)
             .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                id_type::MerchantId::wrap(merchant_id).change_context(
+            .and_then(|header_value| {
+                T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
+                        message: format!("`{}` header is invalid", key),
                     },
                 )
             })
@@ -839,7 +1001,8 @@ where
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
-        let merchant_id = HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1009,6 +1172,60 @@ where
                     },
                 )
             })
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for PublishableKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let publishable_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let key_manager_state = &(&state.session_state()).into();
+        let authentication_data = state
+            .store()
+            .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &authentication_data.key_store,
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let merchant_id = authentication_data.merchant_account.get_id().clone();
+
+        Ok((
+            AuthenticationDataV2 {
+                merchant_account: authentication_data.merchant_account,
+                key_store: authentication_data.key_store,
+                profile,
+            },
+            AuthenticationType::PublishableKey { merchant_id },
+        ))
     }
 }
 
@@ -1208,8 +1425,8 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1244,8 +1461,8 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1605,16 +1822,82 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
-
+        let merchant_id = merchant.get_id().clone();
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
             profile_id: payload.profile_id,
         };
         Ok((
-            auth.clone(),
+            auth,
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.get_id().clone(),
+                merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+        let merchant_id = merchant.get_id().clone();
+        let auth = AuthenticationDataV2 {
+            merchant_account: merchant,
+            key_store,
+            profile,
+        };
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id,
                 user_id: Some(payload.user_id),
             },
         ))
@@ -1791,6 +2074,7 @@ impl ClientSecretFetch for payouts::PayoutCreateRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1800,6 +2084,12 @@ impl ClientSecretFetch for payments::PaymentsRequest {
 impl ClientSecretFetch for PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
     }
 }
 
@@ -1989,6 +2279,20 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
                 ))
         })
         .transpose()
+}
+pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
+    key: String,
+    headers: &HeaderMap,
+) -> RouterResult<Option<T>> {
+    get_header_value_by_key(key.clone(), headers)?
+        .map(|str_value| T::from_str(str_value))
+        .transpose()
+        .map_err(|_err| {
+            error_stack::report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: key,
+                expected_format: "Valid Id String".to_string(),
+            })
+        })
 }
 
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {

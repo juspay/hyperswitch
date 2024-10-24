@@ -1,6 +1,6 @@
-#![allow(unused)]
 pub mod payment;
 pub mod payment_methods;
+pub mod refunds;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -23,7 +23,9 @@ pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>)
 pub(crate) enum GlobalEntity {
     Customer,
     Payment,
+    Attempt,
     PaymentMethod,
+    Refund,
 }
 
 impl GlobalEntity {
@@ -32,6 +34,8 @@ impl GlobalEntity {
             Self::Customer => "cus",
             Self::Payment => "pay",
             Self::PaymentMethod => "pm",
+            Self::Attempt => "att",
+            Self::Refund => "ref",
         }
     }
 }

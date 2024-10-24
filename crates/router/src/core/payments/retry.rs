@@ -70,10 +70,19 @@ where
         .clone()
         .map(|gsm| gsm.step_up_possible)
         .unwrap_or(false);
+
+    #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
         payment_data.get_payment_attempt().authentication_type,
         Some(storage_enums::AuthenticationType::NoThreeDs)
     );
+
+    #[cfg(feature = "v2")]
+    let is_no_three_ds_payment = matches!(
+        payment_data.get_payment_attempt().authentication_type,
+        storage_enums::AuthenticationType::NoThreeDs
+    );
+
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
@@ -338,7 +347,7 @@ where
         payments::CallConnectorAction::Trigger,
         validate_result,
         schedule_time,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
         true,
@@ -456,6 +465,7 @@ where
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
+                connector_mandate_detail: None,
             };
 
             #[cfg(feature = "v1")]
@@ -642,6 +652,7 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
+        connector_mandate_detail: Default::default(),
     }
 }
 

@@ -12,11 +12,33 @@ use api_models::analytics::{
 use strum::IntoEnumIterator;
 
 pub fn get_payment_dimensions() -> Vec<NameDescription> {
-    PaymentDimensions::iter().map(Into::into).collect()
+    vec![
+        PaymentDimensions::Connector,
+        PaymentDimensions::PaymentMethod,
+        PaymentDimensions::PaymentMethodType,
+        PaymentDimensions::Currency,
+        PaymentDimensions::AuthType,
+        PaymentDimensions::PaymentStatus,
+        PaymentDimensions::ClientSource,
+        PaymentDimensions::ClientVersion,
+        PaymentDimensions::ProfileId,
+        PaymentDimensions::CardNetwork,
+        PaymentDimensions::MerchantId,
+    ]
+    .into_iter()
+    .map(Into::into)
+    .collect()
 }
 
 pub fn get_payment_intent_dimensions() -> Vec<NameDescription> {
-    PaymentIntentDimensions::iter().map(Into::into).collect()
+    vec![
+        PaymentIntentDimensions::PaymentIntentStatus,
+        PaymentIntentDimensions::Currency,
+        PaymentIntentDimensions::ProfileId,
+    ]
+    .into_iter()
+    .map(Into::into)
+    .collect()
 }
 
 pub fn get_refund_dimensions() -> Vec<NameDescription> {
