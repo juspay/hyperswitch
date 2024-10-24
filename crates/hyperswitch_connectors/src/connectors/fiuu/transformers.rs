@@ -206,7 +206,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuMandateReque
         let currency = item.router_data.request.currency;
         let amount = item.amount.clone();
         let billing_name = item.router_data.get_billing_full_name()?;
-        let email = item.router_data.get_billing_email()?;
+        let email = item.router_data.request.get_email()?;
         let token = Secret::new(item.router_data.request.get_connector_mandate_id()?);
         let verify_key = auth.verify_key;
         let recurring_request = FiuuRecurringRequest {
@@ -315,6 +315,8 @@ pub struct FiuuCardData {
     mps_token_status: Option<i32>,
     #[serde(rename = "CustName")]
     customer_name: Option<Secret<String>>,
+    #[serde(rename = "CustEmail")]
+    customer_email: Option<Email>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -546,11 +548,15 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
     fn try_from(
         (req_card, item): (&Card, &PaymentsAuthorizeRouterData),
     ) -> Result<Self, Self::Error> {
-        let (mps_token_status, customer_name) =
+        let (mps_token_status, customer_name, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (Some(1), Some(item.request.get_customer_name()?))
+                (
+                    Some(1),
+                    Some(item.request.get_customer_name()?),
+                    Some(item.request.get_email()?),
+                )
             } else {
-                (None, None)
+                (None, None, None)
             };
         let non_3ds = match item.is_three_ds() {
             false => 1,
@@ -565,6 +571,7 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
             cc_year: req_card.card_exp_year.clone(),
             mps_token_status,
             customer_name,
+            customer_email,
         })))
     }
 }
