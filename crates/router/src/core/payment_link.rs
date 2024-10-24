@@ -11,7 +11,7 @@ use common_utils::{
         DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{AsyncExt, OptionExt, ValueExt},
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
+    types::{AmountConvertor, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -547,7 +547,7 @@ fn validate_order_details(
                         .clone_from(&order.product_img_link)
                 };
                 order_details_amount_string.amount = required_conversion_type
-                    .convert(MinorUnit::new(order.amount), currency)
+                    .convert(order.amount, currency)
                     .change_context(errors::ApiErrorResponse::AmountConversionFailed {
                         amount_type: "StringMajorUnit",
                     })?;

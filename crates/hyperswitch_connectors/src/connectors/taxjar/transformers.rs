@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     router_response_types::TaxCalculationResponseData,
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -18,14 +18,18 @@ use crate::{
 
 pub struct TaxjarRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub order_amount: FloatMajorUnit,
     pub shipping: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(FloatMajorUnit, FloatMajorUnit, T)> for TaxjarRouterData<T> {
-    fn from((amount, shipping, item): (FloatMajorUnit, FloatMajorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, FloatMajorUnit, FloatMajorUnit, T)> for TaxjarRouterData<T> {
+    fn from(
+        (amount, order_amount, shipping, item): (FloatMajorUnit, FloatMajorUnit, FloatMajorUnit, T),
+    ) -> Self {
         Self {
             amount,
+            order_amount,
             shipping,
             router_data: item,
         }
@@ -49,7 +53,7 @@ pub struct LineItem {
     id: Option<String>,
     quantity: Option<u16>,
     product_tax_code: Option<String>,
-    unit_price: Option<f64>,
+    unit_price: Option<FloatMajorUnit>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -69,8 +73,6 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
         item: &TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        let currency = item.router_data.request.currency;
-        let currency_unit = &api::CurrencyUnit::Base;
         let shipping = &item
             .router_data
             .request
@@ -87,16 +89,11 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
                     order_details
                         .iter()
                         .map(|line_item| {
-                            let unit_price = utils::get_amount_as_f64(
-                                currency_unit,
-                                line_item.amount,
-                                currency,
-                            )?;
                             Ok(LineItem {
                                 id: line_item.product_id.clone(),
                                 quantity: Some(line_item.quantity),
                                 product_tax_code: line_item.product_tax_code.clone(),
-                                unit_price: Some(unit_price),
+                                unit_price: Some(item.order_amount),
                             })
                         })
                         .collect();

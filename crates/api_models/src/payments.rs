@@ -5080,7 +5080,7 @@ pub struct OrderDetailsWithAmount {
     #[schema(example = 1)]
     pub quantity: u16,
     /// the amount per quantity of product
-    pub amount: i64,
+    pub amount: MinorUnit,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product

@@ -5445,13 +5445,13 @@ pub async fn get_unified_translation(
 }
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
-    amount: i64,
+    amount: MinorUnit,
     should_validate: bool,
 ) -> Result<(), errors::ApiErrorResponse> {
     if should_validate {
-        let total_order_details_amount: i64 = order_details
+        let total_order_details_amount: MinorUnit = order_details
             .iter()
-            .map(|order| order.amount * i64::from(order.quantity))
+            .map(|order| order.amount * order.quantity)
             .sum();
 
         if total_order_details_amount != amount {

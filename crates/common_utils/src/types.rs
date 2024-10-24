@@ -7,7 +7,8 @@ pub mod authentication;
 use std::{
     borrow::Cow,
     fmt::Display,
-    ops::{Add, Sub},
+    iter::Sum,
+    ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -480,6 +481,20 @@ impl Sub for MinorUnit {
     type Output = Self;
     fn sub(self, a2: Self) -> Self {
         Self(self.0 - a2.0)
+    }
+}
+
+impl Mul<u16> for MinorUnit {
+    type Output = Self;
+
+    fn mul(self, a2: u16) -> Self::Output {
+        Self(self.0 * i64::from(a2))
+    }
+}
+
+impl Sum for MinorUnit {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self(0), |a, b| a + b)
     }
 }
 

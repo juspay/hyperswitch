@@ -624,11 +624,14 @@ fn get_item_object(
                 name: data.product_name.clone(),
                 quantity: data.quantity,
                 price: utils::to_currency_base_unit_with_zero_decimal_check(
-                    data.amount,
+                    data.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
                     item.request.currency,
                 )?,
                 line_amount_total: (f64::from(data.quantity)
-                    * utils::to_currency_base_unit_asf64(data.amount, item.request.currency)?)
+                    * utils::to_currency_base_unit_asf64(
+                        data.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
+                        item.request.currency,
+                    )?)
                 .to_string(),
             })
         })
