@@ -23947,17 +23947,6 @@
           }
         }
       },
-      "ToggleSuccessBasedRoutingPath": {
-        "type": "object",
-        "required": [
-          "profile_id"
-        ],
-        "properties": {
-          "profile_id": {
-            "type": "string"
-          }
-        }
-      },
       "ToggleSuccessBasedRoutingQuery": {
         "type": "object",
         "required": [
