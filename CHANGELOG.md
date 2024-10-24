@@ -4,6 +4,41 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.24.0
+
+### Features
+
+- **analytics:** Remove additional filters from PaymentIntentFilters ([#6403](https://github.com/juspay/hyperswitch/pull/6403)) ([`4ef48c3`](https://github.com/juspay/hyperswitch/commit/4ef48c39b3ed7c1fcda9c850da766a0bdb701335))
+- **router:** Add api_models and openapi changes for refunds create api v2 ([#6385](https://github.com/juspay/hyperswitch/pull/6385)) ([`5a10e58`](https://github.com/juspay/hyperswitch/commit/5a10e5867a0f3097a40c8a6868454ff06630ed2c))
+
+### Bug Fixes
+
+- **connector_config:** Include the `payment_processing_details_at` `Hyperswitch` option only if apple pay token decryption flow is supported for the connector ([#6386](https://github.com/juspay/hyperswitch/pull/6386)) ([`af0aeee`](https://github.com/juspay/hyperswitch/commit/af0aeeea53014d8fe5c955cbad3fe8b371c44889))
+- **deployment-config:** Remove invalid currencies from worldpay filters ([#6400](https://github.com/juspay/hyperswitch/pull/6400)) ([`aee11c5`](https://github.com/juspay/hyperswitch/commit/aee11c560e427195a0d321dff19c0d33ec60ba64))
+
+### Refactors
+
+- **connector:** Move connectors Forte, Nexinets, Payeezy, Payu and Zen from Router to Hyperswitch Connector Trait ([#6261](https://github.com/juspay/hyperswitch/pull/6261)) ([`829a20c`](https://github.com/juspay/hyperswitch/commit/829a20cc933267551e49565d06eb08e03e5f13bb))
+
+**Full Changelog:** [`2024.10.23.0...2024.10.24.0`](https://github.com/juspay/hyperswitch/compare/2024.10.23.0...2024.10.24.0)
+
+- - -
+
+## 2024.10.23.0
+
+### Features
+
+- **cypress:** Execute cypress tests in parallel ([#6225](https://github.com/juspay/hyperswitch/pull/6225)) ([`f247978`](https://github.com/juspay/hyperswitch/commit/f24797834553794f341bd4f3be3afe5fcba693ed))
+
+### Refactors
+
+- **connector:** [WorldPay] propagate refusal codes as error code and messages ([#6392](https://github.com/juspay/hyperswitch/pull/6392)) ([`3d1a3cd`](https://github.com/juspay/hyperswitch/commit/3d1a3cdc8f942a3dca2e6a200bf9200366bd62f1))
+- **permissions:** Remove permissions field from permission info API response ([#6376](https://github.com/juspay/hyperswitch/pull/6376)) ([`e5710fa`](https://github.com/juspay/hyperswitch/commit/e5710fa084ed5b0a4969a63b14a7f8e3433a3c64))
+
+**Full Changelog:** [`2024.10.22.0...2024.10.23.0`](https://github.com/juspay/hyperswitch/compare/2024.10.22.0...2024.10.23.0)
+
+- - -
+
 ## 2024.10.22.0
 
 ### Features
