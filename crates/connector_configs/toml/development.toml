@@ -1215,6 +1215,8 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[cybersource.wallet]]
   payment_method_type = "paze"
+[[cybersource.wallet]]
+  payment_method_type = "samsung_pay"
 [cybersource.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
@@ -1295,6 +1297,33 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="service_id"
+label="Service Id"
+placeholder="Enter Service Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="merchant_display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="allowed_brands"
+label="Allowed Brands"
+placeholder="Enter Allowed Brands"
+required=true
+type="MultiSelect"
+options=["visa","masterCard","amex","discover"]
 
 [cybersource.metadata.acquirer_bin]
 name="acquirer_bin"
