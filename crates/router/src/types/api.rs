@@ -507,7 +507,7 @@ impl ConnectorData {
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
-                enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
+                enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(connector::Tsys::new()))),
 
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
