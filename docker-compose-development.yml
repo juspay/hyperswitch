@@ -64,6 +64,7 @@ services:
         FROM rust:latest
         RUN apt-get update && \
             apt-get install -y protobuf-compiler
+        RUN rustup component add rustfmt clippy  
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
