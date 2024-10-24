@@ -573,15 +573,7 @@ where
                         .map(|order_detail| order_detail.expose().convert_back())
                         .collect()
                 }),
-                allowed_payment_method_types: payment_intent
-                    .allowed_payment_method_types
-                    .clone()
-                    .map(|allowed_payment_method_types| {
-                        allowed_payment_method_types
-                            .into_iter()
-                            .map(ExposeInterface::expose)
-                            .collect()
-                    }),
+                allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
                 metadata: payment_intent.metadata.clone(),
                 connector_metadata: payment_intent.connector_metadata.clone(),
                 feature_metadata: payment_intent

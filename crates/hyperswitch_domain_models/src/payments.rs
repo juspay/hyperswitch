@@ -219,7 +219,7 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
-    pub allowed_payment_method_types: Option<Vec<Secret<common_enums::PaymentMethodType>>>,
+    pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
     /// This metadata contains details about
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
@@ -309,15 +309,7 @@ impl PaymentIntent {
             .attach_printable("Error getting connector metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
-        let allowed_payment_method_types =
-            request
-                .allowed_payment_method_types
-                .map(|allowed_payment_method_types| {
-                    allowed_payment_method_types
-                        .into_iter()
-                        .map(Secret::new)
-                        .collect()
-                });
+        let allowed_payment_method_types = request.allowed_payment_method_types;
 
         let session_expiry =
             common_utils::date_time::now().saturating_add(time::Duration::seconds(
