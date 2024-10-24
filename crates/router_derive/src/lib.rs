@@ -698,7 +698,7 @@ pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 
 /// Generates the ToEncryptable trait for a type
 ///
-/// This macro generates the Temperory structs which has the fields that needs to be encrypted
+/// This macro generates the temporary structs which has the fields that needs to be encrypted
 ///
 /// fn to_encryptable: Convert the temp struct to a hashmap that can be sent over the network
 /// fn from_encryptable: Convert the hashmap back to temp struct
