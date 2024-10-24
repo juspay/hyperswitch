@@ -2194,10 +2194,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             + shipping_cost
             + surcharge_amount;
         Ok(Self {
-            net_amount,
+            amount: net_amount,
             order_tax_amount,
             currency: payment_data.currency,
-            amount: payment_data.payment_intent.amount,
+            order_amount: payment_data.payment_intent.amount,
             session_id: payment_data.session_id,
             shipping_cost: payment_data.payment_intent.shipping_cost,
         })

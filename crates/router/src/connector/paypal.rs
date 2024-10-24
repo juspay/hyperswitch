@@ -827,12 +827,12 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let order_amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.amount,
+            req.request.order_amount,
             req.request.currency,
         )?;
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.net_amount,
+            req.request.amount,
             req.request.currency,
         )?;
         let order_tax_amount = connector_utils::convert_amount(

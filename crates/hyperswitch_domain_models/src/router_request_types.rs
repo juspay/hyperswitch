@@ -837,9 +837,11 @@ pub struct PaymentsTaxCalculationData {
 
 #[derive(Debug, Clone, Default)]
 pub struct SdkPaymentsSessionUpdateData {
+    /// original amount sent by the merchant
     pub order_tax_amount: MinorUnit,
-    pub net_amount: MinorUnit,
+    // amount here would include amount, surcharge_amount, order_tax_amount and shipping_cost
     pub amount: MinorUnit,
+    pub order_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub session_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
