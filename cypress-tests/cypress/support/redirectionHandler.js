@@ -343,7 +343,19 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get("#outcomeSelect").select("Approve").should("have.value", "Y");
         cy.get('button[type="submit"]').click();
       });
-  } else {
+  } else if (connectorId === "worldpay") {
+    cy.get("iframe", { timeout: WAIT_TIME })
+      .its("0.contentDocument.body")
+      .within(() => {
+        cy.get('form[name="cardholderInput"]', { timeout: WAIT_TIME })
+          .should("exist")
+          .then(() => {
+            cy.get('input[name="challengeDataEntry"]').click().type("1234");
+            cy.get('input[value="SUBMIT"]').click();
+          })
+      });
+  }
+  else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(WAIT_TIME);
   }

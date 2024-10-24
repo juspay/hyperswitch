@@ -666,6 +666,27 @@ export const connectorDetails = {
         },
       },
     }),
+    VoidAfterConfirm: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+          capture_method: "manual",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot cancel this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    }),
     Refund: getCustomExchange({
       Request: {
         payment_method: "card",

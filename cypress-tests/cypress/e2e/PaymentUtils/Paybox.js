@@ -401,29 +401,6 @@ export const connectorDetails = {
         },
       },
     },
-    CaptureCapturedAmount: {
-      Request: {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "EUR",
-          customer_acceptance: null,
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            code: "IR_14",
-          },
-        },
-      },
-    },
     ConfirmSuccessfulPayment: {
       Request: {
         payment_method: "card",
