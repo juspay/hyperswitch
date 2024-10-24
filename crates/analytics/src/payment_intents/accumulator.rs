@@ -86,7 +86,7 @@ impl PaymentIntentMetricAccumulator for CountAccumulator {
 }
 
 impl PaymentIntentMetricAccumulator for SmartRetriedAmountAccumulator {
-    type MetricOutput = (Option<u64>, Option<u64>);
+    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
         self.amount = match (
@@ -117,7 +117,7 @@ impl PaymentIntentMetricAccumulator for SmartRetriedAmountAccumulator {
             .amount_without_retries
             .and_then(|i| u64::try_from(i).ok())
             .or(Some(0));
-        (with_retries, without_retries)
+        (with_retries, without_retries, Some(0), Some(0))
     }
 }
 
@@ -185,7 +185,14 @@ impl PaymentIntentMetricAccumulator for PaymentsSuccessRateAccumulator {
 }
 
 impl PaymentIntentMetricAccumulator for ProcessedAmountAccumulator {
-    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>, Option<u64>);
+    type MetricOutput = (
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+        Option<u64>,
+    );
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &PaymentIntentMetricRow) {
         self.total_with_retries = match (
@@ -235,6 +242,8 @@ impl PaymentIntentMetricAccumulator for ProcessedAmountAccumulator {
             count_with_retries,
             total_without_retries,
             count_without_retries,
+            Some(0),
+            Some(0),
         )
     }
 }
@@ -301,13 +310,19 @@ impl PaymentIntentMetricsAccumulator {
             payments_success_rate,
             payments_success_rate_without_smart_retries,
         ) = self.payments_success_rate.collect();
-        let (smart_retried_amount, smart_retried_amount_without_smart_retries) =
-            self.smart_retried_amount.collect();
+        let (
+            smart_retried_amount,
+            smart_retried_amount_without_smart_retries,
+            smart_retried_amount_in_usd,
+            smart_retried_amount_without_smart_retries_in_usd,
+        ) = self.smart_retried_amount.collect();
         let (
             payment_processed_amount,
             payment_processed_count,
             payment_processed_amount_without_smart_retries,
             payment_processed_count_without_smart_retries,
+            payment_processed_amount_in_usd,
+            payment_processed_amount_without_smart_retries_in_usd,
         ) = self.payment_processed_amount.collect();
         let (
             payments_success_rate_distribution_without_smart_retries,
@@ -317,7 +332,9 @@ impl PaymentIntentMetricsAccumulator {
             successful_smart_retries: self.successful_smart_retries.collect(),
             total_smart_retries: self.total_smart_retries.collect(),
             smart_retried_amount,
+            smart_retried_amount_in_usd,
             smart_retried_amount_without_smart_retries,
+            smart_retried_amount_without_smart_retries_in_usd,
             payment_intent_count: self.payment_intent_count.collect(),
             successful_payments,
             successful_payments_without_smart_retries,
@@ -330,6 +347,8 @@ impl PaymentIntentMetricsAccumulator {
             payment_processed_count_without_smart_retries,
             payments_success_rate_distribution_without_smart_retries,
             payments_failure_rate_distribution_without_smart_retries,
+            payment_processed_amount_in_usd,
+            payment_processed_amount_without_smart_retries_in_usd,
         }
     }
 }

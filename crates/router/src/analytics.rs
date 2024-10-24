@@ -32,7 +32,10 @@ pub mod routes {
 
     use crate::{
         consts::opensearch::SEARCH_INDEXES,
-        core::{api_locking, errors::user::UserErrors, verification::utils},
+        core::{
+            api_locking, currency::get_forex_exchange_rates, errors::user::UserErrors,
+            verification::utils,
+        },
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
         routes::AppState,
         services::{
@@ -397,7 +400,8 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::payments::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -436,7 +440,8 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::payments::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -482,7 +487,8 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::payments::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -523,7 +529,8 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -562,7 +569,8 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -608,7 +616,8 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },

@@ -1,4 +1,6 @@
+use analytics::errors::AnalyticsError;
 use common_utils::errors::CustomResult;
+use currency_conversion::types::ExchangeRates;
 use error_stack::ResultExt;
 
 use crate::{
@@ -45,4 +47,20 @@ pub async fn convert_forex(
         .await
         .change_context(ApiErrorResponse::InternalServerError)?,
     ))
+}
+
+pub async fn get_forex_exchange_rates(
+    state: SessionState,
+) -> CustomResult<ExchangeRates, AnalyticsError> {
+    let forex_api = state.conf.forex_api.get_inner();
+    let rates = get_forex_rates(
+        &state,
+        forex_api.call_delay,
+        forex_api.local_fetch_retry_delay,
+        forex_api.local_fetch_retry_count,
+    )
+    .await
+    .change_context(AnalyticsError::ForexFetchFailed)?;
+
+    Ok((*rates.data).clone())
 }
