@@ -30,9 +30,10 @@ pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
 pub mod payment_create_intent;
-
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
+#[cfg(feature = "v2")]
+pub mod payment_confirm_intent;
 
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -40,6 +41,13 @@ use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+
+#[cfg(feature = "v2")]
+pub use self::payment_confirm_intent::PaymentIntentConfirm;
+#[cfg(feature = "v2")]
+pub use self::payment_create_intent::PaymentIntentCreate;
+#[cfg(feature = "v2")]
+pub use self::payment_get_intent::PaymentGetIntent;
 
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
@@ -52,8 +60,7 @@ pub use self::{
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
-#[cfg(feature = "v2")]
-pub use self::{payment_create_intent::PaymentCreateIntent, payment_get_intent::PaymentGetIntent};
+
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
@@ -152,9 +159,11 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub mandate_type: Option<api::MandateTransactionType>,
 }
 
-#[cfg(feature = "v1")]
+/// This trait is used to fetch / create all the tracker related information for a payment
+/// This functions returns the session data that is used by subsequent functions
 #[async_trait]
 pub trait GetTracker<F: Clone, D, R>: Send {
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -164,13 +173,12 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
-}
 
-#[cfg(feature = "v2")]
-#[async_trait]
-pub trait GetTracker<F: Clone, D, R>: Send {
+    // TODO: this need not return the operation, since operation does not change in v2
+    // Operation remains the same from start to finish
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -180,8 +188,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         profile: &domain::Profile,
         mechant_key_store: &domain::MerchantKeyStore,
-        auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 }
 
@@ -313,7 +320,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
-        header_payload: api::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
     where
         F: 'b + Send;
@@ -325,7 +332,6 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -752,4 +758,12 @@ where
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
+}
+
+/// Validate if a particular operation can be performed for the given intent status
+pub trait ValidateStatusForOperation {
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse>;
 }

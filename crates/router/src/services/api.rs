@@ -1225,6 +1225,7 @@ pub trait Authenticate {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1335,9 +1336,9 @@ pub fn build_redirection_form(
                 }
                 (PreEscaped(format!(r#"
                     <script type="text/javascript"> {logging_template}
-                    var frm = document.getElementById("payment_form"); 
+                    var frm = document.getElementById("payment_form");
                     var formFields = frm.querySelectorAll("input");
-                
+
                     if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
                         window.setTimeout(function () {{
                             window.location.href = frm.action;
