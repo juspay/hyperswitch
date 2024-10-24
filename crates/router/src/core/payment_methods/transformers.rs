@@ -570,7 +570,6 @@ pub fn generate_payment_method_response(
         payment_method_id: pm.id.get_string_repr().to_owned(),
         payment_method: pm.payment_method,
         payment_method_type: pm.payment_method_type,
-        metadata: pm.metadata.clone(),
         created: Some(pm.created_at),
         recurring_enabled: false,
         last_used_at: Some(pm.last_used_at),

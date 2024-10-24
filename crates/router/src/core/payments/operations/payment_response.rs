@@ -1541,7 +1541,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                            val.parse_value::<storage::PaymentsMandateReference>(
+                                            val.parse_value::<diesel_models::PaymentsMandateReference>(
                                                 "PaymentsMandateReference",
                                             )
                                         })

@@ -5157,7 +5157,8 @@ where
         .connector_mandate_details
         .clone()
         .map(|details| {
-            details.parse_value::<storage::PaymentsMandateReference>("connector_mandate_details")
+            details
+                .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)

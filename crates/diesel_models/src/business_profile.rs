@@ -285,6 +285,7 @@ pub struct Profile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
@@ -343,6 +344,7 @@ pub struct ProfileNew {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
@@ -386,6 +388,7 @@ pub struct ProfileUpdateInternal {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub should_collect_cvv_during_payment: Option<bool>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
@@ -426,6 +429,7 @@ impl ProfileUpdateInternal {
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
+            should_collect_cvv_during_payment,
             is_network_tokenization_enabled,
             is_auto_retries_enabled,
             max_auto_retries_enabled,
@@ -485,6 +489,8 @@ impl ProfileUpdateInternal {
             payout_routing_algorithm_id: payout_routing_algorithm_id
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
+            should_collect_cvv_during_payment: should_collect_cvv_during_payment
+                .unwrap_or(source.should_collect_cvv_during_payment),
             version: source.version,
             dynamic_routing_algorithm: None,
             is_network_tokenization_enabled: is_network_tokenization_enabled

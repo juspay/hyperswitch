@@ -2213,25 +2213,6 @@ pub async fn update_payment_method_metadata_and_last_used(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn update_payment_method_metadata_and_last_used(
-    state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
-    db: &dyn db::StorageInterface,
-    pm: domain::PaymentMethod,
-    pm_metadata: Option<serde_json::Value>,
-    storage_scheme: MerchantStorageScheme,
-) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
-        metadata: pm_metadata.map(Secret::new),
-        last_used_at: common_utils::date_time::now(),
-    };
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
-        .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
-    Ok(())
-}
-
 pub async fn update_payment_method_and_last_used(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2256,11 +2237,11 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details: connector_mandate_details.map(Secret::new),
+        connector_mandate_details,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -4374,7 +4355,9 @@ pub async fn list_customer_payment_method(
             .connector_mandate_details
             .clone()
             .map(|val| {
-                val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+                val.parse_value::<diesel_models::PaymentsMandateReference>(
+                    "PaymentsMandateReference",
+                )
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4636,7 +4619,7 @@ async fn perform_surcharge_ops(
 pub async fn perform_surcharge_ops(
     _payment_intent: Option<storage::PaymentIntent>,
     _state: &routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _business_profile: Option<Profile>,
     _response: &mut api::CustomerPaymentMethodsListResponse,
@@ -4644,13 +4627,14 @@ pub async fn perform_surcharge_ops(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_status(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<storage::PaymentsMandateReference>,
+    connector_mandate_details: Option<payment_method::PaymentsMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
@@ -4669,25 +4653,64 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-        let mut mca_ids = HashSet::new();
-        let mcas = mcas
+        let mca_ids = mcas
             .into_iter()
             .filter(|mca| {
-                mca.disabled == Some(false) && profile_id.clone() == Some(mca.profile_id.clone())
+                mca.disabled.is_some_and(|disabled| !disabled)
+                    && profile_id
+                        .as_ref()
+                        .is_some_and(|profile_id| *profile_id == mca.profile_id)
             })
-            .collect::<Vec<_>>();
+            .map(|mca| mca.get_id())
+            .collect::<HashSet<_>>();
 
-        for mca in mcas {
-            mca_ids.insert(mca.get_id());
-        }
-        for mca_id in connector_mandate_details.keys() {
-            if mca_ids.contains(mca_id) {
-                return Ok(true);
-            }
+        if connector_mandate_details
+            .keys()
+            .any(|mca_id| mca_ids.contains(mca_id))
+        {
+            return Ok(true);
         }
     }
     Ok(false)
 }
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[allow(clippy::too_many_arguments)]
+pub async fn get_mca_status(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    profile_id: Option<id_type::ProfileId>,
+    merchant_id: &id_type::MerchantId,
+    is_connector_agnostic_mit_enabled: bool,
+    connector_mandate_details: Option<&payment_method::PaymentsMandateReference>,
+    network_transaction_id: Option<&String>,
+    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+) -> bool {
+    if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
+        return true;
+    }
+    if let Some(connector_mandate_details) = connector_mandate_details {
+        let mca_ids = merchant_connector_accounts
+            .into_iter()
+            .filter(|mca| {
+                mca.disabled.is_some_and(|disabled| !disabled)
+                    && profile_id
+                        .as_ref()
+                        .is_some_and(|profile_id| *profile_id == mca.profile_id)
+            })
+            .map(|mca| mca.get_id())
+            .collect::<HashSet<_>>();
+
+        if connector_mandate_details
+            .keys()
+            .any(|mca_id| mca_ids.contains(mca_id))
+        {
+            return true;
+        }
+    }
+    false
+}
+
 pub async fn decrypt_generic_data<T>(
     state: &routes::SessionState,
     data: Option<Encryption>,
