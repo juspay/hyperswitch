@@ -20,7 +20,7 @@ use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use router_env::{logger, instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
@@ -681,7 +681,9 @@ pub async fn push_metrics_for_success_based_routing(
                 .algorithm_id_with_timestamp
                 .algorithm_id
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("success_based_routing_algorithm_id not found in business_profile")?,
+                .attach_printable(
+                    "success_based_routing_algorithm_id not found in business_profile",
+                )?,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -700,7 +702,9 @@ pub async fn push_metrics_for_success_based_routing(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to calculate/fetch success rate from dynamic routing service")?;
+            .attach_printable(
+                "unable to calculate/fetch success rate from dynamic routing service",
+            )?;
 
         let payment_status_attribute =
             get_desired_payment_status_for_success_routing_metrics(&payment_attempt.status);

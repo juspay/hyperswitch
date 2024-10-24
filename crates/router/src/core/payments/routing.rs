@@ -1239,7 +1239,10 @@ pub async fn perform_success_based_routing(
     if success_based_algo_ref.enabled_feature
         == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
     {
-        logger::debug!("performing success_based_routing for profile {}", business_profile.get_id().get_string_repr());
+        logger::debug!(
+            "performing success_based_routing for profile {}",
+            business_profile.get_id().get_string_repr()
+        );
         let client = state
             .grpc_client
             .dynamic_routing
