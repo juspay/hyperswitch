@@ -169,18 +169,25 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<(enums::PaymentMethod, enums::PaymentMethodType)> for PaymentMethod {
+impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for PaymentMethod {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        src: (enums::PaymentMethod, enums::PaymentMethodType),
+        src: (enums::PaymentMethod, Option<enums::PaymentMethodType>),
     ) -> Result<Self, Self::Error> {
         match (src.0, src.1) {
             (enums::PaymentMethod::Card, _) => Ok(Self::Card),
-            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::ApplePay) => {
-                Ok(Self::ApplePay)
-            }
-            (enums::PaymentMethod::Wallet, enums::PaymentMethodType::GooglePay) => {
-                Ok(Self::GooglePay)
+            (enums::PaymentMethod::Wallet, pmt) => {
+                let pm = pmt.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                })?;
+                match pm {
+                    enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
+                    enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("worldpay"),
+                    )
+                    .into()),
+                }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
@@ -280,16 +287,10 @@ impl
                     .map(|capture_method| AutoSettlement {
                         auto: capture_method == enums::CaptureMethod::Automatic,
                     }),
-                method: item
-                    .router_data
-                    .request
-                    .payment_method_type
-                    .map(|pmt| PaymentMethod::try_from((item.router_data.payment_method, pmt)))
-                    .transpose()?
-                    .get_required_value("payment_method")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method",
-                    })?,
+                method: PaymentMethod::try_from((
+                    item.router_data.payment_method,
+                    item.router_data.request.payment_method_type,
+                ))?,
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
@@ -419,13 +420,13 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id) = item;
-        let (description, redirection_data) = router_data
+        let (description, redirection_data, error) = router_data
             .response
             .other_fields
             .as_ref()
             .map(|other_fields| match other_fields {
                 WorldpayPaymentResponseFields::AuthorizedResponse(res) => {
-                    (res.description.clone(), None)
+                    (res.description.clone(), None, None)
                 }
                 WorldpayPaymentResponseFields::DDCResponse(res) => (
                     None,
@@ -444,6 +445,7 @@ impl<F, T>
                             ),
                         ]),
                     }),
+                    None,
                 ),
                 WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
                     None,
@@ -455,28 +457,30 @@ impl<F, T>
                             res.challenge.jwt.clone().expose(),
                         )]),
                     }),
+                    None,
                 ),
-                WorldpayPaymentResponseFields::FraudHighRisk(_)
-                | WorldpayPaymentResponseFields::RefusedResponse(_) => (None, None),
+                WorldpayPaymentResponseFields::RefusedResponse(res) => (
+                    None,
+                    None,
+                    Some((res.refusal_code.clone(), res.refusal_description.clone())),
+                ),
+                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None),
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
         let worldpay_status = router_data.response.outcome.clone();
-        let optional_reason = match worldpay_status {
+        let optional_error_message = match worldpay_status {
             PaymentOutcome::ThreeDsAuthenticationFailed => {
                 Some("3DS authentication failed from issuer".to_string())
             }
             PaymentOutcome::ThreeDsUnavailable => {
                 Some("3DS authentication unavailable from issuer".to_string())
             }
-            PaymentOutcome::FraudHighRisk => {
-                Some("Transaction marked as high risk by Worldpay".to_string())
-            }
-            PaymentOutcome::Refused => Some("Transaction refused by issuer".to_string()),
+            PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
         let status = enums::AttemptStatus::from(worldpay_status.clone());
-        let response = optional_reason.map_or(
-            Ok(PaymentsResponseData::TransactionResponse {
+        let response = match (optional_error_message, error) {
+            (None, None) => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::foreign_try_from((
                     router_data.response,
                     optional_correlation_id.clone(),
@@ -489,17 +493,23 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            |reason| {
-                Err(types::ErrorResponse {
-                    code: worldpay_status.to_string(),
-                    message: reason.clone(),
-                    reason: Some(reason),
-                    status_code: router_data.http_code,
-                    attempt_status: Some(status),
-                    connector_transaction_id: optional_correlation_id,
-                })
-            },
-        );
+            (Some(reason), _) => Err(types::ErrorResponse {
+                code: worldpay_status.to_string(),
+                message: reason.clone(),
+                reason: Some(reason),
+                status_code: router_data.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: optional_correlation_id,
+            }),
+            (_, Some((code, message))) => Err(types::ErrorResponse {
+                code,
+                message: message.clone(),
+                reason: Some(message),
+                status_code: router_data.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: optional_correlation_id,
+            }),
+        };
         Ok(Self {
             status,
             description,
