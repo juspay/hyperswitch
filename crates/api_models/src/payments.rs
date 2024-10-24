@@ -287,10 +287,17 @@ impl PaymentsCreateIntentRequest {
     }
 }
 
+// This struct is only used internally, not visible in API Reference
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg(feature = "v2")]
+pub struct PaymentsGetIntentRequest {
+    pub id: id_type::GlobalPaymentId,
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
-pub struct PaymentsCreateIntentResponse {
+pub struct PaymentsIntentResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
     pub id: id_type::GlobalPaymentId,

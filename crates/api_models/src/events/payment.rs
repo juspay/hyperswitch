@@ -2,7 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "v2")]
 use super::{
-    PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest, PaymentsCreateIntentResponse,
+    PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
+    PaymentsIntentResponse,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -150,7 +151,16 @@ impl ApiEventMetric for PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentsCreateIntentResponse {
+impl ApiEventMetric for PaymentsGetIntentRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentsIntentResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),

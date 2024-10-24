@@ -57,7 +57,7 @@ pub struct CalculateTax;
 pub struct SdkSessionUpdate;
 
 #[derive(Debug, Clone)]
-pub struct CreateIntent;
+pub struct Intent;
 
 #[derive(Debug, Clone)]
 pub struct PostSessionTokens;
