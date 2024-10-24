@@ -13,6 +13,7 @@
   "metadata": {
     "city": "NY",
     "unit": "245",
-    "endpoint_prefix": "AD"
+    "endpoint_prefix": "AD",
+    "merchant_name": "Cypress Test"
   }
 }

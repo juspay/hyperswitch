@@ -37,7 +37,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
         let req_data = data["Request"];
-        let res_data = data["Response"];
+        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -115,7 +115,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
         let req_data = data["Request"];
-        let res_data = data["Response"];
+        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -214,7 +214,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
         let req_data = data["Request"];
-        let res_data = data["Response"];
+        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -312,7 +312,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
         let req_data = data["Request"];
-        let res_data = data["Response"];
+        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
