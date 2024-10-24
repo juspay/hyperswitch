@@ -68,9 +68,9 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
-    // SessionUpdateResponse {
-    //     status: common_enums::SessionUpdateStatus,
-    // },
+    SessionUpdateResponse {
+        status: common_enums::SessionUpdateStatus,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -162,6 +162,12 @@ pub enum RedirectForm {
     },
     Mifinity {
         initialization_token: String,
+    },
+    WorldpayDDCForm {
+        endpoint: url::Url,
+        method: Method,
+        form_fields: HashMap<String, String>,
+        collection_id: Option<String>,
     },
     DigitalVirgo,
 }

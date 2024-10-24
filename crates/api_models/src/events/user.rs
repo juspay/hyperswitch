@@ -18,8 +18,9 @@ use crate::user::{
     ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest,
     SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
     SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
-    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
+    UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest,
+    VerifyTotpRequest,
 };
 
 #[cfg(feature = "recon")]
@@ -62,6 +63,7 @@ common_utils::impl_api_event_type!(
         GetUserRoleDetailsResponseV2,
         TokenResponse,
         TwoFactorAuthStatusResponse,
+        TwoFactorStatus,
         UserFromEmailRequest,
         BeginTotpResponse,
         VerifyRecoveryCodeRequest,

@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+    PaymentAttempt, PaymentAttemptUpdate,
 };
 
 use crate::{
@@ -63,6 +63,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             capture_sequence,
             connector_capture_id: None,
             connector_response_reference_id: None,
+            connector_capture_data: None,
         })
     }
 
@@ -122,10 +123,10 @@ impl AttemptStatusExt for enums::AttemptStatus {
 ))]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
+    use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
-    use super::*;
     use crate::{
         configs::settings::Settings,
         db::StorageImpl,
@@ -215,6 +216,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
 
         let store = state
@@ -298,6 +300,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores
@@ -394,6 +397,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores

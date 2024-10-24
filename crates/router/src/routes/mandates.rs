@@ -42,7 +42,7 @@ pub async fn get_mandate(
         state,
         &req,
         mandate_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             mandate::get_mandate(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -67,7 +67,7 @@ pub async fn revoke_mandate(
         state,
         &req,
         mandate_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -111,7 +111,7 @@ pub async fn retrieve_mandates_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             mandate::retrieve_mandates_list(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
