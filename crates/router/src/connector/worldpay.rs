@@ -123,7 +123,7 @@ impl ConnectorCommon for Worldpay {
             code: response.error_name,
             message: response.message,
             reason: response.validation_errors.map(|e| e.to_string()),
-            attempt_status: None,
+            attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
         })
     }
@@ -344,7 +344,25 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        let response = if !res.response.is_empty() {
+            res.response
+                .parse_struct("WorldpayErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+        } else {
+            WorldpayErrorResponse::default(res.status_code)
+        };
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_name,
+            message: response.message,
+            reason: response.validation_errors.map(|e| e.to_string()),
+            attempt_status: None,
+            connector_transaction_id: None,
+        })
     }
 
     fn handle_response(
@@ -510,6 +528,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl api::PaymentSession for Worldpay {}
@@ -616,6 +642,129 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl api::PaymentsCompleteAuthorize for Worldpay {}
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Worldpay
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let stage = match req.status {
+            enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
+            _ => "3dsChallenges".to_string(),
+        };
+        Ok(format!(
+            "{}api/payments/{connector_payment_id}/{stage}",
+            self.base_url(connectors),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = WorldpayCompleteAuthorizationRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                self, req, connectors,
+            )?)
+            .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: WorldpayPaymentsResponse = res
+            .response
+            .parse_struct("WorldpayPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        let optional_correlation_id = res.headers.and_then(|headers| {
+            headers
+                .get("WP-CorrelationId")
+                .and_then(|header_value| header_value.to_str().ok())
+                .map(|id| id.to_string())
+        });
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            optional_correlation_id,
+        ))
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -732,6 +881,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Worldpay {
@@ -796,6 +953,14 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -898,5 +1063,22 @@ impl api::IncomingWebhook for Worldpay {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let psync_body = WorldpayEventResponse::try_from(body)?;
         Ok(Box::new(psync_body))
+    }
+}
+
+impl services::ConnectorRedirectResponse for Worldpay {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        action: services::PaymentAction,
+    ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            services::PaymentAction::CompleteAuthorize => Ok(enums::CallConnectorAction::Trigger),
+            services::PaymentAction::PSync
+            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(enums::CallConnectorAction::Avoid)
+            }
+        }
     }
 }

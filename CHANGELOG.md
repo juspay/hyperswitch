@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.23.0
+
+### Features
+
+- **cypress:** Execute cypress tests in parallel ([#6225](https://github.com/juspay/hyperswitch/pull/6225)) ([`f247978`](https://github.com/juspay/hyperswitch/commit/f24797834553794f341bd4f3be3afe5fcba693ed))
+
+### Refactors
+
+- **connector:** [WorldPay] propagate refusal codes as error code and messages ([#6392](https://github.com/juspay/hyperswitch/pull/6392)) ([`3d1a3cd`](https://github.com/juspay/hyperswitch/commit/3d1a3cdc8f942a3dca2e6a200bf9200366bd62f1))
+- **permissions:** Remove permissions field from permission info API response ([#6376](https://github.com/juspay/hyperswitch/pull/6376)) ([`e5710fa`](https://github.com/juspay/hyperswitch/commit/e5710fa084ed5b0a4969a63b14a7f8e3433a3c64))
+
+**Full Changelog:** [`2024.10.22.0...2024.10.23.0`](https://github.com/juspay/hyperswitch/compare/2024.10.22.0...2024.10.23.0)
+
+- - -
+
+## 2024.10.22.0
+
+### Features
+
+- **connector:** Add 3DS flow for Worldpay ([#6374](https://github.com/juspay/hyperswitch/pull/6374)) ([`b93c849`](https://github.com/juspay/hyperswitch/commit/b93c849623c46ad00fe8dfe5bed85a43c700b3c8))
+
+### Bug Fixes
+
+- **mandates:** Allow connector_mandate_detail updation in case of 'Authorized' Payments ([#6379](https://github.com/juspay/hyperswitch/pull/6379)) ([`d09a805`](https://github.com/juspay/hyperswitch/commit/d09a805c0ab4e1224a94ef64b0d75a77355bc3f3))
+
+### Refactors
+
+- **connector:** [WorldPay] migrate from modular to standard payment APIs ([#6317](https://github.com/juspay/hyperswitch/pull/6317)) ([`58296ff`](https://github.com/juspay/hyperswitch/commit/58296ffae6ff6f2f2c8f7b23dd28e92b374b9be3))
+- **router:** Introduce ApiKeyId id type ([#6324](https://github.com/juspay/hyperswitch/pull/6324)) ([`b3ce373`](https://github.com/juspay/hyperswitch/commit/b3ce373f8ecdce362296c9a4b3c3e3543e1baa6f))
+
+**Full Changelog:** [`2024.10.21.0...2024.10.22.0`](https://github.com/juspay/hyperswitch/compare/2024.10.21.0...2024.10.22.0)
+
+- - -
+
 ## 2024.10.21.0
 
 ### Features
