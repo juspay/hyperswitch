@@ -274,8 +274,8 @@ fn get_payment_response(
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
-            redirection_data,
-            mandate_reference,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: response.reference,

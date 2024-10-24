@@ -752,8 +752,8 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.txn_id.clone()),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: get_qr_metadata(response)?,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -788,8 +788,8 @@ impl<F>
                         status: enums::AttemptStatus::AuthenticationPending,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
-                            redirection_data,
-                            mandate_reference: None,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -843,8 +843,8 @@ impl<F>
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
-                            redirection_data: None,
-                            mandate_reference,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -889,8 +889,8 @@ impl<F>
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: connector_transaction_id,
-                                redirection_data: None,
-                                mandate_reference: None,
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
@@ -908,8 +908,8 @@ impl<F>
                         // It is not expected to get empty response from the connnector, if we get we are not updating the payment response since we don't have any info in the authorize response.
                         let response = Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -1157,8 +1157,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 };
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
                     resource_id: item.data.request.connector_transaction_id.clone(),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -1217,8 +1217,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 };
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
                     resource_id: item.data.request.connector_transaction_id.clone(),
-                    redirection_data: None,
-                    mandate_reference,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -1384,8 +1384,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         };
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.to_string()),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
@@ -1495,8 +1495,8 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
         };
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.to_string()),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,

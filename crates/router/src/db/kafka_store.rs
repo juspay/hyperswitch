@@ -1416,7 +1416,7 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v2")]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -1426,7 +1426,7 @@ impl PaymentAttemptInterface for KafkaStore {
     ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
         let attempt = self
             .diesel_store
-            .update_payment_attempt_with_attempt_id(
+            .update_payment_attempt(
                 key_manager_state,
                 merchant_key_store,
                 this.clone(),
@@ -1601,6 +1601,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1612,6 +1613,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
+                card_network,
                 storage_scheme,
             )
             .await

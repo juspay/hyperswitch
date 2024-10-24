@@ -68,11 +68,7 @@ impl PaymentAttempt {
             _,
             _,
             _,
-        >(
-            conn,
-            dsl::id.eq(self.id.to_owned()),
-            payment_attempt.populate_derived_fields(&self),
-        )
+        >(conn, dsl::id.eq(self.id.to_owned()), payment_attempt)
         .await
         {
             Err(error) => match error.current_context() {
@@ -382,6 +378,7 @@ impl PaymentAttempt {
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<enums::CardNetwork>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -404,6 +401,9 @@ impl PaymentAttempt {
         }
         if let Some(merchant_connector_id) = merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
+        }
+        if let Some(card_network) = card_network {
+            filter = filter.filter(dsl::card_network.eq_any(card_network))
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
