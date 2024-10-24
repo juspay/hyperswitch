@@ -384,7 +384,7 @@ pub async fn payouts_list_available_filters_for_merchant(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::ProfilePayoutRead,
+                permission: Permission::MerchantPayoutRead,
             },
             req.headers(),
         ),

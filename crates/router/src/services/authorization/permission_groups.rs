@@ -15,15 +15,15 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsView
             | Self::AnalyticsView
             | Self::UsersView
-            | Self::MerchantDetailsView
-            | Self::ReconOps => PermissionScope::Read,
+            | Self::MerchantDetailsView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
             | Self::WorkflowsManage
             | Self::UsersManage
             | Self::MerchantDetailsManage
-            | Self::OrganizationManage => PermissionScope::Write,
+            | Self::OrganizationManage
+            | Self::ReconOps => PermissionScope::Write,
         }
     }
 

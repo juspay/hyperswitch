@@ -68,7 +68,7 @@ generate_permissions! {
             entities: [Merchant]
         },
         Recon: {
-            scopes: [Read],
+            scopes: [Write],
             entities: [Merchant]
         },
     ]
