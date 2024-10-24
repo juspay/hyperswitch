@@ -1,12 +1,11 @@
-use super::permissions::Permission;
-use super::permissions::ResourceExt;
-use common_enums::{ParentGroup, PermissionGroup, PermissionScope, Resource};
-use std::collections::HashSet;
+use super::permissions::{self, ResourceExt};
+use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
+use std::collections::HashMap;
+use strum::IntoEnumIterator;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
     fn parent(&self) -> ParentGroup;
-    fn permissions_set(&self) -> HashSet<Permission>;
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
 }
@@ -50,15 +49,6 @@ impl PermissionGroupExt for PermissionGroup {
             PermissionGroup::OrganizationManage => ParentGroup::Organization,
             PermissionGroup::ReconOps => ParentGroup::Recon,
         }
-    }
-
-    fn permissions_set(&self) -> HashSet<Permission> {
-        self.parent()
-            .resources()
-            .into_iter()
-            .flat_map(|resource| resource.permissions())
-            .filter(|per| per.scope() <= self.scope())
-            .collect()
     }
 
     fn resources(&self) -> Vec<Resource> {
@@ -107,6 +97,10 @@ impl PermissionGroupExt for PermissionGroup {
 
 pub trait ParentGroupExt {
     fn resources(&self) -> Vec<Resource>;
+    fn get_descriptions(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<ParentGroup, String>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -120,6 +114,34 @@ impl ParentGroupExt for ParentGroup {
             ParentGroup::Merchant | ParentGroup::Organization => ACCOUNT.to_vec(),
             ParentGroup::Recon => RECON.to_vec(),
         }
+    }
+
+    fn get_descriptions(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<Self, String> {
+        ParentGroup::iter()
+            .filter_map(|parent| {
+                let scopes = groups
+                    .iter()
+                    .filter(|group| group.parent() == parent)
+                    .map(|group| group.scope())
+                    .max()?;
+
+                let resources = parent
+                    .resources()
+                    .iter()
+                    .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
+                    .map(|res| permissions::get_resource_name(res, &entity_type))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                Some((
+                    parent,
+                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                ))
+            })
+            .collect()
     }
 }
 

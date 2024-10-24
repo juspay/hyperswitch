@@ -34,6 +34,8 @@ impl RoleInfo {
         self.groups
             .iter()
             .flat_map(|group| group.accessible_groups())
+            .collect::<HashSet<_>>()
+            .into_iter()
             .collect()
     }
 
@@ -59,13 +61,6 @@ impl RoleInfo {
 
     pub fn is_updatable(&self) -> bool {
         self.is_updatable
-    }
-
-    pub fn get_permissions_set(&self) -> HashSet<Permission> {
-        self.get_permission_groups()
-            .iter()
-            .flat_map(|group| group.permissions_set())
-            .collect()
     }
 
     pub fn get_resources_set(&self) -> HashSet<Resource> {

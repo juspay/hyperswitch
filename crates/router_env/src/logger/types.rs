@@ -382,8 +382,12 @@ pub enum Flow {
     ListUpdatableRolesAtEntityLevel,
     /// Get role
     GetRole,
+    /// Get parent info for role
+    GetRoleV2,
     /// Get role from token
     GetRoleFromToken,
+    /// Get resources and groups for role from token
+    GetRoleFromTokenV2,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org

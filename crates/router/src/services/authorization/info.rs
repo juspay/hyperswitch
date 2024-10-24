@@ -44,25 +44,6 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
     }
 }
 
-pub fn get_parent_name(group: PermissionGroup) -> ParentGroup {
-    match group {
-        PermissionGroup::OperationsView | PermissionGroup::OperationsManage => {
-            ParentGroup::Operations
-        }
-        PermissionGroup::ConnectorsView | PermissionGroup::ConnectorsManage => {
-            ParentGroup::Connectors
-        }
-        PermissionGroup::WorkflowsView | PermissionGroup::WorkflowsManage => ParentGroup::Workflows,
-        PermissionGroup::AnalyticsView => ParentGroup::Analytics,
-        PermissionGroup::UsersView | PermissionGroup::UsersManage => ParentGroup::Users,
-        PermissionGroup::MerchantDetailsView | PermissionGroup::MerchantDetailsManage => {
-            ParentGroup::Merchant
-        }
-        PermissionGroup::OrganizationManage => ParentGroup::Organization,
-        PermissionGroup::ReconOps => ParentGroup::Recon,
-    }
-}
-
 pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
     match group {
         ParentGroup::Operations => "Payments, Refunds, Payouts, Mandates, Disputes and Customers",
