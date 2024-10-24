@@ -1225,6 +1225,7 @@ pub trait Authenticate {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()

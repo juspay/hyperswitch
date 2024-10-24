@@ -2260,12 +2260,35 @@ type="Text"
   payment_method_type = "CartesBancaires"
 [[novalnet.debit]]
   payment_method_type = "UnionPay"
+[[novalnet.wallet]]
+  payment_method_type = "google_pay"
+[[novalnet.wallet]]
+  payment_method_type = "paypal"
 [novalnet.connector_auth.SignatureKey]
 api_key="Product Activation Key"
 key1="Payment Access Key"
 api_secret="Tariff ID"
 [novalnet.connector_webhook_details]
 merchant_secret="Source verification key"
+placeholder="Enter Payment Access Key"
+[[novalnet.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[novalnet.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[novalnet.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [nuvei]
 [[nuvei.credit]]

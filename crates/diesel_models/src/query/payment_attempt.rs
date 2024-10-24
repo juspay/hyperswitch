@@ -68,11 +68,7 @@ impl PaymentAttempt {
             _,
             _,
             _,
-        >(
-            conn,
-            dsl::id.eq(self.id.to_owned()),
-            payment_attempt.populate_derived_fields(&self),
-        )
+        >(conn, dsl::id.eq(self.id.to_owned()), payment_attempt)
         .await
         {
             Err(error) => match error.current_context() {

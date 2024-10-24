@@ -1400,7 +1400,8 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     }
 }
 
-impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
         let payment_confirm_source: Option<api_enums::PaymentSource> =
@@ -1479,6 +1480,103 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             locale,
             x_app_id,
             x_redirect_uri,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+        use std::str::FromStr;
+
+        use crate::headers::X_CLIENT_SECRET;
+
+        let payment_confirm_source: Option<api_enums::PaymentSource> =
+            get_header_value_by_key(X_PAYMENT_CONFIRM_SOURCE.into(), headers)?
+                .map(|source| {
+                    source
+                        .to_owned()
+                        .parse_enum("PaymentSource")
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Invalid data received in payment_confirm_source header"
+                                .into(),
+                        })
+                        .attach_printable(
+                            "Failed while paring PaymentConfirmSource header value to enum",
+                        )
+                })
+                .transpose()?;
+        when(
+            payment_confirm_source.is_some_and(|payment_confirm_source| {
+                payment_confirm_source.is_for_internal_use_only()
+            }),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid data received in payment_confirm_source header".into(),
+                }))
+            },
+        )?;
+        let locale =
+            get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)?.map(|val| val.to_string());
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
+            .map(|value| value == Some("true"))
+            .unwrap_or(false);
+
+        let client_source =
+            get_header_value_by_key(X_CLIENT_SOURCE.into(), headers)?.map(|val| val.to_string());
+
+        let client_version =
+            get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
+
+        let browser_name_str =
+            get_header_value_by_key(BROWSER_NAME.into(), headers)?.map(|val| val.to_string());
+
+        let browser_name: Option<api_enums::BrowserName> = browser_name_str.map(|browser_name| {
+            browser_name
+                .parse_enum("BrowserName")
+                .unwrap_or(api_enums::BrowserName::Unknown)
+        });
+
+        let x_client_platform_str =
+            get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
+
+        let x_client_platform: Option<api_enums::ClientPlatform> =
+            x_client_platform_str.map(|x_client_platform| {
+                x_client_platform
+                    .parse_enum("ClientPlatform")
+                    .unwrap_or(api_enums::ClientPlatform::Unknown)
+            });
+
+        let x_merchant_domain =
+            get_header_value_by_key(X_MERCHANT_DOMAIN.into(), headers)?.map(|val| val.to_string());
+
+        let x_app_id =
+            get_header_value_by_key(X_APP_ID.into(), headers)?.map(|val| val.to_string());
+
+        let x_redirect_uri =
+            get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+
+        // TODO: combine publishable key and client secret when we unify the auth
+        let client_secret = get_header_value_by_key(X_CLIENT_SECRET.into(), headers)?
+            .map(common_utils::types::ClientSecret::from_str)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid data received in client_secret header".into(),
+            })?;
+
+        Ok(Self {
+            payment_confirm_source,
+            // client_source,
+            // client_version,
+            x_hs_latency: Some(x_hs_latency),
+            browser_name,
+            x_client_platform,
+            x_merchant_domain,
+            locale,
+            x_app_id,
+            x_redirect_uri,
+            client_secret,
         })
     }
 }

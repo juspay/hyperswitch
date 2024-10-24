@@ -344,7 +344,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 ) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
     use api_models::{
         mandates::MandateId,
-        payments::{HeaderPayload, PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest},
+        payments::{PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest},
         refunds::{RefundResponse, RefundsRetrieveRequest},
     };
 
@@ -399,7 +399,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 AuthFlow::Client,
                 CallConnectorAction::Avoid,
                 None,
-                HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             ))
             .await?
             {
