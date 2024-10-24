@@ -106,6 +106,7 @@ impl Role {
         conn: &PgPooledConn,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
+        profile_id: Option<id_type::ProfileId>,
         entity_type: Option<common_enums::EntityType>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
@@ -117,8 +118,20 @@ impl Role {
             query = query.filter(
                 dsl::merchant_id
                     .eq(merchant_id)
-                    .or(dsl::scope.eq(RoleScope::Organization)),
+                    .and(dsl::scope.eq(RoleScope::Merchant)),
             );
+        }
+
+        if let Some(profile_id) = profile_id {
+            query = query.or_filter(
+                dsl::profile_id
+                    .eq(profile_id)
+                    .and(dsl::scope.eq(RoleScope::Profile)),
+            );
+        }
+
+        if entity_type.is_some() {
+            query = query.or_filter(dsl::scope.eq(RoleScope::Organization));
         }
 
         if let Some(entity_type) = entity_type {

@@ -57,6 +57,7 @@ pub trait RoleInterface {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
@@ -151,6 +152,7 @@ impl RoleInterface for Store {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
@@ -159,6 +161,7 @@ impl RoleInterface for Store {
             &conn,
             org_id.to_owned(),
             merchant_id.cloned(),
+            profile_id.cloned(),
             entity_type,
             limit,
         )
@@ -195,6 +198,7 @@ impl RoleInterface for MockDb {
             created_at: role.created_at,
             last_modified_at: role.last_modified_at,
             last_modified_by: role.last_modified_by,
+            profile_id: role.profile_id,
         };
         roles.push(role.clone());
         Ok(role)
@@ -341,6 +345,7 @@ impl RoleInterface for MockDb {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
@@ -350,11 +355,27 @@ impl RoleInterface for MockDb {
             .iter()
             .filter(|role| {
                 let matches_merchant = match merchant_id {
-                    Some(merchant_id) => role.merchant_id == *merchant_id,
+                    Some(merchant_id) => {
+                        role.merchant_id == *merchant_id
+                            && role.scope == diesel_models::enums::RoleScope::Merchant
+                    }
                     None => true,
                 };
 
-                matches_merchant && role.org_id == *org_id && role.entity_type == entity_type
+                let matches_profile = role
+                    .profile_id
+                    .as_ref()
+                    .zip(profile_id)
+                    .map(|(role_profile_id, user_profile_id)| {
+                        user_profile_id == role_profile_id
+                            && role.scope == diesel_models::enums::RoleScope::Profile
+                    })
+                    .unwrap_or(true);
+                let matches_org_scope = role.scope == diesel_models::enums::RoleScope::Organization;
+
+                (matches_profile || matches_merchant || matches_org_scope)
+                    && role.org_id == *org_id
+                    && role.entity_type == entity_type
             })
             .take(limit_usize)
             .cloned()
