@@ -1,5 +1,5 @@
-use api_models::user_role::{GroupInfo, ParentGroup};
-use common_enums::PermissionGroup;
+use api_models::user_role::GroupInfo;
+use common_enums::{ParentGroup, PermissionGroup};
 use strum::IntoEnumIterator;
 
 // TODO: To be deprecated
