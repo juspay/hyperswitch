@@ -278,6 +278,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         charges: None,
         merchant_order_reference_id: None,
         integrity_object: None,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -2775,6 +2776,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
+            shipping_cost: payment_data.payment_intent.shipping_cost,
         })
     }
 }

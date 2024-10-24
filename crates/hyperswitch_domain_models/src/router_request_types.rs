@@ -870,4 +870,5 @@ pub struct SetupMandateRequestData {
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
 }
