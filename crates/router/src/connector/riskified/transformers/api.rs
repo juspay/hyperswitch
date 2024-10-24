@@ -163,7 +163,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                     .get_order_details()?
                     .iter()
                     .map(|order_detail| LineItem {
-                        price: order_detail.amount.get_amount_as_i64(), // This should be changed to MiniorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
+                        price: order_detail.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
                         quantity: i32::from(order_detail.quantity),
                         title: order_detail.product_name.clone(),
                         product_type: order_detail.product_type.clone(),
