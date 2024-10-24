@@ -638,6 +638,7 @@ mod client_secret_type {
     use std::fmt;
 
     use masking::PeekInterface;
+    use router_env::logger;
 
     use super::*;
     use crate::id_type;
@@ -660,6 +661,14 @@ mod client_secret_type {
                 self.payment_id.get_string_repr(),
                 self.secret.peek()
             )
+        }
+
+        /// Create a new client secret
+        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
+            Self {
+                payment_id,
+                secret: masking::Secret::new(secret),
+            }
         }
     }
 
@@ -735,7 +744,23 @@ mod client_secret_type {
     {
         fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
             let string_repr = String::from_sql(value)?;
-            Ok(serde_json::from_str(&string_repr)?)
+            let (payment_id, secret) =
+                string_repr
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
         }
     }
 
@@ -1250,5 +1275,131 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
+    }
+}
+
+/// Domain type for connector_transaction_id
+/// Maximum length for connector's transaction_id can be 128 characters in HS DB.
+/// In case connector's use an identifier whose length exceeds 128 characters,
+/// the hash value of such identifiers will be stored as connector_transaction_id.
+/// The actual connector's identifier will be stored in a separate column -
+/// connector_transaction_data or something with a similar name.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub enum ConnectorTransactionId {
+    /// Actual transaction identifier
+    TxnId(String),
+    /// Hashed value of the transaction identifier
+    HashedData(String),
+}
+
+impl ConnectorTransactionId {
+    /// Implementation for retrieving the inner identifier
+    pub fn get_id(&self) -> &String {
+        match self {
+            Self::TxnId(id) | Self::HashedData(id) => id,
+        }
+    }
+
+    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and connector_transaction_data
+    pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
+        let txn_id = Self::from(src.clone());
+        match txn_id {
+            Self::TxnId(_) => (txn_id, None),
+            Self::HashedData(_) => (txn_id, Some(src)),
+        }
+    }
+
+    /// Implementation for retrieving
+    pub fn get_txn_id<'a>(
+        &'a self,
+        txn_data: Option<&'a String>,
+    ) -> Result<&'a String, error_stack::Report<ValidationError>> {
+        match (self, txn_data) {
+            (Self::TxnId(id), _) => Ok(id),
+            (Self::HashedData(_), Some(id)) => Ok(id),
+            (Self::HashedData(id), None) => Err(report!(ValidationError::InvalidValue {
+                message: "connector_transaction_data is empty for HashedData variant".to_string(),
+            })
+            .attach_printable(format!(
+                "connector_transaction_data is empty for connector_transaction_id {}",
+                id
+            ))),
+        }
+    }
+}
+
+impl From<String> for ConnectorTransactionId {
+    fn from(src: String) -> Self {
+        // ID already hashed
+        if src.starts_with("hs_hash_") {
+            Self::HashedData(src)
+        // Hash connector's transaction ID
+        } else if src.len() > 128 {
+            let mut hasher = blake3::Hasher::new();
+            let mut output = [0u8; consts::CONNECTOR_TRANSACTION_ID_HASH_BYTES];
+            hasher.update(src.as_bytes());
+            hasher.finalize_xof().fill(&mut output);
+            let hash = hex::encode(output);
+            Self::HashedData(format!("hs_hash_{}", hash))
+        // Default
+        } else {
+            Self::TxnId(src)
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        match self {
+            Self::HashedData(id) | Self::TxnId(id) => id.to_sql(out),
+        }
+    }
+}
+
+/// Trait for fetching actual or hashed transaction IDs
+pub trait ConnectorTransactionIdTrait {
+    /// Returns an optional connector transaction ID
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        None
+    }
+    /// Returns a connector transaction ID
+    fn get_connector_transaction_id(&self) -> &String {
+        self.get_optional_connector_transaction_id()
+            .unwrap_or_else(|| {
+                static EMPTY_STRING: String = String::new();
+                &EMPTY_STRING
+            })
+    }
+    /// Returns an optional connector refund ID
+    fn get_optional_connector_refund_id(&self) -> Option<&String> {
+        self.get_optional_connector_transaction_id()
     }
 }

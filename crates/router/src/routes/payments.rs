@@ -75,7 +75,7 @@ pub async fn payments_create(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             authorize_verify_select::<_>(
                 payments::PaymentCreate,
                 state,
@@ -100,6 +100,62 @@ pub async fn payments_create(
             ),
         },
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateIntent, payment_id))]
+pub async fn payments_create_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCreateIntentRequest>,
+) -> impl Responder {
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsCreateIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+            payments::payments_intent_core::<
+                api_types::CreateIntent,
+                payment_types::PaymentsCreateIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::CreateIntent>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                payments::operations::PaymentCreateIntent,
+                req,
+                api::AuthFlow::Client,
+                header_payload.clone(),
+            )
+        },
+        match env::which() {
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            _ => auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::JWTAuth {
+                    permission: Permission::PaymentWrite,
+                    minimum_entity_level: EntityType::Profile,
+                },
+                req.headers(),
+            ),
+        },
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
@@ -131,7 +187,7 @@ pub async fn payments_start(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::Authorize,
                 payment_types::PaymentsResponse,
@@ -205,7 +261,7 @@ pub async fn payments_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -276,7 +332,7 @@ pub async fn payments_retrieve_with_gateway_creds(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -337,7 +393,7 @@ pub async fn payments_update(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             authorize_verify_select::<_>(
                 payments::PaymentUpdate,
                 state,
@@ -457,7 +513,7 @@ pub async fn payments_confirm(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             authorize_verify_select::<_>(
                 payments::PaymentConfirm,
                 state,
@@ -500,7 +556,7 @@ pub async fn payments_capture(
         state,
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth: auth::AuthenticationData, payload, req_state| {
             payments::payments_core::<
                 api_types::Capture,
                 payment_types::PaymentsResponse,
@@ -559,7 +615,7 @@ pub async fn payments_dynamic_tax_calculation(
         state,
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth: auth::AuthenticationData, payload, req_state| {
             payments::payments_core::<
                 api_types::SdkSessionUpdate,
                 payment_types::PaymentsDynamicTaxCalculationResponse,
@@ -627,7 +683,7 @@ pub async fn payments_connector_session(
         state,
         &req,
         payload,
-        |state, auth, payload, req_state| {
+        |state, auth: auth::AuthenticationData, payload, req_state| {
             payments::payments_core::<
                 api_types::Session,
                 payment_types::PaymentsSessionResponse,
@@ -688,7 +744,7 @@ pub async fn payments_redirect_response(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             <payments::PaymentRedirectSync as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentRedirectSync {},
                 state,
@@ -738,7 +794,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
            <payments::PaymentRedirectSync as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentRedirectSync {},
                 state,
@@ -788,7 +844,7 @@ pub async fn payments_complete_authorize_redirect(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
 
             <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentRedirectCompleteAuthorize {},
@@ -843,7 +899,7 @@ pub async fn payments_complete_authorize(
         state,
         &req,
         payload,
-        |state, auth, _req, req_state| {
+        |state, auth: auth::AuthenticationData, _req, req_state| {
             payments::payments_core::<
                 api_types::CompleteAuthorize,
                 payment_types::PaymentsResponse,
@@ -892,7 +948,7 @@ pub async fn payments_cancel(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::Void,
                 payment_types::PaymentsResponse,
@@ -934,7 +990,7 @@ pub async fn payments_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
@@ -964,7 +1020,7 @@ pub async fn profile_payments_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payments::list_payments(
                 state,
                 auth.merchant_account,
@@ -1035,7 +1091,7 @@ pub async fn profile_payments_list_by_filter(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::apply_filters_on_payments(
                 state,
-                auth.merchant_account,
+                auth.merchant_account.clone(),
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
@@ -1177,7 +1233,7 @@ pub async fn payments_approve(
         state,
         &http_req,
         payload.clone(),
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::Capture,
                 payment_types::PaymentsResponse,
@@ -1241,7 +1297,7 @@ pub async fn payments_reject(
         state,
         &http_req,
         payload.clone(),
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::Void,
                 payment_types::PaymentsResponse,
@@ -1422,7 +1478,7 @@ pub async fn payments_incremental_authorization(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::IncrementalAuthorization,
                 payment_types::PaymentsResponse,
@@ -1471,7 +1527,7 @@ pub async fn payments_external_authentication(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             payments::payment_external_authentication(
                 state,
                 auth.merchant_account,
@@ -1519,7 +1575,7 @@ pub async fn post_3ds_payments_authorize(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             <payments::PaymentAuthenticateCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentAuthenticateCompleteAuthorize {},
                 state,
@@ -1580,7 +1636,7 @@ pub async fn retrieve_extended_card_info(
         state,
         &req,
         payment_id,
-        |state, auth, payment_id, _| {
+        |state, auth: auth::AuthenticationData, payment_id, _| {
             payments::get_extended_card_info(
                 state,
                 auth.merchant_account.get_id().to_owned(),

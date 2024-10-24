@@ -37,7 +37,7 @@ pub async fn refunds_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             refund_create_core(
                 state,
                 auth.merchant_account,
@@ -100,7 +100,7 @@ pub async fn refunds_retrieve(
         state,
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth: auth::AuthenticationData, refund_request, _| {
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -155,7 +155,7 @@ pub async fn refunds_retrieve_with_body(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -204,7 +204,9 @@ pub async fn refunds_update(
         state,
         &req,
         refund_update_req,
-        |state, auth, req, _| refund_update_core(state, auth.merchant_account, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refund_update_core(state, auth.merchant_account, req)
+        },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
@@ -237,7 +239,9 @@ pub async fn refunds_list(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req, _| refund_list(state, auth.merchant_account, None, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refund_list(state, auth.merchant_account, None, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
@@ -278,7 +282,7 @@ pub async fn refunds_list_profile(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             refund_list(
                 state,
                 auth.merchant_account,
@@ -326,7 +330,9 @@ pub async fn refunds_filter_list(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req, _| refund_filter_list(state, auth.merchant_account, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refund_filter_list(state, auth.merchant_account, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
@@ -362,7 +368,9 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         state,
         &req,
         (),
-        |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account, None),
+        |state, auth: auth::AuthenticationData, _, _| {
+            get_filters_for_refunds(state, auth.merchant_account, None)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
@@ -401,7 +409,7 @@ pub async fn get_refunds_filters_profile(
         state,
         &req,
         (),
-        |state, auth, _, _| {
+        |state, auth: auth::AuthenticationData, _, _| {
             get_filters_for_refunds(
                 state,
                 auth.merchant_account,
