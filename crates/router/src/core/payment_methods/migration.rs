@@ -1,6 +1,7 @@
-use actix_multipart::form::{bytes::Bytes, MultipartForm};
+use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord};
 use csv::Reader;
+use error_stack::ResultExt;
 use rdkafka::message::ToBytes;
 
 use crate::{
@@ -15,12 +16,26 @@ pub async fn migrate_payment_methods(
     merchant_id: &common_utils::id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
+    mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
     for record in payment_methods {
+        let req = api::PaymentMethodMigrate::try_from((record.clone(), merchant_id.clone(), mca_id.clone()))
+        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData{ message: format!("error: {:?}", err) })
+        .attach_printable("record deserialization failed");
+        match req {
+            Ok(_) => (),
+            Err(e) => {
+                result.push(PaymentMethodMigrationResponse::from((
+                    Err(e.to_string()),
+                    record,
+                )));
+                continue;
+            }
+        };
         let res = migrate_payment_method(
             state.clone(),
-            api::PaymentMethodMigrate::from(record.clone()),
+            req?,
             merchant_id,
             merchant_account,
             key_store,
@@ -42,6 +57,10 @@ pub async fn migrate_payment_methods(
 pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
     pub file: Bytes,
+
+    pub merchant_id: Text<common_utils::id_type::MerchantId>,
+
+    pub merchant_connector_id: Text<Option<common_utils::id_type::MerchantConnectorAccountId>>,
 }
 
 fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
@@ -58,26 +77,13 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
 }
 pub fn get_payment_method_records(
     form: PaymentMethodsMigrateForm,
-) -> Result<(common_utils::id_type::MerchantId, Vec<PaymentMethodRecord>), errors::ApiErrorResponse>
+) -> Result<(common_utils::id_type::MerchantId, Vec<PaymentMethodRecord>, Option<common_utils::id_type::MerchantConnectorAccountId>), errors::ApiErrorResponse>
 {
     match parse_csv(form.file.data.to_bytes()) {
         Ok(records) => {
-            if let Some(first_record) = records.first() {
-                if records
-                    .iter()
-                    .all(|merchant_id| merchant_id.merchant_id == first_record.merchant_id)
-                {
-                    Ok((first_record.merchant_id.clone(), records))
-                } else {
-                    Err(errors::ApiErrorResponse::PreconditionFailed {
-                        message: "Only one merchant id can be updated at a time".to_string(),
-                    })
-                }
-            } else {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "No records found".to_string(),
-                })
-            }
+            let merchant_id = form.merchant_id.clone();
+                let mca_id = form.merchant_connector_id.clone();
+                Ok((merchant_id.clone(), records, mca_id))
         }
         Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: e.to_string(),
