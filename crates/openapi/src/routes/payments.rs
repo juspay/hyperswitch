@@ -647,7 +647,6 @@ pub fn payments_create_intent() {}
   operation_id = "Get the Payment Intent details",
   security(("api_key" = [])),
 )]
-
 #[cfg(feature = "v2")]
 pub fn payments_get_intent() {}
 /// Payments - Confirm Intent

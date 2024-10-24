@@ -29,11 +29,11 @@ pub mod payments_incremental_authorization;
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
+pub mod payment_confirm_intent;
+#[cfg(feature = "v2")]
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
-#[cfg(feature = "v2")]
-pub mod payment_confirm_intent;
 
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -48,7 +48,6 @@ pub use self::payment_confirm_intent::PaymentIntentConfirm;
 pub use self::payment_create_intent::PaymentIntentCreate;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
-
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
@@ -60,7 +59,6 @@ pub use self::{
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
-
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
