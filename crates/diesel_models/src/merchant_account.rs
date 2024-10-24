@@ -197,54 +197,57 @@ impl MerchantAccount {
     }
 }
 
+// Edits self based on other value
+// Edits other value based on self
+trait Edit<T> {
+    fn edit_self_from_other(&mut self, other: Self);
+    fn edit_value_from_self(self, value:&mut T);
+}
+
+// Option<T> implements Edit for two scenarios.
+// self reference, points to other if other is Some variant
+// value reference, points to internal value of Option if present. 
+impl<T> Edit<T> for Option<T> {
+    fn edit_self_from_other(&mut self, other: Self) {
+        if other.is_some() {
+            *self = other;
+        }
+    }
+    fn edit_value_from_self(self, value:&mut T){
+        if let Some(x)=self{
+            *value=x;
+        }
+    }
+}
+
 impl MerchantAccount {
     #[cfg(feature = "v1")]
-    pub fn from_update(
-        &mut self,
-        update: MerchantAccountUpdateInternal,
-    ) -> Result<(), &'static str> {
-        macro_rules! update {
-            ([$(($attr:ident,)),*]) => {
-
-                $(self.$attr = update.$attr;)*
-            };
-            ([$(($attr:ident,$error:literal)),*])=>{
-                $(self.$attr = update.$attr.ok_or(concat!($error,stringify!($attr)))?;)*
-            };
-
-        }
-
-        update!([
-            (merchant_name,),
-            (merchant_details,),
-            (return_url,),
-            (webhook_details,),
-            (sub_merchants_enabled,),
-            (parent_merchant_id,),
-            (publishable_key,),
-            (payment_response_hash_key,),
-            (locker_id,),
-            (metadata,),
-            (routing_algorithm,),
-            (modified_at,),
-            (intent_fulfillment_time,),
-            (frm_routing_algorithm,),
-            (payout_routing_algorithm,),
-            (payment_link_config,),
-            (pm_collect_link_config,)
-        ]);
-
-        update!([
-            (redirect_to_merchant_with_http_post, "Cannot decide to "),
-            (enable_payment_response_hash, "Cannot decide to "),
-            (storage_scheme, "Cannot decide on"),
-            (primary_business_details, "Didn't receive "),
-            (organization_id, "Cannot update "),
-            (is_recon_enabled, "Don't know "),
-            (recon_status, "Don't know about "),
-            (default_profile, "Didn't receive ")
-        ]);
-        Ok(())
+    pub fn from_update(&mut self, update: MerchantAccountUpdateInternal) {
+        self.merchant_name.edit_self_from_other(update.merchant_name);
+        self.merchant_details.edit_self_from_other(update.merchant_details);
+        self.return_url.edit_self_from_other(update.return_url);
+        self.webhook_details.edit_self_from_other(update.webhook_details);
+        self.sub_merchants_enabled.edit_self_from_other(update.sub_merchants_enabled);
+        self.parent_merchant_id.edit_self_from_other(update.parent_merchant_id);
+        update.enable_payment_response_hash.edit_value_from_self(&mut self.enable_payment_response_hash);
+        self.payment_response_hash_key.edit_self_from_other(update.payment_response_hash_key);
+        update.redirect_to_merchant_with_http_post.edit_value_from_self(&mut self.redirect_to_merchant_with_http_post);
+        self.publishable_key.edit_self_from_other(update.publishable_key);
+        update.storage_scheme.edit_value_from_self(&mut self.storage_scheme);
+        self.locker_id.edit_self_from_other(update.locker_id);
+        self.metadata.edit_self_from_other(update.metadata);
+        self.routing_algorithm.edit_self_from_other(update.routing_algorithm);
+        update.primary_business_details.edit_value_from_self(&mut self.primary_business_details);
+        self.modified_at = update.modified_at;
+        self.intent_fulfillment_time.edit_self_from_other(update.intent_fulfillment_time);
+        self.frm_routing_algorithm.edit_self_from_other(update.frm_routing_algorithm);
+        self.payout_routing_algorithm.edit_self_from_other(update.payout_routing_algorithm);
+        update.organization_id.edit_value_from_self(&mut self.organization_id);
+        update.is_recon_enabled.edit_value_from_self(&mut self.is_recon_enabled);
+        update.default_profile.edit_value_from_self(&mut self.default_profile);
+        update.recon_status.edit_value_from_self(&mut self.recon_status);
+        self.payment_link_config.edit_self_from_other(update.payment_link_config);
+        self.pm_collect_link_config.edit_self_from_other(update.pm_collect_link_config);
     }
 }
 
