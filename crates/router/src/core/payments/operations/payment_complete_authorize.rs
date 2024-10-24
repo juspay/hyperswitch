@@ -344,6 +344,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let customer_details = Some(CustomerDetails {

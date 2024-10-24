@@ -852,11 +852,11 @@ pub async fn create_payment_method(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
+    let key_manager_state = state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| cards::create_encrypted_data(state, key_store, billing))
+        .async_map(|billing| cards::create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -964,11 +964,11 @@ pub async fn payment_method_intent_create(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
+    let key_manager_state = state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| cards::create_encrypted_data(state, key_store, billing))
+        .async_map(|billing| cards::create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1251,9 +1251,9 @@ pub async fn create_pm_additional_data_update(
             api::PaymentMethodsData::Card(card.clone().into())
         }
     };
-
+    let key_manager_state = state.into();
     let pmd: Encryptable<Secret<serde_json::Value>> =
-        cards::create_encrypted_data(state, key_store, card)
+        cards::create_encrypted_data(&key_manager_state, key_store, card)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt Payment method data")?;
@@ -1922,7 +1922,7 @@ impl pm_types::SavedPMLPaymentsInfo {
 
         let off_session_payment_flag = matches!(
             payment_intent.setup_future_usage,
-            Some(common_enums::FutureUsage::OffSession)
+            common_enums::FutureUsage::OffSession
         );
 
         let profile_id = &payment_intent.profile_id;

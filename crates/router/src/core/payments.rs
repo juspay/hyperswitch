@@ -56,8 +56,8 @@ use time;
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentSessionUpdate,
-    PaymentStatus, PaymentUpdate,
+    PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -673,6 +673,7 @@ where
     ))
 }
 
+#[cfg(feature = "v1")]
 // This function is intended for use when the feature being implemented is not aligned with the
 // core payment operations.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -871,6 +872,69 @@ where
         connector_http_status_code,
         external_latency,
     ))
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn payments_intent_operation_core<F, Req, Op, D>(
+    state: &SessionState,
+    _req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResult<(D, Req, Option<domain::Customer>)>
+where
+    F: Send + Clone + Sync,
+    Req: Authenticate + Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+
+    tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
+
+    let (operation, _validate_result) = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
+
+    let payment_id = id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone());
+
+    tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
+
+    let operations::GetTrackerResponse {
+        operation,
+        mut payment_data,
+    } = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            &payment_id,
+            &req,
+            &merchant_account,
+            &profile,
+            &key_store,
+            auth_flow,
+            &header_payload,
+        )
+        .await?;
+
+    let (_operation, customer) = operation
+        .to_domain()?
+        .get_customer_details(
+            state,
+            &mut payment_data,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while fetching/creating customer")?;
+    Ok((payment_data, req, customer))
 }
 
 #[instrument(skip_all)]
@@ -1241,6 +1305,52 @@ where
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
+        header_payload.x_hs_latency,
+    )
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn payments_intent_core<F, Res, Req, Op, D>(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResponse<Res>
+where
+    F: Send + Clone + Sync,
+    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Req: Debug + Authenticate + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    Res: transformers::ToResponse<F, D, Op>,
+{
+    let (payment_data, _req, customer) = payments_intent_operation_core::<_, _, _, _>(
+        &state,
+        req_state,
+        merchant_account,
+        profile,
+        key_store,
+        operation.clone(),
+        req,
+        auth_flow,
+        header_payload.clone(),
+    )
+    .await?;
+
+    Res::generate_response(
+        payment_data,
+        customer,
+        auth_flow,
+        &state.base_url,
+        operation,
+        &state.conf.connector_request_reference_id_config,
+        None,
+        None,
         header_payload.x_hs_latency,
     )
 }
@@ -3488,6 +3598,7 @@ where
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
+    pub session_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -3637,6 +3748,7 @@ where
         "PaymentReject" => true,
         "PaymentSession" => true,
         "PaymentSessionUpdate" => true,
+        "PaymentPostSessionTokens" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -3735,54 +3847,69 @@ pub async fn apply_filters_on_payments(
     merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
-    let limit = &constraints.limit;
-    helpers::validate_payment_list_request_for_joins(*limit)?;
-    let db: &dyn StorageInterface = state.store.as_ref();
-    let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
-    let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
-        .get_filtered_payment_intents_attempt(
-            &(&state).into(),
-            merchant.get_id(),
-            &pi_fetch_constraints,
-            &merchant_key_store,
-            merchant.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let data: Vec<api::PaymentsResponse> =
-        list.into_iter().map(ForeignFrom::foreign_from).collect();
+    common_utils::metrics::utils::record_operation_time(
+        async {
+            let limit = &constraints.limit;
+            helpers::validate_payment_list_request_for_joins(*limit)?;
+            let db: &dyn StorageInterface = state.store.as_ref();
+            let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
+            let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
+                .get_filtered_payment_intents_attempt(
+                    &(&state).into(),
+                    merchant.get_id(),
+                    &pi_fetch_constraints,
+                    &merchant_key_store,
+                    merchant.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let data: Vec<api::PaymentsResponse> =
+                list.into_iter().map(ForeignFrom::foreign_from).collect();
 
-    let active_attempt_ids = db
-        .get_filtered_active_attempt_ids_for_total_count(
-            merchant.get_id(),
-            &pi_fetch_constraints,
-            merchant.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+            let active_attempt_ids = db
+                .get_filtered_active_attempt_ids_for_total_count(
+                    merchant.get_id(),
+                    &pi_fetch_constraints,
+                    merchant.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let total_count = db
-        .get_total_count_of_filtered_payment_attempts(
-            merchant.get_id(),
-            &active_attempt_ids,
-            constraints.connector,
-            constraints.payment_method,
-            constraints.payment_method_type,
-            constraints.authentication_type,
-            constraints.merchant_connector_id,
-            pi_fetch_constraints.get_profile_id_list(),
-            merchant.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let total_count = if constraints.has_no_attempt_filters() {
+                i64::try_from(active_attempt_ids.len())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while converting from usize to i64")
+            } else {
+                db.get_total_count_of_filtered_payment_attempts(
+                    merchant.get_id(),
+                    &active_attempt_ids,
+                    constraints.connector,
+                    constraints.payment_method,
+                    constraints.payment_method_type,
+                    constraints.authentication_type,
+                    constraints.merchant_connector_id,
+                    merchant.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+            }?;
 
-    Ok(services::ApplicationResponse::Json(
-        api::PaymentListResponseV2 {
-            count: data.len(),
-            total_count,
-            data,
+            Ok(services::ApplicationResponse::Json(
+                api::PaymentListResponseV2 {
+                    count: data.len(),
+                    total_count,
+                    data,
+                },
+            ))
         },
-    ))
+        &metrics::PAYMENT_LIST_LATENCY,
+        &metrics::CONTEXT,
+        &[router_env::opentelemetry::KeyValue::new(
+            "merchant_id",
+            merchant.get_id().clone(),
+        )],
+    )
+    .await
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -4190,6 +4317,10 @@ where
                 )?
             }
         };
+
+    // Set the eligible connector in the attempt
+    payment_data
+        .set_connector_in_payment_attempt(Some(eligible_connector_data.connector_name.to_string()));
 
     // Set `NetworkMandateId` as the MandateId
     payment_data.set_mandate_id(payments_api::MandateIds {
@@ -5719,6 +5850,41 @@ pub async fn payments_manual_update(
     ))
 }
 
+pub trait PaymentMethodChecker<F> {
+    fn should_update_in_post_update_tracker(&self) -> bool;
+    fn should_update_in_update_tracker(&self) -> bool;
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
+    fn should_update_in_post_update_tracker(&self) -> bool {
+        let payment_method_type = self
+            .payment_intent
+            .tax_details
+            .as_ref()
+            .and_then(|tax_details| tax_details.payment_method_type.as_ref().map(|pmt| pmt.pmt));
+
+        matches!(
+            payment_method_type,
+            Some(storage_enums::PaymentMethodType::Paypal)
+        )
+    }
+
+    fn should_update_in_update_tracker(&self) -> bool {
+        let payment_method_type = self
+            .payment_intent
+            .tax_details
+            .as_ref()
+            .and_then(|tax_details| tax_details.payment_method_type.as_ref().map(|pmt| pmt.pmt));
+
+        matches!(
+            payment_method_type,
+            Some(storage_enums::PaymentMethodType::ApplePay)
+                | Some(storage_enums::PaymentMethodType::GooglePay)
+        )
+    }
+}
+
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
@@ -5926,7 +6092,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     #[cfg(feature = "v2")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        self.payment_intent.capture_method
+        Some(self.payment_intent.capture_method)
     }
 }
 
@@ -6007,11 +6173,20 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.mandate_id = Some(mandate_id);
     }
 
+    #[cfg(feature = "v1")]
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
     ) {
         self.payment_intent.setup_future_usage = Some(setup_future_usage);
+    }
+
+    #[cfg(feature = "v2")]
+    fn set_setup_future_usage_in_payment_intent(
+        &mut self,
+        setup_future_usage: storage_enums::FutureUsage,
+    ) {
+        self.payment_intent.setup_future_usage = setup_future_usage;
     }
 
     #[cfg(feature = "v1")]
@@ -6228,7 +6403,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
     ) {
-        self.payment_intent.setup_future_usage = Some(setup_future_usage);
+        self.payment_intent.setup_future_usage = setup_future_usage;
     }
 
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {

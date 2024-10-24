@@ -1847,6 +1847,72 @@
           }
         ]
       }
+    },
+    "/v2/refunds": {
+      "post": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Refunds - Create",
+        "description": "Creates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amount has been refunded",
+        "operationId": "Create a Refund",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundsCreateRequest"
+              },
+              "examples": {
+                "Create an instant refund to refund partial amount": {
+                  "value": {
+                    "amount": 654,
+                    "merchant_reference_id": "ref_123",
+                    "payment_id": "{{payment_id}}",
+                    "refund_type": "instant"
+                  }
+                },
+                "Create an instant refund to refund the whole amount": {
+                  "value": {
+                    "merchant_reference_id": "ref_123",
+                    "payment_id": "{{payment_id}}",
+                    "refund_type": "instant"
+                  }
+                },
+                "Create an instant refund with reason": {
+                  "value": {
+                    "amount": 6540,
+                    "merchant_reference_id": "ref_123",
+                    "payment_id": "{{payment_id}}",
+                    "reason": "Customer returned product",
+                    "refund_type": "instant"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Refund created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6018,6 +6084,7 @@
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
         "enum": [
           "AED",
+          "AFN",
           "ALL",
           "AMD",
           "ANG",
@@ -6037,10 +6104,12 @@
           "BOB",
           "BRL",
           "BSD",
+          "BTN",
           "BWP",
           "BYN",
           "BZD",
           "CAD",
+          "CDF",
           "CHF",
           "CLP",
           "CNY",
@@ -6054,6 +6123,7 @@
           "DOP",
           "DZD",
           "EGP",
+          "ERN",
           "ETB",
           "EUR",
           "FJD",
@@ -6075,6 +6145,8 @@
           "ILS",
           "INR",
           "IQD",
+          "IRR",
+          "ISK",
           "JMD",
           "JOD",
           "JPY",
@@ -6082,6 +6154,7 @@
           "KGS",
           "KHR",
           "KMF",
+          "KPW",
           "KRW",
           "KWD",
           "KYD",
@@ -6128,6 +6201,7 @@
           "SAR",
           "SBD",
           "SCR",
+          "SDG",
           "SEK",
           "SGD",
           "SHP",
@@ -6138,8 +6212,11 @@
           "SSP",
           "STN",
           "SVC",
+          "SYP",
           "SZL",
           "THB",
+          "TJS",
+          "TMT",
           "TND",
           "TOP",
           "TRY",
@@ -6161,7 +6238,8 @@
           "XPF",
           "YER",
           "ZAR",
-          "ZMW"
+          "ZMW",
+          "ZWL"
         ]
       },
       "CustomerAcceptance": {
@@ -10217,6 +10295,7 @@
       "NextActionCall": {
         "type": "string",
         "enum": [
+          "post_session_tokens",
           "confirm",
           "sync",
           "complete_authorize"
@@ -13445,7 +13524,7 @@
           "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
               }
             ],
             "nullable": true
@@ -13485,6 +13564,7 @@
       "PaymentsCreateIntentResponse": {
         "type": "object",
         "required": [
+          "id",
           "amount_details",
           "client_secret",
           "capture_method",
@@ -13494,9 +13574,14 @@
           "apply_mit_exemption",
           "payment_link_enabled",
           "request_incremental_authorization",
+          "expires_on",
           "request_external_three_ds_authentication"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
           "amount_details": {
             "$ref": "#/components/schemas/AmountDetails"
           },
@@ -13625,7 +13710,7 @@
           "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentCreatePaymentLinkConfig"
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
               }
             ],
             "nullable": true
@@ -13633,13 +13718,10 @@
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
           },
-          "session_expiry": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config\n(900) for 15 mins",
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds"
           },
           "frm_metadata": {
             "type": "object",
@@ -14068,6 +14150,13 @@
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
           },
           "amount_capturable": {
             "type": "integer",
@@ -14571,6 +14660,11 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session Id",
+            "nullable": true
           }
         }
       },
@@ -15202,6 +15296,13 @@
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
           },
           "amount_capturable": {
             "type": "integer",
@@ -18073,6 +18174,21 @@
           }
         }
       },
+      "RefundErrorDetails": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "RefundListRequest": {
         "allOf": [
           {
@@ -18263,89 +18379,89 @@
       "RefundResponse": {
         "type": "object",
         "required": [
-          "refund_id",
+          "id",
           "payment_id",
           "amount",
           "currency",
           "status",
-          "connector"
+          "created_at",
+          "updated_at",
+          "connector",
+          "profile_id",
+          "merchant_connector_id"
         ],
         "properties": {
-          "refund_id": {
+          "id": {
             "type": "string",
-            "description": "Unique Identifier for the refund"
+            "description": "Global Refund Id for the refund"
           },
           "payment_id": {
             "type": "string",
             "description": "The payment id against which refund is initiated"
           },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.",
+            "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "description": "The refund amount",
             "example": 6540,
             "minimum": 100
           },
           "currency": {
-            "type": "string",
-            "description": "The three-letter ISO currency code"
+            "$ref": "#/components/schemas/Currency"
           },
           "status": {
             "$ref": "#/components/schemas/RefundStatus"
           },
           "reason": {
             "type": "string",
-            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
+            "description": "An arbitrary string attached to the object",
             "nullable": true
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object",
             "nullable": true
           },
-          "error_message": {
-            "type": "string",
-            "description": "The error message",
-            "nullable": true
-          },
-          "error_code": {
-            "type": "string",
-            "description": "The code for the error",
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundErrorDetails"
+              }
+            ],
             "nullable": true
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The timestamp at which refund is created",
-            "nullable": true
+            "description": "The timestamp at which refund is created"
           },
           "updated_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The timestamp at which refund is updated",
-            "nullable": true
+            "description": "The timestamp at which refund is updated"
           },
           "connector": {
-            "type": "string",
-            "description": "The connector used for the refund and the corresponding payment",
-            "example": "stripe"
+            "$ref": "#/components/schemas/Connector"
           },
           "profile_id": {
             "type": "string",
-            "description": "The id of business profile for this refund",
-            "nullable": true
+            "description": "The id of business profile for this refund"
           },
           "merchant_connector_id": {
             "type": "string",
-            "description": "The merchant_connector_id of the processor through which this payment went through",
-            "nullable": true
+            "description": "The merchant_connector_id of the processor through which this payment went through"
           },
-          "charges": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ChargeRefunds"
-              }
-            ],
+          "connector_refund_reference_id": {
+            "type": "string",
+            "description": "The reference id of the connector for the refund",
             "nullable": true
           }
         }
@@ -18381,6 +18497,59 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RefundsCreateRequest": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The payment id against which refund is initiated",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.",
+            "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the amount_captured of the payment",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 100
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for the refund. Often useful for displaying to users and your customer support executive.",
+            "example": "Customer returned the product",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "refund_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RefundType"
+              }
+            ],
+            "default": "Instant",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },
@@ -19127,7 +19296,6 @@
         "type": "object",
         "required": [
           "name",
-          "url",
           "country_code"
         ],
         "properties": {
@@ -19137,7 +19305,8 @@
           },
           "url": {
             "type": "string",
-            "description": "Merchant domain that process payments"
+            "description": "Merchant domain that process payments, required for web payments",
+            "nullable": true
           },
           "country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
@@ -19327,6 +19496,10 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "order_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

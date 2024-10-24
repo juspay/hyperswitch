@@ -4,12 +4,13 @@ use std::collections::HashMap;
 
 use common_enums::{CaptureMethod, PaymentMethodType};
 use common_utils::{
+    crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -36,11 +37,11 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Secret;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use transformers as fiuu;
+use transformers::{self as fiuu, FiuuWebhooksResponse};
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -354,15 +355,44 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: fiuu::FiuuPaymentSyncResponse = parse_response(&res.response)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        match res.headers {
+            Some(headers) => {
+                let content_header = utils::get_http_header("Content-type", &headers)
+                    .attach_printable("Missing content type in headers")
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                let response: fiuu::FiuuPaymentResponse = if content_header
+                    == "text/plain;charset=UTF-8"
+                {
+                    parse_response(&res.response)
+                } else {
+                    Err(errors::ConnectorError::ResponseDeserializationFailed)
+                        .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
+                }?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+            None => {
+                // We don't get headers for payment webhook response handling
+                let response: fiuu::FiuuPaymentResponse = res
+                    .response
+                    .parse_struct("fiuu::FiuuPaymentResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
     }
 
     fn get_error_response(
@@ -652,24 +682,184 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Fiuu {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Md5))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        };
+
+        let signature = match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
+                webhooks_payment_response.skey
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
+                webhooks_refunds_response.signature
+            }
+        };
+        hex::decode(signature.expose())
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        };
+        let verification_message = match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
+                let key0 = format!(
+                    "{}{}{}{}{}{}",
+                    webhooks_payment_response.tran_id,
+                    webhooks_payment_response.order_id,
+                    webhooks_payment_response.status,
+                    webhooks_payment_response.domain.clone().peek(),
+                    webhooks_payment_response.amount.get_amount_as_string(),
+                    webhooks_payment_response.currency
+                );
+                let md5_key0 = hex::encode(
+                    crypto::Md5
+                        .generate_digest(key0.as_bytes())
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                );
+                let key1 = format!(
+                    "{}{}{}{}{}",
+                    webhooks_payment_response.paydate,
+                    webhooks_payment_response.domain.peek(),
+                    md5_key0,
+                    webhooks_payment_response.appcode.peek(),
+                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                );
+                key1
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
+                format!(
+                    "{}{}{}{}{}{}{}{}",
+                    webhooks_refunds_response.refund_type,
+                    webhooks_refunds_response.merchant_id.peek(),
+                    webhooks_refunds_response.ref_id,
+                    webhooks_refunds_response.refund_id,
+                    webhooks_refunds_response.txn_id,
+                    webhooks_refunds_response.amount.get_amount_as_string(),
+                    webhooks_refunds_response.status,
+                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                )
+            }
+        };
+        Ok(verification_message.as_bytes().to_vec())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
+        };
+        let resource_id = match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        webhooks_payment_response.order_id,
+                    ),
+                )
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
+                api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        webhooks_refunds_response.refund_id,
+                    ),
+                )
+            }
+        };
+        Ok(resource_id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+        };
+
+        match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => Ok(
+                api_models::webhooks::IncomingWebhookEvent::from(webhooks_payment_response.status),
+            ),
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => Ok(
+                api_models::webhooks::IncomingWebhookEvent::from(webhooks_refunds_response.status),
+            ),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        };
+
+        match payload.clone() {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhook_payment_response) => Ok(
+                Box::new(fiuu::FiuuPaymentResponse::FiuuWebhooksPaymentResponse(
+                    webhook_payment_response,
+                )),
+            ),
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhook_refund_response) => {
+                Ok(Box::new(fiuu::FiuuRefundSyncResponse::Webhook(
+                    webhook_refund_response,
+                )))
+            }
+        }
     }
 }

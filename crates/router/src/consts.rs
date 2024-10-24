@@ -87,6 +87,11 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
+pub const EMAIL_SUBJECT_API_KEY_EXPIRY: &str = "API Key Expiry Notice";
+pub const EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST: &str = "Dashboard Pro Feature Request by";
+pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
+    "Approval of Recon Request - Access Granted to Recon Dashboard";
+
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
 
 #[cfg(feature = "olap")]
@@ -172,3 +177,6 @@ pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 /// Vault Fingerprint fetch flow type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+
+/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

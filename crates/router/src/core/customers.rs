@@ -219,15 +219,18 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let default_customer_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_customer_billing_address
-            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .async_map(|billing_address| {
+                create_encrypted_data(key_state, key_store, billing_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer billing address")?;
         let default_customer_shipping_address = self.get_default_customer_shipping_address();
-
         let encrypted_customer_shipping_address = default_customer_shipping_address
-            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .async_map(|shipping_address| {
+                create_encrypted_data(key_state, key_store, shipping_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
@@ -1269,18 +1272,20 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         domain_customer: &'a domain::Customer,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let default_billing_address = self.get_default_customer_billing_address();
-
         let encrypted_customer_billing_address = default_billing_address
-            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .async_map(|billing_address| {
+                create_encrypted_data(key_manager_state, key_store, billing_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer billing address")?;
 
         let default_shipping_address = self.get_default_customer_shipping_address();
-
         let encrypted_customer_shipping_address = default_shipping_address
-            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .async_map(|shipping_address| {
+                create_encrypted_data(key_manager_state, key_store, shipping_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)

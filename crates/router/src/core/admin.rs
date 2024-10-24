@@ -3462,9 +3462,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
         let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3579,9 +3582,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
         let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3840,9 +3846,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?
             .map(Secret::new);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3941,9 +3950,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?
             .map(Secret::new);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
