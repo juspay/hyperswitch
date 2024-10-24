@@ -2048,6 +2048,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "masking",
  "router_derive",
  "serde",
  "serde_json",

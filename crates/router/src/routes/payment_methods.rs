@@ -87,7 +87,7 @@ pub async fn create_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationDataV2, req, _| async move {
+        |state, auth: auth::AuthenticationData, req, _| async move {
             Box::pin(create_payment_method(
                 &state,
                 req,
@@ -116,7 +116,7 @@ pub async fn create_payment_method_intent_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationDataV2, req, _| async move {
+        |state, auth: auth::AuthenticationData, req, _| async move {
             Box::pin(payment_method_intent_create(
                 &state,
                 req,
@@ -198,7 +198,7 @@ pub async fn payment_method_update_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             update_payment_method(
                 state,
                 auth.merchant_account,
@@ -231,7 +231,7 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, pm, _| {
+        |state, auth: auth::AuthenticationData, pm, _| {
             retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -258,7 +258,7 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, pm, _| {
+        |state, auth: auth::AuthenticationData, pm, _| {
             delete_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -722,6 +722,7 @@ pub async fn initiate_pm_collect_link_flow(
     .await
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 /// Generate a form link for collecting payment methods for a customer
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
 pub async fn render_pm_collect_link(
@@ -857,6 +858,7 @@ pub async fn payment_method_delete_api(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
 pub async fn list_countries_currencies_for_connector_payment_method(
     state: web::Data<AppState>,
