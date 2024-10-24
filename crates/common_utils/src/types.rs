@@ -484,11 +484,11 @@ impl Sub for MinorUnit {
     }
 }
 
-impl Mul for MinorUnit {
+impl Mul<u16> for MinorUnit {
     type Output = Self;
 
-    fn mul(self, a2: Self) -> Self::Output {
-        Self(self.0 * a2.0)
+    fn mul(self, a2: u16) -> Self::Output {
+        Self(self.0 * i64::from(a2))
     }
 }
 

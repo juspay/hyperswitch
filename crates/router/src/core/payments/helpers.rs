@@ -5451,7 +5451,7 @@ pub fn validate_order_details_amount(
     if should_validate {
         let total_order_details_amount: MinorUnit = order_details
             .iter()
-            .map(|order| order.amount * MinorUnit::new(i64::from(order.quantity)))
+            .map(|order| order.amount * order.quantity)
             .sum();
 
         if total_order_details_amount != amount {
