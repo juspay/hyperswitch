@@ -71,17 +71,22 @@ pub struct PaymentsAuthorizeData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
+    // amount here would include amount, surcharge_amount and shipping_cost
     pub amount: MinorUnit,
+    /// original amount sent by the merchant
+    pub order_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -833,10 +838,13 @@ pub struct PaymentsTaxCalculationData {
 #[derive(Debug, Clone, Default)]
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
-    pub net_amount: MinorUnit,
+    // amount here would include amount, surcharge_amount, order_tax_amount and shipping_cost
     pub amount: MinorUnit,
+    /// original amount sent by the merchant
+    pub order_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub session_id: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone)]
@@ -862,4 +870,5 @@ pub struct SetupMandateRequestData {
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
 }
