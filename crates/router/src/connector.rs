@@ -54,13 +54,13 @@ pub use hyperswitch_connectors::connectors::{
     bambora, bambora::Bambora, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, cashtocode,
     cashtocode::Cashtocode, coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay,
     deutschebank, deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal,
-    dlocal::Dlocal, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu,
-    forte, forte::Forte, globepay, globepay::Globepay, helcim, helcim::Helcim, mollie,
-    mollie::Mollie, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, novalnet,
-    novalnet::Novalnet, payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz,
-    powertranz::Powertranz, square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar,
-    thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline,
-    zen, zen::Zen,
+    dlocal::Dlocal, elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea,
+    fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay,
+    helcim, helcim::Helcim, mollie, mollie::Mollie, nexinets, nexinets::Nexinets, nexixpay,
+    nexixpay::Nexixpay, novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, payu, payu::Payu,
+    powertranz, powertranz::Powertranz, square, square::Square, stax, stax::Stax, taxjar,
+    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
+    worldline::Worldline, zen, zen::Zen,
 };
 
 #[cfg(feature = "dummy_connector")]
