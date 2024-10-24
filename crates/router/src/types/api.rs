@@ -88,9 +88,6 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
             .map(ToString::to_string))
     }
 }
-
-pub trait Router {}
-
 pub trait Connector:
     Send
     + Refund
@@ -434,7 +431,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
-                enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
+                enums::Connector::Mollie => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
@@ -482,7 +481,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
                 }
                 enums::Connector::Worldpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Worldpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))

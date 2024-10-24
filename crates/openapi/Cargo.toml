@@ -12,12 +12,12 @@ utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["frm", "payouts", "openapi"] }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["logs"] }
 router_env = { version = "0.1.0", path = "../router_env" }
 
 [features]
-v2 = ["api_models/v2", "api_models/customer_v2"]
-v1 = ["api_models/v1"]
+v2 = ["api_models/v2", "api_models/customer_v2", "common_utils/v2"]
+v1 = ["api_models/v1", "common_utils/v1"]
 
 [lints]
 workspace = true

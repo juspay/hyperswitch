@@ -118,6 +118,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
@@ -361,7 +362,7 @@ pub struct PaymentsPostProcessingData {
     pub connector_transaction_id: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub header_payload: Option<api_models::payments::HeaderPayload>,
+    pub header_payload: Option<payments::HeaderPayload>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
@@ -526,14 +527,6 @@ pub struct SurchargeDetails {
 }
 
 impl SurchargeDetails {
-    pub fn is_request_surcharge_matching(
-        &self,
-        request_surcharge_details: RequestSurchargeDetails,
-    ) -> bool {
-        request_surcharge_details.surcharge_amount == self.surcharge_amount
-            && request_surcharge_details.tax_amount.unwrap_or_default()
-                == self.tax_on_surcharge_amount
-    }
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
     }
