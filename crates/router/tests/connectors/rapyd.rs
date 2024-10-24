@@ -16,7 +16,7 @@ impl utils::Connector for Rapyd {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Rapyd;
         utils::construct_connector_data_old(
-            Box::new(&Rapyd),
+            Box::new(Rapyd::new()),
             types::Connector::Rapyd,
             types::api::GetToken::Connector,
             None,
