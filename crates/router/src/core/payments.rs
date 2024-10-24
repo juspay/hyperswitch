@@ -5298,7 +5298,10 @@ where
             let routing_choice = choice
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name
+                && connector_data.connector.merchant_connector_id
+                    == routing_choice.connector.merchant_connector_id
+            {
                 final_list.push(connector_data);
             }
         }

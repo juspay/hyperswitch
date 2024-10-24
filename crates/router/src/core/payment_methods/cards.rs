@@ -2980,6 +2980,7 @@ pub async fn list_payment_methods(
             api_enums::PaymentMethodType::ApplePay,
             api_enums::PaymentMethodType::Klarna,
             api_enums::PaymentMethodType::Paypal,
+            api_enums::PaymentMethodType::SamsungPay,
         ]);
 
         let mut chosen = Vec::<api::SessionConnectorData>::new();
