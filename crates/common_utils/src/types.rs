@@ -556,10 +556,6 @@ impl StringMajorUnit {
     fn new(value: String) -> Self {
         Self(value)
     }
-    /// forms a new major unit with zero amount
-    pub fn zero() -> Self {
-        Self("0".to_string())
-    }
 
     /// Converts to minor unit as i64 from StringMajorUnit
     fn to_minor_unit_as_i64(
