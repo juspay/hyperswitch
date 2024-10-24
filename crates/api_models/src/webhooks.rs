@@ -229,16 +229,16 @@ pub struct OutgoingWebhook {
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum OutgoingWebhookContent {
     #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
-    PaymentDetails(payments::PaymentsResponse),
+    PaymentDetails(Box<payments::PaymentsResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
-    RefundDetails(refunds::RefundResponse),
+    RefundDetails(Box<refunds::RefundResponse>),
     #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
     DisputeDetails(Box<disputes::DisputeResponse>),
     #[schema(value_type = MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
-    PayoutDetails(payouts::PayoutCreateResponse),
+    PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize)]

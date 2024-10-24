@@ -116,7 +116,7 @@ mod storage {
                     };
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::ReverseLookUp(new),
+                            insertable: Box::new(kv::Insertable::ReverseLookUp(new)),
                         },
                     };
 

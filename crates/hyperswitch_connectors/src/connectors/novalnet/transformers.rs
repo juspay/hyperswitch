@@ -594,14 +594,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data,
-                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(mandate_reference_id.as_ref().map(|id| {
                             MandateReference {
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
                             }
-                        }),
+                        })),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -995,14 +995,14 @@ impl<F>
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: None,
-                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(mandate_reference_id.as_ref().map(|id| {
                             MandateReference {
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
                             }
-                        }),
+                        })),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -1085,8 +1085,8 @@ impl<F>
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -1254,8 +1254,8 @@ impl<F>
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),

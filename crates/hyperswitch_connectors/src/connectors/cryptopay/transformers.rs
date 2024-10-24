@@ -183,8 +183,8 @@ impl<F, T>
                 .map(|x| RedirectForm::from((x, common_utils::request::Method::Get)));
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.data.id.clone()),
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item

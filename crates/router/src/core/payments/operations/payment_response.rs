@@ -1501,7 +1501,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
-                            let authentication_data = redirection_data
+                            let authentication_data = (*redirection_data)
                                 .as_ref()
                                 .map(Encode::encode_to_value)
                                 .transpose()

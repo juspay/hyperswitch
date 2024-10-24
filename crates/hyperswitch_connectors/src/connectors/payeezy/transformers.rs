@@ -432,8 +432,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
