@@ -1567,13 +1567,11 @@ pub async fn list_customer_payment_method(
         })
         .collect::<Vec<_>>();
 
-    let final_result = futures::future::join_all(pm_list_futures).await;
-
-    let mut customer_pms = Vec::new();
-    for result in final_result.into_iter() {
-        let pma = result.attach_printable("saved pm list failed")?;
-        customer_pms.push(pma);
-    }
+    let customer_pms = futures::future::join_all(pm_list_futures)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .attach_printable("Failed to obtain customer payment methods")?;
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
