@@ -287,58 +287,48 @@ export const connectorDetails = {
         },
       }
     },
-    // SaveCardUseNo3DSAutoCaptureOffSession: {
-    //     Request: {
-    //         payment_method: "card",
-    //         payment_method_data: {
-    //             card: successfulNo3DSCardDetails,
-    //         },
-    //         setup_future_usage: "off_session",
-    //         customer_acceptance: {
-    //             acceptance_type: "offline",
-    //             accepted_at: "1963-05-03T04:07:52.723Z",
-    //             online: {
-    //                 ip_address: "127.0.0.1",
-    //                 user_agent: "amet irure esse",
-    //             },
-    //         },
-    //     },
-    //     Response: {
-    //         status: 200,
-    //         body: {
-    //             status: "processing",
-    //         },
-    //     },
-    // },
-    // SaveCardConfirmAutoCaptureOffSession: {
-    //     Request: {
-    //         setup_future_usage: "off_session",
-    //     },
-    //     Response: {
-    //         status: 400,
-    //         body: {
-    //             type: "invalid_request",
-    //             message: "Missing required param: payment_method_data",
-    //             code: "IR_19",
-    //         },
-    //     },
-    // },
-    // SaveCardConfirmManualCaptureOffSession: {
-    //     Request: {
-    //         setup_future_usage: "off_session",
-    //     },
-    //     Response: {
-    //         status: 400,
-    //         body: {
-    //             error: {
-    //                 type: "invalid_request",
-    //                 message: "Payment method type not supported",
-    //                 code: "IR_19",
-    //                 reason: "debit mandate payment is not supported by worldpay"
-    //             }
-    //         },
-    //     },
-    // },
+    "3DSManualCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        browser_info,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
+        },
+      },
+    },
+    "3DSAutoCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        browser_info,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
+        },
+      },
+    },
 
     /**
      * Variation cases
@@ -390,51 +380,9 @@ export const connectorDetails = {
 
     /**
      * Not implemented or not ready for running test cases
-     * - 3DS
      * - Refunds
+     * - Mandates
      */
-    "3DSManualCapture": {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        browser_info,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
-        },
-      },
-    },
-    "3DSAutoCapture": {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        browser_info,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
-        },
-      },
-    },
     Refund: {
       Request: {},
       Response: {
@@ -501,8 +449,4 @@ export const connectorDetails = {
       },
     },
   },
-
-  /**
-   * Everything below this line is not supported by WP, but need to provide details for running the test cases
-   */
 }
