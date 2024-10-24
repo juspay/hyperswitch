@@ -37,7 +37,8 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
-pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str = "Success rate based dynamic routing algorithm";
+pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
+    "Success rate based dynamic routing algorithm";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
