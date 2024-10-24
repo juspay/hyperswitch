@@ -4,7 +4,12 @@ use std::str::FromStr;
 
 use cards::CardNumber;
 use common_utils::{
-    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, errors, ext_traits::OptionExt, id_type, link_utils, pii, types::{MinorUnit, Percentage, Surcharge}
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
+    crypto::OptionalEncryptableName,
+    errors,
+    ext_traits::OptionExt,
+    id_type, link_utils, pii,
+    types::{MinorUnit, Percentage, Surcharge},
 };
 use masking::PeekInterface;
 use serde::de;
@@ -2134,7 +2139,7 @@ pub struct PaymentMethodRecord {
     pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub nick_name: masking::Secret<String>,
@@ -2255,28 +2260,43 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
     }
 }
 
-impl TryFrom<PaymentMethodRecord> for PaymentMethodMigrate {
+impl
+    TryFrom<(
+        PaymentMethodRecord,
+        id_type::MerchantId,
+        Option<id_type::MerchantConnectorAccountId>,
+    )> for PaymentMethodMigrate
+{
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(
-        record: PaymentMethodRecord,
+        item: (
+            PaymentMethodRecord,
+            id_type::MerchantId,
+            Option<id_type::MerchantConnectorAccountId>,
+        ),
     ) -> Result<Self, Self::Error> {
-        
+        let (record, merchant_id, mca_id) = item;
+
         //  if payment instrument id is present then only construct this
         let connector_mandate_details = if record.payment_instrument_id.is_some() {
-            Some(PaymentsMandateReference(HashMap::from([
-                (record.merchant_connector_id.get_required_value("merchant_connector_id")?,
-                    PaymentsMandateReferenceRecord {
-                        connector_mandate_id: record.payment_instrument_id.get_required_value("payment_instrument_id")?.peek().to_string(),
-                        payment_method_type: record.payment_method_type,
-                        original_payment_authorized_amount: record.original_transaction_amount,
-                        original_payment_authorized_currency: record.original_transaction_currency,
-                    })
-            ])))
+            Some(PaymentsMandateReference(HashMap::from([(
+                mca_id.get_required_value("merchant_connector_id")?,
+                PaymentsMandateReferenceRecord {
+                    connector_mandate_id: record
+                        .payment_instrument_id
+                        .get_required_value("payment_instrument_id")?
+                        .peek()
+                        .to_string(),
+                    payment_method_type: record.payment_method_type,
+                    original_payment_authorized_amount: record.original_transaction_amount,
+                    original_payment_authorized_currency: record.original_transaction_currency,
+                },
+            )])))
         } else {
             None
         };
         Ok(Self {
-            merchant_id: record.merchant_id,
+            merchant_id,
             customer_id: Some(record.customer_id),
             card: Some(MigrateCardDetail {
                 card_number: record.raw_card_number.unwrap_or(record.card_number_masked),
@@ -2342,11 +2362,12 @@ impl TryFrom<PaymentMethodRecord> for PaymentMethodMigrate {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl From<PaymentMethodRecord> for customers::CustomerRequest {
-    fn from(record: PaymentMethodRecord) -> Self {
+impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerRequest {
+    fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
+        let (record, merchant_id) = value;
         Self {
             customer_id: Some(record.customer_id),
-            merchant_id: record.merchant_id,
+            merchant_id,
             name: record.name,
             email: record.email,
             phone: record.phone,

@@ -1226,10 +1226,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        migration_status.connector_mandate_details_migrated = connector_mandate_details
-            .clone()
-            .map(|_| true)
-            .or_else(|| req.connector_mandate_details.clone().map(|_| false));
+        
 
     if condition {
         Box::pin(add_payment_method_for_migrate_api(
@@ -1242,6 +1239,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         .await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+        
 
         let res = create_payment_method(
             state,
@@ -1254,7 +1252,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
             None,
             None,
             key_store,
-            connector_mandate_details,
+            connector_mandate_details.clone(),
             Some(enums::PaymentMethodStatus::AwaitingData),
             None,
             merchant_account.storage_scheme,
@@ -1265,6 +1263,10 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
             None,
         )
         .await?;
+        migration_status.connector_mandate_details_migrated = connector_mandate_details
+            .clone()
+            .map(|_| true)
+            .or_else(|| req.connector_mandate_details.clone().map(|_| false));
 
         migration_status.card_migrated = Some(false); //card is not migrated in this case
 
