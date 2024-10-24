@@ -10,6 +10,7 @@ mod refund_count;
 mod refund_processed_amount;
 mod refund_success_count;
 mod refund_success_rate;
+mod sessionized_metrics;
 use std::collections::HashSet;
 
 use refund_count::RefundCount;
@@ -98,6 +99,26 @@ where
             }
             Self::RefundProcessedAmount => {
                 RefundProcessedAmount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundSuccessRate => {
+                sessionized_metrics::RefundSuccessRate::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundCount => {
+                sessionized_metrics::RefundCount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundSuccessCount => {
+                sessionized_metrics::RefundSuccessCount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundProcessedAmount => {
+                sessionized_metrics::RefundProcessedAmount::default()
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
