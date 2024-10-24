@@ -35,7 +35,7 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
-pub const DYNAMIC_ALGORITHM_NAME: &str  = "Dynamic routing algorithm";
+pub const DYNAMIC_ALGORITHM_NAME: &str = "Dynamic routing algorithm";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
