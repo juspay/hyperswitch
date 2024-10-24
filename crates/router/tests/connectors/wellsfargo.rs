@@ -11,7 +11,7 @@ impl utils::Connector for WellsfargoTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Wellsfargo;
         utils::construct_connector_data_old(
-            Box::new(&Wellsfargo),
+            Box::new(Wellsfargo::new()),
             types::Connector::Wellsfargo,
             api::GetToken::Connector,
             None,
