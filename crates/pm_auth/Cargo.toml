@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-v1 = ["api_models/v1"]
+v1 = ["api_models/v1", "common_utils/v1"]
 
 [dependencies]
 # First party crates

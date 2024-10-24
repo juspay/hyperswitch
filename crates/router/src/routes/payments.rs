@@ -5,9 +5,9 @@ use crate::{
 pub mod helpers;
 
 use actix_web::{web, Responder};
-use api_models::payments::HeaderPayload;
 use common_enums::EntityType;
 use error_stack::report;
+use hyperswitch_domain_models::payments::HeaderPayload;
 use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -138,9 +138,8 @@ pub async fn payments_create_intent(
                 auth.merchant_account,
                 auth.profile,
                 auth.key_store,
-                payments::operations::PaymentCreateIntent,
+                payments::operations::PaymentIntentCreate,
                 req,
-                api::AuthFlow::Client,
                 header_payload.clone(),
             )
         },
@@ -1975,6 +1974,128 @@ pub async fn get_payments_aggregates_profile(
             minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+/// A private module to hold internal types to be used in route handlers.
+/// This is because we will need to implement certain traits on these types which will have the resource id
+/// But the api payload will not contain the resource id
+/// So these types can hold the resource id along with actual api payload, on which api event and locking action traits can be implemented
+mod internal_payload_types {
+    use super::*;
+
+    // Serialize is implemented because of api events
+    #[derive(Debug, serde::Serialize)]
+    pub struct PaymentsGenericRequestWithResourceId<T: serde::Serialize> {
+        pub global_payment_id: common_utils::id_type::GlobalPaymentId,
+        #[serde(flatten)]
+        pub payload: T,
+    }
+
+    impl<T: serde::Serialize> GetLockingInput for PaymentsGenericRequestWithResourceId<T> {
+        fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+        where
+            F: types::FlowMetric,
+            lock_utils::ApiIdentifier: From<F>,
+        {
+            api_locking::LockAction::Hold {
+                input: api_locking::LockingInput {
+                    unique_locking_key: self.global_payment_id.get_string_repr().to_owned(),
+                    api_identifier: lock_utils::ApiIdentifier::from(flow),
+                    override_lock_retries: None,
+                },
+            }
+        }
+    }
+
+    impl<T: serde::Serialize> common_utils::events::ApiEventMetric
+        for PaymentsGenericRequestWithResourceId<T>
+    {
+        fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+            Some(common_utils::events::ApiEventsType::Payment {
+                payment_id: self.global_payment_id.clone(),
+            })
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirmIntent, payment_id))]
+pub async fn payment_confirm_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<api_models::payments::PaymentsConfirmIntentRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use hyperswitch_domain_models::payments::PaymentConfirmData;
+
+    let flow = Flow::PaymentsConfirmIntent;
+
+    // TODO: Populate browser information into the payload
+    // if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+    //     return api::log_and_return_error_response(err);
+    // }
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload: json_payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    // TODO: handle client secret auth
+    // let (auth_type, auth_flow) =
+    //     match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+    //         Ok(auth) => auth,
+    //         Err(e) => return api::log_and_return_error_response(e),
+    //     };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+
+            let operation = payments::operations::PaymentIntentConfirm;
+
+            Box::pin(payments::payments_core::<
+                api_types::Authorize,
+                api_models::payments::PaymentsConfirmIntentResponse,
+                _,
+                _,
+                _,
+                PaymentConfirmData<api_types::Authorize>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                operation,
+                request,
+                payment_id,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+            ))
+            .await
+        },
+        &auth::PublishableKeyAuth,
+        locking_action,
     ))
     .await
 }
