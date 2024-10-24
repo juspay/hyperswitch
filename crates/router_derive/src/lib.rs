@@ -696,7 +696,12 @@ pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     proc_macro::TokenStream::from(expanded)
 }
 
-/// Generates the function to convert struct to Key, Value pair
+/// Generates the ToEncryptable trait for a type
+///
+/// This macro generates the Temperory structs which has the fields that needs to be encrypted
+///
+/// fn to_encryptable: Convert the temp struct to a hashmap that can be sent over the network
+/// fn from_encryptable: Convert the hashmap back to temp struct
 #[proc_macro_derive(ToEncryption, attributes(encrypt))]
 pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
