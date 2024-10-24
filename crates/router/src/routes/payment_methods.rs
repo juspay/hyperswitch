@@ -29,7 +29,6 @@ use crate::{
         domain,
         storage::payment_method::PaymentTokenData,
     },
-    utils::Encode,
 };
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),

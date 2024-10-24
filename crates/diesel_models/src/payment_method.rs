@@ -324,36 +324,50 @@ pub struct PaymentMethodUpdateInternal {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodUpdateInternal {
-    pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
-        let metadata = self.metadata;
-
-        PaymentMethod { metadata, ..source }
-    }
-
     pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
         let Self {
-            metadata,
             payment_method_data,
             last_used_at,
             network_transaction_id,
             status,
+            locker_id,
+            payment_method,
             connector_mandate_details,
             updated_by,
-            ..
+            payment_method_type,
+            last_modified,
+            network_token_requestor_reference_id,
+            network_token_locker_id,
+            network_token_payment_method_data,
         } = self;
 
         PaymentMethod {
             metadata: metadata.map_or(source.metadata, Some),
-            payment_method_data: payment_method_data.map_or(source.payment_method_data, Some),
+            customer_id: source.customer_id,
+            merchant_id: source.merchant_id,
+            created_at: source.created_at,
+            last_modified,
+            payment_method: payment_method.or(source.payment_method),
+            payment_method_type: payment_method_type.or(source.payment_method_type),
+            payment_method_data: payment_method_data.or(source.payment_method_data),
+            locker_id: locker_id.or(source.locker_id),
             last_used_at: last_used_at.unwrap_or(source.last_used_at),
-            network_transaction_id: network_transaction_id
-                .map_or(source.network_transaction_id, Some),
-            status: status.unwrap_or(source.status),
             connector_mandate_details: connector_mandate_details
-                .map_or(source.connector_mandate_details, Some),
-            updated_by: updated_by.map_or(source.updated_by, Some),
-            last_modified: common_utils::date_time::now(),
-            ..source
+                .or(source.connector_mandate_details),
+            customer_acceptance: source.customer_acceptance,
+            status: status.unwrap_or(source.status),
+            network_transaction_id: network_transaction_id.or(source.network_transaction_id),
+            client_secret: source.client_secret,
+            payment_method_billing_address: source.payment_method_billing_address,
+            updated_by: updated_by.or(source.updated_by),
+            locker_fingerprint_id: source.locker_fingerprint_id,
+            id: source.id,
+            version: source.version,
+            network_token_requestor_reference_id: network_token_requestor_reference_id
+                .or(source.network_token_requestor_reference_id),
+            network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
+            network_token_payment_method_data: network_token_payment_method_data
+                .or(source.network_token_payment_method_data),
         }
     }
 }
@@ -387,12 +401,6 @@ pub struct PaymentMethodUpdateInternal {
     not(feature = "payment_methods_v2")
 ))]
 impl PaymentMethodUpdateInternal {
-    pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
-        let metadata = self.metadata.map(Secret::new);
-
-        PaymentMethod { metadata, ..source }
-    }
-
     pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
         let Self {
             metadata,
@@ -400,23 +408,56 @@ impl PaymentMethodUpdateInternal {
             last_used_at,
             network_transaction_id,
             status,
+            locker_id,
+            network_token_requestor_reference_id,
+            payment_method,
             connector_mandate_details,
             updated_by,
-            ..
+            payment_method_type,
+            payment_method_issuer,
+            last_modified,
+            network_token_locker_id,
+            network_token_payment_method_data,
         } = self;
 
         PaymentMethod {
+            customer_id: source.customer_id,
+            merchant_id: source.merchant_id,
+            payment_method_id: source.payment_method_id,
+            accepted_currency: source.accepted_currency,
+            scheme: source.scheme,
+            token: source.token,
+            cardholder_name: source.cardholder_name,
+            issuer_name: source.issuer_name,
+            issuer_country: source.issuer_country,
+            payer_country: source.payer_country,
+            is_stored: source.is_stored,
+            swift_code: source.swift_code,
+            direct_debit_token: source.direct_debit_token,
+            created_at: source.created_at,
+            last_modified,
+            payment_method: payment_method.or(source.payment_method),
+            payment_method_type: payment_method_type.or(source.payment_method_type),
+            payment_method_issuer: payment_method_issuer.or(source.payment_method_issuer),
+            payment_method_issuer_code: source.payment_method_issuer_code,
             metadata: metadata.map_or(source.metadata, |v| Some(v.into())),
-            payment_method_data: payment_method_data.map_or(source.payment_method_data, Some),
+            payment_method_data: payment_method_data.or(source.payment_method_data),
+            locker_id: locker_id.or(source.locker_id),
             last_used_at: last_used_at.unwrap_or(source.last_used_at),
-            network_transaction_id: network_transaction_id
-                .map_or(source.network_transaction_id, Some),
-            status: status.unwrap_or(source.status),
             connector_mandate_details: connector_mandate_details
-                .map_or(source.connector_mandate_details, Some),
-            updated_by: updated_by.map_or(source.updated_by, Some),
-            last_modified: common_utils::date_time::now(),
-            ..source
+                .or(source.connector_mandate_details),
+            customer_acceptance: source.customer_acceptance,
+            status: status.unwrap_or(source.status),
+            network_transaction_id: network_transaction_id.or(source.network_transaction_id),
+            client_secret: source.client_secret,
+            payment_method_billing_address: source.payment_method_billing_address,
+            updated_by: updated_by.or(source.updated_by),
+            version: source.version,
+            network_token_requestor_reference_id: network_token_requestor_reference_id
+                .or(source.network_token_requestor_reference_id),
+            network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
+            network_token_payment_method_data: network_token_payment_method_data
+                .or(source.network_token_payment_method_data),
         }
     }
 }
