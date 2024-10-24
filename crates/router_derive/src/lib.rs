@@ -644,6 +644,7 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
 ///     ("address.zip", "941222"),
 ///     ("email", "test@example.com"),
 /// ]
+///
 #[proc_macro_derive(FlatStruct)]
 pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);

@@ -1,9 +1,38 @@
 use std::iter::Iterator;
 
 use quote::{format_ident, quote};
-use syn::{punctuated::Punctuated, token::Comma, Field, Ident, Type as SynType};
+use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Field, Ident, Type as SynType};
 
 use crate::macros::{helpers::get_struct_fields, misc::get_field_type};
+
+pub struct FieldMeta {
+    _meta_type: Ident,
+    pub value: Ident,
+}
+
+impl Parse for FieldMeta {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let _meta_type: Ident = input.parse()?;
+        input.parse::<syn::Token![=]>()?;
+        let value: Ident = input.parse()?;
+        Ok(Self { _meta_type, value })
+    }
+}
+
+impl quote::ToTokens for FieldMeta {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        self.value.to_tokens(tokens);
+    }
+}
+
+fn get_encryption_ty_meta(field: &Field) -> Option<FieldMeta> {
+    let attrs = &field.attrs;
+
+    attrs
+        .iter()
+        .flat_map(|s| s.parse_args::<FieldMeta>())
+        .find(|s| s._meta_type.eq("ty"))
+}
 
 fn get_inner_type(path: &syn::TypePath) -> syn::Result<syn::TypePath> {
     path.path
@@ -99,11 +128,16 @@ impl StructType {
         fields
             .iter()
             .map(|(field, inner_ty)| {
+                let provided_ty = get_encryption_ty_meta(field);
                 let is_option = get_field_type(field.ty.clone())
                     .map(|f| f.eq("Option"))
                     .unwrap_or_default();
                 let ident = &field.ident;
-
+                let inner_ty = if let Some(ref ty) = provided_ty {
+                    &ty.value
+                } else {
+                    inner_ty
+                };
                 match (self, is_option) {
                     (Self::Encrypted, true) => quote! { pub #ident: Option<Encryption> },
                     (Self::Encrypted, false) => quote! { pub #ident: Encryption },
